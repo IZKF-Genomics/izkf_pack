@@ -1,0 +1,2 @@
+template=fastqc
+sample=test_sample

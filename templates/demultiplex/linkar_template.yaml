@@ -1,0 +1,92 @@
+id: demultiplex
+version: 0.1.0
+description: Clone and run the upstream demultiplexing_prefect pipeline.
+params:
+  mode:
+    type: str
+    required: true
+    description: Pipeline stage. Use demux to run demultiplexing plus QC, or qc to run QC-only.
+  qc_tool:
+    type: str
+    required: true
+    description: QC tool passed to the upstream pipeline. Supported values are fastqc, fastp, or falco.
+  threads:
+    type: int
+    default: 4
+    description: Global CPU thread budget for QC and contamination stages.
+  run_name:
+    type: str
+    default: ""
+    description: Optional run label forwarded to the upstream pipeline.
+  bcl_dir:
+    type: path
+    default: ""
+    description: Required in demux mode. BCL run folder for bcl-convert.
+  samplesheet:
+    type: path
+    default: ""
+    description: Optional explicit sample sheet. If omitted in demux mode, the template can fetch one from the facility API.
+  use_api_samplesheet:
+    type: bool
+    default: true
+    description: In demux mode, fetch the samplesheet from the facility API when samplesheet is not provided.
+  agendo_id:
+    type: str
+    default: ""
+    description: Optional request identifier used as API fallback when the flowcell lookup is not found.
+  flowcell_id:
+    type: str
+    default: ""
+    description: Optional flowcell id override used for API samplesheet lookup. If omitted, it is derived from bcl_dir.
+  manifest_tsv:
+    type: path
+    default: ""
+    description: Manifest TSV. In qc mode this is an input; in demux mode it overrides the output manifest path.
+  in_fastq_dir:
+    type: path
+    default: ""
+    description: Required in qc mode if manifest_tsv is not provided.
+  contamination_tool:
+    type: str
+    default: none
+    description: Optional contamination stage. Supported values are kraken, kraken_bracken, fastq_screen, or none.
+  kraken_db:
+    type: path
+    default: ""
+    description: Kraken2 database directory.
+  bracken_db:
+    type: path
+    default: ""
+    description: Bracken database directory.
+  fastq_screen_conf:
+    type: path
+    default: ""
+    description: FastQ Screen configuration file.
+outputs:
+  results_dir: {}
+  output_dir: {}
+  demux_fastq_files:
+    glob: output/**/*.fastq.gz
+  fastqc_dir: {}
+  fastqc_reports:
+    glob: fastqc/*_fastqc.html
+  fastp_dir: {}
+  fastp_html_reports:
+    glob: fastp/*.html
+  fastp_json_reports:
+    glob: fastp/*.json
+  fastp_passthrough_dir: {}
+  fastp_passthrough_fastq_files:
+    glob: fastp_passthrough/**/*.fastq.gz
+  falco_dir: {}
+  falco_reports:
+    glob: falco/**/*.html
+  contamination_dir: {}
+  contamination_outputs:
+    glob: contamination/**/*
+  multiqc_dir: {}
+  multiqc_report:
+    path: multiqc/multiqc_report.html
+run:
+  entry: run.sh
+  mode: direct

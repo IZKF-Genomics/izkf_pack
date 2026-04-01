@@ -1,0 +1,6 @@
+templates:
+  multiqc:
+    params:
+      input_dir:
+        template: demultiplex
+        output: results_dir
