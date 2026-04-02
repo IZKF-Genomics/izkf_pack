@@ -199,6 +199,7 @@ def main() -> None:
     assert 'bash ./launch_nfcore_3mrnaseq.sh' in template_text
     assert '"${SAMPLESHEET}"' in template_text
     assert '"${GENOME}"' in template_text
+    assert template_text.index("  agendo_id:") < template_text.index("  genome:")
     print("nfcore_3mrnaseq template test passed")
 
 

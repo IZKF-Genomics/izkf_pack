@@ -6,6 +6,10 @@ tools:
     - nextflow
     - docker
 params:
+  agendo_id:
+    type: str
+    default: ""
+    description: Optional Agendo request id used to derive genome, UMI metadata, and spike-in metadata via the default binding.
   samplesheet:
     type: path
     required: true
@@ -14,10 +18,6 @@ params:
     type: str
     required: true
     description: Facility genome identifier such as GRCh38, GRCm39, mRatBN7.2, or Sscrofa11.1.
-  agendo_id:
-    type: str
-    default: ""
-    description: Optional Agendo request id used to derive genome, UMI metadata, and spike-in metadata via the default binding.
   umi:
     type: str
     default: ""
