@@ -1,0 +1,57 @@
+id: nfcore_3mrnaseq
+version: 0.1.0
+description: Facility-specific nf-core/rnaseq wrapper for 3' mRNA-seq runs.
+tools:
+  required:
+    - nextflow
+    - docker
+params:
+  samplesheet:
+    type: path
+    required: true
+    description: nf-core/rnaseq input samplesheet. With --binding default it can be generated from the latest demultiplex outputs in the active project.
+  genome:
+    type: str
+    required: true
+    description: Facility genome identifier such as GRCh38, GRCm39, mRatBN7.2, or Sscrofa11.1.
+  agendo_id:
+    type: str
+    default: ""
+    description: Optional Agendo request id used to derive genome, UMI metadata, and spike-in metadata via the default binding.
+  umi:
+    type: str
+    default: ""
+    description: Optional UMI kit description. The known Takara QuantSeq phrase enables the nf-core UMI flags.
+  spikein:
+    type: str
+    default: ""
+    description: Optional spike-in description. Values containing ERCC append _with_ERCC to the selected genome.
+  max_cpus:
+    type: int
+    required: false
+    description: Optional CPU cap forwarded to nf-core/rnaseq. The default binding sets this to 80 percent of host CPUs.
+  max_memory:
+    type: str
+    default: ""
+    description: Optional memory cap forwarded to nf-core/rnaseq. The default binding sets this to 80 percent of host RAM when detectable.
+outputs:
+  results_dir: {}
+  multiqc_dir:
+    path: multiqc
+  multiqc_report:
+    path: multiqc/multiqc_report.html
+  salmon_dir:
+    path: salmon
+  pipeline_info_dir:
+    path: pipeline_info
+run:
+  mode: render
+  command: >-
+    bash ./launch_nfcore_3mrnaseq.sh
+    "${LINKAR_RESULTS_DIR}"
+    "${SAMPLESHEET}"
+    "${GENOME}"
+    "${UMI}"
+    "${SPIKEIN}"
+    "${MAX_CPUS}"
+    "${MAX_MEMORY}"
