@@ -204,11 +204,25 @@ def test_agendo_genome_unknown_organism_returns_placeholder() -> None:
         class CachedContext:
             def __init__(self) -> None:
                 self.resolved_params = {"agendo_id": "99999"}
+                self.warnings = []
+
+            def warn(self, message: str, *, action: str | None = None, fallback=None) -> None:
+                self.warnings.append(
+                    {"message": message, "action": action, "fallback": fallback}
+                )
 
         env_before = os.environ.get("LINKAR_HOME")
         os.environ["LINKAR_HOME"] = str(tmpdir)
         try:
-            assert load_function("get_agendo_genome")(CachedContext()) == "__EDIT_ME_GENOME__"
+            ctx = CachedContext()
+            assert load_function("get_agendo_genome")(ctx) == "__EDIT_ME_GENOME__"
+            assert ctx.warnings == [
+                {
+                    "message": "Could not derive genome from Agendo organism 'other'.",
+                    "action": "Edit run.sh and replace __EDIT_ME_GENOME__ before execution.",
+                    "fallback": "__EDIT_ME_GENOME__",
+                }
+            ]
         finally:
             if env_before is None:
                 os.environ.pop("LINKAR_HOME", None)
