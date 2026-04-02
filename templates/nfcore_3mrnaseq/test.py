@@ -9,6 +9,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import yaml
+
 
 TEMPLATE_DIR = Path(__file__).resolve().parent
 FUNCTIONS_DIR = TEMPLATE_DIR.parent.parent / "functions"
@@ -65,28 +67,68 @@ def make_fake_nextflow_bin(root: Path) -> Path:
     return bin_dir
 
 
-def test_launch_script() -> None:
+def render_command_script(
+    *,
+    results_dir: Path,
+    samplesheet: Path,
+    genome: str,
+    umi: str,
+    spikein: str,
+    max_cpus: str,
+    max_memory: str,
+) -> str:
+    template_data = yaml.safe_load((TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8"))
+    command = template_data["run"]["command"]
+
+    def escape_for_double_quotes(value: str) -> str:
+        return (
+            value.replace("\\", "\\\\")
+            .replace('"', '\\"')
+            .replace("$", "\\$")
+            .replace("`", "\\`")
+        )
+
+    replacements = {
+        "LINKAR_RESULTS_DIR": escape_for_double_quotes(str(results_dir)),
+        "SAMPLESHEET": escape_for_double_quotes(str(samplesheet)),
+        "GENOME": escape_for_double_quotes(genome),
+        "UMI": escape_for_double_quotes(umi),
+        "SPIKEIN": escape_for_double_quotes(spikein),
+        "MAX_CPUS": escape_for_double_quotes(max_cpus),
+        "MAX_MEMORY": escape_for_double_quotes(max_memory),
+    }
+    for key, value in replacements.items():
+        command = command.replace(f"${{{key}}}", value)
+        command = command.replace(f"${{{key}:-}}", value)
+    return "#!/usr/bin/env bash\nset -euo pipefail\n\n" + command
+
+
+def test_rendered_run_script() -> None:
     with tempfile.TemporaryDirectory(prefix="linkar-nfcore-3mrnaseq-test-") as tmp:
         tmpdir = Path(tmp)
         fake_bin = make_fake_nextflow_bin(tmpdir)
         samplesheet = tmpdir / "samplesheet.csv"
         samplesheet.write_text("sample,fastq_1,fastq_2,strandedness\nS1,R1.fastq.gz,R2.fastq.gz,forward\n", encoding="utf-8")
         results_dir = tmpdir / "results"
+        run_script = tmpdir / "run.sh"
+        run_script.write_text(
+            render_command_script(
+                results_dir=results_dir,
+                samplesheet=samplesheet,
+                genome="GRCh38",
+                umi="UMI Second Strand SynthesisModule for QuantSeq FWD",
+                spikein="ERCC RNA Spike-in Mix",
+                max_cpus="16",
+                max_memory="64GB",
+            ),
+            encoding="utf-8",
+        )
+        run_script.chmod(0o755)
         env = os.environ.copy()
         env["PATH"] = f"{fake_bin}:{env.get('PATH', '')}"
         env["NFCORE_ARGS_LOG"] = str(tmpdir / "args.log")
         completed = subprocess.run(
-            [
-                "bash",
-                str(TEMPLATE_DIR / "launch_nfcore_3mrnaseq.sh"),
-                str(results_dir),
-                str(samplesheet),
-                "GRCh38",
-                "UMI Second Strand SynthesisModule for QuantSeq FWD",
-                "ERCC RNA Spike-in Mix",
-                "16",
-                "64GB",
-            ],
+            [str(run_script)],
             cwd=TEMPLATE_DIR,
             env=env,
             text=True,
@@ -231,12 +273,12 @@ def test_agendo_genome_unknown_organism_returns_placeholder() -> None:
 
 
 def main() -> None:
-    test_launch_script()
+    test_rendered_run_script()
     test_samplesheet_binding()
     test_agendo_bindings_use_cached_metadata()
     test_agendo_genome_unknown_organism_returns_placeholder()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
-    assert 'bash ./launch_nfcore_3mrnaseq.sh' in template_text
+    assert "nextflow" in template_text
     assert '"${SAMPLESHEET}"' in template_text
     assert '"${GENOME}"' in template_text
     assert template_text.index("  agendo_id:") < template_text.index("  genome:")
