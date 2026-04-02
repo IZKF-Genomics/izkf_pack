@@ -281,6 +281,8 @@ def main() -> None:
     assert "nextflow" in template_text
     assert '"${SAMPLESHEET}"' in template_text
     assert '"${GENOME}"' in template_text
+    assert 'samplesheet="${SAMPLESHEET}"' not in template_text
+    assert 'effective_genome="${GENOME}"' in template_text
     assert template_text.index("  agendo_id:") < template_text.index("  genome:")
     print("nfcore_3mrnaseq template test passed")
 
