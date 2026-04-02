@@ -3,6 +3,8 @@ templates:
     params:
       samplesheet:
         function: get_api_samplesheet
+      threads:
+        function: get_host_max_cpus
   nfcore_3mrnaseq:
     params:
       samplesheet:
