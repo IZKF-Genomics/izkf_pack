@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
+
+
+GENOME_PLACEHOLDER = "__EDIT_ME_GENOME__"
 
 
 def _load_agendo_common():
@@ -25,5 +29,10 @@ def resolve(ctx) -> str:
     }
     genome = mapping.get(organism)
     if not genome:
-        raise RuntimeError(f"Unsupported organism '{organism}' for genome derivation")
+        print(
+            f"[warning] Unsupported organism '{organism}' for genome derivation; "
+            f"rendering template with placeholder genome {GENOME_PLACEHOLDER}.",
+            file=sys.stderr,
+        )
+        return GENOME_PLACEHOLDER
     return genome

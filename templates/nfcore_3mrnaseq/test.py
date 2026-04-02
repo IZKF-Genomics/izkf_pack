@@ -191,10 +191,36 @@ def test_agendo_bindings_use_cached_metadata() -> None:
                 os.environ["LINKAR_HOME"] = env_before
 
 
+def test_agendo_genome_unknown_organism_returns_placeholder() -> None:
+    with tempfile.TemporaryDirectory(prefix="linkar-nfcore-agendo-unknown-") as tmp:
+        tmpdir = Path(tmp)
+        cache_dir = tmpdir / "agendo"
+        cache_dir.mkdir(parents=True)
+        (cache_dir / "99999.json").write_text(
+            json.dumps({"organism": "other"}),
+            encoding="utf-8",
+        )
+
+        class CachedContext:
+            def __init__(self) -> None:
+                self.resolved_params = {"agendo_id": "99999"}
+
+        env_before = os.environ.get("LINKAR_HOME")
+        os.environ["LINKAR_HOME"] = str(tmpdir)
+        try:
+            assert load_function("get_agendo_genome")(CachedContext()) == "__EDIT_ME_GENOME__"
+        finally:
+            if env_before is None:
+                os.environ.pop("LINKAR_HOME", None)
+            else:
+                os.environ["LINKAR_HOME"] = env_before
+
+
 def main() -> None:
     test_launch_script()
     test_samplesheet_binding()
     test_agendo_bindings_use_cached_metadata()
+    test_agendo_genome_unknown_organism_returns_placeholder()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     assert 'bash ./launch_nfcore_3mrnaseq.sh' in template_text
     assert '"${SAMPLESHEET}"' in template_text

@@ -9,6 +9,11 @@ spikein="${5:-}"
 max_cpus="${6:-}"
 max_memory="${7:-}"
 
+if [[ -z "${genome}" || "${genome}" == "__EDIT_ME_GENOME__" ]]; then
+  echo "[error] genome is unresolved. Edit run.sh and replace __EDIT_ME_GENOME__ with a supported genome before running." >&2
+  exit 2
+fi
+
 if [[ -n "${spikein}" && "${spikein}" == *ERCC* ]]; then
   genome="${genome}_with_ERCC"
 fi
