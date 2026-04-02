@@ -105,12 +105,12 @@ def test_launch_script() -> None:
 
 
 class FakeProject:
-    def __init__(self, results_dir: Path) -> None:
+    def __init__(self, fastq_files: list[str]) -> None:
         self.data = {
             "templates": [
                 {
                     "id": "demultiplex",
-                    "outputs": {"results_dir": str(results_dir)},
+                    "outputs": {"demux_fastq_files": fastq_files},
                 }
             ]
         }
@@ -121,8 +121,8 @@ class FakeTemplate:
 
 
 class FakeContext:
-    def __init__(self, results_dir: Path) -> None:
-        self.project = FakeProject(results_dir)
+    def __init__(self, fastq_files: list[str]) -> None:
+        self.project = FakeProject(fastq_files)
         self.template = FakeTemplate()
         self.resolved_params = {}
 
@@ -141,12 +141,15 @@ def test_samplesheet_binding() -> None:
         tmpdir = Path(tmp)
         fastq_dir = tmpdir / "demux-results" / "output"
         fastq_dir.mkdir(parents=True)
-        (fastq_dir / "SampleA_S1_R1_001.fastq.gz").write_text("r1\n", encoding="utf-8")
-        (fastq_dir / "SampleA_S1_R2_001.fastq.gz").write_text("r2\n", encoding="utf-8")
-        (fastq_dir / "Undetermined_S0_R1_001.fastq.gz").write_text("skip\n", encoding="utf-8")
+        sample_r1 = fastq_dir / "SampleA_S1_R1_001.fastq.gz"
+        sample_r2 = fastq_dir / "SampleA_S1_R2_001.fastq.gz"
+        undetermined = fastq_dir / "Undetermined_S0_R1_001.fastq.gz"
+        sample_r1.write_text("r1\n", encoding="utf-8")
+        sample_r2.write_text("r2\n", encoding="utf-8")
+        undetermined.write_text("skip\n", encoding="utf-8")
 
-        resolve = load_function("generate_nfcore_3mrnaseq_samplesheet")
-        output = Path(resolve(FakeContext(tmpdir / "demux-results")))
+        resolve = load_function("generate_nfcore_rnaseq_samplesheet_forward")
+        output = Path(resolve(FakeContext([str(sample_r1), str(sample_r2), str(undetermined)])))
         assert output.exists()
         rows = list(csv.reader(output.open(encoding="utf-8")))
         assert rows[0] == ["sample", "fastq_1", "fastq_2", "strandedness"]

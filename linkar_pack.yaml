@@ -6,7 +6,7 @@ templates:
   nfcore_3mrnaseq:
     params:
       samplesheet:
-        function: generate_nfcore_3mrnaseq_samplesheet
+        function: generate_nfcore_rnaseq_samplesheet_forward
       genome:
         function: get_agendo_genome
       umi:
