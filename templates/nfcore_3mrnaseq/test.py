@@ -87,20 +87,33 @@ def render_command_script(
             .replace("$", "\\$")
             .replace("`", "\\`")
         )
+    command = command.replace("${LINKAR_RESULTS_DIR}", "./results")
+    command = command.replace("${SAMPLESHEET}", "${samplesheet}")
+    command = command.replace("${GENOME}", "${genome}")
+    command = command.replace("${UMI}", "${umi}")
+    command = command.replace("${SPIKEIN}", "${spikein}")
+    command = command.replace("${MAX_CPUS}", "${max_cpus}")
+    command = command.replace("${MAX_CPUS:-}", "${max_cpus:-}")
+    command = command.replace("${MAX_CPUS:+--max_cpus}", "${max_cpus:+--max_cpus}")
+    command = command.replace('${MAX_CPUS:+"${MAX_CPUS}"}', '${max_cpus:+"${max_cpus}"}')
+    command = command.replace("${MAX_MEMORY}", "${max_memory}")
+    command = command.replace("${MAX_MEMORY:-}", "${max_memory:-}")
+    command = command.replace("${MAX_MEMORY:+--max_memory}", "${max_memory:+--max_memory}")
+    command = command.replace('${MAX_MEMORY:+"${MAX_MEMORY}"}', '${max_memory:+"${max_memory}"}')
 
-    replacements = {
-        "LINKAR_RESULTS_DIR": escape_for_double_quotes(str(results_dir)),
-        "SAMPLESHEET": escape_for_double_quotes(str(samplesheet)),
-        "GENOME": escape_for_double_quotes(genome),
-        "UMI": escape_for_double_quotes(umi),
-        "SPIKEIN": escape_for_double_quotes(spikein),
-        "MAX_CPUS": escape_for_double_quotes(max_cpus),
-        "MAX_MEMORY": escape_for_double_quotes(max_memory),
-    }
-    for key, value in replacements.items():
-        command = command.replace(f"${{{key}}}", value)
-        command = command.replace(f"${{{key}:-}}", value)
-    return "#!/usr/bin/env bash\nset -euo pipefail\n\n" + command
+    assignments = [
+        "#!/usr/bin/env bash",
+        "set -euo pipefail",
+        "",
+        f'samplesheet="{escape_for_double_quotes(str(samplesheet))}"',
+        f'genome="{escape_for_double_quotes(genome)}"',
+        f'umi="{escape_for_double_quotes(umi)}"',
+        f'spikein="{escape_for_double_quotes(spikein)}"',
+        f'max_cpus="{escape_for_double_quotes(max_cpus)}"',
+        f'max_memory="{escape_for_double_quotes(max_memory)}"',
+        "",
+    ]
+    return "\n".join(assignments) + command
 
 
 def test_rendered_run_script() -> None:
@@ -129,7 +142,7 @@ def test_rendered_run_script() -> None:
         env["NFCORE_ARGS_LOG"] = str(tmpdir / "args.log")
         completed = subprocess.run(
             [str(run_script)],
-            cwd=TEMPLATE_DIR,
+            cwd=tmpdir,
             env=env,
             text=True,
             capture_output=True,
@@ -138,7 +151,7 @@ def test_rendered_run_script() -> None:
         assert completed.returncode == 0, completed.stderr
         args_text = (tmpdir / "args.log").read_text(encoding="utf-8")
         assert "--outdir" in args_text
-        assert str(results_dir) in args_text
+        assert "./results" in args_text
         assert "--genome GRCh38_with_ERCC" in args_text
         assert "--with_umi" in args_text
         assert "--max_cpus 16" in args_text

@@ -61,49 +61,52 @@ run:
     nextflow -version || true
     mkdir -p "${LINKAR_RESULTS_DIR}"
 
-    args=(
-      run
-      nf-core/rnaseq
-      -r
-      "3.22.2"
-      -profile
-      "docker"
-      -c
-      "nextflow.config"
-      --input
-      "${SAMPLESHEET}"
-      --outdir
-      "${LINKAR_RESULTS_DIR}"
-      --extra_salmon_quant_args=--noLengthCorrection
-      --extra_star_align_args=--alignIntronMax\ 1000000\ --alignIntronMin\ 20\ --alignMatesGapMax\ 1000000\ --alignSJoverhangMin\ 8\ --outFilterMismatchNmax\ 999\ --outFilterMultimapNmax\ 20\ --outFilterType\ BySJout\ --outFilterMismatchNoverLmax\ 0.1\ --clip3pAdapterSeq\ AAAAAAAA
-      --genome
-      "${effective_genome}"
-      --igenomes_ignore
-      true
-      --igenomes_base
-      "/data/shared/igenomes/"
-      --gencode
-      --featurecounts_group_type
-      gene_type
-    )
-
+    max_cpus_flag=""
     if [[ -n "${MAX_CPUS:-}" ]]; then
-      args+=(--max_cpus "${MAX_CPUS}")
-    fi
-    if [[ -n "${MAX_MEMORY:-}" ]]; then
-      args+=(--max_memory "${MAX_MEMORY}")
-    fi
-    if [[ "${UMI}" == "UMI Second Strand SynthesisModule for QuantSeq FWD" ]]; then
-      args+=(
-        --with_umi
-        --umitools_extract_method
-        regex
-        --umitools_bc_pattern
-        "^(?P<umi_1>.{8})(?P<discard_1>.{6}).*"
-      )
+      max_cpus_flag="--max_cpus ${MAX_CPUS}"
     fi
 
-    nextflow "${args[@]}"
+    max_memory_flag=""
+    if [[ -n "${MAX_MEMORY:-}" ]]; then
+      max_memory_flag="--max_memory ${MAX_MEMORY}"
+    fi
+
+    if [[ "${UMI}" == "UMI Second Strand SynthesisModule for QuantSeq FWD" ]]; then
+      nextflow run nf-core/rnaseq \
+        -r "3.22.2" \
+        -profile "docker" \
+        -c "nextflow.config" \
+        --input "${SAMPLESHEET}" \
+        --outdir "${LINKAR_RESULTS_DIR}" \
+        --extra_salmon_quant_args=--noLengthCorrection \
+        --extra_star_align_args="--alignIntronMax 1000000 --alignIntronMin 20 --alignMatesGapMax 1000000 --alignSJoverhangMin 8 --outFilterMismatchNmax 999 --outFilterMultimapNmax 20 --outFilterType BySJout --outFilterMismatchNoverLmax 0.1 --clip3pAdapterSeq AAAAAAAA" \
+        --genome "${effective_genome}" \
+        --igenomes_ignore true \
+        --igenomes_base "/data/shared/igenomes/" \
+        --gencode \
+        --featurecounts_group_type gene_type \
+        ${max_cpus_flag} \
+        ${max_memory_flag} \
+        --with_umi \
+        --umitools_extract_method regex \
+        --umitools_bc_pattern "^(?P<umi_1>.{8})(?P<discard_1>.{6}).*"
+    else
+      nextflow run nf-core/rnaseq \
+        -r "3.22.2" \
+        -profile "docker" \
+        -c "nextflow.config" \
+        --input "${SAMPLESHEET}" \
+        --outdir "${LINKAR_RESULTS_DIR}" \
+        --extra_salmon_quant_args=--noLengthCorrection \
+        --extra_star_align_args="--alignIntronMax 1000000 --alignIntronMin 20 --alignMatesGapMax 1000000 --alignSJoverhangMin 8 --outFilterMismatchNmax 999 --outFilterMultimapNmax 20 --outFilterType BySJout --outFilterMismatchNoverLmax 0.1 --clip3pAdapterSeq AAAAAAAA" \
+        --genome "${effective_genome}" \
+        --igenomes_ignore true \
+        --igenomes_base "/data/shared/igenomes/" \
+        --gencode \
+        --featurecounts_group_type gene_type \
+        ${max_cpus_flag} \
+        ${max_memory_flag}
+    fi
 
     run_name="$(grep -oP 'Run name:\s+\K\S+' .nextflow.log | tail -n 1 || true)"
     if [[ -n "${run_name}" ]]; then
