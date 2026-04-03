@@ -98,15 +98,21 @@ def make_fake_git_bin(root: Path) -> Path:
     git.write_text(
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n"
-        "if [[ \"${1:-}\" != \"clone\" ]]; then\n"
+        "if [[ \"${1:-}\" == \"clone\" ]]; then\n"
+        "  target=\"${@: -1}\"\n"
+        "  mkdir -p \"${target}/demux_pipeline\"\n"
+        "  printf '# fake upstream\\n' > \"${target}/pixi.toml\"\n"
+        "  printf '__all__ = []\\n' > \"${target}/demux_pipeline/__init__.py\"\n"
+        "  printf 'repo=%s\\n' \"${3:-}\" > \"${target}/CLONED_FROM.txt\"\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"${1:-}\" == \"-C\" && \"${3:-}\" == \"checkout\" ]]; then\n"
+        "  printf 'commit=%s\\n' \"${4:-}\" > \"${2}/CHECKED_OUT_COMMIT.txt\"\n"
+        "  exit 0\n"
+        "fi\n"
         "  echo \"unsupported fake git invocation: $*\" >&2\n"
         "  exit 1\n"
-        "fi\n"
-        "target=\"${@: -1}\"\n"
-        "mkdir -p \"${target}/demux_pipeline\"\n"
-        "printf '# fake upstream\\n' > \"${target}/pixi.toml\"\n"
-        "printf '__all__ = []\\n' > \"${target}/demux_pipeline/__init__.py\"\n"
-        "printf 'repo=%s\\n' \"${3:-}\" > \"${target}/CLONED_FROM.txt\"\n",
+        ,
         encoding="utf-8",
     )
     git.chmod(0o755)
@@ -178,9 +184,11 @@ def main() -> None:
             "BRACKEN_DB=\"${BRACKEN_DB:-}\"\n"
             "FASTQ_SCREEN_CONF=\"${FASTQ_SCREEN_CONF:-}\"\n"
             "upstream_repo_url=\"https://github.com/MoSafi2/demultiplexing_prefect\"\n"
+            "upstream_commit=\"08a77d8010bce28c26b3c71089256ed1ba6a145a\"\n"
             "upstream_repo_dir=\"./demultiplexing_prefect\"\n"
             "rm -rf \"${upstream_repo_dir}\"\n"
             "git clone --depth 1 \"${upstream_repo_url}\" \"${upstream_repo_dir}\"\n"
+            "git -C \"${upstream_repo_dir}\" checkout \"${upstream_commit}\"\n"
             "pushd \"${upstream_repo_dir}\" >/dev/null\n"
             "pixi run python -m demux_pipeline.cli \\\n"
             "  --outdir \"${LINKAR_RESULTS_DIR}\" \\\n"
@@ -233,9 +241,13 @@ def main() -> None:
         assert contract["outputs"]["samples_tsv"] == str(results_dir / "samples.tsv")
         assert contract["outputs"]["contamination_dir"] == str(results_dir / "contamination")
         assert (tmpdir / "demultiplexing_prefect" / "demux_pipeline" / "__init__.py").exists()
+        assert (
+            tmpdir / "demultiplexing_prefect" / "CHECKED_OUT_COMMIT.txt"
+        ).read_text(encoding="utf-8").strip() == "commit=08a77d8010bce28c26b3c71089256ed1ba6a145a"
 
         template_yaml = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
         assert 'git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"' in template_yaml
+        assert 'git -C "${upstream_repo_dir}" checkout "${upstream_commit}"' in template_yaml
         assert 'pixi run python -m demux_pipeline.cli' in template_yaml
         assert not (TEMPLATE_DIR / "demux_pipeline" / "cli.py").exists()
         assert not (TEMPLATE_DIR / "pixi.toml").exists()

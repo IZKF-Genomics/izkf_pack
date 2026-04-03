@@ -91,10 +91,12 @@ run:
   mode: render
   command: |
     upstream_repo_url="https://github.com/MoSafi2/demultiplexing_prefect"
+    upstream_commit="08a77d8010bce28c26b3c71089256ed1ba6a145a"
     upstream_repo_dir="./demultiplexing_prefect"
 
     rm -rf "${upstream_repo_dir}"
     git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"
+    git -C "${upstream_repo_dir}" checkout "${upstream_commit}"
 
     pushd "${upstream_repo_dir}" >/dev/null
     pixi run python -m demux_pipeline.cli \

@@ -7,9 +7,10 @@ time instead of vendoring a snapshot into the pack.
 
 - repo: `https://github.com/MoSafi2/demultiplexing_prefect`
 - branch: `main`
+- pinned commit: `08a77d8010bce28c26b3c71089256ed1ba6a145a`
 
 Each rendered or executed run clones the upstream repository into the run directory and launches the
-pipeline from that fresh checkout.
+pipeline from that fresh checkout pinned to the commit above.
 
 ## Linkar interface
 
@@ -45,6 +46,7 @@ The template declares one shell command directly in `linkar_template.yaml`:
 
 ```bash
 git clone --depth 1 https://github.com/MoSafi2/demultiplexing_prefect ./demultiplexing_prefect
+git -C ./demultiplexing_prefect checkout 08a77d8010bce28c26b3c71089256ed1ba6a145a
 cd ./demultiplexing_prefect
 pixi run python -m demux_pipeline.cli ...
 ```
