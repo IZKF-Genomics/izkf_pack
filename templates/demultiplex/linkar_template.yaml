@@ -101,14 +101,14 @@ run:
     pushd "${upstream_repo_dir}" >/dev/null
     pixi run python -m demux_pipeline.cli \
       --outdir "${LINKAR_RESULTS_DIR}" \
-      --bcl_dir "${BCL_DIR}" \
-      --samplesheet "${SAMPLESHEET}" \
-      --qc-tool "${QC_TOOL}" \
-      --contamination-tool "${CONTAMINATION_TOOL}" \
-      --threads "${THREADS}" \
+      --bcl_dir "${param:bcl_dir}" \
+      --samplesheet "${param:samplesheet}" \
+      --qc-tool "${param:qc_tool}" \
+      --contamination-tool "${param:contamination_tool}" \
+      --threads "${param:threads}" \
       --output-contract-file "${LINKAR_RESULTS_DIR}/template_outputs.json" \
-      ${RUN_NAME:+--run-name "${RUN_NAME}"} \
-      ${KRAKEN_DB:+--kraken-db "${KRAKEN_DB}"} \
-      ${BRACKEN_DB:+--bracken-db "${BRACKEN_DB}"} \
-      ${FASTQ_SCREEN_CONF:+--fastq-screen-conf "${FASTQ_SCREEN_CONF}"}
+      ${param:run_name:+--run-name "${param:run_name}"} \
+      ${param:kraken_db:+--kraken-db "${param:kraken_db}"} \
+      ${param:bracken_db:+--bracken-db "${param:bracken_db}"} \
+      ${param:fastq_screen_conf:+--fastq-screen-conf "${param:fastq_screen_conf}"}
     popd >/dev/null
