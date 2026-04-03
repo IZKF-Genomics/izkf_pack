@@ -1,15 +1,41 @@
 id: demultiplex
-version: 0.1.0
-description: Clone and run the upstream demultiplexing_prefect pipeline.
+version: 0.2.0
+description: Clone and run the upstream demultiplexing_prefect pipeline through Linkar.
+tools:
+  required:
+    - git
+    - pixi
+  required_any:
+    - [bcl-convert]
 params:
-  mode:
-    type: str
+  bcl_dir:
+    type: path
     required: true
-    description: Pipeline stage. Use demux to run demultiplexing plus QC, or qc to run QC-only.
+    description: BCL run folder for bcl-convert.
+  use_api_samplesheet:
+    type: bool
+    default: true
+    description: When true and --samplesheet is not passed explicitly, resolve samplesheet from the facility API via the default binding.
+  agendo_id:
+    type: str
+    default: ""
+    description: Optional request id fallback used for API samplesheet lookup when the flowcell lookup returns 404.
+  flowcell_id:
+    type: str
+    default: ""
+    description: Optional flowcell id override used for API samplesheet lookup. If omitted, it is derived from bcl_dir.
+  samplesheet:
+    type: path
+    required: true
+    description: Sample sheet passed to bcl-convert. With --binding default it can be resolved from the facility API.
   qc_tool:
     type: str
-    required: true
-    description: QC tool passed to the upstream pipeline. Supported values are fastqc, fastp, or falco.
+    default: falco
+    description: QC tool selection. Use fastqc, fastp, falco, or a comma-separated combination.
+  contamination_tool:
+    type: str
+    default: none
+    description: Optional contamination tool selection. Use none, kraken, kraken_bracken, fastq_screen, or a comma-separated combination.
   threads:
     type: int
     default: 4
@@ -18,46 +44,14 @@ params:
     type: str
     default: ""
     description: Optional run label forwarded to the upstream pipeline.
-  bcl_dir:
-    type: path
-    default: ""
-    description: Required in demux mode. BCL run folder for bcl-convert.
-  samplesheet:
-    type: path
-    default: ""
-    description: Optional explicit sample sheet. If omitted in demux mode, the template can fetch one from the facility API.
-  use_api_samplesheet:
-    type: bool
-    default: true
-    description: In demux mode, fetch the samplesheet from the facility API when samplesheet is not provided.
-  agendo_id:
-    type: str
-    default: ""
-    description: Optional request identifier used as API fallback when the flowcell lookup is not found.
-  flowcell_id:
-    type: str
-    default: ""
-    description: Optional flowcell id override used for API samplesheet lookup. If omitted, it is derived from bcl_dir.
-  manifest_tsv:
-    type: path
-    default: ""
-    description: Manifest TSV. In qc mode this is an input; in demux mode it overrides the output manifest path.
-  in_fastq_dir:
-    type: path
-    default: ""
-    description: Required in qc mode if manifest_tsv is not provided.
-  contamination_tool:
-    type: str
-    default: none
-    description: Optional contamination stage. Supported values are kraken, kraken_bracken, fastq_screen, or none.
   kraken_db:
     type: path
     default: ""
-    description: Kraken2 database directory.
+    description: Kraken2 database directory required for kraken, or shared with bracken when using kraken_bracken.
   bracken_db:
     type: path
     default: ""
-    description: Bracken database directory.
+    description: Bracken database directory. If omitted upstream falls back to kraken_db for kraken_bracken.
   fastq_screen_conf:
     type: path
     default: ""
@@ -65,6 +59,8 @@ params:
 outputs:
   results_dir: {}
   output_dir: {}
+  samples_tsv:
+    path: samples.tsv
   demux_fastq_files:
     glob: output/**/*.fastq.gz
   fastqc_dir: {}
@@ -87,6 +83,30 @@ outputs:
   multiqc_dir: {}
   multiqc_report:
     path: multiqc/multiqc_report.html
+  template_outputs_json:
+    path: template_outputs.json
+  run_summary:
+    glob: .pipeline/*/run_summary.json
 run:
-  entry: run.sh
-  mode: direct
+  mode: render
+  command: |
+    upstream_repo_url="https://github.com/MoSafi2/demultiplexing_prefect"
+    upstream_repo_dir="./demultiplexing_prefect"
+
+    rm -rf "${upstream_repo_dir}"
+    git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"
+
+    pushd "${upstream_repo_dir}" >/dev/null
+    pixi run python -m demux_pipeline.cli \
+      --outdir "${LINKAR_RESULTS_DIR}" \
+      --bcl_dir "${BCL_DIR}" \
+      --samplesheet "${SAMPLESHEET}" \
+      --qc-tool "${QC_TOOL}" \
+      --contamination-tool "${CONTAMINATION_TOOL}" \
+      --threads "${THREADS}" \
+      --output-contract-file "${LINKAR_RESULTS_DIR}/template_outputs.json" \
+      ${RUN_NAME:+--run-name "${RUN_NAME}"} \
+      ${KRAKEN_DB:+--kraken-db "${KRAKEN_DB}"} \
+      ${BRACKEN_DB:+--bracken-db "${BRACKEN_DB}"} \
+      ${FASTQ_SCREEN_CONF:+--fastq-screen-conf "${FASTQ_SCREEN_CONF}"}
+    popd >/dev/null
