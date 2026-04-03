@@ -1,0 +1,28 @@
+id: export_status
+version: 0.1.0
+description: Query the facility export engine for the current status of an export job.
+tools:
+  required:
+    - python
+params:
+  job_id:
+    type: str
+    required: true
+    description: Export engine job id to inspect.
+  export_engine_api_url:
+    type: str
+    default: http://genomics.rwth-aachen.de:9500/export
+    description: Export engine base URL. If it does not end with /export, the suffix is appended automatically.
+outputs:
+  results_dir: {}
+  export_status:
+    path: export_status.json
+  export_job_id:
+    path: export_job_id.txt
+run:
+  mode: direct
+  command: |
+    python ./run.py \
+      --results-dir "${LINKAR_RESULTS_DIR}" \
+      --job-id "${param:job_id}" \
+      --export-engine-api-url "${param:export_engine_api_url}"

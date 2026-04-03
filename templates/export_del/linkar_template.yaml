@@ -1,0 +1,33 @@
+id: export_del
+version: 0.1.0
+description: Delete an export project from the facility export engine.
+tools:
+  required:
+    - python
+params:
+  project_id:
+    type: str
+    required: true
+    description: Export engine project id to delete.
+  export_engine_api_url:
+    type: str
+    default: http://genomics.rwth-aachen.de:9500/export
+    description: Export engine base URL. If it does not end with /export, the suffix is appended automatically.
+  confirm_delete:
+    type: bool
+    default: false
+    description: Must be set to true to perform the deletion request.
+outputs:
+  results_dir: {}
+  delete_response:
+    path: delete_response.json
+  export_project_id:
+    path: export_project_id.txt
+run:
+  mode: direct
+  command: |
+    python ./run.py \
+      --results-dir "${LINKAR_RESULTS_DIR}" \
+      --project-id "${param:project_id}" \
+      --export-engine-api-url "${param:export_engine_api_url}" \
+      --confirm-delete "${param:confirm_delete}"
