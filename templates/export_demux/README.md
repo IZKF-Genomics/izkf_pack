@@ -1,0 +1,40 @@
+# export_demux
+
+Direct-run template for exporting an ad hoc demultiplex run.
+
+Unlike the main `export` template, this action is meant for demultiplex runs that were rendered and executed without a Linkar project. The canonical export metadata is stored under the source run directory:
+
+```text
+<run_dir>/.linkar/export_demux/latest/
+```
+
+That avoids ambiguity about where export state lives when the action is triggered outside a project.
+
+## Defaults
+
+If not overridden, the template expects:
+
+- FASTQ directory: `<run_dir>/output`
+- MultiQC report: `<run_dir>/multiqc/multiqc_report.html`
+
+## Canonical metadata
+
+After a successful run, these files are written under:
+
+```text
+<run_dir>/.linkar/export_demux/latest/
+```
+
+- `export_job_spec.json`
+- `export_job_spec.redacted.json`
+- `export_response.json`
+- `export_final_message.json`
+- `export_job_id.txt`
+- `export_final_path.txt`
+- `export_demux_summary.json`
+
+The Linkar action run also keeps a lightweight trace in its own `results/`, but the source-side `.linkar/export_demux/latest/` directory is the canonical location.
+
+## Dry run
+
+Use `--dry-run true` to build and persist the redacted export spec without submitting anything.
