@@ -1,0 +1,140 @@
+---
+title: "DGEA Geneset Comparisons"
+author: "`r params$authors`"
+date: "Last compiled on `r format(Sys.time(), '%d %B, %Y')`"
+format:
+  html:
+    df_print: paged
+    toc: true
+    toc_float:
+      toc_collapsed: true
+    toc_depth: 3
+    number_sections: false
+    embed-resources: true
+    theme: lumen
+bibliography: references.bib
+params:
+  authors: ""
+  cutoff_adj_p: 0.05
+  cutoff_log2fc: 1
+  gene_sets: !r list(
+    list(name = "Generation2", file = "DGEA_Generation2_vs_WT_stat.csv"),
+    list(name = "Generation3", file = "DGEA_Generation3_vs_WT_stat.csv"),
+    list(name = "Generation4", file = "DGEA_Generation4_vs_WT_stat.csv"),
+    list(name = "Gender", file = "DGEA_Female_vs_Male_stat.csv")
+  )
+---
+
+```{r setup, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+library(data.table)
+library(ggplot2)
+library(ggpubr)
+library(ggVennDiagram)
+library(openxlsx)
+library(DT)
+
+cutoff_adj_p <- params$cutoff_adj_p
+cutoff_log2fc <- params$cutoff_log2fc
+
+validate_gene_sets <- function(gene_sets) {
+  if (length(gene_sets) == 0) {
+    stop("No gene sets provided. Set params$gene_sets with list(name, file).")
+  }
+  required_fields <- c("name", "file")
+  missing_fields <- lapply(gene_sets, function(gs) {
+    setdiff(required_fields, names(gs))
+  })
+  if (any(lengths(missing_fields) > 0)) {
+    stop("Each gene set must include: name, file.")
+  }
+  missing_files <- unique(vapply(gene_sets, function(gs) gs$file, character(1)))
+  missing_files <- missing_files[!file.exists(missing_files)]
+  if (length(missing_files) > 0) {
+    stop(
+      "Missing input files:\n",
+      paste0(" - ", missing_files, collapse = "\n"),
+      call. = FALSE
+    )
+  }
+}
+
+extract_de_genes <- function(filename, direction = NULL) {
+  degenes <- fread(filename)[, c("gene_symbol", "log2FoldChange", "padj")]
+  if (!is.null(direction)) {
+    if (direction == "up") {
+      degenes <- degenes[degenes$log2FoldChange >= cutoff_log2fc]
+    } else if (direction == "down") {
+      degenes <- degenes[degenes$log2FoldChange <= -cutoff_log2fc]
+    }
+  }
+  unique(degenes$gene_symbol[degenes$padj < cutoff_adj_p])
+}
+
+venn_diagram <- function(gene_sets, title) {
+  ggVennDiagram(gene_sets, edge_size = 0.5, label_size = 2) +
+    coord_fixed(clip = "off") +
+    scale_fill_gradient(low = "grey", high = "firebrick") +
+    theme(plot.margin = margin(t = 20, r = 30, b = 20, l = 30)) +
+    ggtitle(title)
+}
+
+venn_table <- function(table_name, gene_sets) {
+  venn_data <- ggVennDiagram::process_data(Venn(gene_sets))
+  region_info <- venn_region(venn_data)
+  write.xlsx(region_info, file = table_name, asTable = TRUE)
+  region_info$item <- sapply(region_info$item, function(x) paste(x, collapse = ","))
+  datatable(
+    region_info,
+    plugins = "ellipsis",
+    options = list(
+      columnDefs = list(list(
+        targets = c(2, 3),
+        render = JS("$.fn.dataTable.render.ellipsis(30, false)")
+      ))
+    )
+  )
+}
+
+if (length(params$gene_sets) > 0) {
+  validate_gene_sets(params$gene_sets)
+  gene_sets <- setNames(
+    lapply(params$gene_sets, function(gs) extract_de_genes(gs$file)),
+    vapply(params$gene_sets, function(gs) gs$name, character(1))
+  )
+}
+```
+
+# All DE genes {.tabset}
+
+## Venn Diagram
+
+```{r venn-diagram, echo=FALSE, results="asis", warning=FALSE, message=FALSE, dpi=600, fig.width=6, fig.height=4}
+if (!exists("gene_sets")) {
+  cat("No gene sets configured. Set params$gene_sets to enable plots.")
+} else {
+  venn_diagram(gene_sets, "Overlap of Genes Across Conditions")
+}
+```
+
+## Table
+
+```{r venn-table, echo=FALSE, warning=FALSE, message=FALSE}
+if (!exists("gene_sets")) {
+  cat("No gene sets configured. Set params$gene_sets to enable tables.")
+} else {
+  table_name <- "DGEA_Geneset_Comparisons_All_DE_genes.xlsx"
+  venn_table(table_name, gene_sets)
+}
+```
+
+```{r venn-download, echo=FALSE, results="asis", warning=FALSE, message=FALSE}
+if (exists("table_name")) {
+  cat("Download the full list [", table_name, "](", table_name, ").")
+}
+```
+
+# R session information
+
+```{r session, echo=FALSE, results='markup', warning=FALSE, message=TRUE}
+sessionInfo()
+```

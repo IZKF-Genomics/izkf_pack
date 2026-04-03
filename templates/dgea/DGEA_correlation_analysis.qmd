@@ -1,0 +1,117 @@
+---
+title: "DGEA Correlation Analysis"
+author: "`r params$authors`"
+date: "Last compiled on `r format(Sys.time(), '%d %B, %Y')`"
+format:
+  html:
+    df_print: paged
+    toc: true
+    toc_float:
+      toc_collapsed: true
+    toc_depth: 3
+    number_sections: false
+    embed-resources: true
+    theme: lumen
+bibliography: references.bib
+params:
+  authors: ""
+  comparisons: !r list(
+    list(title = "Correlation of IL10 and LPS (WT)", x = "IL10_vs_Control_in_WT", y = "LPS_vs_Control_in_WT"),
+    list(title = "Correlation of IL10 and LPS (KO)", x = "IL10_vs_Control_in_KO", y = "LPS_vs_Control_in_KO")
+  )
+---
+
+```{r setup, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+library(data.table)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+
+stats_path <- function(tag) {
+  paste0("DGEA_", tag, "_genes_stats.csv")
+}
+
+validate_comparisons <- function(comparisons) {
+  if (length(comparisons) == 0) {
+    stop("No comparisons provided. Set params$comparisons with list(title, x, y).")
+  }
+
+  required_fields <- c("title", "x", "y")
+  missing_fields <- lapply(comparisons, function(cmp) {
+    setdiff(required_fields, names(cmp))
+  })
+  if (any(lengths(missing_fields) > 0)) {
+    stop("Each comparison must include: title, x, y.")
+  }
+
+  expected_files <- unlist(lapply(comparisons, function(cmp) {
+    c(stats_path(cmp$x), stats_path(cmp$y))
+  }))
+  missing_files <- unique(expected_files[!file.exists(expected_files)])
+  if (length(missing_files) > 0) {
+    stop(
+      "Missing input files:\n",
+      paste0(" - ", missing_files, collapse = "\n"),
+      call. = FALSE
+    )
+  }
+}
+
+corr_figure <- function(title, x_tag, y_tag) {
+  xdata <- fread(stats_path(x_tag))[, c("gene_id", "gene_name", "log2FoldChange")]
+  ydata <- fread(stats_path(y_tag))[, c("gene_id", "gene_name", "log2FoldChange")]
+
+  merged_table <- merge(
+    xdata,
+    ydata,
+    by = c("gene_id", "gene_name"),
+    suffixes = c(".x", ".y")
+  )
+
+  yrange <- abs(max(ydata$log2FoldChange) - min(ydata$log2FoldChange))
+  statcor_y <- max(ydata$log2FoldChange)
+  statregline_y <- max(ydata$log2FoldChange) - 0.05 * yrange
+
+  ggplot(merged_table, aes(log2FoldChange.x, log2FoldChange.y)) +
+    geom_point(size = 1, color = "royalblue", alpha = 0.2) +
+    theme_bw() +
+    ggtitle(title) +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    geom_smooth(method = "lm", color = "gray", alpha = 0.1) +
+    xlab(x_tag) +
+    ylab(y_tag) +
+    stat_cor(label.y = statcor_y) +
+    stat_regline_equation(label.y = statregline_y)
+}
+
+if (length(params$comparisons) > 0) {
+  validate_comparisons(params$comparisons)
+}
+```
+
+### [Back to the main page](../Analysis_Report_RNAseq.html)
+
+This report correlates log2 fold-changes between comparison pairs.
+Each comparison expects input files named `DGEA_<tag>_genes_stats.csv`.
+
+# Correlation plots
+
+```{r corr-plots, echo=FALSE, results="asis", warning=FALSE, message=FALSE, dpi=600, fig.width=4, fig.height=4}
+if (length(params$comparisons) == 0) {
+  cat("No comparisons configured. Set params$comparisons to enable plots.")
+} else {
+  for (cmp in params$comparisons) {
+    print(corr_figure(cmp$title, cmp$x, cmp$y))
+  }
+}
+```
+
+# References
+
+<div id="refs"></div>
+
+# R session information
+
+```{r session, echo=FALSE, results='markup', warning=FALSE, message=TRUE}
+sessionInfo()
+```

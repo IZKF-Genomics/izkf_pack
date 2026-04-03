@@ -1,0 +1,20 @@
+citations:
+  - id: love2014moderated
+    text: "Love MI, Huber W, Anders S. Moderated estimation of fold change and dispersion for RNA-seq data with DESeq2. Genome Biology (2014)."
+    doi: "10.1186/s13059-014-0550-8"
+    url: "https://bioconductor.org/packages/DESeq2"
+  - id: soneson2015tximport
+    text: "Soneson C, Love MI, Robinson MD. Differential analyses for RNA-seq: transcript-level estimates improve gene-level inferences. F1000Research (2015)."
+    doi: "10.12688/f1000research.7563.2"
+    url: "https://bioconductor.org/packages/tximport"
+  - id: wu2021clusterprofiler
+    text: "Wu T, et al. clusterProfiler 4.0: A universal enrichment tool for interpreting omics data. The Innovation (2021)."
+    doi: "10.1016/j.xinn.2021.100141"
+    url: "https://bioconductor.org/packages/clusterProfiler"
+  - id: ritchie2015limma
+    text: "Ritchie ME, et al. limma powers differential expression analyses for RNA-sequencing and microarray studies. Nucleic Acids Research (2015)."
+    doi: "10.1093/nar/gkv007"
+    url: "https://bioconductor.org/packages/limma"
+  - id: r-base
+    text: "R Core Team. R: A language and environment for statistical computing."
+    url: "https://www.r-project.org/"

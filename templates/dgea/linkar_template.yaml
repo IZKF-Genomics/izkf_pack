@@ -1,0 +1,67 @@
+id: dgea
+version: 0.1.0
+description: Editable DGEA workspace with Pixi, Positron, and Quarto support.
+tools:
+  required:
+    - pixi
+    - quarto
+    - Rscript
+params:
+  salmon_dir:
+    type: path
+    required: true
+    description: Path to the salmon quant directory from nfcore_rnaseq or nfcore_3mrnaseq.
+  samplesheet:
+    type: path
+    required: true
+    description: nf-core samplesheet CSV with at least a sample column and ideally explicit group metadata.
+  organism:
+    type: str
+    required: true
+    description: Organism identifier such as hsapiens, mmusculus, rnorvegicus, or sscrofa.
+  spikein:
+    type: str
+    default: ""
+    description: Optional spike-in description. Values containing ERCC enable ERCC filtering in the reports.
+  application:
+    type: str
+    default: ""
+    description: Upstream application label used to choose countsFromAbundance handling.
+  name:
+    type: str
+    default: ""
+    description: Project name shown in reports.
+  authors:
+    type: str
+    default: ""
+    description: Comma-separated author names shown in reports.
+outputs:
+  results_dir: {}
+  run_info:
+    path: run_info.yaml
+  html_reports:
+    glob: "*.html"
+  qmd_reports:
+    glob: "*.qmd"
+  samplesheet_exports:
+    glob: "*.csv"
+  xlsx_exports:
+    glob: "*.xlsx"
+run:
+  mode: render
+  command: |
+    mkdir -p "./results"
+    python ./build_dgea_inputs.py \
+      --workspace-dir "." \
+      --results-dir "./results" \
+      --salmon-dir "${param:salmon_dir}" \
+      --samplesheet "${param:samplesheet}" \
+      --organism "${param:organism}" \
+      --spikein "${param:spikein}" \
+      --application "${param:application}" \
+      --name "${param:name}" \
+      --authors "${param:authors}"
+
+    pixi install
+    pixi run install-bioc-data
+    pixi run Rscript DGEA_constructor.R

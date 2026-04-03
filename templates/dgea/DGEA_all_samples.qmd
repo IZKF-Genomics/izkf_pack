@@ -1,0 +1,365 @@
+---
+title: "Differential Gene Expression Analysis for All Samples"
+author: "`r params$authors`"
+date: "Last compiled on `r format(Sys.time(), '%d %B, %Y')`"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 3
+    toc-location: left
+    html-math-method: katex
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+    page-layout: full
+    html-table-processing: none
+    theme: lumen
+bibliography: references.bib
+params:
+  salmon_dir: ""
+  samplesheet_path: ""
+  organism: ""
+  spikein: ""
+  application: ""
+  name: ""
+  authors: ""
+---
+
+```{r setup, echo=TRUE, warning=FALSE, message=FALSE}
+library(DESeq2)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(viridis)
+library(DT)
+library(tximport)
+library(data.table)
+library(openxlsx)
+library(ggrepel)
+library(tibble)
+
+salmon_dir <- params$salmon_dir
+samplesheet <- read.csv(params$samplesheet_path, stringsAsFactors = FALSE)
+rownames(samplesheet) <- samplesheet$sample
+application <- params$application
+organism <- params$organism
+spikein <- params$spikein
+norm_spikein_ercc <- isTRUE(grepl("ERCC", spikein, ignore.case = TRUE))
+
+if (identical(application, "nfcore_RNAseq")) {
+  counts_from_abundance <- "lengthScaledTPM"
+  length_correction <- TRUE
+} else {
+  counts_from_abundance <- "no"
+  length_correction <- FALSE
+}
+
+tx2gene_file <- file.path(salmon_dir, "tx2gene.tsv")
+
+stopifnot(
+  nzchar(salmon_dir),
+  is.data.frame(samplesheet),
+  file.exists(tx2gene_file)
+)
+
+if (organism == "hsapiens") {
+  library(org.Hs.eg.db)
+} else if (organism == "mmusculus") {
+  library(org.Mm.eg.db)
+} else if (organism == "rnorvegicus") {
+  library(org.Rn.eg.db)
+} else if (organism == "sscrofa" && requireNamespace("org.Ss.eg.db", quietly = TRUE)) {
+  library(org.Ss.eg.db)
+} else {
+  warning("No annotation package available for organism: ", organism, ". Proceeding without OrgDb-dependent analyses.")
+}
+```
+
+# DESeq2
+
+This section estimates size factors and dispersions with DESeq2 and reports results from a model with intercept only (design `~ 1`), which is suitable for exploratory summaries rather than group contrasts [@love2014moderated].
+
+```{r DESeq2, echo=TRUE, warning=FALSE, message=FALSE}
+tx2gene <- fread(
+  tx2gene_file,
+  col.names = c("transcript_id", "gene_id", "gene_name")
+)
+files <- file.path(salmon_dir, samplesheet$sample, "quant.sf")
+names(files) <- samplesheet$sample
+if (!all(file.exists(files))) {
+  stop(
+    "Missing salmon quant files. ",
+    "salmon_dir='", salmon_dir, "', ",
+    "samplesheet_path='", samplesheet_path, "'.",
+    call. = FALSE
+  )
+}
+txi <- tximport(
+  files,
+  type = "salmon",
+  tx2gene = tx2gene[, c(1, 2)],
+  countsFromAbundance = counts_from_abundance
+)
+
+if (length_correction) {
+  dds <- DESeqDataSetFromTximport(
+    txi,
+    colData = samplesheet,
+    design = ~1
+  )
+} else {
+  dds <- DESeqDataSetFromMatrix(round(txi$counts), samplesheet, ~1)
+}
+
+dds <- DESeq(dds)
+
+if (norm_spikein_ercc) {
+  ercc <- fread("thermofisher_LSG_manuals_cms_095046.txt")
+  non_ercc <- !(rownames(dds) %in% paste0(ercc$`ERCC ID`, "_", "gene"))
+  dds <- dds[non_ercc, ]
+}
+
+res <- results(dds, alpha = 0.05)
+res <- as.data.frame(res)
+res <- res[complete.cases(res), ]
+res$gene_symbol <- tx2gene$gene_name[match(rownames(res), tx2gene$gene_id)]
+res$gene_id <- rownames(res)
+res$Significant <- ifelse(res$padj < 0.05, "Yes", "No")
+res <- res[, c(
+  "gene_id",
+  "gene_symbol",
+  "baseMean",
+  "log2FoldChange",
+  "lfcSE",
+  "stat",
+  "pvalue",
+  "padj",
+  "Significant"
+)]
+normalized_counts <- counts(dds, normalized = TRUE)
+out_norm <- merge(
+  tx2gene[, -1],
+  rownames_to_column(as.data.frame(normalized_counts), var = "gene_id"),
+  by.x = "gene_id",
+  by.y = "gene_id"
+)
+out_norm <- distinct(out_norm)
+pca <- prcomp(t(normalized_counts))
+gene_variances <- apply(normalized_counts, 1, var)
+top_geneids <- names(sort(gene_variances, decreasing = TRUE))[1:20]
+top_genes <- tx2gene$gene_name[match(top_geneids, tx2gene$gene_id)]
+top_gene_counts <- normalized_counts[top_geneids, ]
+rownames(top_gene_counts) <- top_genes
+group_label <- if ("group" %in% names(samplesheet)) samplesheet$group else "All"
+```
+
+# Interactive figures
+
+Use the PCA and heatmap panels below to inspect sample relationships and the highest-variance genes after normalization.
+::: {.panel-tabset}
+
+## 3D PCA
+
+```{r plotly-3d-pca, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+explained_variance <- round(100 * (pca$sdev^2 / sum(pca$sdev^2)), 2)
+explained_variance_text <- paste0("PC", 1:3, " (", explained_variance[1:3], "%)")
+
+pca_data <- as.data.frame(pca$x[, 1:3])
+pca_data$sample <- rownames(pca_data)
+pca_data$group <- group_label
+
+plot_ly(
+  data = pca_data,
+  x = ~PC1,
+  y = ~PC2,
+  z = ~PC3,
+  color = ~group,
+  colors = "Dark2",
+  text = ~ paste("Sample:", sample),
+  type = "scatter3d",
+  mode = "markers",
+  marker = list(size = 9)
+) %>%
+  layout(
+    title = "3D PCA Plot of Samples",
+    scene = list(
+      xaxis = list(title = explained_variance_text[1]),
+      yaxis = list(title = explained_variance_text[2]),
+      zaxis = list(title = explained_variance_text[3])
+    ),
+    legend = list(title = list(text = "Group"))
+  )
+```
+
+## 2D PCA
+
+```{r plotly-2d-pca, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+explained_variance <- round(100 * (pca$sdev^2 / sum(pca$sdev^2)), 2)
+explained_variance_text <- paste0("PC", 1:2, " (", explained_variance[1:2], "%)")
+
+pca_data <- as.data.frame(pca$x[, 1:2])
+pca_data$sample <- rownames(pca_data)
+pca_data$group <- group_label
+
+plot_ly(
+  data = pca_data,
+  x = ~PC1,
+  y = ~PC2,
+  color = ~group,
+  colors = "Dark2",
+  text = ~ paste("Sample:", sample),
+  type = "scatter",
+  mode = "markers",
+  marker = list(size = 12)
+) %>%
+  layout(
+    title = "2D PCA Plot of Samples",
+    xaxis = list(title = explained_variance_text[1]),
+    yaxis = list(title = explained_variance_text[2]),
+    legend = list(title = list(text = "Group"))
+  )
+```
+
+## Heatmap
+
+```{r plotly-heatmap, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+row_dendrogram <- hclust(dist(log10(as.matrix(top_gene_counts) + 1)))
+ordered_rows <- rownames(top_gene_counts)[row_dendrogram$order]
+top_gene_counts_ordered <- top_gene_counts[ordered_rows, ]
+
+plot_ly(
+  x = colnames(top_gene_counts_ordered),
+  y = rownames(top_gene_counts_ordered),
+  z = log10(as.matrix(top_gene_counts_ordered) + 1),
+  type = "heatmap",
+  colors = viridis(256),
+  colorbar = list(title = "Expression Level (log10)"),
+  showscale = TRUE
+) %>%
+  layout(
+    title = "Heatmap of Top 20 Genes with Highest Variance",
+    xaxis = list(title = "Samples", tickangle = 45),
+    yaxis = list(title = "Genes (clustered)")
+  )
+```
+
+:::
+
+# Static figures
+
+Static versions of the PCA and heatmap are provided for reports that are exported to non-interactive formats.
+
+::: {.panel-tabset}
+
+## 2D PCA
+
+```{r ggplot-2d-pca, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+explained_variance <- round(100 * (pca$sdev^2 / sum(pca$sdev^2)), 2)
+explained_variance_text <- paste0("PC", 1:2, " (", explained_variance[1:2], "%)")
+
+pca_data <- as.data.frame(pca$x[, 1:2])
+pca_data$sample <- rownames(pca_data)
+pca_data$group <- samplesheet$group
+
+ggplot(pca_data, aes(x = PC1, y = PC2, color = group, label = sample)) +
+  geom_point(size = 3) +
+  geom_text_repel(
+    size = 3,
+    max.overlaps = 10,
+    box.padding = 0.3,
+    point.padding = 0.2
+  ) +
+  labs(
+    title = "2D PCA Plot of Samples",
+    x = explained_variance_text[1],
+    y = explained_variance_text[2]
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    legend.title = element_blank(),
+    legend.position = "right"
+  ) +
+  scale_color_brewer(palette = "Dark2")
+```
+
+## Heatmap
+
+```{r ggplot-heatmap, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+log_counts <- log10(as.matrix(top_gene_counts) + 1)
+row_dendrogram <- hclust(dist(log_counts))
+ordered_genes <- rownames(log_counts)[row_dendrogram$order]
+log_counts_ordered <- log_counts[ordered_genes, ]
+heatmap_data <- as.data.frame(as.table(log_counts_ordered))
+colnames(heatmap_data) <- c("Gene", "Sample", "Expression")
+
+ggplot(heatmap_data, aes(x = Sample, y = Gene, fill = Expression)) +
+  geom_tile(color = NA) +
+  scale_fill_viridis(name = "Expression Level (log10)", option = "viridis") +
+  labs(
+    title = "Heatmap of Top 20 Genes with Highest Variance",
+    x = "Samples",
+    y = "Genes (clustered)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 6),
+    axis.title = element_text(size = 12),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 8)
+  )
+```
+
+:::
+
+# Export
+
+```{r export, echo=TRUE, results='markup', warning=FALSE, message=TRUE}
+wb <- createWorkbook()
+addWorksheet(wb, "Samplesheets")
+writeData(wb, "Samplesheets", samplesheet)
+addWorksheet(wb, "Norm. counts")
+writeData(wb, "Norm. counts", out_norm)
+saveWorkbook(wb, "DGEA_all_samples_export.xlsx", overwrite = TRUE)
+write.csv(out_norm, "DGEA_all_samples_norm_counts.csv", row.names = FALSE)
+```
+
+- Download [DGEA_all_samples_export.xlsx](DGEA_all_samples_export.xlsx).
+- Download [DGEA_all_samples_norm_counts.csv](DGEA_all_samples_norm_counts.csv).
+
+# Samplesheet
+
+```{r Samplesheet,  echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+datatable(
+  samplesheet,
+  filter = 'top',
+  extensions = c("Buttons"),
+  options = list(
+    autoWidth = FALSE,
+    dom = 'Bt',
+    searchHighlight = FALSE,
+    buttons = c('copy', 'csv', 'excel', 'print'),
+    scrollX = TRUE,
+    pageLength = -1,
+    paging = FALSE,
+    columnDefs = list(
+      list(className = 'dt-left', targets = "_all")
+    )
+  ),
+  rownames = FALSE
+)
+```
+
+# References
+
+<div id="refs"></div>
+
+# R session information
+
+```{r session, echo=FALSE, results='markup', warning=FALSE, message=TRUE}
+sessionInfo()
+```

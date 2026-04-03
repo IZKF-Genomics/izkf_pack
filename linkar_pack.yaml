@@ -19,6 +19,20 @@ templates:
         function: get_host_max_cpus
       max_memory:
         function: get_host_max_memory
+  dgea:
+    params:
+      salmon_dir:
+        function: get_dgea_salmon_dir
+      samplesheet:
+        function: get_dgea_samplesheet
+      organism:
+        function: get_dgea_organism
+      application:
+        function: get_dgea_application
+      name:
+        function: get_dgea_name
+      authors:
+        function: get_dgea_authors
   multiqc:
     params:
       input_dir:

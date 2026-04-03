@@ -1,0 +1,5 @@
+Differential gene expression analysis was performed using a BPM-managed DGEA template that ingests Salmon quantification outputs and an nf-core-compatible sample sheet. Transcript-level abundance estimates were imported in R with `tximport`, then summarized for count-based downstream analysis with explicit application-aware settings (for example, handling differences between RNA-seq and 3'mRNA-seq quantification strategies).
+
+Gene-level differential expression was modeled with DESeq2 using negative binomial generalized linear models, with predefined or user-adjusted group contrasts configured in the rendered constructor script. The workflow generated contrast-wise result tables, model diagnostics, expression heatmaps, and volcano/MA/PCA visualizations suitable for exploratory interpretation and reporting.
+
+When enabled in the constructor configuration, functional enrichment analyses were performed with clusterProfiler on selected gene sets and ranked expression statistics. Software and package provenance, selected runtime parameters, and execution status were recorded in `results/run_info.yaml` to support reproducibility and publication reporting.

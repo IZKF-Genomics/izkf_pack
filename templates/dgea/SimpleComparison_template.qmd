@@ -1,0 +1,223 @@
+---
+title: "Simple Comparison for `r params$sample1` and `r params$sample2`"
+author: "`r params$authors`"
+date: "Last compiled on `r format(Sys.time(), '%d %B, %Y')`"
+format:
+  html:
+    df_print: paged
+    toc: true
+    toc_float:
+      toc_collapsed: true
+    toc_depth: 3
+    number_sections: false
+    embed-resources: true
+    theme: lumen
+    code_download: true
+    code_folding: hide
+bibliography: references.bib
+params:
+  salmon_dir: ""
+  samplesheet_path: ""
+  samplesheet: null
+  organism: ""
+  spikein: ""
+  application: ""
+  name: ""
+  authors: ""
+  sample1: ""
+  sample2: ""
+  filetag: ""
+---
+
+```{r setup, echo=TRUE, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(viridis)
+library(DT)
+library(data.table)
+library(openxlsx)
+library(ggrepel)
+library(tibble)
+library(RColorBrewer)
+library(pheatmap)
+
+validate_inputs <- function() {
+  stopifnot(nzchar(params$salmon_dir))
+  stopifnot(nzchar(params$sample1), nzchar(params$sample2))
+  if (!nzchar(params$application)) {
+    stop("params$application must be set (nfcore_RNAseq or nfcore_3mRNAseq).")
+  }
+}
+
+load_samplesheet <- function() {
+  if (!is.null(params$samplesheet)) {
+    return(params$samplesheet)
+  }
+  if (!nzchar(params$samplesheet_path)) {
+    stop("Provide params$samplesheet or params$samplesheet_path.", call. = FALSE)
+  }
+  read.csv(params$samplesheet_path, stringsAsFactors = FALSE)
+}
+
+validate_inputs()
+samplesheet <- load_samplesheet()
+rownames(samplesheet) <- samplesheet$sample
+
+organism <- params$organism
+salmon_dir <- params$salmon_dir
+filetag <- if (nzchar(params$filetag)) params$filetag else paste0(params$sample2, "_vs_", params$sample1)
+annotation_db <- NULL
+
+if (organism == "mmusculus") {
+  library(org.Mm.eg.db)
+  annotation_db <- org.Mm.eg.db
+} else if (organism == "hsapiens") {
+  library(org.Hs.eg.db)
+  annotation_db <- org.Hs.eg.db
+} else if (organism == "rnorvegicus") {
+  library(org.Rn.eg.db)
+  annotation_db <- org.Rn.eg.db
+} else if (organism == "sscrofa" && requireNamespace("org.Ss.eg.db", quietly = TRUE)) {
+  library(org.Ss.eg.db)
+  annotation_db <- org.Ss.eg.db
+} else {
+  warning("No annotation package available for organism: ", organism, ". Gene full-name annotation will be skipped.")
+}
+
+counts_file <- if (identical(params$application, "nfcore_RNAseq")) {
+  file.path(salmon_dir, "salmon.merged.gene_counts_length_scaled.tsv")
+} else {
+  file.path(salmon_dir, "salmon.merged.gene_counts_scaled.tsv")
+}
+if (!file.exists(counts_file)) {
+  stop("Missing counts file: ", counts_file, call. = FALSE)
+}
+
+ct <- fread(counts_file)
+required_cols <- c("gene_id", "gene_name", params$sample1, params$sample2)
+missing_cols <- setdiff(required_cols, names(ct))
+if (length(missing_cols) > 0) {
+  stop("Missing columns in counts file: ", paste(missing_cols, collapse = ", "))
+}
+
+ct[[paste0(params$sample1, "_log10")]] <- log10(ct[[params$sample1]] + 1)
+ct[[paste0(params$sample2, "_log10")]] <- log10(ct[[params$sample2]] + 1)
+```
+
+### [Back to the main page](../Analysis_Report_RNAseq.html)
+
+## Scatter plot
+
+```{r scatter-plot, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+scatter_plot <- plot_ly(
+  data = ct,
+  x = ~get(paste0(params$sample1, "_log10")),
+  y = ~get(paste0(params$sample2, "_log10")),
+  text = ~paste("Gene:", gene_name),
+  mode = "markers",
+  type = "scatter",
+  marker = list(size = 5, color = "royalblue", opacity = 0.7)
+) %>%
+  layout(
+    title = paste("Scatter Plot of Gene Expression Between", params$sample1, "and", params$sample2),
+    xaxis = list(title = paste(params$sample1, "Expression")),
+    yaxis = list(title = paste(params$sample2, "Expression"))
+  )
+
+scatter_plot
+```
+
+## MA plot
+
+```{r ma-plot, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+sample1_adjusted <- ct[[params$sample1]] + 1
+sample2_adjusted <- ct[[params$sample2]] + 1
+
+ct$M <- log2(sample2_adjusted / sample1_adjusted)
+ct$A <- (log2(sample2_adjusted) + log2(sample1_adjusted)) / 2
+
+ma_plot <- plot_ly(
+  data = ct,
+  x = ~A,
+  y = ~M,
+  text = ~paste("Gene:", gene_name),
+  mode = "markers",
+  type = "scatter",
+  marker = list(size = 5, color = "royalblue", opacity = 0.7)
+) %>%
+  layout(
+    title = paste("MA Plot of Gene Expression Between", params$sample1, "and", params$sample2),
+    xaxis = list(title = "Mean Expression (A)"),
+    yaxis = list(title = "Log2 Fold Change (M)")
+  )
+
+ma_plot
+```
+
+## Statistics
+
+```{r statistics, layout="l-body-outset", echo=TRUE, results='asis', warning=FALSE, message=FALSE}
+datatable(
+  ct,
+  extensions = c("FixedColumns", "Buttons"),
+  filter = "top",
+  options = list(
+    autoWidth = FALSE,
+    dom = "Blftip",
+    pageLength = 10,
+    searchHighlight = FALSE,
+    buttons = c("copy", "csv", "excel", "print"),
+    scrollX = TRUE,
+    fixedColumns = list(leftColumns = 2)
+  ),
+  class = c("compact cell-border stripe hover"),
+  rownames = FALSE
+) %>%
+  formatRound(columns = 3:10, digits = 2)
+```
+
+# Export
+
+```{r export, echo=TRUE, results='markup', warning=FALSE, message=TRUE}
+if (!is.null(annotation_db)) {
+  ct <- ct %>%
+    mutate(
+      gene_full_name = mapIds(
+        annotation_db,
+        keys = sub("\\..*", "", gene_id),
+        column = "GENENAME",
+        keytype = "ENSEMBL",
+        multiVals = "first"
+      )
+    ) %>%
+    relocate(gene_full_name, .after = gene_name)
+} else {
+  ct <- ct %>%
+    mutate(gene_full_name = NA_character_) %>%
+    relocate(gene_full_name, .after = gene_name)
+}
+
+export_filename <- paste0("SimpleComparison_", filetag, "_export.xlsx")
+wb <- createWorkbook()
+addWorksheet(wb, "Statistics")
+writeData(wb, "Statistics", ct, row.names = FALSE)
+saveWorkbook(wb, export_filename, overwrite = TRUE)
+
+export_csv <- paste0("SimpleComparison_", filetag, "_stat.csv")
+write.csv(ct, export_csv, row.names = FALSE)
+```
+
+- Please download the export excel file: [`r export_filename`](`r export_filename`)
+- Or download the CSV file: [`r export_csv`](`r export_csv`)
+- If you desire to annotate the volcano plot and annotate the genes you prefer, please try out our web app [AnnoFig](https://genomics.rwth-aachen.de/annofig/) with the CSV file above.
+
+# References
+
+<div id="refs"></div>
+
+# R session information
+
+```{r session, echo=FALSE, results='markup', warning=FALSE, message=TRUE}
+sessionInfo()
+```

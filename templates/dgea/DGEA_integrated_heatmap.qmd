@@ -1,0 +1,246 @@
+---
+title: "DGEA Integrated Heatmap"
+author: "`r params$authors`"
+date: "Last compiled on `r format(Sys.time(), '%d %B, %Y')`"
+format:
+  html:
+    df_print: paged
+    toc: true
+    toc_float:
+      toc_collapsed: true
+    toc_depth: 3
+    number_sections: false
+    embed-resources: true
+    theme: lumen
+bibliography: references.bib
+params:
+  authors: ""
+  padj_threshold: 0.05
+  stat_files_pattern: "DGEA_.*_stat\\.csv$"
+  stat_files_exclude_regex: "all_samples"
+  top_n_all: null
+  top_n_100: 100
+  top_n_10: 10
+  top_n_single: 20
+  single_comparison_file: "DGEA_Generation2_vs_WT_stat.csv"
+  gsea_min_log10_padj: 7
+---
+
+```{r setup, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+library(data.table)
+library(dplyr)
+library(gtools)
+library(stringr)
+library(readxl)
+library(ggplot2)
+library(ggpubr)
+library(pheatmap)
+library(tidyr)
+library(tibble)
+library(RColorBrewer)
+
+padj_threshold <- params$padj_threshold
+norm_counts_file <- "DGEA_All_samples_norm_counts.csv"
+
+if (!file.exists(norm_counts_file)) {
+  stop("Missing normalized counts file: ", norm_counts_file, call. = FALSE)
+}
+
+stat_files <- list.files(path = ".", pattern = params$stat_files_pattern, full.names = FALSE)
+if (nzchar(params$stat_files_exclude_regex)) {
+  stat_files <- stat_files[!grepl(params$stat_files_exclude_regex, stat_files, ignore.case = TRUE)]
+}
+if (length(stat_files) == 0) {
+  stop("No DGEA stat files found with pattern: ", params$stat_files_pattern, call. = FALSE)
+}
+
+norm_count <- fread(norm_counts_file)
+
+filter_genes <- function(stat_files, top_n) {
+  filtered_genes <- list()
+  for (stat_file in stat_files) {
+    data <- fread(stat_file, stringsAsFactors = FALSE)
+    if (is.null(top_n) || is.na(top_n)) {
+      sel_data <- data[data$padj < padj_threshold, ]
+    } else {
+      sel_data <- data[order(data$padj, decreasing = FALSE), ]
+      sel_data <- head(sel_data, top_n)
+    }
+    filtered_genes[[stat_file]] <- sel_data$gene_symbol
+  }
+  filtered_genes
+}
+
+build_group_colors <- function(groups) {
+  n_groups <- length(groups)
+  if (n_groups <= 12) {
+    setNames(brewer.pal(n = n_groups, name = "Set3"), groups)
+  } else {
+    palette <- colorRampPalette(brewer.pal(12, "Set3"))(n_groups)
+    setNames(palette, groups)
+  }
+}
+
+generate_heatmap <- function(target_genes, main, show_rownames, fontsize_row) {
+  data_matrix <- as.data.frame(norm_count[norm_count$gene_name %in% target_genes, ])
+  rownames(data_matrix) <- make.unique(data_matrix$gene_name)
+  data_matrix <- as.matrix(data_matrix[, c(-1, -2, -3)])
+  data_matrix <- log10(data_matrix + 1)
+
+  wt_cols <- grep("^WT", colnames(data_matrix), value = TRUE)
+  other_cols <- setdiff(colnames(data_matrix), wt_cols)
+  data_matrix <- data_matrix[, c(wt_cols, other_cols)]
+
+  group <- str_extract(colnames(data_matrix), "^[^_]+")
+  group <- factor(group, levels = c("WT", sort(unique(group[group != "WT"]))))
+
+  col_annotations <- data.frame(
+    Group = group,
+    row.names = colnames(data_matrix)
+  )
+
+  group_levels <- levels(group)
+  annotation_colors <- list(
+    Group = build_group_colors(group_levels)
+  )
+
+  pheatmap(
+    mat = data_matrix,
+    cluster_rows = TRUE,
+    cluster_cols = FALSE,
+    clustering_distance_rows = "euclidean",
+    clustering_distance_cols = "manhattan",
+    clustering_method = "complete",
+    scale = "none",
+    fontsize = 7,
+    fontsize_row = fontsize_row,
+    fontsize_col = 2,
+    show_rownames = show_rownames,
+    show_colnames = TRUE,
+    legend = TRUE,
+    border_color = NA,
+    angle_col = 45,
+    main = main,
+    annotation_col = col_annotations,
+    annotation_colors = annotation_colors
+  )
+}
+```
+
+### [Back to the main page](../Analysis_Report_RNAseq.html)
+
+# Combining all DE genes
+
+```{r all-de-genes, echo=FALSE, results="asis", warning=FALSE, message=FALSE, dpi=600, fig.width=6, fig.height=8}
+filtered_genes <- filter_genes(stat_files, top_n = params$top_n_all)
+combined_genes <- unique(unlist(filtered_genes))
+generate_heatmap(
+  combined_genes,
+  fontsize_row = 2,
+  main = "All DE Genes",
+  show_rownames = FALSE
+)
+```
+
+# Top 100 DE genes
+
+```{r top-100, echo=FALSE, results="asis", warning=FALSE, message=FALSE, dpi=600, fig.width=6, fig.height=8}
+filtered_genes <- filter_genes(stat_files, top_n = params$top_n_100)
+combined_genes <- unique(unlist(filtered_genes))
+generate_heatmap(
+  combined_genes,
+  fontsize_row = 2,
+  main = "Top 100 DE genes",
+  show_rownames = FALSE
+)
+```
+
+# Top 10 DE genes
+
+```{r top-10, echo=FALSE, results="asis", warning=FALSE, message=FALSE, dpi=600, fig.width=6, fig.height=5}
+filtered_genes <- filter_genes(stat_files, top_n = params$top_n_10)
+combined_genes <- unique(unlist(filtered_genes))
+generate_heatmap(
+  combined_genes,
+  fontsize_row = 4,
+  main = "Top 10 DE genes",
+  show_rownames = TRUE
+)
+```
+
+# Top DE genes in a single comparison
+
+```{r top-single, echo=FALSE, results="asis", warning=FALSE, message=FALSE, dpi=600, fig.width=6, fig.height=4}
+if (!params$single_comparison_file %in% stat_files) {
+  stop("single_comparison_file not found in stat files: ", params$single_comparison_file)
+}
+filtered_genes <- filter_genes(stat_files, top_n = params$top_n_single)
+target_genes <- filtered_genes[[params$single_comparison_file]]
+generate_heatmap(
+  target_genes,
+  fontsize_row = 4,
+  main = paste0("Top ", params$top_n_single, " DE genes in ", params$single_comparison_file),
+  show_rownames = TRUE
+)
+```
+
+# GSEA
+
+```{r gsea-data, echo=FALSE, results="asis", warning=FALSE, message=FALSE}
+xlsx_files <- list.files(path = ".", pattern = "DGEA_.*vs.*_export\\.xlsx$", full.names = TRUE)
+```
+
+```{r gsea-heatmap, echo=FALSE, results="asis", warning=FALSE, message=FALSE, dpi=600, fig.width=6, fig.height=8}
+if (length(xlsx_files) == 0) {
+  cat("No GSEA export files found (expected: DGEA_*vs*_export.xlsx).")
+} else {
+  gsea_list <- list()
+  for (file in xlsx_files) {
+    df <- read_excel(file, sheet = "GSEA_Results")
+    df <- df %>%
+      select(Description, p.adjust) %>%
+      mutate(p.adjust = -log10(p.adjust))
+    gsea_list[[file]] <- df
+  }
+
+  gsea_combined <- bind_rows(gsea_list, .id = "File")
+  gsea_combined$File <- gsub(".*/|\\.xlsx$", "", gsea_combined$File)
+  gsea_combined$File <- gsub("_export", "", gsea_combined$File)
+  gsea_combined$File <- gsub("DGEA_", "", gsea_combined$File)
+
+  gsea_matrix <- gsea_combined %>%
+    pivot_wider(names_from = File, values_from = p.adjust, values_fill = 1)
+  gsea_matrix <- gsea_matrix %>% column_to_rownames(var = "Description")
+  colnames(gsea_matrix) <- gsub("_", " ", colnames(gsea_matrix))
+  gsea_matrix <- gsea_matrix[, mixedsort(colnames(gsea_matrix))]
+
+  gsea_matrix_filtered <- gsea_matrix %>%
+    filter(if_any(everything(), ~ . > params$gsea_min_log10_padj))
+
+  if (nrow(gsea_matrix_filtered) == 0 || ncol(gsea_matrix_filtered) == 0) {
+    cat("No GSEA terms pass the filter. Lower gsea_min_log10_padj to show a heatmap.")
+  } else {
+    pheatmap(
+      mat = gsea_matrix_filtered,
+      cluster_rows = TRUE,
+      cluster_cols = FALSE,
+      clustering_method = "complete",
+      fontsize = 7,
+      fontsize_row = 3,
+      fontsize_col = 5,
+      show_rownames = TRUE,
+      show_colnames = TRUE,
+      legend = TRUE,
+      border_color = NA,
+      angle_col = 45,
+      main = "Integrated GSEA p.adjust"
+    )
+  }
+}
+```
+
+# R session information
+
+```{r session, echo=FALSE, results='markup', warning=FALSE, message=TRUE}
+sessionInfo()
+```
