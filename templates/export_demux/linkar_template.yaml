@@ -67,8 +67,6 @@ params:
     description: If true, build and save the export metadata but do not submit anything to the export engine.
 outputs:
   results_dir: {}
-  export_summary:
-    path: export_demux_summary.json
   export_metadata_dir:
     path: export_metadata_dir.txt
   export_job_id:

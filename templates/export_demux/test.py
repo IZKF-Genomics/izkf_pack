@@ -77,8 +77,7 @@ def main() -> int:
         assert "Dry Run" in dry.stdout
         latest = run_dir / ".linkar" / "export_demux" / "latest"
         assert (latest / "export_job_spec.redacted.json").exists()
-        dry_summary = json.loads((results_dir / "export_demux_summary.json").read_text(encoding="utf-8"))
-        assert dry_summary["dry_run"] is True
+        assert not (results_dir / "export_demux_summary.json").exists()
 
         server = HTTPServer(("127.0.0.1", 0), Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -100,11 +99,10 @@ def main() -> int:
                 text=True,
             )
             assert "job-123" in submit.stdout
-            summary = json.loads((latest / "export_demux_summary.json").read_text(encoding="utf-8"))
-            assert summary["job_id"] == "job-123"
-            assert summary["final_path"] == "/exports/demux"
             assert (latest / "export_response.json").exists()
             assert (latest / "export_final_message.json").exists()
+            assert (latest / "export_job_id.txt").read_text(encoding="utf-8").strip() == "job-123"
+            assert (latest / "export_final_path.txt").read_text(encoding="utf-8").strip() == "/exports/demux"
             assert (results_dir / "export_metadata_dir.txt").read_text(encoding="utf-8").strip() == str(latest)
         finally:
             server.shutdown()

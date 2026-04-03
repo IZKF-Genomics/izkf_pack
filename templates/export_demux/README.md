@@ -31,7 +31,6 @@ After a successful run, these files are written under:
 - `export_final_message.json`
 - `export_job_id.txt`
 - `export_final_path.txt`
-- `export_demux_summary.json`
 
 The Linkar action run also keeps a lightweight trace in its own `results/`, but the source-side `.linkar/export_demux/latest/` directory is the canonical location.
 

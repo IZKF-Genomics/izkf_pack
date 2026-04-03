@@ -263,18 +263,8 @@ def main() -> int:
     write_json(attempt_dir / "export_job_spec.json", job_spec)
     write_json(attempt_dir / "export_job_spec.redacted.json", redacted_spec)
 
-    summary = {
-        "run_dir": str(run_dir),
-        "canonical_metadata_dir": str(latest_dir),
-        "project_name": project_name,
-        "dry_run": parse_bool(args.dry_run, False),
-        "export_engine_api_url": args.export_engine_api_url,
-    }
-
     if parse_bool(args.dry_run, False):
-        write_json(attempt_dir / "export_demux_summary.json", summary)
         sync_latest(attempt_dir, latest_dir)
-        write_json(results_dir / "export_demux_summary.json", summary)
         write_text(results_dir / "export_metadata_dir.txt", str(latest_dir) + "\n")
         print_section("Dry Run", YELLOW)
         print_key_value("run_dir", str(run_dir))
@@ -349,18 +339,7 @@ def main() -> int:
     final_path = str(final_json.get("final_path") or "").strip()
     write_text(attempt_dir / "export_final_path.txt", final_path + ("\n" if final_path else ""))
 
-    summary.update(
-        {
-            "job_id": job_id,
-            "status": str(final_json.get("status") or final_json.get("type") or ""),
-            "final_path": final_path,
-            "main_report": str(final_json.get("main_report") or ""),
-        }
-    )
-    write_json(attempt_dir / "export_demux_summary.json", summary)
     sync_latest(attempt_dir, latest_dir)
-
-    write_json(results_dir / "export_demux_summary.json", summary)
     write_text(results_dir / "export_metadata_dir.txt", str(latest_dir) + "\n")
     write_text(results_dir / "export_job_id.txt", job_id + "\n")
 
