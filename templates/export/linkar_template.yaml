@@ -1,0 +1,119 @@
+id: export
+version: 0.1.0
+description: Prepare and submit an export bundle from Linkar project history.
+tools:
+  required:
+    - python
+params:
+  export_engine_api_url:
+    type: str
+    default: http://genomics.rwth-aachen.de:9500
+    description: Base URL of the facility export engine. The template appends /export if needed.
+  export_engine_backends:
+    type: str
+    default: apache, owncloud, sftp
+    description: Comma-separated export backends recorded in export_job_spec.json.
+  export_expiry_days:
+    type: int
+    default: 30
+    description: Retention period passed to the export engine job spec.
+  export_username:
+    type: str
+    default: ""
+    description: Optional export username override. If omitted, the template derives it from the project name when possible.
+  export_password:
+    type: str
+    default: ""
+    description: Optional export password override. If omitted, a random token is generated during bundle creation.
+  agendo_id:
+    type: str
+    default: ""
+    description: Optional Agendo request id used for metadata lookup and recorded in metadata_context.yaml.
+  flowcell_id:
+    type: str
+    default: ""
+    description: Optional flowcell id used for metadata lookup and recorded in metadata_context.yaml.
+  metadata_source:
+    type: str
+    default: auto
+    description: Metadata source mode. Use auto, api, file, mock, or none.
+  metadata_file:
+    type: path
+    default: ""
+    description: Optional JSON or YAML metadata payload used when metadata_source=file or preferred in auto mode.
+  metadata_api_url:
+    type: str
+    default: https://genomics.rwth-aachen.de/api
+    description: Base URL for metadata enrichment.
+  metadata_api_endpoint:
+    type: str
+    default: /project-output
+    description: Endpoint appended to metadata_api_url for metadata lookup.
+  metadata_api_timeout:
+    type: int
+    default: 20
+    description: Timeout in seconds for metadata API requests.
+  include_methods_in_spec:
+    type: bool
+    default: true
+    description: When true, include generated methods text and context in export_job_spec.json.
+  methods_style:
+    type: str
+    default: full
+    description: Methods report style. Use full or concise.
+outputs:
+  results_dir: {}
+  export_job_spec:
+    path: export_job_spec.json
+  metadata_context:
+    path: metadata_context.yaml
+  metadata_raw:
+    path: metadata_raw.json
+  metadata_normalized:
+    path: metadata_normalized.yaml
+  project_methods:
+    path: project_methods.md
+  methods_context:
+    path: methods_context.yaml
+  export_submission:
+    path: export_submission.json
+  export_job_id:
+    path: export_job_id.txt
+  export_final_message:
+    path: export_final_message.txt
+  export_final_path:
+    path: export_final_path.txt
+run:
+  mode: render
+  command: |
+    if [[ ! -f "../project.yaml" ]]; then
+      echo "[error] export must be rendered inside a Linkar project directory." >&2
+      exit 2
+    fi
+
+    if [[ ! -f "./results/export_job_spec.json" ]]; then
+      python ./build_export_bundle.py \
+        --project-dir ".." \
+        --template-dir "." \
+        --results-dir "./results" \
+        --export-engine-backends "${param:export_engine_backends}" \
+        --export-expiry-days "${param:export_expiry_days}" \
+        --export-username "${param:export_username}" \
+        --export-password "${param:export_password}" \
+        --agendo-id "${param:agendo_id}" \
+        --flowcell-id "${param:flowcell_id}" \
+        --metadata-source "${param:metadata_source}" \
+        --metadata-file "${param:metadata_file}" \
+        --metadata-api-url "${param:metadata_api_url}" \
+        --metadata-api-endpoint "${param:metadata_api_endpoint}" \
+        --metadata-api-timeout "${param:metadata_api_timeout}" \
+        --include-methods-in-spec "${param:include_methods_in_spec}" \
+        --methods-style "${param:methods_style}" \
+        --skip-if-spec-exists
+    else
+      echo "[info] using existing ./results/export_job_spec.json"
+    fi
+
+    python ./submit_export.py \
+      --results-dir "./results" \
+      --api-url "${param:export_engine_api_url}"

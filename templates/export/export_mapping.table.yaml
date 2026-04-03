@@ -1,0 +1,33 @@
+mappings:
+  - template_id: demultiplex
+    src_project_key: "templates[id=demultiplex].outputs.output_dir"
+    src: "{template_root}/results/output"
+    dest: "1_Raw_data/FASTQ"
+    report_links:
+      - path: "."
+        section: raw
+        description: "FASTQ output from the demultiplex template."
+        link_name: "FASTQ output"
+
+  - template_id: demultiplex
+    src_project_key: "templates[id=demultiplex].outputs.multiqc_report"
+    src: "{template_root}/results/multiqc/multiqc_report.html"
+    dest: "1_Raw_data/demultiplexing_multiqc_report.html"
+    report_links:
+      - path: "."
+        section: raw
+        description: "MultiQC report from the demultiplex template."
+        link_name: "Demultiplex MultiQC report"
+
+  - template_id: nfcore_3mrnaseq
+    src: "{template_root}"
+    dest: "2_Processed_data/nfcore_3mrnaseq"
+    report_links:
+      - path: "."
+        section: processed
+        description: "This folder contains the rendered script bundle, configuration, and nf-core/rnaseq results."
+        link_name: "nfcore_3mrnaseq"
+      - path: "results/multiqc/multiqc_report.html"
+        section: processed/MultiQC
+        description: "MultiQC report from nfcore_3mrnaseq."
+        link_name: "nfcore_3mrnaseq MultiQC"
