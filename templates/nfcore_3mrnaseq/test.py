@@ -88,18 +88,14 @@ def render_command_script(
             .replace("`", "\\`")
         )
     command = command.replace("${LINKAR_RESULTS_DIR}", "./results")
-    command = command.replace("${SAMPLESHEET}", "${samplesheet}")
-    command = command.replace("${GENOME}", "${genome}")
-    command = command.replace("${UMI}", "${umi}")
-    command = command.replace("${SPIKEIN}", "${spikein}")
-    command = command.replace("${MAX_CPUS}", "${max_cpus}")
-    command = command.replace("${MAX_CPUS:-}", "${max_cpus:-}")
-    command = command.replace("${MAX_CPUS:+--max_cpus}", "${max_cpus:+--max_cpus}")
-    command = command.replace('${MAX_CPUS:+"${MAX_CPUS}"}', '${max_cpus:+"${max_cpus}"}')
-    command = command.replace("${MAX_MEMORY}", "${max_memory}")
-    command = command.replace("${MAX_MEMORY:-}", "${max_memory:-}")
-    command = command.replace("${MAX_MEMORY:+--max_memory}", "${max_memory:+--max_memory}")
-    command = command.replace('${MAX_MEMORY:+"${MAX_MEMORY}"}', '${max_memory:+"${max_memory}"}')
+    command = command.replace("${param:samplesheet}", "${samplesheet}")
+    command = command.replace("${param:genome}", "${genome}")
+    command = command.replace("${param:umi}", "${umi}")
+    command = command.replace("${param:spikein}", "${spikein}")
+    command = command.replace("${param:max_cpus}", "${max_cpus}")
+    command = command.replace("${param:max_cpus:-}", "${max_cpus:-}")
+    command = command.replace("${param:max_memory}", "${max_memory}")
+    command = command.replace("${param:max_memory:-}", "${max_memory:-}")
 
     assignments = [
         "#!/usr/bin/env bash",
@@ -292,10 +288,10 @@ def main() -> None:
     test_agendo_genome_unknown_organism_returns_placeholder()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     assert "nextflow" in template_text
-    assert '"${SAMPLESHEET}"' in template_text
-    assert '"${GENOME}"' in template_text
+    assert '"${param:samplesheet}"' in template_text
+    assert '"${param:genome}"' in template_text
     assert 'samplesheet="${SAMPLESHEET}"' not in template_text
-    assert 'effective_genome="${GENOME}"' in template_text
+    assert 'effective_genome="${param:genome}"' in template_text
     assert template_text.index("  agendo_id:") < template_text.index("  genome:")
     print("nfcore_3mrnaseq template test passed")
 
