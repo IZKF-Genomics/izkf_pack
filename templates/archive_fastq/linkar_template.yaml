@@ -1,0 +1,71 @@
+id: archive_fastq
+version: 0.1.0
+description: Archive FASTQ run directories to the facility archive root with a shared manifest log.
+tools:
+  required:
+    - python
+    - rsync
+params:
+  source_root:
+    type: path
+    default: /data/fastq
+  target_root:
+    type: path
+    default: /mnt/nextgen2/archive/fastq
+  retention_days:
+    type: int
+    default: 90
+  instrument_folders:
+    type: str
+    default: ""
+  skip_runs:
+    type: str
+    default: ""
+  "yes":
+    type: bool
+    default: false
+  non_interactive:
+    type: bool
+    default: false
+  dry_run:
+    type: bool
+    default: false
+  cleanup:
+    type: bool
+    default: true
+  min_free_gb:
+    type: int
+    default: 500
+  manifest_path:
+    type: path
+    default: ""
+  manifest_dir:
+    type: path
+    default: /data/shared/linkar_manifests
+  exclude_patterns:
+    type: str
+    default: "*.fastq.gz,*.fq.gz,.pixi,work,.renv,.Rproj.user,.nextflow,.nextflow.log*,nohup.out,Logs,Reports"
+outputs:
+  results_dir: {}
+  manifest_path:
+    path: manifest_path.txt
+  log_path:
+    path: log_path.txt
+run:
+  mode: direct
+  command: |
+    python ./run.py \
+      --results-dir "${LINKAR_RESULTS_DIR}" \
+      --source-root "${param:source_root}" \
+      --target-root "${param:target_root}" \
+      --retention-days "${param:retention_days}" \
+      --instrument-folders "${param:instrument_folders}" \
+      --skip-runs "${param:skip_runs}" \
+      --yes "${param:yes}" \
+      --non-interactive "${param:non_interactive}" \
+      --dry-run "${param:dry_run}" \
+      --cleanup "${param:cleanup}" \
+      --min-free-gb "${param:min_free_gb}" \
+      --manifest-path "${param:manifest_path}" \
+      --manifest-dir "${param:manifest_dir}" \
+      --exclude-patterns "${param:exclude_patterns}"
