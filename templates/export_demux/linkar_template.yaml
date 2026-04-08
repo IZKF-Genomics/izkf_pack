@@ -73,6 +73,7 @@ outputs:
     path: export_job_id.txt
 run:
   mode: direct
+  verbose_by_default: true
   command: |
     python3 ./run.py \
       --results-dir "${LINKAR_RESULTS_DIR}" \
