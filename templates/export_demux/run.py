@@ -72,6 +72,11 @@ def supports_color() -> bool:
     return sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
 
 
+def supports_spinner() -> bool:
+    term = os.environ.get("TERM", "")
+    return sys.stdout.isatty() and term.lower() != "dumb"
+
+
 def ansi(code: str) -> str:
     return f"\033[{code}m" if supports_color() else ""
 
@@ -101,6 +106,10 @@ def print_key_value(label: str, value: str, *, tone: str = BLUE) -> None:
 
 
 def run_with_spinner(message: str, func):
+    if not supports_spinner():
+        print(message)
+        return func()
+
     stop_event = threading.Event()
     spinner = ["|", "/", "-", "\\"]
 
