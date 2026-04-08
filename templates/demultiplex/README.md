@@ -27,7 +27,6 @@ Exposed parameters:
 - `qc_tool`
 - `contamination_tool`
 - `threads`
-- `run_name`
 - `kraken_db`
 - `bracken_db`
 - `fastq_screen_conf`

@@ -39,7 +39,6 @@ def make_fake_pixi_bin(root: Path) -> Path:
         "parser.add_argument('--qc-tool', required=True)\n"
         "parser.add_argument('--contamination-tool', default='none')\n"
         "parser.add_argument('--threads', required=True, type=int)\n"
-        "parser.add_argument('--run-name', default='')\n"
         "parser.add_argument('--kraken-db', default='')\n"
         "parser.add_argument('--bracken-db', default='')\n"
         "parser.add_argument('--fastq-screen-conf', default='')\n"
@@ -74,11 +73,10 @@ def make_fake_pixi_bin(root: Path) -> Path:
         "(args.outdir / 'samples.tsv').write_text('sample\\tR1\\t\\n', encoding='utf-8')\n"
         "pipeline_dir = args.outdir / '.pipeline' / 'run-001'\n"
         "pipeline_dir.mkdir(parents=True, exist_ok=True)\n"
-        "(pipeline_dir / 'run_summary.json').write_text(json.dumps({'run_name': args.run_name, 'threads': args.threads}) + '\\n', encoding='utf-8')\n"
+        "(pipeline_dir / 'run_summary.json').write_text(json.dumps({'threads': args.threads}) + '\\n', encoding='utf-8')\n"
         "payload = {\n"
         "    'outdir': str(args.outdir),\n"
         "    'outputs': {\n"
-        "        'samples_tsv': str(args.outdir / 'samples.tsv'),\n"
         "        'qc_dir': str(args.outdir / 'fastqc') if (args.outdir / 'fastqc').exists() else None,\n"
         "        'contamination_dir': str(args.outdir / 'contamination') if (args.outdir / 'contamination').exists() else None,\n"
         "        'multiqc_report': str(args.outdir / 'multiqc' / 'multiqc_report.html'),\n"
@@ -180,7 +178,6 @@ def main() -> None:
             "QC_TOOL=\"${QC_TOOL:?}\"\n"
             "CONTAMINATION_TOOL=\"${CONTAMINATION_TOOL:?}\"\n"
             "THREADS=\"${THREADS:?}\"\n"
-            "RUN_NAME=\"${RUN_NAME:-}\"\n"
             "KRAKEN_DB=\"${KRAKEN_DB:-}\"\n"
             "BRACKEN_DB=\"${BRACKEN_DB:-}\"\n"
             "FASTQ_SCREEN_CONF=\"${FASTQ_SCREEN_CONF:-}\"\n"
@@ -199,7 +196,6 @@ def main() -> None:
             "  --contamination-tool \"${CONTAMINATION_TOOL}\" \\\n"
             "  --threads \"${THREADS}\" \\\n"
             "  --output-contract-file \"${LINKAR_RESULTS_DIR}/template_outputs.json\" \\\n"
-            "  ${RUN_NAME:+--run-name \"${RUN_NAME}\"} \\\n"
             "  ${KRAKEN_DB:+--kraken-db \"${KRAKEN_DB}\"} \\\n"
             "  ${BRACKEN_DB:+--bracken-db \"${BRACKEN_DB}\"} \\\n"
             "  ${FASTQ_SCREEN_CONF:+--fastq-screen-conf \"${FASTQ_SCREEN_CONF}\"}\n"
@@ -210,7 +206,6 @@ def main() -> None:
         env = {
             "QC_TOOL": "fastqc,fastp",
             "THREADS": "2",
-            "RUN_NAME": "demux-test",
             "BCL_DIR": str(demux_input),
             "SAMPLESHEET": str(samplesheet),
             "CONTAMINATION_TOOL": "kraken",
@@ -239,7 +234,6 @@ def main() -> None:
         assert (results_dir / "samples.tsv").exists()
 
         contract = json.loads((results_dir / "template_outputs.json").read_text(encoding="utf-8"))
-        assert contract["outputs"]["samples_tsv"] == str(results_dir / "samples.tsv")
         assert contract["outputs"]["contamination_dir"] == str(results_dir / "contamination")
         assert (tmpdir / "demultiplexing_prefect" / "demux_pipeline" / "__init__.py").exists()
         assert (

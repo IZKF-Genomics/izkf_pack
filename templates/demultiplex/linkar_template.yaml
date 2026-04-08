@@ -39,10 +39,6 @@ params:
     type: int
     default: 4
     description: Global CPU thread budget for QC and contamination stages. In izkf_pack, the default binding resolves this to 80% of host CPUs via get_host_max_cpus.
-  run_name:
-    type: str
-    default: ""
-    description: Optional run label forwarded to the upstream pipeline.
   kraken_db:
     type: path
     default: ""
@@ -58,8 +54,6 @@ params:
 outputs:
   results_dir: {}
   output_dir: {}
-  samples_tsv:
-    path: samples.tsv
   demux_fastq_files:
     glob: output/**/*.fastq.gz
   fastqc_dir: {}
@@ -106,7 +100,6 @@ run:
       --contamination-tool "${param:contamination_tool}" \
       --threads "${param:threads}" \
       --output-contract-file "${LINKAR_RESULTS_DIR}/template_outputs.json" \
-      ${param:run_name:+--run-name "${param:run_name}"} \
       ${param:kraken_db:+--kraken-db "${param:kraken_db}"} \
       ${param:bracken_db:+--bracken-db "${param:bracken_db}"} \
       ${param:fastq_screen_conf:+--fastq-screen-conf "${param:fastq_screen_conf}"}
