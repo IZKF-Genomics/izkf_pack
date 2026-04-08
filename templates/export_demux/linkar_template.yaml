@@ -3,7 +3,7 @@ version: 0.1.0
 description: Submit an export request for an ad hoc demultiplex run and store canonical export metadata under the source run directory.
 tools:
   required:
-    - python
+    - python3
 params:
   run_dir:
     type: path
@@ -74,7 +74,7 @@ outputs:
 run:
   mode: direct
   command: |
-    python ./run.py \
+    python3 ./run.py \
       --results-dir "${LINKAR_RESULTS_DIR}" \
       --run-dir "${param:run_dir}" \
       --project-name "${param:project_name}" \
