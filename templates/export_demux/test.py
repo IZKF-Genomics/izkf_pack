@@ -35,8 +35,34 @@ class Handler(BaseHTTPRequestHandler):
             {
                 "status": "completed",
                 "main_report": "https://example.org/report",
+                "project_name": "20250101_Test_Project_Assay_FASTQ",
+                "username": "tester",
+                "password": "secret-token",
+                "publisher_results": [
+                    {
+                        "publisher": "apache",
+                        "url": "https://example.org/data",
+                        "username": "tester",
+                        "password": "secret-token",
+                    },
+                    {
+                        "publisher": "owncloud",
+                        "url": "https://example.org/cloud",
+                        "username": None,
+                        "password": "secret-token",
+                    },
+                ],
                 "final_path": "/exports/demux",
                 "formatted_message": "**Export complete**",
+                "message": (
+                    "\n"
+                    "'Project ID': '20250101_Test_Project_Assay_FASTQ',\n"
+                    "'Report URL': 'https://example.org/report',\n"
+                    "'Username': 'tester',\n"
+                    "'Password': 'secret-token',\n"
+                    "'Download URL': 'https://example.org/cloud',\n"
+                    "'Download command': \"wget https://example.org/data\",\n"
+                ),
             }
         ).encode("utf-8")
         self.send_response(200)
@@ -127,6 +153,10 @@ def main() -> int:
             assert (latest / "export_final_path.txt").read_text(encoding="utf-8").strip() == "/exports/demux"
             assert (results_dir / "export_metadata_dir.txt").read_text(encoding="utf-8").strip() == str(latest)
             assert server.payload["export_list"][0]["project"] == server.payload["project_name"]
+            assert "JSON Patch for MS Planner" in submit.stdout
+            assert '"Project ID": "20250101_Test_Project_Assay_FASTQ"' in submit.stdout
+            assert "Publisher Results" in submit.stdout
+            assert "1. APACHE" in submit.stdout
         finally:
             server.shutdown()
             thread.join(timeout=5)

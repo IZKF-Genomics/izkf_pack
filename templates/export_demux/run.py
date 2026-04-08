@@ -248,6 +248,23 @@ def normalize_summary_text(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip().lower()
 
 
+def parse_raw_api_message(text: str) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    for line in text.splitlines():
+        stripped = line.strip().rstrip(",")
+        if not stripped:
+            continue
+        match = re.match(r"^'([^']+)':\s*(.*)$", stripped)
+        if not match:
+            continue
+        key = match.group(1).strip()
+        value = match.group(2).strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        parsed[key] = value
+    return parsed
+
+
 def build_final_summary(final_json: dict[str, object]) -> str:
     formatted = strip_markdown(str(final_json.get("formatted_message") or ""))
     raw = str(final_json.get("message") or "").strip()
@@ -256,6 +273,66 @@ def build_final_summary(final_json: dict[str, object]) -> str:
             return formatted
         return f"{formatted}\n\nRaw API Message\n\n{raw}"
     return formatted or raw
+
+
+def print_list_item(label: str, value: str) -> None:
+    print(f"- {label}: {value}")
+
+
+def print_final_export_summary(final_json: dict[str, object]) -> None:
+    print_section("Final Export Summary", CYAN)
+    print("Export complete.")
+
+    main_report = str(final_json.get("main_report") or "").strip()
+    username = str(final_json.get("username") or "").strip()
+    password = str(final_json.get("password") or "").strip()
+
+    if main_report:
+        print("")
+        print("Main Report")
+        print_list_item("URL", main_report)
+
+    if username or password:
+        print("")
+        print("Access Credentials")
+        if username:
+            print_list_item("Username", username)
+        if password:
+            print_list_item("Password", password)
+
+    publisher_results = final_json.get("publisher_results")
+    if isinstance(publisher_results, list) and publisher_results:
+        print("")
+        print("Publisher Results")
+        for index, publisher in enumerate(publisher_results, start=1):
+            if not isinstance(publisher, dict):
+                continue
+            publisher_name = str(publisher.get("publisher") or f"publisher {index}").upper()
+            print(f"{index}. {publisher_name}")
+            url = str(publisher.get("url") or "").strip()
+            publisher_username = str(publisher.get("username") or "").strip()
+            publisher_password = str(publisher.get("password") or "").strip()
+            if url:
+                print_list_item("URL", url)
+            if publisher_username:
+                print_list_item("Username", publisher_username)
+            if publisher_password:
+                print_list_item("Password", publisher_password)
+
+    raw_message = str(final_json.get("message") or "").strip()
+    raw_fields = parse_raw_api_message(raw_message)
+    if raw_fields:
+        planner_patch = {
+            "Project ID": raw_fields.get("Project ID", ""),
+            "Report URL": raw_fields.get("Report URL", ""),
+            "Username": raw_fields.get("Username", ""),
+            "Password": raw_fields.get("Password", ""),
+            "Download URL": raw_fields.get("Download URL", ""),
+            "Download command": raw_fields.get("Download command", ""),
+        }
+        print("")
+        print_section("JSON Patch for MS Planner", YELLOW)
+        print(json.dumps(planner_patch, indent=2))
 
 
 def final_pending(exc: HTTPError, detail: str) -> bool:
@@ -432,8 +509,7 @@ def main() -> int:
         print_key_value("report", str(final_json["main_report"]), tone=GREEN)
     if final_json.get("formatted_message") or final_json.get("message"):
         print("")
-        print_section("Final Export Summary", CYAN)
-        print(build_final_summary(final_json))
+        print_final_export_summary(final_json)
     return 0
 
 
