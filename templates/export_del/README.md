@@ -7,7 +7,6 @@ from the facility export engine.
 
 ```bash
 linkar run export_del \
-  --pack /home/ckuo/github/izkf_pack \
   --project-id project-123 \
   --confirm-delete true
 ```
@@ -16,11 +15,12 @@ Optional API override:
 
 ```bash
 linkar run export_del \
-  --pack /home/ckuo/github/izkf_pack \
   --project-id project-123 \
   --confirm-delete true \
   --export-engine-api-url http://genomics.rwth-aachen.de:9500/export
 ```
+
+If your current directory is not using the active global pack, use `--project` or `--binding` according to your Linkar setup rather than `--pack`.
 
 ## Saved artifacts
 

@@ -34,7 +34,7 @@ def main() -> int:
 
         denied = subprocess.run(
             [
-                "python",
+                "python3",
                 str(TEMPLATE_DIR / "run.py"),
                 "--results-dir",
                 str(results_dir),
@@ -53,7 +53,7 @@ def main() -> int:
         try:
             completed = subprocess.run(
                 [
-                    "python",
+                    "python3",
                     str(TEMPLATE_DIR / "run.py"),
                     "--results-dir",
                     str(results_dir),

@@ -3,7 +3,7 @@ version: 0.1.0
 description: Delete an export project from the facility export engine.
 tools:
   required:
-    - python
+    - python3
 params:
   project_id:
     type: str
@@ -25,8 +25,9 @@ outputs:
     path: export_project_id.txt
 run:
   mode: direct
+  verbose_by_default: true
   command: |
-    python ./run.py \
+    python3 ./run.py \
       --results-dir "${LINKAR_RESULTS_DIR}" \
       --project-id "${param:project_id}" \
       --export-engine-api-url "${param:export_engine_api_url}" \
