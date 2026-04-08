@@ -86,6 +86,12 @@ run:
     upstream_repo_url="https://github.com/MoSafi2/demultiplexing_prefect"
     upstream_commit="08a77d8010bce28c26b3c71089256ed1ba6a145a"
     upstream_repo_dir="./demultiplexing_prefect"
+    render_root="$(pwd)"
+    results_dir="${render_root}/results"
+    samplesheet_path="${param:samplesheet}"
+    if [[ "${samplesheet_path}" != /* ]]; then
+      samplesheet_path="${render_root}/${samplesheet_path#./}"
+    fi
 
     rm -rf "${upstream_repo_dir}"
     git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"
@@ -93,13 +99,13 @@ run:
 
     pushd "${upstream_repo_dir}" >/dev/null
     pixi run python -m demux_pipeline.cli \
-      --outdir "${LINKAR_RESULTS_DIR}" \
+      --outdir "${results_dir}" \
       --bcl_dir "${param:bcl_dir}" \
-      --samplesheet "${param:samplesheet}" \
+      --samplesheet "${samplesheet_path}" \
       --qc-tool "${param:qc_tool}" \
       --contamination-tool "${param:contamination_tool}" \
       --threads "${param:threads}" \
-      --output-contract-file "${LINKAR_RESULTS_DIR}/template_outputs.json" \
+      --output-contract-file "${results_dir}/template_outputs.json" \
       ${param:kraken_db:+--kraken-db "${param:kraken_db}"} \
       ${param:bracken_db:+--bracken-db "${param:bracken_db}"} \
       ${param:fastq_screen_conf:+--fastq-screen-conf "${param:fastq_screen_conf}"}
