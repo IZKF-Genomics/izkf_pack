@@ -22,7 +22,12 @@ templates:
       max_memory:
         function: get_host_max_memory
   cellranger_atac:
-    params: {}
+    params:
+      fastq_dir:
+        template: demultiplex
+        output: output_dir
+      localcores:
+        function: get_host_max_cpus
   dgea:
     params:
       salmon_dir:
