@@ -237,7 +237,7 @@ def normalize_summary_text(text: str) -> str:
 
 def build_final_summary(final_json: dict[str, object]) -> str:
     formatted = strip_markdown(str(final_json.get("formatted_message") or ""))
-    raw = strip_markdown(str(final_json.get("message") or ""))
+    raw = str(final_json.get("message") or "").strip()
     if formatted and raw:
         if normalize_summary_text(formatted) == normalize_summary_text(raw):
             return formatted
