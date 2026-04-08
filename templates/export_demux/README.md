@@ -14,8 +14,8 @@ That avoids ambiguity about where export state lives when the action is triggere
 
 If not overridden, the template expects:
 
-- FASTQ directory: `<run_dir>/output`
-- MultiQC report: `<run_dir>/multiqc/multiqc_report.html`
+- FASTQ directory: `output_dir` from `<run_dir>/.linkar/meta.json`, then `<run_dir>/output`
+- MultiQC report: `multiqc_report` from `<run_dir>/.linkar/meta.json`, then `<run_dir>/multiqc/multiqc_report.html`
 
 ## Canonical metadata
 

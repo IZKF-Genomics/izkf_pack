@@ -14,13 +14,13 @@ params:
     default: ""
     description: Project name recorded in the export request. Defaults to the basename of run_dir.
   fastq_dir:
-    type: path
+    type: str
     default: ""
-    description: Optional override for the FASTQ directory. Defaults to run_dir/output.
+    description: Optional override for the FASTQ directory. Defaults to output_dir from .linkar/meta.json, then run_dir/output.
   multiqc_report:
-    type: path
+    type: str
     default: ""
-    description: Optional override for the MultiQC report path. Defaults to run_dir/multiqc/multiqc_report.html.
+    description: Optional override for the MultiQC report path. Defaults to multiqc_report from .linkar/meta.json, then run_dir/multiqc/multiqc_report.html.
   export_engine_api_url:
     type: str
     default: http://genomics.rwth-aachen.de:9500/export
