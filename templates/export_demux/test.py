@@ -77,6 +77,9 @@ def main() -> int:
         assert "Dry Run" in dry.stdout
         latest = run_dir / ".linkar" / "export_demux" / "latest"
         assert (latest / "export_job_spec.redacted.json").exists()
+        dry_spec = json.loads((latest / "export_job_spec.json").read_text(encoding="utf-8"))
+        assert dry_spec["project_name"] == "demux_run_demultiplex_demultiplex_demultiplex"
+        assert dry_spec["export_list"][0]["project"] == dry_spec["project_name"]
         assert not (results_dir / "export_demux_summary.json").exists()
 
         server = HTTPServer(("127.0.0.1", 0), Handler)
@@ -104,6 +107,7 @@ def main() -> int:
             assert (latest / "export_job_id.txt").read_text(encoding="utf-8").strip() == "job-123"
             assert (latest / "export_final_path.txt").read_text(encoding="utf-8").strip() == "/exports/demux"
             assert (results_dir / "export_metadata_dir.txt").read_text(encoding="utf-8").strip() == str(latest)
+            assert server.payload["export_list"][0]["project"] == server.payload["project_name"]
         finally:
             server.shutdown()
             thread.join(timeout=5)

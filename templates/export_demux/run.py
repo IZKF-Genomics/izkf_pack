@@ -64,6 +64,20 @@ def derive_username(project_name: str) -> str:
     return project_name or "user"
 
 
+def default_project_name(run_dir: Path) -> str:
+    base = run_dir.name.strip()
+    if not base:
+        return "adhoc_demultiplex_export_run_data"
+    parts = [part for part in base.split("_") if part]
+    if len(parts) == 5:
+        return base
+    if len(parts) == 4:
+        return f"{base}_demultiplex"
+    while len(parts) < 5:
+        parts.append("demultiplex")
+    return "_".join(parts[:5])
+
+
 def now_stamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
 
@@ -155,11 +169,19 @@ def auto_link_name(path: str, dest: str) -> str:
     return name.replace("_", " ").strip()
 
 
-def export_entry(src_path: Path, dest_path: str, export_host: str, include_report: bool, description: str) -> dict:
+def export_entry(
+    src_path: Path,
+    dest_path: str,
+    export_host: str,
+    project_name: str,
+    include_report: bool,
+    description: str,
+) -> dict:
     entry = {
         "src": str(src_path.resolve()),
         "dest": dest_path,
         "host": export_host,
+        "project": project_name,
         "mode": "symlink",
     }
     if include_report:
@@ -225,7 +247,7 @@ def main() -> int:
     if not run_dir.exists() or not run_dir.is_dir():
         raise SystemExit(f"run_dir not found or not a directory: {run_dir}")
 
-    project_name = args.project_name.strip() or run_dir.name
+    project_name = args.project_name.strip() or default_project_name(run_dir)
     host_default = os.uname().nodename.split(".")[0]
 
     fastq_raw = args.fastq_dir.strip() or str(run_dir / "output")
@@ -245,11 +267,19 @@ def main() -> int:
     password = args.export_password.strip() or secrets.token_urlsafe(16)
 
     export_list = [
-        export_entry(fastq_dir, "1_Raw_data/FASTQ", fastq_host, include_fastq, "FASTQ output from demultiplex"),
+        export_entry(
+            fastq_dir,
+            "1_Raw_data/FASTQ",
+            fastq_host,
+            project_name,
+            include_fastq,
+            "FASTQ output from demultiplex",
+        ),
         export_entry(
             multiqc_report,
             "1_Raw_data/demultiplexing_multiqc_report.html",
             multiqc_host,
+            project_name,
             include_multiqc,
             "MultiQC report from demultiplex",
         ),
