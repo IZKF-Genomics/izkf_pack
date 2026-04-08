@@ -54,10 +54,24 @@ def main() -> int:
         root = Path(tmpdir)
         run_dir = root / "demux_run"
         results_dir = root / "results"
-        (run_dir / "output").mkdir(parents=True)
-        (run_dir / "multiqc").mkdir(parents=True)
-        (run_dir / "output" / "sample.fastq.gz").write_text("fq\n", encoding="utf-8")
-        (run_dir / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
+        (run_dir / ".linkar").mkdir(parents=True)
+        actual_output_dir = run_dir / "results" / "output"
+        actual_multiqc_report = run_dir / "results" / "multiqc" / "multiqc_report.html"
+        actual_output_dir.mkdir(parents=True)
+        actual_multiqc_report.parent.mkdir(parents=True)
+        (actual_output_dir / "sample.fastq.gz").write_text("fq\n", encoding="utf-8")
+        actual_multiqc_report.write_text("<html></html>\n", encoding="utf-8")
+        (run_dir / ".linkar" / "meta.json").write_text(
+            json.dumps(
+                {
+                    "outputs": {
+                        "output_dir": str(actual_output_dir),
+                        "multiqc_report": str(actual_multiqc_report),
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
 
         dry = subprocess.run(
             [
@@ -80,6 +94,8 @@ def main() -> int:
         dry_spec = json.loads((latest / "export_job_spec.json").read_text(encoding="utf-8"))
         assert dry_spec["project_name"] == "demux_run_demultiplex_demultiplex_demultiplex"
         assert dry_spec["export_list"][0]["project"] == dry_spec["project_name"]
+        assert dry_spec["export_list"][0]["src"] == str(actual_output_dir.resolve())
+        assert dry_spec["export_list"][1]["src"] == str(actual_multiqc_report.resolve())
         assert not (results_dir / "export_demux_summary.json").exists()
 
         server = HTTPServer(("127.0.0.1", 0), Handler)

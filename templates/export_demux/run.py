@@ -164,6 +164,18 @@ def resolve_input_path(raw: str | Path, run_dir: Path, default_host: str) -> tup
     return host, candidate
 
 
+def load_linkar_outputs(run_dir: Path) -> dict[str, object]:
+    meta_path = run_dir / ".linkar" / "meta.json"
+    if not meta_path.exists():
+        return {}
+    try:
+        payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    outputs = payload.get("outputs")
+    return outputs if isinstance(outputs, dict) else {}
+
+
 def auto_link_name(path: str, dest: str) -> str:
     name = Path(dest).name if path == "." else Path(path).name
     return name.replace("_", " ").strip()
@@ -263,9 +275,18 @@ def main() -> int:
 
     project_name = args.project_name.strip() or default_project_name(run_dir)
     host_default = os.uname().nodename.split(".")[0]
+    linkar_outputs = load_linkar_outputs(run_dir)
 
-    fastq_raw = args.fastq_dir.strip() or str(run_dir / "output")
-    multiqc_raw = args.multiqc_report.strip() or str(run_dir / "multiqc" / "multiqc_report.html")
+    fastq_raw = (
+        args.fastq_dir.strip()
+        or str(linkar_outputs.get("output_dir") or "")
+        or str(run_dir / "output")
+    )
+    multiqc_raw = (
+        args.multiqc_report.strip()
+        or str(linkar_outputs.get("multiqc_report") or "")
+        or str(run_dir / "multiqc" / "multiqc_report.html")
+    )
     fastq_host, fastq_dir = resolve_input_path(fastq_raw, run_dir, host_default)
     multiqc_host, multiqc_report = resolve_input_path(multiqc_raw, run_dir, host_default)
 
