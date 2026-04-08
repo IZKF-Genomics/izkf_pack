@@ -3,7 +3,7 @@ version: 0.1.0
 description: Submit an export request for a raw BCL run without writing any metadata into the source BCL directory.
 tools:
   required:
-    - python
+    - python3
 params:
   run_dir:
     type: path
@@ -71,8 +71,9 @@ outputs:
     path: export_final_message.json
 run:
   mode: direct
+  verbose_by_default: true
   command: |
-    python ./run.py \
+    python3 ./run.py \
       --results-dir "${LINKAR_RESULTS_DIR}" \
       --run-dir "${param:run_dir}" \
       --project-name "${param:project_name}" \

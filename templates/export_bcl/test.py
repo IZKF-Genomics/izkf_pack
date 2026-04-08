@@ -35,8 +35,34 @@ class Handler(BaseHTTPRequestHandler):
             {
                 "status": "completed",
                 "main_report": "https://example.org/bcl",
+                "project_name": "20250101_Test_BCL_FASTQ",
+                "username": "tester",
+                "password": "secret-token",
+                "publisher_results": [
+                    {
+                        "publisher": "apache",
+                        "url": "https://example.org/bcl",
+                        "username": "tester",
+                        "password": "secret-token",
+                    },
+                    {
+                        "publisher": "owncloud",
+                        "url": "https://example.org/cloud",
+                        "username": None,
+                        "password": "secret-token",
+                    },
+                ],
                 "final_path": "/exports/bcl",
                 "formatted_message": "**BCL export complete**",
+                "message": (
+                    "\n"
+                    "'Project ID': '20250101_Test_BCL_FASTQ',\n"
+                    "'Report URL': 'https://example.org/bcl',\n"
+                    "'Username': 'tester',\n"
+                    "'Password': 'secret-token',\n"
+                    "'Download URL': 'https://example.org/cloud',\n"
+                    "'Download command': \"wget https://example.org/bcl\",\n"
+                ),
             }
         ).encode("utf-8")
         self.send_response(200)
@@ -59,7 +85,7 @@ def main() -> int:
 
         dry = subprocess.run(
             [
-                "python",
+                "python3",
                 str(TEMPLATE_DIR / "run.py"),
                 "--results-dir",
                 str(results_dir),
@@ -82,8 +108,8 @@ def main() -> int:
         try:
             submit = subprocess.run(
                 [
-                    "python",
-                    str(TEMPLATE_DIR / "run.py"),
+                "python3",
+                str(TEMPLATE_DIR / "run.py"),
                     "--results-dir",
                     str(results_dir),
                     "--run-dir",
@@ -102,6 +128,10 @@ def main() -> int:
             assert (results_dir / "export_response.json").exists()
             assert (results_dir / "export_final_message.json").exists()
             assert not (run_dir / ".linkar").exists()
+            assert "JSON Patch for MS Planner" in submit.stdout
+            assert '"Project ID": "20250101_Test_BCL_FASTQ"' in submit.stdout
+            assert "Publisher Results" in submit.stdout
+            assert "1. APACHE" in submit.stdout
         finally:
             server.shutdown()
             thread.join(timeout=5)
