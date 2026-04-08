@@ -1,0 +1,62 @@
+id: cellranger_atac
+version: 0.1.0
+description: Run cellranger-atac count per discovered sample and optionally aggregate the resulting libraries.
+tools:
+  required:
+    - python3
+    - cellranger-atac
+params:
+  fastq_dir:
+    type: path
+    required: true
+    description: Directory containing FASTQ files for one or more Cell Ranger ATAC samples.
+  reference:
+    type: path
+    required: true
+    description: Path to a Cell Ranger ATAC reference such as refdata-cellranger-atac-mm10-1.2.0.
+  cellranger_atac_bin:
+    type: str
+    default: cellranger-atac
+    description: Executable used for both count and aggr.
+  run_aggr:
+    type: bool
+    default: true
+    description: When true, generate aggregation.csv and run cellranger-atac aggr if at least two samples are discovered.
+  localcores:
+    type: int
+    default: 0
+    description: Optional localcores value passed through to cellranger-atac when greater than zero.
+  localmem:
+    type: int
+    default: 0
+    description: Optional localmem in GB passed through to cellranger-atac when greater than zero.
+outputs:
+  results_dir: {}
+  counts_dir:
+    path: counts
+  combined_dir:
+    path: combined
+  aggregation_csv:
+    path: aggregation.csv
+  samples_manifest:
+    path: samples.json
+  count_web_summaries:
+    glob: counts/*/outs/web_summary.html
+  count_summary_csvs:
+    glob: counts/*/outs/summary.csv
+  aggr_web_summary:
+    path: combined/outs/web_summary.html
+  aggr_summary_csv:
+    path: combined/outs/summary.csv
+run:
+  mode: direct
+  verbose_by_default: true
+  command: |
+    python3 ./run.py \
+      --results-dir "${LINKAR_RESULTS_DIR}" \
+      --fastq-dir "${param:fastq_dir}" \
+      --reference "${param:reference}" \
+      --cellranger-atac-bin "${param:cellranger_atac_bin}" \
+      --run-aggr "${param:run_aggr}" \
+      --localcores "${param:localcores}" \
+      --localmem "${param:localmem}"

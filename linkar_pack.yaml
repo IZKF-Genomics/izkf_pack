@@ -21,6 +21,8 @@ templates:
         function: get_host_max_cpus
       max_memory:
         function: get_host_max_memory
+  cellranger_atac:
+    params: {}
   dgea:
     params:
       salmon_dir:
