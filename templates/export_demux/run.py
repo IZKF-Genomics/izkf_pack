@@ -231,6 +231,20 @@ def strip_markdown(text: str) -> str:
     return cleaned.strip()
 
 
+def normalize_summary_text(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def build_final_summary(final_json: dict[str, object]) -> str:
+    formatted = strip_markdown(str(final_json.get("formatted_message") or ""))
+    raw = strip_markdown(str(final_json.get("message") or ""))
+    if formatted and raw:
+        if normalize_summary_text(formatted) == normalize_summary_text(raw):
+            return formatted
+        return f"{formatted}\n\nRaw API Message\n\n{raw}"
+    return formatted or raw
+
+
 def final_pending(exc: HTTPError, detail: str) -> bool:
     if exc.code == 425:
         return True
@@ -396,7 +410,7 @@ def main() -> int:
     if final_json.get("formatted_message") or final_json.get("message"):
         print("")
         print_section("Final Export Summary", CYAN)
-        print(strip_markdown(str(final_json.get("formatted_message") or final_json.get("message") or "")))
+        print(build_final_summary(final_json))
     return 0
 
 
