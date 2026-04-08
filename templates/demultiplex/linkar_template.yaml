@@ -110,3 +110,4 @@ run:
       ${param:bracken_db:+--bracken-db "${param:bracken_db}"} \
       ${param:fastq_screen_conf:+--fastq-screen-conf "${param:fastq_screen_conf}"}
     popd >/dev/null
+    rm -rf .pixi

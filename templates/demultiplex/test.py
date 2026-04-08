@@ -205,7 +205,8 @@ def main() -> None:
             "  ${KRAKEN_DB:+--kraken-db \"${KRAKEN_DB}\"} \\\n"
             "  ${BRACKEN_DB:+--bracken-db \"${BRACKEN_DB}\"} \\\n"
             "  ${FASTQ_SCREEN_CONF:+--fastq-screen-conf \"${FASTQ_SCREEN_CONF}\"}\n"
-            "popd >/dev/null\n",
+            "popd >/dev/null\n"
+            "rm -rf .pixi\n",
             encoding="utf-8",
         )
         run_script.chmod(0o755)
