@@ -13,6 +13,10 @@ params:
     type: str
     default: ""
     description: Project name recorded in the export request. Defaults to the basename of run_dir.
+  author:
+    type: str
+    default: ""
+    description: Optional author recorded in the export request metadata.
   fastq_dir:
     type: str
     default: ""
@@ -79,6 +83,7 @@ run:
       --results-dir "${LINKAR_RESULTS_DIR}" \
       --run-dir "${param:run_dir}" \
       --project-name "${param:project_name}" \
+      --author "${param:author}" \
       --fastq-dir "${param:fastq_dir}" \
       --multiqc-report "${param:multiqc_report}" \
       --export-engine-api-url "${param:export_engine_api_url}" \

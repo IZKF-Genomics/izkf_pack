@@ -17,6 +17,8 @@ If not overridden, the template expects:
 - FASTQ directory: `output_dir` from `<run_dir>/.linkar/meta.json`, then `<run_dir>/output`
 - MultiQC report: `multiqc_report` from `<run_dir>/.linkar/meta.json`, then `<run_dir>/multiqc/multiqc_report.html`
 
+Optional overrides include `project_name`, `author`, `fastq_dir`, and `multiqc_report`.
+
 ## Canonical metadata
 
 After a successful run, these files are written under:
@@ -37,3 +39,12 @@ The Linkar action run also keeps a lightweight trace in its own `results/`, but 
 ## Dry run
 
 Use `--dry-run true` to build and persist the redacted export spec without submitting anything.
+
+Example:
+
+```bash
+linkar run export_demux \
+  --run-dir /data/fastq/20250101_INST_0001_AAAAAAAAXX \
+  --author "CKuo, IZKF" \
+  --project-name 20250101_Surname_Project_Assay_FASTQ
+```

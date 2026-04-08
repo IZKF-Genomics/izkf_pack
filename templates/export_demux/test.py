@@ -81,6 +81,8 @@ def main() -> int:
                 str(results_dir),
                 "--run-dir",
                 str(run_dir),
+                "--author",
+                "CKuo, IZKF",
                 "--dry-run",
                 "true",
             ],
@@ -93,6 +95,7 @@ def main() -> int:
         assert (latest / "export_job_spec.redacted.json").exists()
         dry_spec = json.loads((latest / "export_job_spec.json").read_text(encoding="utf-8"))
         assert dry_spec["project_name"] == "demux_run_demultiplex_demultiplex_demultiplex"
+        assert dry_spec["authors"] == ["CKuo, IZKF"]
         assert dry_spec["export_list"][0]["project"] == dry_spec["project_name"]
         assert dry_spec["export_list"][0]["src"] == str(actual_output_dir.resolve())
         assert dry_spec["export_list"][1]["src"] == str(actual_multiqc_report.resolve())

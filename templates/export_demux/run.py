@@ -20,6 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--results-dir", required=True)
     parser.add_argument("--run-dir", required=True)
     parser.add_argument("--project-name", default="")
+    parser.add_argument("--author", default="")
     parser.add_argument("--fastq-dir", default="")
     parser.add_argument("--multiqc-report", default="")
     parser.add_argument("--export-engine-api-url", default="http://genomics.rwth-aachen.de:9500/export")
@@ -300,6 +301,7 @@ def main() -> int:
     include_multiqc = parse_bool(args.include_in_report_multiqc, include_default)
     username = args.export_username.strip() or derive_username(project_name)
     password = args.export_password.strip() or secrets.token_urlsafe(16)
+    authors = [args.author.strip()] if args.author.strip() else []
 
     export_list = [
         export_entry(
@@ -326,7 +328,7 @@ def main() -> int:
         "backend": split_csv(args.export_engine_backends),
         "username": username,
         "password": password,
-        "authors": [],
+        "authors": authors,
         "expiry_days": int(args.export_expiry_days or 0),
     }
 
