@@ -1,5 +1,7 @@
 templates:
   demultiplex:
+    outdir:
+      function: get_demultiplex_render_outdir
     params:
       samplesheet:
         function: get_api_samplesheet

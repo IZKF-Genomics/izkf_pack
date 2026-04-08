@@ -34,11 +34,14 @@ Exposed parameters:
 
 Pack defaults:
 
+- render `outdir` resolves through `get_demultiplex_render_outdir`
+- `get_demultiplex_render_outdir` returns `/data/fastq/<basename(bcl_dir)>` by default
 - `threads` resolves through `get_host_max_cpus`
 - `get_host_max_cpus` returns `max(1, int(os.cpu_count() * 0.8))`
 
-That means a normal run through `izkf_pack` uses 80% of the detected host CPUs for upstream
-`--threads` unless you pass an explicit `--threads` value.
+That means a normal `linkar render demultiplex ...` run through `izkf_pack` renders into
+`/data/fastq/<bcl-dir-name>` unless you pass an explicit `--outdir` value, and upstream
+`--threads` uses 80% of the detected host CPUs unless you pass an explicit `--threads` value.
 
 Not exposed anymore:
 
