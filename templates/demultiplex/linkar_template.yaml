@@ -26,8 +26,7 @@ params:
     description: Optional flowcell id override used for API samplesheet lookup. If omitted, it is derived from bcl_dir.
   samplesheet:
     type: path
-    required: true
-    description: Sample sheet passed to bcl-convert. With --binding default it can be resolved from the facility API.
+    description: Optional sample sheet passed to bcl-convert. With --binding default it resolves from the facility API or falls back to the bundled samplesheet.csv.
   qc_tool:
     type: str
     default: falco
@@ -39,7 +38,7 @@ params:
   threads:
     type: int
     default: 4
-    description: Global CPU thread budget for QC and contamination stages.
+    description: Global CPU thread budget for QC and contamination stages. In izkf_pack, the default binding resolves this to 80% of host CPUs via get_host_max_cpus.
   run_name:
     type: str
     default: ""

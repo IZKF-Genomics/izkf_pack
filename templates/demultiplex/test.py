@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -26,7 +27,7 @@ def make_fake_pixi_bin(root: Path) -> Path:
         "  exit 1\n"
         "fi\n"
         "shift 4\n"
-        "python - \"$@\" <<'PY'\n"
+        f"{sys.executable} - \"$@\" <<'PY'\n"
         "from __future__ import annotations\n"
         "import argparse\n"
         "import json\n"

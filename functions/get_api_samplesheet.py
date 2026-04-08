@@ -79,46 +79,59 @@ def _fallback_template_samplesheet(ctx) -> str:
 def resolve(ctx) -> str:
     resolved = ctx.resolved_params or {}
 
+    explicit_samplesheet = _nonempty(resolved.get("samplesheet"))
+    if explicit_samplesheet:
+        return explicit_samplesheet
+
     use_api = bool(resolved.get("use_api_samplesheet", True))
     if not use_api:
-        raise RuntimeError(
-            "samplesheet was not provided explicitly and use_api_samplesheet=false, so the default binding cannot resolve it"
-        )
+        return _fallback_template_samplesheet(ctx)
 
     bcl_dir = _nonempty(resolved.get("bcl_dir"))
     if not bcl_dir:
-        raise RuntimeError("bcl_dir must resolve before samplesheet can be fetched from the API")
+        return _fallback_template_samplesheet(ctx)
 
     agendo_id = _nonempty(resolved.get("agendo_id"))
     flowcell_id = _nonempty(resolved.get("flowcell_id")) or (_parse_flowcell_id(bcl_dir) or "")
-    if not flowcell_id:
-        raise RuntimeError("Could not determine flowcell_id from bcl_dir")
-
-    auth_header = _build_auth_header()
-    content: bytes
-    cache_key = flowcell_id
-    source_label = f"flowcell {flowcell_id}"
-    target_url = f"{API_BASE_FLOWCELL}{flowcell_id}"
+    if not flowcell_id and not agendo_id:
+        return _fallback_template_samplesheet(ctx)
 
     try:
-        content = _fetch(target_url, auth_header)
-    except HTTPError as exc:
-        if exc.code == 404 and agendo_id:
-            cache_key = f"request_{agendo_id}"
-            source_label = f"request {agendo_id}"
-            target_url = f"{API_BASE_REQUEST}{agendo_id}"
-            try:
-                content = _fetch(target_url, auth_header)
-            except HTTPError as nested:
-                if nested.code == 404:
-                    return _fallback_template_samplesheet(ctx)
-                raise RuntimeError(f"HTTP {nested.code} from API for {source_label}") from nested
-        elif exc.code == 404:
+        auth_header = _build_auth_header()
+    except RuntimeError:
+        return _fallback_template_samplesheet(ctx)
+
+    content: bytes | None = None
+    cache_key = ""
+    source_label = ""
+
+    if flowcell_id:
+        cache_key = flowcell_id
+        source_label = f"flowcell {flowcell_id}"
+        target_url = f"{API_BASE_FLOWCELL}{flowcell_id}"
+        try:
+            content = _fetch(target_url, auth_header)
+        except HTTPError as exc:
+            if exc.code != 404:
+                return _fallback_template_samplesheet(ctx)
+        except URLError:
             return _fallback_template_samplesheet(ctx)
-        else:
-            raise RuntimeError(f"HTTP {exc.code} from API for {source_label}") from exc
-    except URLError as exc:
-        raise RuntimeError(f"Network error fetching samplesheet: {exc}") from exc
+
+    if content is None and agendo_id:
+        cache_key = f"request_{agendo_id}"
+        source_label = f"request {agendo_id}"
+        target_url = f"{API_BASE_REQUEST}{agendo_id}"
+        try:
+            content = _fetch(target_url, auth_header)
+        except HTTPError as nested:
+            if nested.code == 404:
+                return _fallback_template_samplesheet(ctx)
+            return _fallback_template_samplesheet(ctx)
+        except URLError:
+            return _fallback_template_samplesheet(ctx)
+
+    if content is None:
+        return _fallback_template_samplesheet(ctx)
 
     out_dir = _cache_root() / cache_key
     out_dir.mkdir(parents=True, exist_ok=True)

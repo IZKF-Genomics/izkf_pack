@@ -21,6 +21,9 @@ Exposed parameters:
 
 - `bcl_dir`
 - `samplesheet`
+- `use_api_samplesheet`
+- `agendo_id`
+- `flowcell_id`
 - `qc_tool`
 - `contamination_tool`
 - `threads`
@@ -29,12 +32,17 @@ Exposed parameters:
 - `bracken_db`
 - `fastq_screen_conf`
 
+Pack defaults:
+
+- `threads` resolves through `get_host_max_cpus`
+- `get_host_max_cpus` returns `max(1, int(os.cpu_count() * 0.8))`
+
+That means a normal run through `izkf_pack` uses 80% of the detected host CPUs for upstream
+`--threads` unless you pass an explicit `--threads` value.
+
 Not exposed anymore:
 
 - `mode`
-- `use_api_samplesheet`
-- `agendo_id`
-- `flowcell_id`
 - `manifest_tsv`
 - `in_fastq_dir`
 
@@ -60,7 +68,7 @@ When you run with `--binding default`, `samplesheet` resolves in this order:
 
 1. explicit `--samplesheet`
 2. facility API lookup using `GF_API_NAME` and `GF_API_PASS`
-3. bundled template fallback [samplesheet.csv](/home/ckuo/github/izkf_pack/templates/demultiplex/samplesheet.csv) if the API returns 404 / no record
+3. bundled template fallback [samplesheet.csv](/home/ckuo/github/izkf_pack/templates/demultiplex/samplesheet.csv) if the API lookup is unavailable or returns no record
 
 That fallback file is only a generic placeholder. It is useful as a last-resort file default, but
 it may not be correct for a real sequencing run.
