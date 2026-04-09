@@ -91,7 +91,7 @@ def main() -> int:
 
         build = subprocess.run(
             [
-                "python",
+                "python3",
                 str(TEMPLATE_DIR / "build_export_bundle.py"),
                 "--project-dir",
                 str(project_dir),
@@ -120,7 +120,7 @@ def main() -> int:
         try:
             submit = subprocess.run(
                 [
-                    "python",
+                    "python3",
                     str(TEMPLATE_DIR / "submit_export.py"),
                     "--results-dir",
                     str(export_dir / "results"),

@@ -24,7 +24,7 @@ After rendering, you can prepare the bundle manually:
 
 ```bash
 cd /path/to/project/export
-python build_export_bundle.py --project-dir .. --template-dir . --results-dir ./results
+python3 build_export_bundle.py --project-dir .. --template-dir . --results-dir ./results
 ```
 
 Then inspect or edit:

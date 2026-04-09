@@ -3,7 +3,7 @@ version: 0.1.0
 description: Prepare and submit an export bundle from Linkar project history.
 tools:
   required:
-    - python
+    - python3
 params:
   export_engine_api_url:
     type: str
@@ -92,7 +92,7 @@ run:
     fi
 
     if [[ ! -f "./results/export_job_spec.json" ]]; then
-      python ./build_export_bundle.py \
+      python3 ./build_export_bundle.py \
         --project-dir ".." \
         --template-dir "." \
         --results-dir "./results" \
@@ -114,6 +114,6 @@ run:
       echo "[info] using existing ./results/export_job_spec.json"
     fi
 
-    python ./submit_export.py \
+    python3 ./submit_export.py \
       --results-dir "./results" \
       --api-url "${param:export_engine_api_url}"
