@@ -3,6 +3,7 @@ from __future__ import annotations
 import glob
 import json
 import secrets
+import socket
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -316,6 +317,7 @@ def build_export_list(project_dir: Path, project_data: dict[str, Any], template_
     mappings = load_mapping_table(template_dir)
     template_entries = [entry for entry in project_data.get("templates") or [] if isinstance(entry, dict)]
     export_list: list[dict[str, Any]] = []
+    default_host = socket.gethostname()
     for mapping in mappings:
         template_id = mapping.get("template_id")
         if not isinstance(template_id, str) or not template_id or template_id == "export":
@@ -349,7 +351,7 @@ def build_export_list(project_dir: Path, project_data: dict[str, Any], template_
             export_entry: dict[str, Any] = {
                 "src": str(src_path),
                 "dest": dest,
-                "host": str(mapping.get("host") or "localhost"),
+                "host": str(mapping.get("host") or default_host),
                 "project": str(mapping.get("project") or project_data.get("id") or project_dir.name),
                 "mode": str(mapping.get("mode") or "symlink"),
             }
@@ -513,4 +515,3 @@ def extract_citations(markdown: str) -> list[str]:
         if in_section and stripped.startswith("- "):
             out.append(stripped[2:].strip())
     return out
-

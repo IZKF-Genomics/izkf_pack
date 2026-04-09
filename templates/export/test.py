@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import socket
 import subprocess
 import tempfile
 import threading
@@ -120,6 +121,7 @@ def main() -> int:
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
         assert len(spec["export_list"]) == 3
+        assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
         assert (export_dir / "results" / "metadata_context.yaml").exists()
         assert (export_dir / "results" / "project_methods.md").exists()
 
