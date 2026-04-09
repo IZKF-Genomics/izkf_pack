@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import time
+import threading
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -71,12 +72,61 @@ def print_key_value(label: str, value: str, *, tone: str = BLUE) -> None:
     print(f"{color(label + ':', tone, bold=True)} {value}")
 
 
+def supports_spinner() -> bool:
+    term = os.environ.get("TERM", "")
+    return sys.stdout.isatty() and term.lower() != "dumb"
+
+
+def run_with_spinner(message: str, func):
+    if not supports_spinner():
+        print(message)
+        return func()
+
+    stop_event = threading.Event()
+    spinner = ["|", "/", "-", "\\"]
+
+    def spin() -> None:
+        idx = 0
+        while not stop_event.is_set():
+            sys.stdout.write(f"\r{message} {spinner[idx % len(spinner)]}")
+            sys.stdout.flush()
+            idx += 1
+            time.sleep(0.2)
+        sys.stdout.write("\r" + " " * (len(message) + 2) + "\r")
+        sys.stdout.flush()
+
+    thread = threading.Thread(target=spin, daemon=True)
+    thread.start()
+    try:
+        return func()
+    finally:
+        stop_event.set()
+        thread.join()
+
+
 def fetch_final_message(url: str) -> dict[str, object]:
     req = Request(url=url, headers={"Accept": "application/json"}, method="GET")
     with urlopen(req, timeout=30) as resp:
         body = resp.read().decode("utf-8", errors="replace")
     data = json.loads(body) if body else {}
     return data if isinstance(data, dict) else {}
+
+
+def parse_raw_api_message(text: str) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    for line in text.splitlines():
+        stripped = line.strip().rstrip(",")
+        if not stripped:
+            continue
+        match = re.match(r"^'([^']+)':\s*(.*)$", stripped)
+        if not match:
+            continue
+        key = match.group(1).strip()
+        value = match.group(2).strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        parsed[key] = value
+    return parsed
 
 
 def wait_for_final_message(url: str, *, poll_interval_seconds: int, timeout_seconds: int) -> tuple[dict[str, object], str | None]:
@@ -111,8 +161,10 @@ def main() -> int:
         headers={"Content-Type": "application/json", "Accept": "application/json"},
         method="POST",
     )
-    with urlopen(req, timeout=60) as resp:
-        body = resp.read().decode("utf-8", errors="replace")
+    body = run_with_spinner(
+        "Submitting export job",
+        lambda: urlopen(req, timeout=60).read().decode("utf-8", errors="replace"),
+    )
     response = json.loads(body) if body else {}
     if not isinstance(response, dict):
         raise SystemExit("export engine returned a non-object response")
@@ -124,20 +176,22 @@ def main() -> int:
     print_key_value("Endpoint", export_url)
 
     status_payload: dict[str, object] = {"job_id": job_id, "submission": response}
-    final_message_text = ""
+    raw_final_message = ""
     final_path = ""
-    print_section("Wait For Export Status", GREEN)
-    final_payload, final_error = wait_for_final_message(
-        final_message_endpoint(export_url, job_id),
-        poll_interval_seconds=args.poll_interval_seconds,
-        timeout_seconds=args.timeout_seconds,
+    final_payload, final_error = run_with_spinner(
+        "Waiting for final export status",
+        lambda: wait_for_final_message(
+            final_message_endpoint(export_url, job_id),
+            poll_interval_seconds=args.poll_interval_seconds,
+            timeout_seconds=args.timeout_seconds,
+        ),
     )
     try:
         status_payload["final_message"] = final_payload
-        final_message_text = strip_markdown(str(final_payload.get("message") or ""))
+        raw_final_message = str(final_payload.get("message") or "").strip()
         final_path = str(final_payload.get("final_path") or "").strip()
     except Exception:
-        final_message_text = ""
+        raw_final_message = ""
         final_path = ""
     if final_error:
         status_payload["final_message_error"] = final_error
@@ -146,15 +200,22 @@ def main() -> int:
         json.dumps(status_payload, indent=2, sort_keys=True), encoding="utf-8"
     )
     (results_dir / "export_job_id.txt").write_text(job_id + "\n", encoding="utf-8")
-    (results_dir / "export_final_message.txt").write_text(final_message_text + ("\n" if final_message_text else ""), encoding="utf-8")
+    (results_dir / "export_final_message.txt").write_text(raw_final_message + ("\n" if raw_final_message else ""), encoding="utf-8")
     (results_dir / "export_final_path.txt").write_text(final_path + ("\n" if final_path else ""), encoding="utf-8")
-    print_section("Export Result", GREEN)
-    if final_message_text:
-        print_key_value("Message", final_message_text)
-    if final_path:
-        print_key_value("Final path", final_path)
     if final_error:
+        print_section("Export Result", GREEN)
         print_key_value("Status", final_error, tone=YELLOW)
+        if final_path:
+            print_key_value("Final path", final_path)
+        return 0
+
+    if raw_final_message:
+        print("")
+        print_section("JSON Patch for MS Planner", YELLOW)
+        print(raw_final_message)
+    elif final_path:
+        print_section("Export Result", GREEN)
+        print_key_value("Final path", final_path)
     return 0
 
 

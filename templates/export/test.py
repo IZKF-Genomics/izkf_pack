@@ -41,7 +41,16 @@ class ExportHandler(BaseHTTPRequestHandler):
             return
         body = json.dumps(
             {
-                "message": "**Export complete**\n- path ready",
+                "message": "\n".join(
+                    [
+                        "'Project ID': 'example_project_001',",
+                        "'Report URL': 'https://example.org/data/example_project_001/main_report.html',",
+                        "'Username': 'example_user',",
+                        "'Password': 'example_password',",
+                        "'Download URL': 'https://example.org/share/example_project_001',",
+                        "'Download command': \"wget -r -nH -np --cut-dirs=2 -l 8 -P example_project_001 --user=example_user --password=example_password https://example.org/data/example_project_001\",",
+                    ]
+                ),
                 "final_path": "/exports/example_project",
             }
         ).encode("utf-8")
@@ -153,8 +162,12 @@ def main() -> int:
                 text=True,
             )
             assert "Job ID:" in submit.stdout
-            assert "path ready" in submit.stdout
+            assert "JSON Patch for MS Planner" in submit.stdout
+            assert "'Project ID': 'example_project_001'," in submit.stdout
             assert (export_dir / "results" / "export_job_id.txt").read_text(encoding="utf-8").strip() == "job-123"
+            assert "'Report URL': 'https://example.org/data/example_project_001/main_report.html'," in (
+                export_dir / "results" / "export_final_message.txt"
+            ).read_text(encoding="utf-8")
             payload = json.loads((export_dir / "results" / "export_submission.json").read_text(encoding="utf-8"))
             assert payload["job_id"] == "job-123"
         finally:
