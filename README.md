@@ -26,6 +26,7 @@ izkf_genomics_pack/
       test.sh
       README.md
   functions/
+  discovery/
 ```
 
 ## Templates
@@ -98,4 +99,39 @@ Then run:
 ```bash
 linkar run demultiplex --mode qc --in-fastq-dir /data/fastq
 linkar run multiqc
+```
+
+## Site discovery helpers
+
+This pack can also hold site-specific discovery logic without pushing facility knowledge into
+Linkar core.
+
+The first discovery modules now live under `discovery/`:
+
+- `discovery/projects.py`
+- `discovery/fastq_runs.py`
+- `discovery/raw_runs.py`
+- `discovery/references.py`
+
+These helpers are intentionally read-only and summary-oriented. They are meant to help an AI agent
+or another automation layer find likely projects, FASTQ runs, raw runs, or references before using
+Linkar itself to resolve and execute templates.
+
+Example:
+
+```python
+from discovery.projects import list_projects
+from discovery.fastq_runs import recent_fastq_runs
+from discovery.references import recommended_references
+
+projects = list_projects("/data/projects")
+fastq_runs = recent_fastq_runs(roots="/data/fastq")
+refs = recommended_references(organism="GRCm39", workflow="arc")
+```
+
+Run the pack-side unit tests with:
+
+```bash
+cd /home/ckuo/github/izkf_pack
+python -m unittest discovery.test_discovery
 ```
