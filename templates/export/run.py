@@ -85,13 +85,7 @@ def run_python_script(script_path: Path, args: list[str]) -> None:
     completed = subprocess.run(
         [sys.executable, str(script_path), *args],
         check=False,
-        text=True,
-        capture_output=True,
     )
-    if completed.stdout:
-        print(completed.stdout, end="")
-    if completed.stderr:
-        print(completed.stderr, end="", file=sys.stderr)
     if completed.returncode != 0:
         raise SystemExit(completed.returncode)
 
