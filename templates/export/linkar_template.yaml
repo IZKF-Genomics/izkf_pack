@@ -5,6 +5,10 @@ tools:
   required:
     - python3
 params:
+  dry_run:
+    type: bool
+    default: false
+    description: When true, prepare or reuse export_job_spec.json and stop before API submission.
   export_engine_api_url:
     type: str
     default: http://genomics.rwth-aachen.de:9500
@@ -61,6 +65,14 @@ params:
     type: str
     default: full
     description: Methods report style. Use full or concise.
+  poll_interval_seconds:
+    type: int
+    default: 2
+    description: Poll interval in seconds while waiting for the export engine to return the final status.
+  timeout_seconds:
+    type: int
+    default: 3600
+    description: Timeout in seconds while waiting for the export engine final status.
 outputs:
   results_dir: {}
   export_job_spec:
@@ -85,35 +97,51 @@ outputs:
     path: export_final_path.txt
 run:
   mode: render
+  verbose_by_default: true
+  command: |
+    python3 ./run.py \
+      --results-dir "${LINKAR_RESULTS_DIR}" \
+      --project-dir ".." \
+      --template-dir "." \
+      --dry-run "${param:dry_run}" \
+      --export-engine-api-url "${param:export_engine_api_url}" \
+      --export-engine-backends "${param:export_engine_backends}" \
+      --export-expiry-days "${param:export_expiry_days}" \
+      --export-username "${param:export_username}" \
+      --export-password "${param:export_password}" \
+      --agendo-id "${param:agendo_id}" \
+      --flowcell-id "${param:flowcell_id}" \
+      --metadata-source "${param:metadata_source}" \
+      --metadata-file "${param:metadata_file}" \
+      --metadata-api-url "${param:metadata_api_url}" \
+      --metadata-api-endpoint "${param:metadata_api_endpoint}" \
+      --metadata-api-timeout "${param:metadata_api_timeout}" \
+      --include-methods-in-spec "${param:include_methods_in_spec}" \
+      --methods-style "${param:methods_style}" \
+      --poll-interval-seconds "${param:poll_interval_seconds}" \
+      --timeout-seconds "${param:timeout_seconds}"
+render:
   command: |
     if [[ ! -f "../project.yaml" ]]; then
       echo "[error] export must be rendered inside a Linkar project directory." >&2
       exit 2
     fi
 
-    if [[ ! -f "./results/export_job_spec.json" ]]; then
-      python3 ./build_export_bundle.py \
-        --project-dir ".." \
-        --template-dir "." \
-        --results-dir "./results" \
-        --export-engine-backends "${param:export_engine_backends}" \
-        --export-expiry-days "${param:export_expiry_days}" \
-        --export-username "${param:export_username}" \
-        --export-password "${param:export_password}" \
-        --agendo-id "${param:agendo_id}" \
-        --flowcell-id "${param:flowcell_id}" \
-        --metadata-source "${param:metadata_source}" \
-        --metadata-file "${param:metadata_file}" \
-        --metadata-api-url "${param:metadata_api_url}" \
-        --metadata-api-endpoint "${param:metadata_api_endpoint}" \
-        --metadata-api-timeout "${param:metadata_api_timeout}" \
-        --include-methods-in-spec "${param:include_methods_in_spec}" \
-        --methods-style "${param:methods_style}" \
-        --skip-if-spec-exists
-    else
-      echo "[info] using existing ./results/export_job_spec.json"
-    fi
-
-    python3 ./submit_export.py \
+    python3 ./build_export_bundle.py \
+      --project-dir ".." \
+      --template-dir "." \
       --results-dir "./results" \
-      --api-url "${param:export_engine_api_url}"
+      --export-engine-backends "${param:export_engine_backends}" \
+      --export-expiry-days "${param:export_expiry_days}" \
+      --export-username "${param:export_username}" \
+      --export-password "${param:export_password}" \
+      --agendo-id "${param:agendo_id}" \
+      --flowcell-id "${param:flowcell_id}" \
+      --metadata-source "${param:metadata_source}" \
+      --metadata-file "${param:metadata_file}" \
+      --metadata-api-url "${param:metadata_api_url}" \
+      --metadata-api-endpoint "${param:metadata_api_endpoint}" \
+      --metadata-api-timeout "${param:metadata_api_timeout}" \
+      --include-methods-in-spec "${param:include_methods_in_spec}" \
+      --methods-style "${param:methods_style}" \
+      --skip-if-spec-exists

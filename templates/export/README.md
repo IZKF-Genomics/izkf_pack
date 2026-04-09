@@ -17,17 +17,36 @@ It keeps the export mapping table as data, and makes the old BPM hook chain expl
 
 `linkar render export`:
 
-- renders the template bundle only
-- does not build the export spec automatically, because Linkar render does not execute template code
+- renders the template bundle
+- prepares `results/export_job_spec.json` and related metadata files during render
+- does not submit anything to the export engine
 
-After rendering, you can prepare the bundle manually:
+After rendering, inspect or edit:
 
 ```bash
 cd /path/to/project/export
+less results/export_job_spec.json
+```
+
+If you want to rebuild the bundle manually:
+
+```bash
 python3 build_export_bundle.py --project-dir .. --template-dir . --results-dir ./results
 ```
 
-Then inspect or edit:
+The launcher uses the prepared spec by default:
+
+```bash
+./run.sh
+```
+
+You can also prepare without submission:
+
+```bash
+python3 run.py --project-dir .. --template-dir . --results-dir ./results --dry-run true --export-engine-api-url http://127.0.0.1:9500
+```
+
+Generated artifacts include:
 
 - `results/export_job_spec.json`
 - `results/metadata_context.yaml`
@@ -35,12 +54,6 @@ Then inspect or edit:
 - `results/metadata_normalized.yaml`
 - `results/project_methods.md`
 - `results/methods_context.yaml`
-
-and finally run:
-
-```bash
-./run.sh
-```
 
 ## Notes
 

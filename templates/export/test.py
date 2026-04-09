@@ -33,10 +33,15 @@ class ExportHandler(BaseHTTPRequestHandler):
         if self.path != "/export/final_message/job-123":
             self.send_error(404)
             return
+        attempts = getattr(self.server, "final_message_attempts", 0) + 1  # type: ignore[attr-defined]
+        self.server.final_message_attempts = attempts  # type: ignore[attr-defined]
+        if attempts < 2:
+            self.send_error(404)
+            return
         body = json.dumps(
             {
                 "message": "**Export complete**\n- path ready",
-                "final_path": "/exports/project",
+                "final_path": "/exports/example_project",
             }
         ).encode("utf-8")
         self.send_response(200)
@@ -66,8 +71,8 @@ def main() -> int:
         export_dir.mkdir(parents=True)
 
         project_yaml = {
-            "id": "260402_Kuo_Test",
-            "author": {"name": "CKuo", "organization": "IZKF"},
+            "id": "example_project_001",
+            "author": {"name": "Example User", "organization": "Example Org"},
             "templates": [
                 {
                     "id": "demultiplex",
@@ -76,7 +81,7 @@ def main() -> int:
                         "output_dir": str((demux_dir / "results" / "output").resolve()),
                         "multiqc_report": str((demux_dir / "results" / "multiqc" / "multiqc_report.html").resolve()),
                     },
-                    "params": {"agendo_id": "5607", "flowcell_id": "HCYYTAFXC"},
+                    "params": {"agendo_id": "1001", "flowcell_id": "EXAMPLEFC"},
                 },
                 {
                     "id": "nfcore_3mrnaseq",
@@ -89,10 +94,14 @@ def main() -> int:
         }
         (project_dir / "project.yaml").write_text(yaml.safe_dump(project_yaml, sort_keys=False), encoding="utf-8")
 
-        build = subprocess.run(
+        dry_run = subprocess.run(
             [
                 "python3",
-                str(TEMPLATE_DIR / "build_export_bundle.py"),
+                str(TEMPLATE_DIR / "run.py"),
+                "--dry-run",
+                "true",
+                "--export-engine-api-url",
+                "http://127.0.0.1:9",
                 "--project-dir",
                 str(project_dir),
                 "--template-dir",
@@ -106,10 +115,10 @@ def main() -> int:
             capture_output=True,
             text=True,
         )
-        assert "wrote" in build.stdout
+        assert "Dry Run Complete" in dry_run.stdout
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
-        assert spec["project_name"] == "260402_Kuo_Test"
-        assert spec["authors"] == ["CKuo, IZKF"]
+        assert spec["project_name"] == "example_project_001"
+        assert spec["authors"] == ["Example User, Example Org"]
         assert len(spec["export_list"]) == 3
         assert (export_dir / "results" / "metadata_context.yaml").exists()
         assert (export_dir / "results" / "project_methods.md").exists()
@@ -121,17 +130,28 @@ def main() -> int:
             submit = subprocess.run(
                 [
                     "python3",
-                    str(TEMPLATE_DIR / "submit_export.py"),
+                    str(TEMPLATE_DIR / "run.py"),
                     "--results-dir",
                     str(export_dir / "results"),
-                    "--api-url",
+                    "--project-dir",
+                    str(project_dir),
+                    "--template-dir",
+                    str(TEMPLATE_DIR),
+                    "--export-engine-api-url",
                     f"http://127.0.0.1:{server.server_port}",
+                    "--metadata-source",
+                    "mock",
+                    "--poll-interval-seconds",
+                    "1",
+                    "--timeout-seconds",
+                    "5",
                 ],
                 check=True,
                 capture_output=True,
                 text=True,
             )
-            assert "job-123" in submit.stdout
+            assert "Job ID:" in submit.stdout
+            assert "path ready" in submit.stdout
             assert (export_dir / "results" / "export_job_id.txt").read_text(encoding="utf-8").strip() == "job-123"
             payload = json.loads((export_dir / "results" / "export_submission.json").read_text(encoding="utf-8"))
             assert payload["job_id"] == "job-123"
