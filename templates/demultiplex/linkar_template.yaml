@@ -52,8 +52,10 @@ params:
     default: ""
     description: FastQ Screen configuration file.
 outputs:
-  results_dir: {}
-  output_dir: {}
+  results_dir:
+    path: results
+  output_dir:
+    path: results/output
   demux_fastq_files:
     glob: output/**/*.fastq.gz
   fastqc_dir: {}
