@@ -44,6 +44,8 @@ outputs:
     path: salmon
   pipeline_info_dir:
     path: pipeline_info
+  software_versions:
+    path: software_versions.json
 run:
   mode: render
   command: |
@@ -60,6 +62,44 @@ run:
     echo "[info] $(date) nf-core/rnaseq profile=docker genome=${effective_genome}"
     nextflow -version || true
     mkdir -p "${LINKAR_RESULTS_DIR}"
+    python3 - <<PY
+    import json
+    import subprocess
+    from pathlib import Path
+
+    completed = subprocess.run(["nextflow", "-version"], check=False, capture_output=True, text=True)
+    raw = "\\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
+    payload = {
+        "software": [
+            {
+                "name": "nextflow",
+                "version": raw.splitlines()[0] if raw else "",
+                "raw": raw,
+                "command": "nextflow -version",
+                "source": "command",
+                "returncode": completed.returncode,
+            },
+            {
+                "name": "nf-core/rnaseq",
+                "version": "3.22.2",
+                "source": "static",
+            },
+            {
+                "name": "execution_profile",
+                "version": "docker",
+                "source": "static",
+            },
+            {
+                "name": "genome",
+                "version": "${effective_genome}",
+                "source": "param",
+            },
+        ]
+    }
+    path = Path("${LINKAR_RESULTS_DIR}") / "software_versions.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    PY
 
     max_cpus_flag=""
     if [[ -n "${param:max_cpus:-}" ]]; then

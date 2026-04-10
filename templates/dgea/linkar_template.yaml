@@ -39,6 +39,8 @@ outputs:
   results_dir: {}
   run_info:
     path: run_info.yaml
+  software_versions:
+    path: software_versions.json
   html_reports:
     glob: "*.html"
   qmd_reports:
@@ -65,3 +67,41 @@ run:
     pixi install
     pixi run install-bioc-data
     pixi run Rscript DGEA_constructor.R
+    python3 - <<PY
+    import json
+    import subprocess
+    from pathlib import Path
+
+    def version_entry(name, command):
+        completed = subprocess.run(command, check=False, capture_output=True, text=True)
+        raw = "\\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
+        return {
+            "name": name,
+            "version": raw.splitlines()[0] if raw else "",
+            "raw": raw,
+            "command": " ".join(command),
+            "source": "command",
+            "returncode": completed.returncode,
+        }
+
+    payload = {
+        "software": [
+            version_entry("pixi", ["pixi", "--version"]),
+            version_entry("quarto", ["quarto", "--version"]),
+            version_entry("R", ["pixi", "run", "Rscript", "--version"]),
+            {
+                "name": "organism",
+                "version": "${param:organism}",
+                "source": "param",
+            },
+            {
+                "name": "application",
+                "version": "${param:application}",
+                "source": "param",
+            },
+        ]
+    }
+    path = Path("${LINKAR_RESULTS_DIR}") / "software_versions.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    PY

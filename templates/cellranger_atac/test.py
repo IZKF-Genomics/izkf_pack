@@ -20,6 +20,9 @@ import sys
 from pathlib import Path
 
 args = sys.argv[1:]
+if args == ["--version"]:
+    print("cellranger-atac 2.2.0")
+    raise SystemExit(0)
 mode = args[0]
 flags = {}
 for arg in args[1:]:
@@ -86,6 +89,8 @@ def main() -> int:
                 str(fastq_dir),
                 "--reference",
                 str(reference),
+                "--cellranger-atac-bin",
+                str(fake_bin / "cellranger-atac"),
             ],
             check=True,
             capture_output=True,
@@ -97,6 +102,7 @@ def main() -> int:
         assert (results_dir / "counts" / "Ctrl_m" / "outs" / "fragments.tsv.gz").exists()
         assert (results_dir / "counts" / "KO_f" / "outs" / "singlecell.csv").exists()
         assert (results_dir / "combined" / "outs" / "summary.csv").exists()
+        assert (results_dir / "software_versions.json").exists()
 
         with (results_dir / "aggregation.csv").open(encoding="utf-8", newline="") as handle:
             rows = list(csv.DictReader(handle))

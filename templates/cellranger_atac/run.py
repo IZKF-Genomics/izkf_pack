@@ -4,8 +4,11 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import re
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -13,6 +16,24 @@ FASTQ_PATTERN = re.compile(
     r"^(?P<sample>.+?)_S\d+(?:_L\d{3})?_[RI]\d(?:_\d{3})?\.f(?:ast)?q\.gz$"
 )
 CELLRANGER_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def load_software_versions_writer():
+    candidates = []
+    pack_root = os.environ.get("LINKAR_PACK_ROOT")
+    if pack_root:
+        candidates.append(Path(pack_root) / "functions")
+    candidates.append(Path(__file__).resolve().parents[2] / "functions")
+    for candidate in candidates:
+        if candidate.exists():
+            sys.path.insert(0, str(candidate))
+            try:
+                from software_versions import write_software_versions
+
+                return write_software_versions
+            except Exception:
+                continue
+    return None
 
 
 def parse_args() -> argparse.Namespace:
@@ -69,6 +90,30 @@ def build_common_flags(args: argparse.Namespace) -> list[str]:
     return common
 
 
+def resolve_cellranger_binary(binary: str) -> str:
+    candidate = binary.strip()
+    if not candidate:
+        raise SystemExit("cellranger_atac_bin must not be empty")
+
+    if "/" in candidate:
+        path = Path(candidate).expanduser().resolve()
+        if not path.exists():
+            raise SystemExit(f"cellranger-atac binary not found: {path}")
+        if not path.is_file():
+            raise SystemExit(f"cellranger-atac binary is not a file: {path}")
+        if not os.access(path, os.X_OK):
+            raise SystemExit(f"cellranger-atac binary is not executable: {path}")
+        return str(path)
+
+    resolved = shutil.which(candidate)
+    if resolved is None:
+        raise SystemExit(
+            f"cellranger-atac binary '{candidate}' was not found on PATH. "
+            "Pass --cellranger-atac-bin with an absolute path or add it to PATH."
+        )
+    return resolved
+
+
 def run_command(command: list[str], cwd: Path) -> None:
     print("+", " ".join(command))
     subprocess.run(command, cwd=cwd, check=True)
@@ -90,6 +135,7 @@ def write_aggregation_csv(path: Path, rows: list[dict[str, str]]) -> None:
 def main() -> int:
     args = parse_args()
     run_aggr = parse_bool(args.run_aggr)
+    cellranger_bin = resolve_cellranger_binary(args.cellranger_atac_bin)
     results_dir = Path(args.results_dir).resolve()
     fastq_dir = Path(args.fastq_dir).resolve()
     reference = Path(args.reference).resolve()
@@ -104,6 +150,18 @@ def main() -> int:
 
     results_dir.mkdir(parents=True, exist_ok=True)
     counts_dir.mkdir(parents=True, exist_ok=True)
+    write_versions = load_software_versions_writer()
+    if write_versions is not None:
+        write_versions(
+            results_dir / "software_versions.json",
+            commands={
+                "cellranger-atac": [cellranger_bin, "--version"],
+                "python": [sys.executable, "--version"],
+            },
+            static={
+                "reference": {"path": str(reference), "source": "param"},
+            },
+        )
 
     samples = discover_samples(fastq_dir)
     if not samples:
@@ -120,7 +178,7 @@ def main() -> int:
     for sample, files in sorted(samples.items()):
         sample_run_dir = counts_dir / sample
         command = [
-            args.cellranger_atac_bin,
+            cellranger_bin,
             "count",
             f"--id={sample}",
             f"--reference={reference}",
@@ -160,7 +218,7 @@ def main() -> int:
     if run_aggr and len(aggregation_rows) >= 2:
         combined_dir.mkdir(parents=True, exist_ok=True)
         command = [
-            args.cellranger_atac_bin,
+            cellranger_bin,
             "aggr",
             "--id=combined",
             f"--csv={aggregation_csv}",

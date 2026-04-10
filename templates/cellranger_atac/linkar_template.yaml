@@ -4,7 +4,6 @@ description: Run cellranger-atac count per discovered sample and optionally aggr
 tools:
   required:
     - python3
-    - cellranger-atac
 params:
   fastq_dir:
     type: path
@@ -40,14 +39,48 @@ outputs:
     path: aggregation.csv
   samples_manifest:
     path: samples.json
+  software_versions:
+    path: software_versions.json
   count_web_summaries:
     glob: counts/*/outs/web_summary.html
   count_summary_csvs:
     glob: counts/*/outs/summary.csv
+  count_cloupe_files:
+    glob: counts/*/outs/cloupe.cloupe
+  count_fragment_files:
+    glob: counts/*/outs/fragments.tsv.gz
+  count_fragment_indexes:
+    glob: counts/*/outs/fragments.tsv.gz.tbi
+  count_singlecell_csvs:
+    glob: counts/*/outs/singlecell.csv
+  count_peak_beds:
+    glob: counts/*/outs/peaks.bed
+  count_peak_annotations:
+    glob: counts/*/outs/peak_annotation.tsv
+  count_filtered_peak_matrix_h5s:
+    glob: counts/*/outs/filtered_peak_bc_matrix.h5
+  count_filtered_tf_matrix_h5s:
+    glob: counts/*/outs/filtered_tf_bc_matrix.h5
   aggr_web_summary:
     path: combined/outs/web_summary.html
   aggr_summary_csv:
     path: combined/outs/summary.csv
+  aggr_cloupe:
+    path: combined/outs/cloupe.cloupe
+  aggr_fragments:
+    path: combined/outs/fragments.tsv.gz
+  aggr_fragments_index:
+    path: combined/outs/fragments.tsv.gz.tbi
+  aggr_singlecell_csv:
+    path: combined/outs/singlecell.csv
+  aggr_peak_bed:
+    path: combined/outs/peaks.bed
+  aggr_peak_annotation:
+    path: combined/outs/peak_annotation.tsv
+  aggr_filtered_peak_matrix_h5:
+    path: combined/outs/filtered_peak_bc_matrix.h5
+  aggr_filtered_tf_matrix_h5:
+    path: combined/outs/filtered_tf_bc_matrix.h5
 run:
   mode: direct
   verbose_by_default: true

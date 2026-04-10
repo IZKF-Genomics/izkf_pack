@@ -56,6 +56,8 @@ outputs:
     path: results
   output_dir:
     path: results/output
+  software_versions:
+    path: software_versions.json
   demux_fastq_files:
     glob: output/**/*.fastq.gz
   fastqc_dir: {}
@@ -98,6 +100,50 @@ run:
     rm -rf "${upstream_repo_dir}"
     git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"
     git -C "${upstream_repo_dir}" checkout "${upstream_commit}"
+
+    python3 - <<PY
+    import json
+    import subprocess
+    from pathlib import Path
+
+    def version_entry(name, command):
+        completed = subprocess.run(command, check=False, capture_output=True, text=True)
+        raw = "\\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
+        return {
+            "name": name,
+            "version": raw.splitlines()[0] if raw else "",
+            "raw": raw,
+            "command": " ".join(command),
+            "source": "command",
+            "returncode": completed.returncode,
+        }
+
+    payload = {
+        "software": [
+            version_entry("bcl-convert", ["bcl-convert", "--version"]),
+            version_entry("pixi", ["pixi", "--version"]),
+            {
+                "name": "demultiplexing_prefect",
+                "version": "${upstream_commit}",
+                "repository": "${upstream_repo_url}",
+                "source": "static",
+            },
+            {
+                "name": "qc_tool",
+                "version": "${param:qc_tool}",
+                "source": "param",
+            },
+            {
+                "name": "contamination_tool",
+                "version": "${param:contamination_tool}",
+                "source": "param",
+            },
+        ]
+    }
+    path = Path("${results_dir}") / "software_versions.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    PY
 
     pushd "${upstream_repo_dir}" >/dev/null
     pixi run python -m demux_pipeline.cli \

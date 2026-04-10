@@ -30,6 +30,22 @@ def main() -> int:
             ),
             encoding="utf-8",
         )
+        results_source = run_dir / "results"
+        results_source.mkdir()
+        (results_source / "software_versions.json").write_text(
+            json.dumps(
+                {
+                    "software": [
+                        {
+                            "name": "cellranger-atac",
+                            "version": "cellranger-atac 2.2.0",
+                            "source": "command",
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
         project_dir.mkdir(exist_ok=True)
         (project_dir / "project.yaml").write_text(
             yaml.safe_dump(
@@ -42,7 +58,10 @@ def main() -> int:
                             "template_version": "0.1.0",
                             "instance_id": "cellranger_atac_001",
                             "path": str(run_dir),
-                            "outputs": {"results_dir": str(run_dir / "results")},
+                            "outputs": {
+                                "results_dir": str(results_source),
+                                "software_versions": str(results_source / "software_versions.json"),
+                            },
                             "params": {
                                 "reference": "/refs/example_reference",
                                 "run_aggr": True,
@@ -76,9 +95,11 @@ def main() -> int:
         context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
         assert "Single-cell ATAC-seq processing" in long_text
         assert "example_reference" in long_text
+        assert "cellranger-atac 2.2.0" in long_text
         assert "1 recorded workflow" in short_text
         assert "Cell Ranger ATAC" in refs
         assert context["runs"][0]["template"] == "cellranger_atac"
+        assert context["runs"][0]["software_versions"][0]["name"] == "cellranger-atac"
     return 0
 
 

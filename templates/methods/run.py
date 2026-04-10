@@ -126,6 +126,52 @@ def read_runtime_summary(run_dir: Path | None) -> dict[str, Any]:
     )
 
 
+def resolve_output_path(project_dir: Path, value: Any) -> Path | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = (project_dir / path).resolve()
+    return path
+
+
+def load_software_versions(project_dir: Path, outputs: dict[str, Any]) -> list[dict[str, Any]]:
+    versions: list[dict[str, Any]] = []
+    software_path = resolve_output_path(project_dir, outputs.get("software_versions"))
+    if software_path is not None and software_path.exists():
+        try:
+            raw = json.loads(software_path.read_text(encoding="utf-8"))
+            items = raw.get("software") if isinstance(raw, dict) else None
+            if isinstance(items, list):
+                for item in items:
+                    if isinstance(item, dict):
+                        versions.append(item)
+        except Exception as exc:
+            versions.append(
+                {
+                    "name": "software_versions",
+                    "source": "output",
+                    "path": str(software_path),
+                    "error": str(exc),
+                }
+            )
+    for key, value in outputs.items():
+        if not isinstance(key, str) or not key.startswith("version_"):
+            continue
+        path = resolve_output_path(project_dir, value)
+        if path is None or not path.exists():
+            continue
+        versions.append(
+            {
+                "name": key.removeprefix("version_").replace("_", "-"),
+                "version": path.read_text(encoding="utf-8", errors="replace").strip(),
+                "path": str(path),
+                "source": "output",
+            }
+        )
+    return versions
+
+
 def infer_organism_or_reference(params: dict[str, Any]) -> dict[str, Any]:
     hints: dict[str, Any] = {}
     for key in ("organism", "genome", "reference", "spikein"):
@@ -171,6 +217,7 @@ def collect_run_context(
                 "tools": hint.get("tools") if isinstance(hint, dict) else [],
                 "params": compact_mapping(params, keys=important_params),
                 "organism_or_reference": infer_organism_or_reference(params),
+                "software_versions": load_software_versions(project_dir, outputs),
                 "outputs": summarize_outputs(outputs),
                 "runtime": read_runtime_summary(run_dir),
                 "citations": citations,
@@ -230,6 +277,20 @@ def deterministic_long_methods(context: dict[str, Any]) -> str:
         hints = run.get("organism_or_reference") if isinstance(run.get("organism_or_reference"), dict) else {}
         if hints:
             lines.append(f"Organism, genome, or reference context included: {format_param_sentence(hints)}.")
+        software_versions = run.get("software_versions")
+        if isinstance(software_versions, list) and software_versions:
+            rendered_versions = []
+            for item in software_versions:
+                if not isinstance(item, dict):
+                    continue
+                name = str(item.get("name") or "").strip()
+                version = str(item.get("version") or item.get("raw") or "").strip()
+                if name and version:
+                    rendered_versions.append(f"{name}: {version}")
+                elif name:
+                    rendered_versions.append(name)
+            if rendered_versions:
+                lines.append(f"Recorded software and reference versions included: {'; '.join(rendered_versions)}.")
         runtime = run.get("runtime") if isinstance(run.get("runtime"), dict) else {}
         if runtime.get("success") is not None:
             lines.append(f"The recorded runtime success state was `{runtime.get('success')}`.")
