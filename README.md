@@ -21,89 +21,167 @@ linkar config pack add ~/github/izkf_pack/
 
 After this, Linkar can find the pack without passing `--pack` each time.
 
-## Quick Start
-
-From a project directory:
+Check the active global pack:
 
 ```bash
+linkar config pack show
+```
+
+## Configure User Defaults
+
+Configure author metadata once per user. New projects will copy these values into `project.yaml`.
+
+```bash
+linkar config author set \
+  --name "Example User" \
+  --email "user@example.org" \
+  --organization "Example Genomics Facility"
+```
+
+Check the configured author:
+
+```bash
+linkar config author show
+```
+
+You can still override author metadata per project:
+
+```bash
+linkar project init \
+  --name example_project \
+  --author-name "Another User" \
+  --author-email "another.user@example.org"
+```
+
+## Create A Project
+
+Create a new project directory:
+
+```bash
+cd /data/projects/
 linkar project init --name example_project
-linkar pack add /path/to/genomics_pack --id genomics --binding default
+cd example_project
 linkar project view
 ```
 
-Render a template when you want to inspect or edit the generated launcher before execution:
+Create a project and adopt an existing Linkar run:
 
 ```bash
-linkar render demultiplex --param bcl_dir=/data/raw_runs/example_run
-cd /data/processed_runs/example_run
-bash run.sh
+cd /data/projects/
+linkar project init \
+  --name example_project \
+  --adopt /data/processed_runs/example_run
 ```
 
-Run a direct action when it is safe to execute immediately:
-
-```bash
-linkar run methods --param use_llm=false
-```
-
-## Common Tasks
-
-### Run Demultiplexing
+## Run Demultiplexing
 
 Use this when starting from a raw sequencing run folder.
 
+Inspect first, then execute manually:
+
 ```bash
+cd /data/processed_runs/
+
 linkar render demultiplex \
-  --param bcl_dir=/data/raw_runs/example_run
-```
+  --bcl-dir /data/raw_runs/example_run \
+  --agendo-id EXAMPLE_REQUEST_ID
 
-Then inspect and execute the rendered launcher:
-
-```bash
-cd /data/processed_runs/example_run
+cd example_run
 bash run.sh
+cd ..
+linkar collect example_run
 ```
 
-Useful follow-up checks:
+One-shot execution:
 
 ```bash
-linkar project adopt-run /data/processed_runs/example_run
+cd /data/processed_runs/
+
+linkar run demultiplex \
+  --bcl-dir /data/raw_runs/example_run \
+  --agendo-id EXAMPLE_REQUEST_ID \
+  --verbose
+```
+
+`linkar run` includes render, execution, output collection, and `.linkar` metadata writing in one command. When it runs inside an active Linkar project, it also records the run in `project.yaml`.
+
+Export an ad hoc demultiplexing run:
+
+```bash
+linkar run export_demux \
+  --run-dir /data/processed_runs/example_run \
+  --project-name example_fastq_export \
+  --verbose
+```
+
+## Run Analysis
+
+### 3' mRNA-seq
+
+After finishing demultiplexing, create a project and adopt the processed run:
+
+```bash
+cd /data/projects/
+
+linkar project init \
+  --name example_3mrnaseq_project \
+  --adopt /data/processed_runs/example_run
+
+cd example_3mrnaseq_project
 linkar project view
 ```
 
-### Run Basic 3' mRNA-seq Analysis
+Run the nf-core 3' mRNA-seq workflow. The default binding can reuse demultiplex outputs and resolve metadata from `agendo_id`.
 
-Use this after demultiplexing has been recorded in the active project. The default binding can generate the nf-core samplesheet and resolve common metadata.
+```bash
+linkar run nfcore_3mrnaseq \
+  --agendo-id EXAMPLE_REQUEST_ID \
+  --outdir ./nfcore_3mrnaseq \
+  --verbose
+```
+
+If you want to inspect before execution:
 
 ```bash
 linkar render nfcore_3mrnaseq \
-  --param agendo_id=EXAMPLE_REQUEST_ID
-```
+  --agendo-id EXAMPLE_REQUEST_ID \
+  --outdir ./nfcore_3mrnaseq
 
-Then inspect and execute:
-
-```bash
 cd nfcore_3mrnaseq
 bash run.sh
+cd ..
+linkar collect nfcore_3mrnaseq
 ```
 
-### Run Differential Gene Expression Workspace
-
-Use this after the 3' mRNA-seq template has produced quantification outputs.
+Run the editable DGEA workspace after RNA-seq quantification outputs are recorded:
 
 ```bash
-linkar render dgea
-cd dgea
-bash run.sh
+linkar run dgea \
+  --outdir ./dgea \
+  --verbose
 ```
 
-The rendered workspace is meant to remain editable. Review the generated inputs and reports before treating the results as final.
+### Single-cell ATAC-seq
 
-### Run Methods Generation
+Run Cell Ranger ATAC after a compatible FASTQ directory is recorded or passed explicitly:
+
+```bash
+linkar run cellranger_atac \
+  --fastq-dir /data/processed_runs/example_run/results/output/example_project \
+  --reference /data/references/example_cellranger_atac_reference \
+  --outdir ./cellranger_atac \
+  --verbose
+```
+
+## Generate Methods
 
 Use this after one or more analysis runs have been adopted into `project.yaml`.
 
 ```bash
-linkar run methods --param use_llm=false
+linkar run methods \
+  --outdir ./methods \
+  --use-llm false \
+  --verbose
 ```
 
 Optional LLM polishing uses an OpenAI-compatible API. Keep secrets in the environment, not in `project.yaml`:
@@ -112,12 +190,18 @@ Optional LLM polishing uses an OpenAI-compatible API. Keep secrets in the enviro
 export LINKAR_LLM_API_KEY="..."
 export LINKAR_LLM_BASE_URL="https://api.example.org/v1"
 export LINKAR_LLM_MODEL="example-model"
-linkar run methods --param use_llm=true
+
+linkar run methods \
+  --outdir ./methods \
+  --use-llm true \
+  --verbose
 ```
 
-### Run Project Export
+## Export
 
 Use this after the project contains the runs and reports you want to publish.
+
+Inspect and edit the generated export specification before submission:
 
 ```bash
 linkar render export
@@ -126,7 +210,60 @@ less results/export_job_spec.json
 bash run.sh
 ```
 
-The render step prepares `results/export_job_spec.json` so it can be reviewed before submission.
+One-shot export:
+
+```bash
+linkar run export \
+  --outdir ./export \
+  --verbose
+```
+
+Check an export job:
+
+```bash
+linkar run export_status \
+  --job-id EXAMPLE_JOB_ID \
+  --verbose
+```
+
+Delete an export project only when you are certain:
+
+```bash
+linkar run export_del \
+  --project-id EXAMPLE_EXPORT_PROJECT_ID \
+  --confirm-delete true \
+  --verbose
+```
+
+## Troubleshooting
+
+Show the active project and recorded runs:
+
+```bash
+linkar project view
+linkar project runs
+```
+
+Inspect a run:
+
+```bash
+linkar inspect RUN_INSTANCE_ID
+```
+
+Collect outputs again after manually executing or editing a rendered run:
+
+```bash
+linkar collect ./run_directory
+```
+
+Confirm global configuration:
+
+```bash
+linkar config pack show
+linkar config author show
+```
+
+If a required parameter cannot be resolved automatically, pass it explicitly with its template option, for example `--samplesheet`, `--genome`, `--fastq-dir`, or `--reference`.
 
 ## Templates
 
