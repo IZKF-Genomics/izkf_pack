@@ -1,0 +1,81 @@
+templates:
+  demultiplex:
+    label: Demultiplexing and sequencing quality control
+    summary: Sequencing output was demultiplexed into sample-specific sequencing files and quality-control reports.
+    important_params:
+      - bcl_dir
+      - samplesheet
+      - qc_tool
+      - contamination_tool
+      - threads
+    tools:
+      - bcl-convert
+      - MultiQC
+    citations:
+      - multiqc
+  nfcore_3mrnaseq:
+    label: 3' mRNA-seq processing
+    summary: Transcriptome sequencing data were processed with the nf-core/rnaseq workflow using the configured genome and quantification settings.
+    important_params:
+      - genome
+      - samplesheet
+      - umi
+      - spikein
+      - max_cpus
+      - max_memory
+    tools:
+      - Nextflow
+      - nf-core/rnaseq
+    citations:
+      - nextflow
+      - nfcore_rnaseq
+  cellranger_atac:
+    label: Single-cell ATAC-seq processing
+    summary: Single-cell ATAC-seq libraries were processed with Cell Ranger ATAC and optionally aggregated across samples.
+    important_params:
+      - fastq_dir
+      - reference
+      - cellranger_atac_bin
+      - run_aggr
+      - localcores
+      - localmem
+    tools:
+      - Cell Ranger ATAC
+    citations:
+      - cellranger_atac
+  dgea:
+    label: Differential gene expression analysis
+    summary: Differential gene expression analysis was prepared in an editable reporting workspace using project-level count and sample metadata.
+    important_params:
+      - salmon_dir
+      - samplesheet
+      - organism
+      - spikein
+      - application
+      - name
+      - authors
+    tools:
+      - R
+      - Quarto
+    citations:
+      - deseq2
+      - quarto
+references:
+  multiqc:
+    text: "Ewels P, Magnusson M, Lundin S, Kaller M. MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics. 2016."
+    url: "https://doi.org/10.1093/bioinformatics/btw354"
+  nextflow:
+    text: "Di Tommaso P et al. Nextflow enables reproducible computational workflows. Nature Biotechnology. 2017."
+    url: "https://doi.org/10.1038/nbt.3820"
+  nfcore_rnaseq:
+    text: "Ewels PA et al. The nf-core framework for community-curated bioinformatics pipelines. Nature Biotechnology. 2020."
+    url: "https://doi.org/10.1038/s41587-020-0439-x"
+  cellranger_atac:
+    text: "10x Genomics. Cell Ranger ATAC software documentation."
+    url: "https://www.10xgenomics.com/support/software/cell-ranger-atac"
+  deseq2:
+    text: "Love MI, Huber W, Anders S. Moderated estimation of fold change and dispersion for RNA-seq data with DESeq2. Genome Biology. 2014."
+    url: "https://doi.org/10.1186/s13059-014-0550-8"
+  quarto:
+    text: "Quarto scientific and technical publishing system."
+    url: "https://quarto.org/"

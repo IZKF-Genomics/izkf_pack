@@ -1,0 +1,57 @@
+id: methods
+version: 0.1.0
+description: Generate project-level methods drafts from Linkar project history.
+tools:
+  required:
+    - python3
+params:
+  project_dir:
+    type: path
+    default: ..
+    description: Linkar project directory containing project.yaml. Defaults to the parent of the rendered methods bundle.
+  style:
+    type: str
+    default: publication
+    description: Output style hint. Use publication, concise, or technical.
+  use_llm:
+    type: bool
+    default: false
+    description: When true, polish deterministic drafts through an OpenAI-compatible chat completions API.
+  llm_base_url:
+    type: str
+    default: ""
+    description: Optional OpenAI-compatible API base URL. Falls back to LINKAR_LLM_BASE_URL.
+  llm_model:
+    type: str
+    default: ""
+    description: Optional model name. Falls back to LINKAR_LLM_MODEL.
+  llm_temperature:
+    type: float
+    default: 0.2
+    description: Temperature used for optional LLM polishing.
+outputs:
+  results_dir: {}
+  methods_context:
+    path: methods_context.yaml
+  methods_long:
+    path: methods_long.md
+  methods_short:
+    path: methods_short.md
+  methods_references:
+    path: methods_references.md
+  methods_prompt:
+    path: methods_prompt.md
+  methods_response:
+    path: methods_response.json
+run:
+  mode: direct
+  verbose_by_default: true
+  command: |
+    python3 ./run.py \
+      --results-dir "${LINKAR_RESULTS_DIR}" \
+      --project-dir "${param:project_dir}" \
+      --style "${param:style}" \
+      --use-llm "${param:use_llm}" \
+      --llm-base-url "${param:llm_base_url}" \
+      --llm-model "${param:llm_model}" \
+      --llm-temperature "${param:llm_temperature}"
