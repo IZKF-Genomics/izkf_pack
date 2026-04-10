@@ -9,6 +9,18 @@ The pack is intentionally practical:
 - `discovery/` contains read-only helpers for finding projects, sequencing runs, references, and processed run folders.
 - `linkar_pack.yaml` wires selected templates to default binding functions.
 
+## Install
+
+Clone the pack and register it as a global Linkar pack:
+
+```bash
+cd ~/github/
+gh repo clone IZKF-Genomics/izkf_pack
+linkar config pack add ~/github/izkf_pack/
+```
+
+After this, Linkar can find the pack without passing `--pack` each time.
+
 ## Quick Start
 
 From a project directory:
