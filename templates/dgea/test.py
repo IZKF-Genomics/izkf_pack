@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -26,7 +27,7 @@ def main() -> int:
 
         subprocess.run(
             [
-                "python",
+                sys.executable,
                 str(TEMPLATE_DIR / "build_dgea_inputs.py"),
                 "--workspace-dir",
                 str(workspace),

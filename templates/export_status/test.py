@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -44,7 +45,7 @@ def main() -> int:
         try:
             completed = subprocess.run(
                 [
-                    "python",
+                    sys.executable,
                     str(TEMPLATE_DIR / "run.py"),
                     "--results-dir",
                     str(results_dir),

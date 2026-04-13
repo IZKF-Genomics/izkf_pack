@@ -52,7 +52,7 @@ Those belonged to the older wrapper, not the current upstream `main` CLI.
 
 ## Runtime behavior
 
-The template declares one shell command directly in `linkar_template.yaml`:
+The template keeps the execution logic in a standalone [run.sh](/home/ckuo/github/izkf_pack/templates/demultiplex/run.sh:1):
 
 ```bash
 git clone --depth 1 https://github.com/MoSafi2/demultiplexing_prefect ./demultiplexing_prefect
@@ -61,8 +61,9 @@ cd ./demultiplexing_prefect
 pixi run python -m demux_pipeline.cli ...
 ```
 
-Linkar renders that command into `run.sh`, so the rendered run directory contains a single launcher
-that clones upstream when you execute it.
+`linkar_template.yaml` now points to `run.entry: run.sh`, and Linkar still renders the outer
+launcher for render mode. That keeps the template contract small while the real shell logic stays in
+one script that is easier to test and review.
 
 ## Samplesheet resolution
 

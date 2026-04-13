@@ -23,3 +23,24 @@ linkar run archive_raw --pack /home/ckuo/github/izkf_pack --yes true
 ```
 
 `archive_raw` does not delete source runs.
+
+## Key parameters
+
+- `source_root`: raw run root, default `/data/raw`
+- `target_root`: archive destination root
+- `instrument_folders`: comma-separated instrument subdirectories to scan
+- `yes`: confirm execution for non-dry runs
+- `dry_run`: build the manifest and verification plan without copying data
+- `cleanup`: whether to delete sources after verification, default `false`
+
+## Outputs
+
+- `results/manifest_path.txt`
+- `results/log_path.txt`
+
+## Test command
+
+```bash
+cd /home/ckuo/github/izkf_pack/templates/archive_raw
+python3 test.py
+```

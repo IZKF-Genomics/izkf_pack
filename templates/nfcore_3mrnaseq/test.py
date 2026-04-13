@@ -9,9 +9,6 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-import yaml
-
-
 TEMPLATE_DIR = Path(__file__).resolve().parent
 FUNCTIONS_DIR = TEMPLATE_DIR.parent.parent / "functions"
 
@@ -67,51 +64,6 @@ def make_fake_nextflow_bin(root: Path) -> Path:
     return bin_dir
 
 
-def render_command_script(
-    *,
-    results_dir: Path,
-    samplesheet: Path,
-    genome: str,
-    umi: str,
-    spikein: str,
-    max_cpus: str,
-    max_memory: str,
-) -> str:
-    template_data = yaml.safe_load((TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8"))
-    command = template_data["run"]["command"]
-
-    def escape_for_double_quotes(value: str) -> str:
-        return (
-            value.replace("\\", "\\\\")
-            .replace('"', '\\"')
-            .replace("$", "\\$")
-            .replace("`", "\\`")
-        )
-    command = command.replace("${LINKAR_RESULTS_DIR}", "./results")
-    command = command.replace("${param:samplesheet}", "${samplesheet}")
-    command = command.replace("${param:genome}", "${genome}")
-    command = command.replace("${param:umi}", "${umi}")
-    command = command.replace("${param:spikein}", "${spikein}")
-    command = command.replace("${param:max_cpus}", "${max_cpus}")
-    command = command.replace("${param:max_cpus:-}", "${max_cpus:-}")
-    command = command.replace("${param:max_memory}", "${max_memory}")
-    command = command.replace("${param:max_memory:-}", "${max_memory:-}")
-
-    assignments = [
-        "#!/usr/bin/env bash",
-        "set -euo pipefail",
-        "",
-        f'samplesheet="{escape_for_double_quotes(str(samplesheet))}"',
-        f'genome="{escape_for_double_quotes(genome)}"',
-        f'umi="{escape_for_double_quotes(umi)}"',
-        f'spikein="{escape_for_double_quotes(spikein)}"',
-        f'max_cpus="{escape_for_double_quotes(max_cpus)}"',
-        f'max_memory="{escape_for_double_quotes(max_memory)}"',
-        "",
-    ]
-    return "\n".join(assignments) + command
-
-
 def test_rendered_run_script() -> None:
     with tempfile.TemporaryDirectory(prefix="linkar-nfcore-3mrnaseq-test-") as tmp:
         tmpdir = Path(tmp)
@@ -119,25 +71,18 @@ def test_rendered_run_script() -> None:
         samplesheet = tmpdir / "samplesheet.csv"
         samplesheet.write_text("sample,fastq_1,fastq_2,strandedness\nS1,R1.fastq.gz,R2.fastq.gz,forward\n", encoding="utf-8")
         results_dir = tmpdir / "results"
-        run_script = tmpdir / "run.sh"
-        run_script.write_text(
-            render_command_script(
-                results_dir=results_dir,
-                samplesheet=samplesheet,
-                genome="GRCh38",
-                umi="UMI Second Strand SynthesisModule for QuantSeq FWD",
-                spikein="ERCC RNA Spike-in Mix",
-                max_cpus="16",
-                max_memory="64GB",
-            ),
-            encoding="utf-8",
-        )
-        run_script.chmod(0o755)
         env = os.environ.copy()
         env["PATH"] = f"{fake_bin}:{env.get('PATH', '')}"
         env["NFCORE_ARGS_LOG"] = str(tmpdir / "args.log")
+        env["LINKAR_RESULTS_DIR"] = str(results_dir)
+        env["SAMPLESHEET"] = str(samplesheet)
+        env["GENOME"] = "GRCh38"
+        env["UMI"] = "UMI Second Strand SynthesisModule for QuantSeq FWD"
+        env["SPIKEIN"] = "ERCC RNA Spike-in Mix"
+        env["MAX_CPUS"] = "16"
+        env["MAX_MEMORY"] = "64GB"
         completed = subprocess.run(
-            [str(run_script)],
+            ["bash", str(TEMPLATE_DIR / "run.sh")],
             cwd=tmpdir,
             env=env,
             text=True,
@@ -147,7 +92,7 @@ def test_rendered_run_script() -> None:
         assert completed.returncode == 0, completed.stderr
         args_text = (tmpdir / "args.log").read_text(encoding="utf-8")
         assert "--outdir" in args_text
-        assert "./results" in args_text
+        assert str(results_dir) in args_text
         assert "--genome GRCh38_with_ERCC" in args_text
         assert "--with_umi" in args_text
         assert "--max_cpus 16" in args_text
@@ -287,11 +232,11 @@ def main() -> None:
     test_agendo_bindings_use_cached_metadata()
     test_agendo_genome_unknown_organism_returns_placeholder()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
-    assert "nextflow" in template_text
-    assert '"${param:samplesheet}"' in template_text
-    assert '"${param:genome}"' in template_text
-    assert 'samplesheet="${SAMPLESHEET}"' not in template_text
-    assert 'effective_genome="${param:genome}"' in template_text
+    run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
+    assert "entry: run.sh" in template_text
+    assert 'effective_genome="${GENOME}"' in run_sh_text
+    assert '--input "${SAMPLESHEET:?}"' in run_sh_text
+    assert 'if [[ "${UMI:-}" == "UMI Second Strand SynthesisModule for QuantSeq FWD" ]]' in run_sh_text
     assert template_text.index("  agendo_id:") < template_text.index("  genome:")
     print("nfcore_3mrnaseq template test passed")
 

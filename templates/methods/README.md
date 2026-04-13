@@ -26,3 +26,17 @@ linkar run methods --param use_llm=true
 
 Template params can override `llm_base_url` and `llm_model`, but the API key is read only from
 `LINKAR_LLM_API_KEY`.
+
+## Key parameters
+
+- `project_dir`: Linkar project containing `project.yaml`
+- `style`: output style hint such as `publication`, `concise`, or `technical`
+- `use_llm`: optional polishing step
+- `llm_base_url`, `llm_model`, `llm_temperature`: optional LLM settings
+
+## Test command
+
+```bash
+cd /home/ckuo/github/izkf_pack/templates/methods
+python3 test.py
+```

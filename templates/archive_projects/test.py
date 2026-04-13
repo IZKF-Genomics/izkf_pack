@@ -5,6 +5,7 @@ import json
 import os
 import stat
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -68,7 +69,7 @@ def main() -> int:
 
         completed = subprocess.run(
             [
-                "python",
+                sys.executable,
                 str(TEMPLATE_DIR / "run.py"),
                 "--results-dir",
                 str(results_dir),

@@ -3,7 +3,7 @@ version: 0.1.0
 description: Query the facility export engine for the current status of an export job.
 tools:
   required:
-    - python
+    - python3
 params:
   job_id:
     type: str
@@ -22,7 +22,7 @@ outputs:
 run:
   mode: direct
   command: |
-    python ./run.py \
+    python3 ./run.py \
       --results-dir "${LINKAR_RESULTS_DIR}" \
       --job-id "${param:job_id}" \
       --export-engine-api-url "${param:export_engine_api_url}"

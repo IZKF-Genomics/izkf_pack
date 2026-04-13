@@ -30,7 +30,15 @@ With `--binding default`, the pack can resolve:
 
 ## Runtime behavior
 
-The template uses a small helper script, [launch_nfcore_3mrnaseq.sh](/home/ckuo/github/izkf_pack/templates/nfcore_3mrnaseq/launch_nfcore_3mrnaseq.sh), to keep the Nextflow argument logic readable while still letting Linkar render a single resolved launcher.
+The template keeps the execution logic in a standalone [run.sh](/home/ckuo/github/izkf_pack/templates/nfcore_3mrnaseq/run.sh:1).
+
+That script:
+
+- validates `genome` before launch
+- derives `effective_genome` from `spikein`
+- records `software_versions.json`
+- runs the fixed `nf-core/rnaseq` invocation
+- cleans the named Nextflow work directory when possible
 
 ## Test commands
 
@@ -38,7 +46,7 @@ Direct local test:
 
 ```bash
 cd /home/ckuo/github/izkf_pack/templates/nfcore_3mrnaseq
-python test.py
+python3 test.py
 ```
 
 Through Linkar:

@@ -3,7 +3,7 @@ version: 0.1.0
 description: Archive FASTQ run directories to the facility archive root with a shared manifest log.
 tools:
   required:
-    - python
+    - python3
     - rsync
 params:
   source_root:
@@ -54,7 +54,7 @@ outputs:
 run:
   mode: direct
   command: |
-    python ./run.py \
+    python3 ./run.py \
       --results-dir "${LINKAR_RESULTS_DIR}" \
       --source-root "${param:source_root}" \
       --target-root "${param:target_root}" \

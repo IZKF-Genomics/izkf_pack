@@ -9,6 +9,8 @@ The pack is intentionally practical:
 - `discovery/` contains read-only helpers for finding projects, sequencing runs, references, and processed run folders.
 - `linkar_pack.yaml` wires selected templates to default binding functions.
 
+Template authors and AI agents should also read [TEMPLATE_AUTHORING_FOR_AGENTS.md](/home/ckuo/github/izkf_pack/TEMPLATE_AUTHORING_FOR_AGENTS.md:1) before adding a new template.
+
 ## Install
 
 Clone the pack and register it as a global Linkar pack:

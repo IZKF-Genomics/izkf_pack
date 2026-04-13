@@ -167,49 +167,6 @@ def main() -> None:
         demux_input, samplesheet = make_demux_inputs(tmpdir)
 
         results_dir = tmpdir / "results"
-        run_script = tmpdir / "run.sh"
-        run_script.write_text(
-            "#!/usr/bin/env bash\n"
-            "set -euo pipefail\n"
-            "\n"
-            "LINKAR_RESULTS_DIR=\"${LINKAR_RESULTS_DIR:?}\"\n"
-            "BCL_DIR=\"${BCL_DIR:?}\"\n"
-            "SAMPLESHEET=\"${SAMPLESHEET:?}\"\n"
-            "QC_TOOL=\"${QC_TOOL:?}\"\n"
-            "CONTAMINATION_TOOL=\"${CONTAMINATION_TOOL:?}\"\n"
-            "THREADS=\"${THREADS:?}\"\n"
-            "KRAKEN_DB=\"${KRAKEN_DB:-}\"\n"
-            "BRACKEN_DB=\"${BRACKEN_DB:-}\"\n"
-            "FASTQ_SCREEN_CONF=\"${FASTQ_SCREEN_CONF:-}\"\n"
-            "upstream_repo_url=\"https://github.com/MoSafi2/demultiplexing_prefect\"\n"
-            "upstream_commit=\"08a77d8010bce28c26b3c71089256ed1ba6a145a\"\n"
-            "upstream_repo_dir=\"./demultiplexing_prefect\"\n"
-            "render_root=\"$(pwd)\"\n"
-            "results_dir=\"${render_root}/results\"\n"
-            "samplesheet_path=\"${SAMPLESHEET}\"\n"
-            "if [[ \"${samplesheet_path}\" != /* ]]; then\n"
-            "  samplesheet_path=\"${render_root}/${samplesheet_path#./}\"\n"
-            "fi\n"
-            "rm -rf \"${upstream_repo_dir}\"\n"
-            "git clone --depth 1 \"${upstream_repo_url}\" \"${upstream_repo_dir}\"\n"
-            "git -C \"${upstream_repo_dir}\" checkout \"${upstream_commit}\"\n"
-            "pushd \"${upstream_repo_dir}\" >/dev/null\n"
-            "pixi run python -m demux_pipeline.cli \\\n"
-            "  --outdir \"${results_dir}\" \\\n"
-            "  --bcl_dir \"${BCL_DIR}\" \\\n"
-            "  --samplesheet \"${samplesheet_path}\" \\\n"
-            "  --qc-tool \"${QC_TOOL}\" \\\n"
-            "  --contamination-tool \"${CONTAMINATION_TOOL}\" \\\n"
-            "  --threads \"${THREADS}\" \\\n"
-            "  --output-contract-file \"${results_dir}/template_outputs.json\" \\\n"
-            "  ${KRAKEN_DB:+--kraken-db \"${KRAKEN_DB}\"} \\\n"
-            "  ${BRACKEN_DB:+--bracken-db \"${BRACKEN_DB}\"} \\\n"
-            "  ${FASTQ_SCREEN_CONF:+--fastq-screen-conf \"${FASTQ_SCREEN_CONF}\"}\n"
-            "popd >/dev/null\n"
-            "rm -rf .pixi\n",
-            encoding="utf-8",
-        )
-        run_script.chmod(0o755)
         env = {
             "QC_TOOL": "fastqc,fastp",
             "THREADS": "2",
@@ -224,7 +181,7 @@ def main() -> None:
             "PATH": f"{fake_pixi_bin}:{fake_demux_bin}:{fake_git_bin}:{os.environ.get('PATH', '')}",
         }
         completed = subprocess.run(
-            ["bash", str(run_script)],
+            ["bash", str(TEMPLATE_DIR / "run.sh")],
             cwd=tmpdir,
             env={**os.environ, **env},
             text=True,
@@ -248,9 +205,11 @@ def main() -> None:
         ).read_text(encoding="utf-8").strip() == "commit=08a77d8010bce28c26b3c71089256ed1ba6a145a"
 
         template_yaml = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
-        assert 'git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"' in template_yaml
-        assert 'git -C "${upstream_repo_dir}" checkout "${upstream_commit}"' in template_yaml
-        assert 'pixi run python -m demux_pipeline.cli' in template_yaml
+        template_run_sh = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
+        assert 'entry: run.sh' in template_yaml
+        assert 'git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"' in template_run_sh
+        assert 'git -C "${upstream_repo_dir}" checkout "${upstream_commit}"' in template_run_sh
+        assert 'pixi run python -m demux_pipeline.cli' in template_run_sh
         assert not (TEMPLATE_DIR / "demux_pipeline" / "cli.py").exists()
         assert not (TEMPLATE_DIR / "pixi.toml").exists()
         assert not (TEMPLATE_DIR / "pixi.lock").exists()

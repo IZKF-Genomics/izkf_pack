@@ -59,4 +59,4 @@ Generated artifacts include:
 
 - This template assumes it lives directly under a Linkar project root, so it can read `../project.yaml`.
 - The vendored [export_mapping.table.yaml](/home/ckuo/github/izkf_pack/templates/export/export_mapping.table.yaml) has been normalized for the current `izkf_pack` template ids and outputs.
-- Methods generation prefers `bpm.core.agent_methods` when available. If that import fails, the template writes a fallback note instead of aborting.
+- Methods generation is now Linkar-native and is built from local project history through [build_export_bundle.py](/home/ckuo/github/izkf_pack/templates/export/build_export_bundle.py), not through BPM runtime hooks.

@@ -20,10 +20,12 @@ Instead of BPM Jinja rendering, Linkar now writes a small `dgea_inputs.R` file t
 
 `linkar run dgea`:
 
+- runs the standalone [run.sh](/home/ckuo/github/izkf_pack/templates/dgea/run.sh:1)
 - writes `dgea_inputs.R`
 - installs the Pixi environment
 - runs `install_bioc_data.sh`
 - executes `DGEA_constructor.R`
+- records `software_versions.json`
 
 ## Bindings
 
@@ -58,5 +60,5 @@ That keeps the workflow flexible for:
 
 ```bash
 cd /home/ckuo/github/izkf_pack/templates/dgea
-python test.py
+python3 test.py
 ```
