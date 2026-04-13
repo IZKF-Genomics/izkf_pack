@@ -45,6 +45,16 @@ Environment variables:
 
 - `LINKAR_HOME`
 
+### `generate_nfcore_methylseq_samplesheet`
+
+Source: [`generate_nfcore_methylseq_samplesheet.py`](generate_nfcore_methylseq_samplesheet.py)
+
+Generates an `nf-core/methylseq` samplesheet from the latest recorded demultiplexed FASTQ pairs. It writes a cached samplesheet under the Linkar cache directory and returns that generated path.
+
+Environment variables:
+
+- `LINKAR_HOME`
+
 ### `generate_nfcore_3mrnaseq_samplesheet`
 
 Source: [`generate_nfcore_3mrnaseq_samplesheet.py`](generate_nfcore_3mrnaseq_samplesheet.py)
@@ -105,6 +115,12 @@ Returns 80 percent of detected CPUs, with a minimum of one CPU. This gives workf
 Source: [`get_host_max_memory.py`](get_host_max_memory.py)
 
 Returns 80 percent of detected host memory as a Nextflow-friendly value such as `128GB`. It reads `/proc/meminfo` on Linux and falls back to `sysctl` on other POSIX hosts.
+
+### `get_project_name`
+
+Source: [`get_project_name.py`](get_project_name.py)
+
+Returns the active Linkar project name. Useful for template metadata such as report titles and MultiQC titles.
 
 ### `get_dgea_salmon_dir`
 

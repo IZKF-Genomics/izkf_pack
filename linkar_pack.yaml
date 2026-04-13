@@ -21,11 +21,22 @@ templates:
         function: get_host_max_cpus
       max_memory:
         function: get_host_max_memory
+  nfcore_methylseq:
+    params:
+      samplesheet:
+        function: generate_nfcore_methylseq_samplesheet
+      genome:
+        function: get_agendo_genome
+      project_name:
+        function: get_project_name
+      max_cpus:
+        function: get_host_max_cpus
+      max_memory:
+        function: get_host_max_memory
   cellranger_atac:
     params:
       fastq_dir:
-        template: demultiplex
-        output: output_dir
+        function: get_demultiplex_fastq_dir
       localcores:
         function: get_host_max_cpus
   dgea:

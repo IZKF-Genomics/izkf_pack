@@ -163,6 +163,19 @@ linkar run dgea \
   --verbose
 ```
 
+### RRBS methylation-seq
+
+Run the RRBS-first `nf-core/methylseq` wrapper after demultiplex outputs are recorded:
+
+```bash
+linkar run nfcore_methylseq \
+  --agendo-id EXAMPLE_REQUEST_ID \
+  --outdir ./nfcore_methylseq \
+  --verbose
+```
+
+The default binding can generate the methylseq samplesheet from demultiplexed FASTQ names, resolve `genome`, and set the MultiQC title from the project name.
+
 ### Single-cell ATAC-seq
 
 Run Cell Ranger ATAC after a compatible FASTQ directory is recorded or passed explicitly:
