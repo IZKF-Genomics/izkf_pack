@@ -66,6 +66,11 @@ def main() -> int:
 
         settings = (TEMPLATE_DIR / ".vscode" / "settings.json").read_text(encoding="utf-8")
         assert "${workspaceFolder}/.pixi/envs/default/bin/R" in settings
+
+        run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
+        spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
+        assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
+        assert "quarto" in spec_text
     return 0
 
 

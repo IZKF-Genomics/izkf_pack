@@ -19,6 +19,10 @@ def make_fake_pixi_bin(root: Path) -> Path:
     pixi.write_text(
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n"
+        "if [[ \"${1:-}\" == \"--version\" ]]; then\n"
+        "  echo 'pixi 0.42.1'\n"
+        "  exit 0\n"
+        "fi\n"
         "if [[ \"${1:-}\" == \"install\" ]]; then\n"
         "  exit 0\n"
         "fi\n"
@@ -123,7 +127,14 @@ def make_fake_demux_bin(root: Path) -> Path:
     bin_dir.mkdir()
     for name in ("bcl-convert", "bcl_convert"):
         path = bin_dir / name
-        path.write_text("#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n")
+        path.write_text(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            "if [[ \"${1:-}\" == \"--version\" ]]; then\n"
+            "  echo 'bcl-convert v4.4.6'\n"
+            "fi\n"
+            "exit 0\n"
+        )
         path.chmod(0o755)
     return bin_dir
 
@@ -199,6 +210,16 @@ def main() -> None:
 
         contract = json.loads((results_dir / "template_outputs.json").read_text(encoding="utf-8"))
         assert contract["outputs"]["contamination_dir"] == str(results_dir / "contamination")
+        versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
+        versions = {entry["name"]: entry for entry in versions_payload["software"]}
+        assert versions["bcl-convert"]["version"] == "bcl-convert v4.4.6"
+        assert versions["pixi"]["version"] == "pixi 0.42.1"
+        assert versions["demultiplexing_prefect"]["version"] == "08a77d8010bce28c26b3c71089256ed1ba6a145a"
+        assert versions["demultiplexing_prefect"]["repository"] == "https://github.com/MoSafi2/demultiplexing_prefect"
+        assert versions["qc_tool"]["version"] == "fastqc,fastp"
+        assert versions["qc_tool"]["source"] == "param"
+        assert versions["contamination_tool"]["version"] == "kraken"
+        assert versions["contamination_tool"]["source"] == "param"
         assert (tmpdir / "demultiplexing_prefect" / "demux_pipeline" / "__init__.py").exists()
         assert (
             tmpdir / "demultiplexing_prefect" / "CHECKED_OUT_COMMIT.txt"
@@ -206,10 +227,13 @@ def main() -> None:
 
         template_yaml = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
         template_run_sh = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
+        spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
         assert 'entry: run.sh' in template_yaml
         assert 'git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"' in template_run_sh
         assert 'git -C "${upstream_repo_dir}" checkout "${upstream_commit}"' in template_run_sh
         assert 'pixi run python -m demux_pipeline.cli' in template_run_sh
+        assert '--spec "${script_dir}/software_versions_spec.yaml"' in template_run_sh
+        assert "demultiplexing_prefect" in spec_text
         assert not (TEMPLATE_DIR / "demux_pipeline" / "cli.py").exists()
         assert not (TEMPLATE_DIR / "pixi.toml").exists()
         assert not (TEMPLATE_DIR / "pixi.lock").exists()

@@ -1,0 +1,14 @@
+tools:
+  - bcl-convert
+  - pixi
+
+params:
+  - name: qc_tool
+    env: QC_TOOL
+  - name: contamination_tool
+    env: CONTAMINATION_TOOL
+
+static:
+  - name: demultiplexing_prefect
+    version_env: UPSTREAM_COMMIT
+    repository_env: UPSTREAM_REPO_URL

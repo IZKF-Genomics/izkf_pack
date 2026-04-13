@@ -458,6 +458,11 @@ Prefer recording:
 - pinned commit hashes for upstream repos
 - important parameter-selected tool modes
 
+When a template has more than one or two version entries, prefer a small
+`software_versions_spec.yaml` alongside `run.sh` and call the shared
+`functions/software_versions.py --spec ...` helper instead of embedding a custom
+Python snippet in each template.
+
 ## Bioinformatics-Specific Advice
 
 For analysis templates in this pack:

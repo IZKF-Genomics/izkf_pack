@@ -99,6 +99,12 @@ def test_rendered_run_script() -> None:
         assert "--max_memory 64GB" in args_text
         assert (results_dir / "multiqc" / "multiqc_report.html").exists()
         assert (results_dir / "salmon" / "quant.sf").exists()
+        versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
+        versions = {entry["name"]: entry for entry in versions_payload["software"]}
+        assert versions["nextflow"]["version"] == "nextflow version 24.10.0"
+        assert versions["nf-core/rnaseq"]["version"] == "3.22.2"
+        assert versions["execution_profile"]["version"] == "docker"
+        assert versions["genome"]["version"] == "GRCh38_with_ERCC"
 
 
 class FakeProject:
@@ -233,10 +239,13 @@ def main() -> None:
     test_agendo_genome_unknown_organism_returns_placeholder()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
+    spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
     assert "entry: run.sh" in template_text
     assert 'effective_genome="${GENOME}"' in run_sh_text
     assert '--input "${SAMPLESHEET:?}"' in run_sh_text
     assert 'if [[ "${UMI:-}" == "UMI Second Strand SynthesisModule for QuantSeq FWD" ]]' in run_sh_text
+    assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
+    assert "nf-core/rnaseq" in spec_text
     assert template_text.index("  agendo_id:") < template_text.index("  genome:")
     print("nfcore_3mrnaseq template test passed")
 

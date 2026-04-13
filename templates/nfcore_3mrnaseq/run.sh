@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+pack_root="${LINKAR_PACK_ROOT:-$(cd "${script_dir}/../.." && pwd)}"
+
 if [[ -z "${GENOME:-}" || "${GENOME}" == "__EDIT_ME_GENOME__" ]]; then
   echo "[error] genome is unresolved. Edit run.sh and replace __EDIT_ME_GENOME__ with a supported genome before running." >&2
   exit 2
@@ -14,45 +17,10 @@ fi
 echo "[info] $(date) nf-core/rnaseq profile=docker genome=${effective_genome}"
 nextflow -version || true
 mkdir -p "${LINKAR_RESULTS_DIR}"
-
-python3 - <<PY
-import json
-import subprocess
-from pathlib import Path
-
-completed = subprocess.run(["nextflow", "-version"], check=False, capture_output=True, text=True)
-raw = "\\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
-payload = {
-    "software": [
-        {
-            "name": "nextflow",
-            "version": raw.splitlines()[0] if raw else "",
-            "raw": raw,
-            "command": "nextflow -version",
-            "source": "command",
-            "returncode": completed.returncode,
-        },
-        {
-            "name": "nf-core/rnaseq",
-            "version": "3.22.2",
-            "source": "static",
-        },
-        {
-            "name": "execution_profile",
-            "version": "docker",
-            "source": "static",
-        },
-        {
-            "name": "genome",
-            "version": "${effective_genome}",
-            "source": "param",
-        },
-    ]
-}
-path = Path("${LINKAR_RESULTS_DIR}") / "software_versions.json"
-path.parent.mkdir(parents=True, exist_ok=True)
-path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-PY
+export EFFECTIVE_GENOME="${effective_genome}"
+python3 "${pack_root}/functions/software_versions.py" \
+  --spec "${script_dir}/software_versions_spec.yaml" \
+  --output "${LINKAR_RESULTS_DIR}/software_versions.json"
 
 nextflow_args=(
   run nf-core/rnaseq

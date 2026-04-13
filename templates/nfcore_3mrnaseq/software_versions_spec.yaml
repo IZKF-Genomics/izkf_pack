@@ -1,0 +1,12 @@
+tools:
+  - nextflow
+
+params:
+  - name: genome
+    env: EFFECTIVE_GENOME
+
+static:
+  - name: nf-core/rnaseq
+    version: 3.22.2
+  - name: execution_profile
+    version: docker

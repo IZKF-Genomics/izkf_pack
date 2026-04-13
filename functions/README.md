@@ -173,6 +173,30 @@ python3 functions/software_versions.py \
   --static "workflow=example"
 ```
 
+Spec-driven example:
+
+```bash
+python3 functions/software_versions.py \
+  --spec templates/demultiplex/software_versions_spec.yaml \
+  --output results/software_versions.json
+```
+
+The spec file should stay small and declarative:
+
+```yaml
+tools:
+  - pixi
+  - nextflow
+
+params:
+  - name: genome
+    env: EFFECTIVE_GENOME
+
+static:
+  - name: workflow
+    version: example
+```
+
 ## Internal Helpers
 
 ### `_agendo_common`
@@ -193,4 +217,5 @@ Run the function tests from the pack root:
 
 ```bash
 python3 functions/test_get_api_samplesheet.py
+python3 functions/test_software_versions.py
 ```

@@ -105,6 +105,13 @@ def test_rendered_run_script() -> None:
         assert "gpu" not in args_text
         assert (results_dir / "multiqc" / "multiqc_report.html").exists()
         assert (results_dir / "pipeline_info" / "execution_trace.txt").exists()
+        versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
+        versions = {entry["name"]: entry for entry in versions_payload["software"]}
+        assert versions["nextflow"]["version"] == "nextflow version 24.10.0"
+        assert versions["nf-core/methylseq"]["version"] == "4.2.0"
+        assert versions["execution_profile"]["version"] == "docker"
+        assert versions["genome"]["version"] == "GRCm39"
+        assert versions["rrbs"]["version"] == "true"
 
 
 class FakeProject:
@@ -167,10 +174,13 @@ def main() -> None:
     test_samplesheet_binding()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
+    spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
     assert "entry: run.sh" in template_text
     assert "default: true" in template_text
     assert 'nextflow_args+=(--rrbs)' in run_sh_text
     assert '--multiqc_title "${project_title}"' in run_sh_text
+    assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
+    assert "nf-core/methylseq" in spec_text
     print("nfcore_methylseq template test passed")
 
 

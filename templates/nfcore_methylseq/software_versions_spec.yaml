@@ -1,0 +1,14 @@
+tools:
+  - nextflow
+
+params:
+  - name: genome
+    env: GENOME
+  - name: rrbs
+    env: RRBS_VALUE
+
+static:
+  - name: nf-core/methylseq
+    version: 4.2.0
+  - name: execution_profile
+    version: docker
