@@ -24,10 +24,66 @@ python3 "${pack_root}/functions/software_versions.py" \
   --command "nextflow=pixi run nextflow -version" \
   --output "${LINKAR_RESULTS_DIR}/software_versions.json"
 
+limits_config="${LINKAR_RESULTS_DIR}/resource_limits.config"
+cp "${script_dir}/nextflow.config" "${limits_config}"
+
+if [[ -n "${MAX_CPUS:-}" ]]; then
+  python3 - <<'PY' "${limits_config}" "${MAX_CPUS}"
+from __future__ import annotations
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+cpus = str(int(sys.argv[2]))
+text = path.read_text(encoding="utf-8")
+text = text.replace("__EDIT_ME_MAX_CPUS__", cpus)
+path.write_text(text, encoding="utf-8")
+PY
+else
+  python3 - <<'PY' "${limits_config}"
+from __future__ import annotations
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text = text.replace("cpus: __EDIT_ME_MAX_CPUS__,\n", "")
+path.write_text(text, encoding="utf-8")
+PY
+fi
+
+if [[ -n "${MAX_MEMORY:-}" ]]; then
+  python3 - <<'PY' "${limits_config}" "${MAX_MEMORY}"
+from __future__ import annotations
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+memory = str(sys.argv[2]).strip()
+if memory.upper().endswith("GB"):
+  memory = f"{memory[:-2]}.GB"
+text = path.read_text(encoding="utf-8")
+text = text.replace("__EDIT_ME_MAX_MEMORY__", memory)
+path.write_text(text, encoding="utf-8")
+PY
+else
+  python3 - <<'PY' "${limits_config}"
+from __future__ import annotations
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+text = text.replace("    memory: '__EDIT_ME_MAX_MEMORY__'\n", "")
+path.write_text(text, encoding="utf-8")
+PY
+fi
+
 nextflow_args=(
   run nf-core/methylseq
   -r 4.2.0
   -profile docker
+  -c "${limits_config}"
   --input "${SAMPLESHEET:?}"
   --outdir "${LINKAR_RESULTS_DIR}"
   --genome "${GENOME}"
@@ -36,14 +92,6 @@ nextflow_args=(
 
 if [[ "${RRBS:-true}" == "true" ]]; then
   nextflow_args+=(--rrbs)
-fi
-
-if [[ -n "${MAX_CPUS:-}" ]]; then
-  nextflow_args+=(--max_cpus "${MAX_CPUS}")
-fi
-
-if [[ -n "${MAX_MEMORY:-}" ]]; then
-  nextflow_args+=(--max_memory "${MAX_MEMORY}")
 fi
 
 pixi run nextflow "${nextflow_args[@]}"

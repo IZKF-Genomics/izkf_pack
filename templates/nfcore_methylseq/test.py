@@ -113,14 +113,18 @@ def test_rendered_run_script() -> None:
         args_text = (tmpdir / "args.log").read_text(encoding="utf-8")
         assert "nf-core/methylseq" in args_text
         assert "-profile docker" in args_text
+        assert f"-c {results_dir / 'resource_limits.config'}" in args_text
         assert "--rrbs" in args_text
         assert "--multiqc_title rrbs_project" in args_text
         assert "--genome GRCm39" in args_text
-        assert "--max_cpus 12" in args_text
-        assert "--max_memory 48GB" in args_text
+        assert "--max_cpus" not in args_text
+        assert "--max_memory" not in args_text
         assert "gpu" not in args_text
         assert (results_dir / "multiqc" / "multiqc_report.html").exists()
         assert (results_dir / "pipeline_info" / "execution_trace.txt").exists()
+        limits_text = (results_dir / "resource_limits.config").read_text(encoding="utf-8")
+        assert "cpus: 12" in limits_text
+        assert "memory: '48.GB'" in limits_text
         versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
         versions = {entry["name"]: entry for entry in versions_payload["software"]}
         assert versions["nextflow"]["version"] == "nextflow version 24.10.0"
@@ -197,6 +201,8 @@ def main() -> None:
     assert "pixi install" in run_sh_text
     assert 'pixi run nextflow "${nextflow_args[@]}"' in run_sh_text
     assert '--command "nextflow=pixi run nextflow -version"' in run_sh_text
+    assert 'limits_config="${LINKAR_RESULTS_DIR}/resource_limits.config"' in run_sh_text
+    assert '-c "${limits_config}"' in run_sh_text
     assert 'nextflow_args+=(--rrbs)' in run_sh_text
     assert '--multiqc_title "${project_title}"' in run_sh_text
     assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text

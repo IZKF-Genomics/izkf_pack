@@ -55,6 +55,7 @@ That script:
 - records `software_versions.json`
 - sets `--multiqc_title` from the Linkar project name
 - passes `--rrbs` by default
+- writes a generated `resource_limits.config` and applies CPU / memory caps through `-c`
 - runs the fixed `nf-core/methylseq` invocation
 
 ## Test commands
