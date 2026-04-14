@@ -61,6 +61,11 @@ wrapper for direct execution, but the actual runtime logic lives in
 - writes a generated `resource_limits.config` and applies CPU / memory caps through `-c`
 - runs the fixed `nf-core/methylseq` invocation
 
+The template [nextflow.config](/home/ckuo/github/izkf_pack/templates/nfcore_methylseq/nextflow.config:1)
+also reuses shared FASTA references under `/data/ref_genomes`. Commented `bismark_index` paths are
+included as placeholders for future centralized Bismark indices, but they are intentionally not
+enabled yet.
+
 ## Test commands
 
 Direct local test:
