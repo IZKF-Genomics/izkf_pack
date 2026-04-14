@@ -53,6 +53,7 @@ That script:
 - validates `genome` before launch
 - installs the template-local `pixi` environment and runs `nextflow` from it
 - records `software_versions.json`
+- records `runtime_command.json` with the effective Nextflow invocation and resolved runtime context
 - sets `--multiqc_title` from the Linkar project name
 - passes `--rrbs` by default
 - writes a generated `resource_limits.config` and applies CPU / memory caps through `-c`

@@ -125,6 +125,21 @@ def test_rendered_run_script() -> None:
         limits_text = (results_dir / "resource_limits.config").read_text(encoding="utf-8")
         assert "cpus: 12" in limits_text
         assert "memory: '48.GB'" in limits_text
+        runtime_payload = json.loads((results_dir / "runtime_command.json").read_text(encoding="utf-8"))
+        assert runtime_payload["template"] == "nfcore_methylseq"
+        assert runtime_payload["engine"] == "nextflow"
+        assert runtime_payload["pipeline"] == "nf-core/methylseq"
+        assert runtime_payload["pipeline_version"] == "4.2.0"
+        assert runtime_payload["command"][:4] == ["pixi", "run", "nextflow", "run"]
+        assert "--rrbs" in runtime_payload["command"]
+        assert runtime_payload["params"]["genome"] == "GRCm39"
+        assert runtime_payload["params"]["rrbs"] is True
+        assert runtime_payload["params"]["project_name"] == "rrbs_project"
+        assert runtime_payload["params"]["max_cpus"] == "12"
+        assert runtime_payload["params"]["max_memory"] == "48GB"
+        assert runtime_payload["artifacts"]["resource_limits_config"] == str(results_dir / "resource_limits.config")
+        assert runtime_payload["artifacts"]["software_versions"] == str(results_dir / "software_versions.json")
+        assert "pixi run nextflow run nf-core/methylseq" in runtime_payload["command_pretty"]
         versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
         versions = {entry["name"]: entry for entry in versions_payload["software"]}
         assert versions["nextflow"]["version"] == "nextflow version 24.10.0"
@@ -203,6 +218,9 @@ def main() -> None:
     assert '--command "nextflow=pixi run nextflow -version"' in run_sh_text
     assert 'limits_config="${LINKAR_RESULTS_DIR}/resource_limits.config"' in run_sh_text
     assert '-c "${limits_config}"' in run_sh_text
+    assert 'runtime_command.json' in run_sh_text
+    assert 'command_pretty' in run_sh_text
+    assert 'path: runtime_command.json' in template_text
     assert 'nextflow_args+=(--rrbs)' in run_sh_text
     assert '--multiqc_title "${project_title}"' in run_sh_text
     assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text

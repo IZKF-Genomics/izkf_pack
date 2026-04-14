@@ -94,6 +94,69 @@ if [[ "${RRBS:-true}" == "true" ]]; then
   nextflow_args+=(--rrbs)
 fi
 
+export RUNTIME_COMMAND_OUTPUT="${LINKAR_RESULTS_DIR}/runtime_command.json"
+export RUNTIME_LIMITS_CONFIG="${limits_config}"
+export RUNTIME_PROJECT_TITLE="${project_title}"
+python3 - <<'PY'
+from __future__ import annotations
+
+import json
+import os
+import shlex
+from pathlib import Path
+
+
+command = [
+    "pixi",
+    "run",
+    "nextflow",
+    "run",
+    "nf-core/methylseq",
+    "-r",
+    "4.2.0",
+    "-profile",
+    "docker",
+    "-c",
+    os.environ["RUNTIME_LIMITS_CONFIG"],
+    "--input",
+    os.environ["SAMPLESHEET"],
+    "--outdir",
+    os.environ["LINKAR_RESULTS_DIR"],
+    "--genome",
+    os.environ["GENOME"],
+    "--multiqc_title",
+    os.environ["RUNTIME_PROJECT_TITLE"],
+]
+
+if os.environ.get("RRBS", "true") == "true":
+    command.append("--rrbs")
+
+payload = {
+    "template": "nfcore_methylseq",
+    "engine": "nextflow",
+    "pipeline": "nf-core/methylseq",
+    "pipeline_version": "4.2.0",
+    "command": command,
+    "command_pretty": " ".join(shlex.quote(part) for part in command),
+    "params": {
+        "genome": os.environ["GENOME"],
+        "rrbs": os.environ.get("RRBS", "true") == "true",
+        "project_name": os.environ["RUNTIME_PROJECT_TITLE"],
+        "max_cpus": os.environ.get("MAX_CPUS", ""),
+        "max_memory": os.environ.get("MAX_MEMORY", ""),
+    },
+    "artifacts": {
+        "resource_limits_config": os.environ["RUNTIME_LIMITS_CONFIG"],
+        "software_versions": os.path.join(os.environ["LINKAR_RESULTS_DIR"], "software_versions.json"),
+    },
+}
+
+Path(os.environ["RUNTIME_COMMAND_OUTPUT"]).write_text(
+    json.dumps(payload, indent=2, sort_keys=True),
+    encoding="utf-8",
+)
+PY
+
 pixi run nextflow "${nextflow_args[@]}"
 
 run_name="$(grep -oP 'Run name:\s+\K\S+' .nextflow.log | tail -n 1 || true)"

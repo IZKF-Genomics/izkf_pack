@@ -45,6 +45,8 @@ outputs:
     path: pipeline_info
   software_versions:
     path: software_versions.json
+  runtime_command:
+    path: runtime_command.json
 run:
   mode: render
   entry: run.sh
