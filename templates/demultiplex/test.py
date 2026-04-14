@@ -23,14 +23,11 @@ def make_fake_pixi_bin(root: Path) -> Path:
         "  echo 'pixi 0.42.1'\n"
         "  exit 0\n"
         "fi\n"
-        "if [[ \"${1:-}\" == \"install\" ]]; then\n"
-        "  exit 0\n"
-        "fi\n"
-        "if [[ \"${1:-}\" != \"run\" || \"${2:-}\" != \"python\" || \"${3:-}\" != \"-m\" || \"${4:-}\" != \"demux_pipeline.cli\" ]]; then\n"
+        "if [[ \"${1:-}\" != \"run\" || \"${2:-}\" != \"demux-pipeline\" ]]; then\n"
         "  echo \"unsupported fake pixi invocation: $*\" >&2\n"
         "  exit 1\n"
         "fi\n"
-        "shift 4\n"
+        "shift 2\n"
         f"{sys.executable} - \"$@\" <<'PY'\n"
         "from __future__ import annotations\n"
         "import argparse\n"
@@ -104,18 +101,19 @@ def make_fake_git_bin(root: Path) -> Path:
         "if [[ \"${1:-}\" == \"clone\" ]]; then\n"
         "  target=\"${@: -1}\"\n"
         "  mkdir -p \"${target}/demux_pipeline\"\n"
-        "  printf '# fake upstream\\n' > \"${target}/pixi.toml\"\n"
+        "  printf '[tasks]\\ndemux-pipeline = \"python -m demux_pipeline.cli\"\\n' > \"${target}/pixi.toml\"\n"
+        "  printf '[project]\\nname = \"demux-pipeline\"\\nversion = \"0.1.0\"\\n' > \"${target}/pyproject.toml\"\n"
+        "  printf '#!/usr/bin/env bash\\n' > \"${target}/run.sh\"\n"
         "  printf '__all__ = []\\n' > \"${target}/demux_pipeline/__init__.py\"\n"
-        "  printf 'repo=%s\\n' \"${3:-}\" > \"${target}/CLONED_FROM.txt\"\n"
+        "  printf 'repo=%s\\n' \"${4:-}\" > \"${target}/CLONED_FROM.txt\"\n"
         "  exit 0\n"
         "fi\n"
         "if [[ \"${1:-}\" == \"-C\" && \"${3:-}\" == \"checkout\" ]]; then\n"
         "  printf 'commit=%s\\n' \"${4:-}\" > \"${2}/CHECKED_OUT_COMMIT.txt\"\n"
         "  exit 0\n"
         "fi\n"
-        "  echo \"unsupported fake git invocation: $*\" >&2\n"
-        "  exit 1\n"
-        ,
+        "echo \"unsupported fake git invocation: $*\" >&2\n"
+        "exit 1\n",
         encoding="utf-8",
     )
     git.chmod(0o755)
@@ -173,8 +171,8 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="linkar-demultiplex-test-") as tmp:
         tmpdir = Path(tmp)
         fake_pixi_bin = make_fake_pixi_bin(tmpdir)
-        fake_demux_bin = make_fake_demux_bin(tmpdir)
         fake_git_bin = make_fake_git_bin(tmpdir)
+        fake_demux_bin = make_fake_demux_bin(tmpdir)
         demux_input, samplesheet = make_demux_inputs(tmpdir)
 
         results_dir = tmpdir / "results"
@@ -189,7 +187,7 @@ def main() -> None:
             "FASTQ_SCREEN_CONF": "",
             "LINKAR_OUTPUT_DIR": str(tmpdir / "demux-run"),
             "LINKAR_RESULTS_DIR": str(results_dir),
-            "PATH": f"{fake_pixi_bin}:{fake_demux_bin}:{fake_git_bin}:{os.environ.get('PATH', '')}",
+            "PATH": f"{fake_pixi_bin}:{fake_git_bin}:{fake_demux_bin}:{os.environ.get('PATH', '')}",
         }
         completed = subprocess.run(
             ["bash", str(TEMPLATE_DIR / "run.sh")],
@@ -212,28 +210,25 @@ def main() -> None:
         assert contract["outputs"]["contamination_dir"] == str(results_dir / "contamination")
         versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
         versions = {entry["name"]: entry for entry in versions_payload["software"]}
+        assert list(versions) == ["bcl-convert"]
         assert versions["bcl-convert"]["version"] == "bcl-convert v4.4.6"
-        assert versions["pixi"]["version"] == "pixi 0.42.1"
-        assert versions["demultiplexing_prefect"]["version"] == "08a77d8010bce28c26b3c71089256ed1ba6a145a"
-        assert versions["demultiplexing_prefect"]["repository"] == "https://github.com/MoSafi2/demultiplexing_prefect"
-        assert versions["qc_tool"]["version"] == "fastqc,fastp"
-        assert versions["qc_tool"]["source"] == "param"
-        assert versions["contamination_tool"]["version"] == "kraken"
-        assert versions["contamination_tool"]["source"] == "param"
         assert (tmpdir / "demultiplexing_prefect" / "demux_pipeline" / "__init__.py").exists()
         assert (
             tmpdir / "demultiplexing_prefect" / "CHECKED_OUT_COMMIT.txt"
-        ).read_text(encoding="utf-8").strip() == "commit=08a77d8010bce28c26b3c71089256ed1ba6a145a"
+        ).read_text(encoding="utf-8").strip() == "commit=de60c1993bccb90d4ffd21ca30b5919b34adc888"
+        assert (
+            tmpdir / "demultiplexing_prefect" / "CLONED_FROM.txt"
+        ).read_text(encoding="utf-8").strip() == "repo=https://github.com/MoSafi2/demultiplexing_prefect"
 
         template_yaml = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
         template_run_sh = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
-        spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
         assert 'entry: run.sh' in template_yaml
         assert 'git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"' in template_run_sh
         assert 'git -C "${upstream_repo_dir}" checkout "${upstream_commit}"' in template_run_sh
-        assert 'pixi run python -m demux_pipeline.cli' in template_run_sh
-        assert '--spec "${script_dir}/software_versions_spec.yaml"' in template_run_sh
-        assert "demultiplexing_prefect" in spec_text
+        assert 'pixi run demux-pipeline' in template_run_sh
+        assert "software_versions.json" in template_run_sh
+        assert 'python3 - <<\'PY\'' in template_run_sh
+        assert '"name": "bcl-convert"' in template_run_sh
         assert not (TEMPLATE_DIR / "demux_pipeline" / "cli.py").exists()
         assert not (TEMPLATE_DIR / "pixi.toml").exists()
         assert not (TEMPLATE_DIR / "pixi.lock").exists()

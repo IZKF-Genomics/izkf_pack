@@ -1,16 +1,15 @@
 # demultiplex
 
-This Linkar template clones the upstream `MoSafi2/demultiplexing_prefect` repository at execution
-time instead of vendoring a snapshot into the pack.
+This Linkar template clones a pinned upstream `demultiplexing_prefect` checkout at execution time
+instead of vendoring a snapshot into the pack.
 
 ## Upstream source
 
 - repo: `https://github.com/MoSafi2/demultiplexing_prefect`
-- branch: `main`
-- pinned commit: `08a77d8010bce28c26b3c71089256ed1ba6a145a`
+- pinned commit: `de60c1993bccb90d4ffd21ca30b5919b34adc888`
 
-Each rendered or executed run clones the upstream repository into the run directory and launches the
-pipeline from that fresh checkout pinned to the commit above.
+Each rendered or executed run clones the upstream repository into the run directory, checks out the
+pinned commit above, and launches the pipeline from that staged checkout.
 
 ## Linkar interface
 
@@ -56,14 +55,15 @@ The template keeps the execution logic in a standalone [run.sh](/home/ckuo/githu
 
 ```bash
 git clone --depth 1 https://github.com/MoSafi2/demultiplexing_prefect ./demultiplexing_prefect
-git -C ./demultiplexing_prefect checkout 08a77d8010bce28c26b3c71089256ed1ba6a145a
+git -C ./demultiplexing_prefect checkout de60c1993bccb90d4ffd21ca30b5919b34adc888
 cd ./demultiplexing_prefect
-pixi run python -m demux_pipeline.cli ...
+pixi run demux-pipeline ...
 ```
 
 `linkar_template.yaml` now points to `run.entry: run.sh`, and Linkar still renders the outer
 launcher for render mode. That keeps the template contract small while the real shell logic stays in
-one script that is easier to test and review.
+one script that is easier to test and review. The rendered `run.sh` also writes
+`software_versions.json` inline so it does not depend on helper scripts from the pack checkout.
 
 ## Samplesheet resolution
 
