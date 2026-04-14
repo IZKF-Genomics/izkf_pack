@@ -267,11 +267,14 @@ def collect_run_context(
                 "version": entry.get("template_version"),
                 "instance_id": entry.get("instance_id"),
                 "label": catalog_entry.get("label"),
+                "category": str(catalog_entry.get("category") or "").strip(),
+                "publication_relevance": parse_bool(catalog_entry.get("publication_relevance"), default=True),
                 "summary": catalog_entry.get("summary"),
                 "catalog": {
                     "method_core": catalog_entry.get("method_core"),
                     "method_details": catalog_entry.get("method_details") if isinstance(catalog_entry.get("method_details"), list) else [],
                     "param_explanations": catalog_entry.get("param_explanations") if isinstance(catalog_entry.get("param_explanations"), dict) else {},
+                    "param_context": catalog_entry.get("param_context") if isinstance(catalog_entry.get("param_context"), list) else [],
                     "command_hints": catalog_entry.get("command_hints") if isinstance(catalog_entry.get("command_hints"), list) else [],
                     "tools": catalog_entry.get("tools") if isinstance(catalog_entry.get("tools"), list) else [],
                 },
@@ -310,7 +313,16 @@ def deterministic_long_methods(context: dict[str, Any]) -> str:
     if author:
         lines.append(f"The recorded project author information was: {author}.")
     lines.append("")
-    for run in context.get("runs") or []:
+    publication_runs = [
+        run
+        for run in context.get("runs") or []
+        if isinstance(run, dict) and parse_bool(run.get("publication_relevance"), default=True)
+    ]
+    if not publication_runs:
+        lines.append("No publication-relevant workflow steps were identified in the recorded project history.")
+        return "\n".join(lines).rstrip() + "\n"
+
+    for run in publication_runs:
         if not isinstance(run, dict):
             continue
         label = str(run.get("label") or run.get("template") or "Workflow step")
@@ -346,6 +358,10 @@ def deterministic_long_methods(context: dict[str, Any]) -> str:
                     explained.append(f"{name}={value} ({explanation})")
             if explained:
                 lines.append(f"Interpreted run-specific settings included: {'; '.join(explained)}.")
+        param_context = catalog.get("param_context") if isinstance(catalog.get("param_context"), list) else []
+        for hint in param_context:
+            if isinstance(hint, str) and hint.strip():
+                lines.append(hint.strip())
         hints = run.get("organism_or_reference") if isinstance(run.get("organism_or_reference"), dict) else {}
         if hints:
             lines.append(f"Organism, genome, or reference context included: {format_param_sentence(hints)}.")
@@ -379,7 +395,11 @@ def deterministic_long_methods(context: dict[str, Any]) -> str:
 
 
 def deterministic_short_methods(context: dict[str, Any]) -> str:
-    runs = [run for run in context.get("runs") or [] if isinstance(run, dict)]
+    runs = [
+        run
+        for run in context.get("runs") or []
+        if isinstance(run, dict) and parse_bool(run.get("publication_relevance"), default=True)
+    ]
     steps = [str(run.get("label") or run.get("template")) for run in runs]
     project = context.get("project") if isinstance(context.get("project"), dict) else {}
     project_id = str(project.get("id") or "the project")
@@ -414,6 +434,7 @@ def build_prompt(context: dict[str, Any], long_draft: str, short_draft: str, ref
             "Use the structured context as the source of truth.",
             "Treat each template catalog entry as template-level scientific guidance.",
             "Treat runtime_command, runtime params, software_versions, and recorded outputs as the run-specific truth for this project.",
+            "Runs marked with publication_relevance=false are operational or administrative context and should normally not appear in the final publication methods narrative unless explicitly needed.",
             "Do not invent tools, organisms, references, parameters, or citations.",
             "Do not mention workflow steps that are absent from the structured context.",
             "Return JSON with keys: methods_long, methods_short, methods_references.",
