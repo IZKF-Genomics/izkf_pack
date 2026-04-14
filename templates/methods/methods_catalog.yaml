@@ -9,19 +9,11 @@ templates:
       - Count-level processing should be described as per-sample Cell Ranger ATAC analysis of compatible FASTQ inputs.
       - If aggregation is recorded, describe it as a project-level aggregation step that combines successful per-sample outputs.
     important_params:
-      - fastq_dir
       - reference
-      - cellranger_atac_bin
       - run_aggr
-      - localcores
-      - localmem
     param_explanations:
-      fastq_dir: Input FASTQ directory scanned for Illumina-style sample names.
       reference: Cell Ranger ATAC reference package used for alignment and quantification.
-      cellranger_atac_bin: Executable used for both count and optional aggregation.
       run_aggr: Whether aggregated multi-library analysis was attempted after per-sample counting.
-      localcores: CPU allocation passed to Cell Ranger ATAC.
-      localmem: Memory allocation passed to Cell Ranger ATAC in GB.
     param_context:
       - If run_aggr is true, the final methods text should distinguish per-sample count runs from downstream aggregation.
       - The reference parameter materially affects genome interpretation and should be considered part of the scientific context.
@@ -43,26 +35,16 @@ templates:
       - This preprocessing step establishes the sample-specific sequencing files used by downstream analytical templates.
       - When contamination or secondary QC modules are present, describe them as post-demultiplexing QC and screening rather than as primary biological analysis.
     important_params:
-      - bcl_dir
       - samplesheet
       - qc_tool
       - contamination_tool
-      - threads
-      - kraken_db
-      - bracken_db
-      - fastq_screen_conf
     param_explanations:
-      bcl_dir: Sequencing run-folder directory containing the raw BCL data.
       samplesheet: Sample sheet used for sample demultiplexing and lane/sample assignment.
       qc_tool: Quality-control tools selected for FASTQ summarization.
       contamination_tool: Optional contamination-screening tools applied after demultiplexing.
-      threads: CPU budget used for QC and contamination modules.
-      kraken_db: Kraken2 database used when taxonomic screening is enabled.
-      bracken_db: Bracken database used when abundance refinement is enabled.
-      fastq_screen_conf: FastQ Screen configuration used when screen-based contamination profiling is enabled.
     param_context:
       - qc_tool and contamination_tool materially affect which post-demultiplex QC outputs exist and should be considered when describing FASTQ quality review.
-      - Database or config paths should usually not be copied verbatim into manuscript text, but they are useful context for LLM reasoning.
+      - The methods text should focus on demultiplexing and QC behavior rather than instrument-local file paths or hardware allocation.
     command_hints:
       - Use runtime_command and software_versions to recover the actual demultiplexing and QC tool combination instead of assuming defaults.
       - When the runtime command indicates only a subset of optional QC modules was enabled, the methods text should mention only those modules.
@@ -83,23 +65,19 @@ templates:
       - This template should be described as downstream statistical analysis rather than primary read processing.
       - If the run captures a Quarto- or notebook-based workspace, mention that the analysis environment remained editable for project-specific refinement.
     important_params:
-      - salmon_dir
       - samplesheet
       - organism
       - spikein
       - application
       - name
-      - authors
     param_explanations:
-      salmon_dir: Upstream Salmon quantification directory used as the source of transcript-level abundance estimates.
       samplesheet: Sample metadata table used to define sample identity and groups for downstream modeling.
       organism: Organism setting used to shape annotation and downstream defaults.
       spikein: Spike-in context used to decide whether spike-in-aware filtering should be considered.
       application: Analysis application label used to choose downstream reporting defaults.
       name: Human-readable report or project name used in generated outputs.
-      authors: Authorship metadata inserted into the generated workspace and reports.
     param_context:
-      - salmon_dir and samplesheet together define the quantification and metadata context for downstream statistical reporting.
+      - samplesheet, organism, and application jointly define the downstream analytical context for the generated reporting workspace.
       - application and organism influence how the reporting workspace is configured and should be retained for LLM reasoning even if not explicitly printed in final prose.
     command_hints:
       - When runtime metadata are sparse, prefer the catalog description plus software_versions to explain this downstream analysis stage.
@@ -126,21 +104,15 @@ templates:
       - samplesheet
       - umi
       - spikein
-      - project_name
-      - max_cpus
-      - max_memory
     param_explanations:
       genome: Selected facility genome identifier used to choose the reference bundle.
       samplesheet: nf-core/rnaseq input samplesheet describing sample-level FASTQ pairing and strandedness.
       umi: UMI kit description used to enable or disable UMI-aware extraction.
       spikein: Spike-in description that may alter the effective reference choice.
-      project_name: MultiQC title and project-level label used in rendered reports.
-      max_cpus: CPU cap applied through the generated runtime Nextflow config.
-      max_memory: Memory cap applied through the generated runtime Nextflow config.
     param_context:
       - genome, spikein, and umi jointly shape the biological interpretation of the processing workflow and should be considered together.
       - samplesheet is operationally important and should influence LLM reasoning about sample structure even if it is not quoted verbatim in manuscript prose.
-      - max_cpus and max_memory are useful provenance context but should usually not dominate the scientific narrative.
+      - Hardware resource limits and report-labeling parameters should generally not dominate the scientific narrative.
     command_hints:
       - Use runtime_command to recover the actual nf-core/rnaseq revision, execution profile, and UMI-specific flags.
       - Use runtime metadata to distinguish the requested genome from the effective genome after ERCC augmentation.
@@ -170,18 +142,12 @@ templates:
     important_params:
       - genome
       - rrbs
-      - project_name
-      - max_cpus
-      - max_memory
     param_explanations:
       genome: Selected facility genome identifier used to choose the reference FASTA.
       rrbs: RRBS mode flag for nf-core/methylseq.
-      project_name: MultiQC title and project-level label used in rendered reports.
-      max_cpus: CPU cap applied through the generated runtime Nextflow config.
-      max_memory: Memory cap applied through the generated runtime Nextflow config.
     param_context:
       - genome and rrbs are the most important run-specific scientific settings for this template and should be considered explicitly by the LLM.
-      - project_name and resource caps are useful provenance context but usually secondary to assay mode and reference selection.
+      - Report-labeling and hardware resource settings are secondary provenance context and should not dominate the scientific description.
     command_hints:
       - Use the runtime command to recover the exact nf-core/methylseq revision, execution profile, and whether RRBS mode was enabled.
       - Prefer runtime_command and software_versions over generic template summaries when reporting tool and workflow versions.
