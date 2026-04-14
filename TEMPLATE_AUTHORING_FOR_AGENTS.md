@@ -151,16 +151,22 @@ Use:
 - `results_dir: {}`
   when the whole results root is meaningful
 - `path: ...`
-  for one important file or directory under `results/`
+  for one important file or directory
 - `glob: ...`
   for collections of files
 
 Best practices:
 
+- `path` and `glob` should match the template's real runtime layout. In this pack, many outputs live
+  under `results/`, but that is a convention, not a hard rule.
+- If an output is written under `results/`, prefer being explicit, for example
+  `path: results/software_versions.json` or `glob: results/**/*.fastq.gz`, unless the template is
+  already intentionally collecting from a different root.
 - Declare the outputs you expect other templates to reuse.
 - Prefer stable names like `multiqc_report`, `salmon_dir`, `demux_fastq_files`.
 - Do not rely on undocumented files if they matter downstream.
-- If the template emits software or reference metadata, expose `software_versions`.
+- If the template emits software or runtime metadata, expose `software_versions` and
+  `runtime_command` when appropriate.
 
 ### `run`
 

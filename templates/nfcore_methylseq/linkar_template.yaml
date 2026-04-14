@@ -30,11 +30,11 @@ params:
   max_cpus:
     type: int
     required: false
-    description: Optional CPU cap forwarded to nf-core/methylseq. The default binding sets this to 80 percent of host CPUs.
+    description: Optional CPU cap applied through the generated runtime Nextflow config. The default binding sets this to 80 percent of host CPUs.
   max_memory:
     type: str
     default: ""
-    description: Optional memory cap forwarded to nf-core/methylseq. The default binding sets this to 80 percent of host RAM when detectable.
+    description: Optional memory cap applied through the generated runtime Nextflow config. The default binding sets this to 80 percent of host RAM when detectable.
 outputs:
   results_dir: {}
   multiqc_dir:
