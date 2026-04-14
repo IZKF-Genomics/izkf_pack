@@ -102,7 +102,7 @@ def test_rendered_run_script() -> None:
         env["MAX_CPUS"] = "12"
         env["MAX_MEMORY"] = "48GB"
         completed = subprocess.run(
-            ["bash", str(TEMPLATE_DIR / "run.sh")],
+            ["python3", str(TEMPLATE_DIR / "run.py")],
             cwd=tmpdir,
             env=env,
             text=True,
@@ -209,21 +209,21 @@ def main() -> None:
     test_samplesheet_binding()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
+    run_py_text = (TEMPLATE_DIR / "run.py").read_text(encoding="utf-8")
     spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
     assert "entry: run.sh" in template_text
     assert "- pixi" in template_text
     assert "default: true" in template_text
-    assert "pixi install" in run_sh_text
-    assert 'pixi run nextflow "${nextflow_args[@]}"' in run_sh_text
-    assert '--command "nextflow=pixi run nextflow -version"' in run_sh_text
-    assert 'limits_config="${LINKAR_RESULTS_DIR}/resource_limits.config"' in run_sh_text
-    assert '-c "${limits_config}"' in run_sh_text
-    assert 'runtime_command.json' in run_sh_text
-    assert 'command_pretty' in run_sh_text
+    assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
+    assert 'subprocess.run(["pixi", "install"], check=True)' in run_py_text
+    assert '["pixi", "run", "nextflow", "-version"]' in run_py_text
+    assert 'runtime_command.json' in run_py_text
+    assert 'command_pretty' in run_py_text
+    assert 'resource_limits.config' in run_py_text
     assert 'path: runtime_command.json' in template_text
-    assert 'nextflow_args+=(--rrbs)' in run_sh_text
-    assert '--multiqc_title "${project_title}"' in run_sh_text
-    assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
+    assert 'if rrbs:' in run_py_text
+    assert '"--multiqc_title"' in run_py_text
+    assert 'write_software_versions' in run_py_text
     assert "nf-core/methylseq" in spec_text
     print("nfcore_methylseq template test passed")
 

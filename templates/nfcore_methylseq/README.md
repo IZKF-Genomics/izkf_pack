@@ -46,9 +46,11 @@ Nextflow command line.
 
 ## Runtime behavior
 
-The template keeps the execution logic in a standalone [run.sh](/home/ckuo/github/izkf_pack/templates/nfcore_methylseq/run.sh:1).
+The template keeps a thin [run.sh](/home/ckuo/github/izkf_pack/templates/nfcore_methylseq/run.sh:1)
+wrapper for direct execution, but the actual runtime logic lives in
+[run.py](/home/ckuo/github/izkf_pack/templates/nfcore_methylseq/run.py:1).
 
-That script:
+`run.py`:
 
 - validates `genome` before launch
 - installs the template-local `pixi` environment and runs `nextflow` from it
@@ -65,6 +67,7 @@ Direct local test:
 
 ```bash
 cd /home/ckuo/github/izkf_pack/templates/nfcore_methylseq
+python3 run.py
 python3 test.py
 ```
 
