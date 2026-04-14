@@ -20,15 +20,15 @@ params:
   llm_config:
     type: path
     default: ""
-    description: Optional YAML or JSON file describing LLM settings. Useful for shared base URL, model, and token configuration.
+    description: Optional YAML or JSON fallback describing LLM settings. The recommended default is for users to define LINKAR_LLM_API_KEY, LINKAR_LLM_BASE_URL, and LINKAR_LLM_MODEL in the environment.
   llm_base_url:
     type: str
     default: ""
-    description: Optional OpenAI-compatible API base URL. Falls back to LINKAR_LLM_BASE_URL.
+    description: Optional OpenAI-compatible API base URL override. Otherwise use LINKAR_LLM_BASE_URL.
   llm_model:
     type: str
     default: ""
-    description: Optional model name. Falls back to LINKAR_LLM_MODEL.
+    description: Optional model name override. Otherwise use LINKAR_LLM_MODEL.
   llm_temperature:
     type: float
     default: 0.2

@@ -503,9 +503,9 @@ def resolve_llm_settings(args: argparse.Namespace, project_dir: Path) -> dict[st
             config_path = (project_dir / config_path).resolve()
         config = load_mapping(config_path)
 
-    api_key_env_name = str(config.get("api_key_env") or "").strip()
     api_key = os.environ.get("LINKAR_LLM_API_KEY", "").strip()
     api_key_source = "LINKAR_LLM_API_KEY" if api_key else ""
+    api_key_env_name = str(config.get("api_key_env") or "").strip()
     if not api_key and api_key_env_name:
         api_key = os.environ.get(api_key_env_name, "").strip()
         api_key_source = api_key_env_name if api_key else ""
@@ -515,13 +515,13 @@ def resolve_llm_settings(args: argparse.Namespace, project_dir: Path) -> dict[st
 
     base_url = (
         str(args.llm_base_url).strip()
-        or str(config.get("base_url") or "").strip()
         or os.environ.get("LINKAR_LLM_BASE_URL", "").strip()
+        or str(config.get("base_url") or "").strip()
     )
     model = (
         str(args.llm_model).strip()
-        or str(config.get("model") or "").strip()
         or os.environ.get("LINKAR_LLM_MODEL", "").strip()
+        or str(config.get("model") or "").strip()
     )
     temperature = args.llm_temperature
     if not str(args.llm_temperature).strip() and config.get("temperature") is not None:

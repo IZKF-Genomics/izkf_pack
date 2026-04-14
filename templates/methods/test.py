@@ -163,18 +163,25 @@ def test_llm_config_resolution() -> None:
             llm_model="",
             llm_temperature=0.2,
         )
-        env_before = os.environ.get("ALT_OPENAI_KEY")
+        env_before = {
+            "ALT_OPENAI_KEY": os.environ.get("ALT_OPENAI_KEY"),
+            "LINKAR_LLM_BASE_URL": os.environ.get("LINKAR_LLM_BASE_URL"),
+            "LINKAR_LLM_MODEL": os.environ.get("LINKAR_LLM_MODEL"),
+        }
         os.environ["ALT_OPENAI_KEY"] = "test-secret"
+        os.environ["LINKAR_LLM_BASE_URL"] = "https://env.example.org/v1"
+        os.environ["LINKAR_LLM_MODEL"] = "env-model"
         try:
             settings = module.resolve_llm_settings(args, project_dir)
         finally:
-            if env_before is None:
-                os.environ.pop("ALT_OPENAI_KEY", None)
-            else:
-                os.environ["ALT_OPENAI_KEY"] = env_before
+            for key, value in env_before.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
         assert settings["config_path"] == str(config_path)
-        assert settings["base_url"] == "https://api.example.org/v1"
-        assert settings["model"] == "gpt-5.4-mini"
+        assert settings["base_url"] == "https://env.example.org/v1"
+        assert settings["model"] == "env-model"
         assert settings["api_key"] == "test-secret"
         assert settings["api_key_source"] == "ALT_OPENAI_KEY"
 

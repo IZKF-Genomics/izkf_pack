@@ -59,12 +59,23 @@ LLM to polish the prose.
 
 By default the template is deterministic and does not call any LLM.
 
-When `use_llm=true`, settings can come from:
+When `use_llm=true`, the standard user-facing setup is to define all three environment variables:
 
-1. explicit template params such as `llm_base_url` and `llm_model`
-2. `llm_config`, a YAML or JSON file
-3. environment variables such as `LINKAR_LLM_BASE_URL`, `LINKAR_LLM_MODEL`, and `LINKAR_LLM_API_KEY`
+```bash
+export LINKAR_LLM_API_KEY="..."
+export LINKAR_LLM_BASE_URL="https://api.example.org/v1"
+export LINKAR_LLM_MODEL="gpt-5.4-mini"
+```
+
+Resolution order is:
+
+1. explicit template params for `llm_base_url` and `llm_model`
+2. environment variables `LINKAR_LLM_API_KEY`, `LINKAR_LLM_BASE_URL`, and `LINKAR_LLM_MODEL`
+3. `llm_config`, a YAML or JSON file
 4. a project-local default file at `.methods_llm.yaml`
+
+This means users should normally define URL, model, and API key in the environment, while config
+files remain an optional fallback for shared non-secret defaults or advanced setups.
 
 Example `.methods_llm.yaml`:
 
@@ -75,13 +86,14 @@ temperature: 0.2
 api_key_env: OPENAI_API_KEY
 ```
 
-The API key can be provided either through:
+The API key can still come from:
 
 - `LINKAR_LLM_API_KEY`
 - the environment variable named by `api_key_env`
 - `api_key` in the config file
 
-For safety, environment variables are still the preferred place for tokens.
+For safety and predictability, environment variables are the recommended default for all three user
+settings: token, URL, and model.
 
 ## Runtime behavior
 
