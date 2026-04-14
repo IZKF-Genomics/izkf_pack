@@ -249,6 +249,48 @@ bash run.sh
 
 while keeping the real logic in Python where it is easier to test and maintain.
 
+## Use Template-Local `pixi` For Dev Workflows
+
+When a template needs its own runtime environment, add a template-local `pixi.toml`.
+
+For `izkf_pack`, a good default pattern is:
+
+```toml
+[workspace]
+authors = ["izkf_pack"]
+channels = ["conda-forge", "bioconda"]
+name = "example_template"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[dependencies]
+nextflow = "*"
+
+[tasks]
+run-local = "python3 run.py"
+test = "python3 test.py"
+```
+
+Recommended usage:
+
+- use `pixi` to provide tools such as `nextflow`
+- use `pixi` tasks for local development workflows such as `run-local` and `test`
+- keep the real scientific runtime command explicit inside `run.py`
+
+Avoid hiding the real pipeline invocation behind opaque task names such as `launch` or `prod` when
+that would make `runtime_command.json` or methods generation less clear.
+
+Good local workflow:
+
+```bash
+cd templates/<template_id>
+pixi run test
+pixi run run-local
+```
+
+This gives template authors a convenient local interface without obscuring the actual runtime
+command that the template executes.
+
 ## Record Runtime Metadata Explicitly
 
 Do not assume future tooling should parse `run.sh` or `run.py` to reconstruct what happened.
