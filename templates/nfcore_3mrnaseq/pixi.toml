@@ -7,3 +7,7 @@ version = "0.1.0"
 
 [dependencies]
 nextflow = "*"
+
+[tasks]
+run-local = "python3 run.py"
+test = "python3 test.py"

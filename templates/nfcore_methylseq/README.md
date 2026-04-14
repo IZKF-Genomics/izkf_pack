@@ -72,8 +72,8 @@ Direct local test:
 
 ```bash
 cd /home/ckuo/github/izkf_pack/templates/nfcore_methylseq
-python3 run.py
-python3 test.py
+pixi run run-local
+pixi run test
 ```
 
 Through Linkar:
