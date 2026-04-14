@@ -113,7 +113,7 @@ def test_rendered_run_script() -> None:
         args_text = (tmpdir / "args.log").read_text(encoding="utf-8")
         assert "nf-core/methylseq" in args_text
         assert "-profile docker" in args_text
-        assert f"-c {results_dir / 'resource_limits.config'}" in args_text
+        assert f"-c {results_dir / 'nextflow.config'}" in args_text
         assert "--rrbs" in args_text
         assert "--multiqc_title rrbs_project" in args_text
         assert "--genome GRCm39" in args_text
@@ -122,9 +122,11 @@ def test_rendered_run_script() -> None:
         assert "gpu" not in args_text
         assert (results_dir / "multiqc" / "multiqc_report.html").exists()
         assert (results_dir / "pipeline_info" / "execution_trace.txt").exists()
-        limits_text = (results_dir / "resource_limits.config").read_text(encoding="utf-8")
-        assert "cpus: 12" in limits_text
-        assert "memory: '48.GB'" in limits_text
+        nextflow_config_text = (results_dir / "nextflow.config").read_text(encoding="utf-8")
+        assert "cpus: 12" in nextflow_config_text
+        assert "memory: '48.GB'" in nextflow_config_text
+        assert "__EDIT_ME_MAX_CPUS__" not in nextflow_config_text
+        assert "__EDIT_ME_MAX_MEMORY__" not in nextflow_config_text
         runtime_payload = json.loads((results_dir / "runtime_command.json").read_text(encoding="utf-8"))
         assert runtime_payload["template"] == "nfcore_methylseq"
         assert runtime_payload["engine"] == "nextflow"
@@ -137,7 +139,7 @@ def test_rendered_run_script() -> None:
         assert runtime_payload["params"]["project_name"] == "rrbs_project"
         assert runtime_payload["params"]["max_cpus"] == "12"
         assert runtime_payload["params"]["max_memory"] == "48GB"
-        assert runtime_payload["artifacts"]["resource_limits_config"] == str(results_dir / "resource_limits.config")
+        assert runtime_payload["artifacts"]["nextflow_config"] == str(results_dir / "nextflow.config")
         assert runtime_payload["artifacts"]["software_versions"] == str(results_dir / "software_versions.json")
         assert "pixi run nextflow run nf-core/methylseq" in runtime_payload["command_pretty"]
         versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
@@ -219,7 +221,7 @@ def main() -> None:
     assert '["pixi", "run", "nextflow", "-version"]' in run_py_text
     assert 'runtime_command.json' in run_py_text
     assert 'command_pretty' in run_py_text
-    assert 'resource_limits.config' in run_py_text
+    assert 'results_dir / "nextflow.config"' in run_py_text
     assert 'path: runtime_command.json' in template_text
     assert 'if rrbs:' in run_py_text
     assert '"--multiqc_title"' in run_py_text

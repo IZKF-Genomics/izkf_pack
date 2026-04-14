@@ -58,7 +58,7 @@ wrapper for direct execution, but the actual runtime logic lives in
 - records `runtime_command.json` with the effective Nextflow invocation and resolved runtime context
 - sets `--multiqc_title` from the Linkar project name
 - passes `--rrbs` by default
-- writes a generated `resource_limits.config` and applies CPU / memory caps through `-c`
+- writes a generated runtime `nextflow.config` and applies CPU / memory caps through `-c`
 - runs the fixed `nf-core/methylseq` invocation
 
 The template [nextflow.config](/home/ckuo/github/izkf_pack/templates/nfcore_methylseq/nextflow.config:1)

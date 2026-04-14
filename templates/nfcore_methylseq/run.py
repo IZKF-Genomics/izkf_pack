@@ -88,7 +88,7 @@ def write_software_versions(
     output_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
-def write_resource_limits_config(
+def write_runtime_nextflow_config(
     template_path: Path,
     output_path: Path,
     *,
@@ -111,7 +111,7 @@ def write_resource_limits_config(
 
 def build_nextflow_command(
     *,
-    limits_config: Path,
+    nextflow_config: Path,
     samplesheet: str,
     results_dir: str,
     genome: str,
@@ -129,7 +129,7 @@ def build_nextflow_command(
         "-profile",
         EXECUTION_PROFILE,
         "-c",
-        str(limits_config),
+        str(nextflow_config),
         "--input",
         samplesheet,
         "--outdir",
@@ -153,7 +153,7 @@ def write_runtime_command(
     project_name: str,
     max_cpus: str,
     max_memory: str,
-    limits_config: Path,
+    nextflow_config: Path,
     software_versions: Path,
 ) -> None:
     payload = {
@@ -171,7 +171,7 @@ def write_runtime_command(
             "max_memory": max_memory,
         },
         "artifacts": {
-            "resource_limits_config": str(limits_config),
+            "nextflow_config": str(nextflow_config),
             "software_versions": str(software_versions),
         },
     }
@@ -196,7 +196,7 @@ def main() -> int:
 
     results_dir = Path(require_env("LINKAR_RESULTS_DIR")).resolve()
     results_dir.mkdir(parents=True, exist_ok=True)
-    samplesheet = require_env("SAMPLESHEET")
+    samplesheet = str(Path(require_env("SAMPLESHEET")).resolve())
     rrbs = optional_env("RRBS", "true").lower() == "true"
     title = project_title()
     max_cpus = optional_env("MAX_CPUS")
@@ -213,16 +213,16 @@ def main() -> int:
     software_versions_path = results_dir / "software_versions.json"
     write_software_versions(software_versions_path, genome=genome, rrbs=rrbs)
 
-    limits_config = results_dir / "resource_limits.config"
-    write_resource_limits_config(
+    runtime_nextflow_config = results_dir / "nextflow.config"
+    write_runtime_nextflow_config(
         script_dir / "nextflow.config",
-        limits_config,
+        runtime_nextflow_config,
         max_cpus=max_cpus,
         max_memory=max_memory,
     )
 
     command = build_nextflow_command(
-        limits_config=limits_config,
+        nextflow_config=runtime_nextflow_config,
         samplesheet=samplesheet,
         results_dir=str(results_dir),
         genome=genome,
@@ -237,11 +237,11 @@ def main() -> int:
         project_name=title,
         max_cpus=max_cpus,
         max_memory=max_memory,
-        limits_config=limits_config,
+        nextflow_config=runtime_nextflow_config,
         software_versions=software_versions_path,
     )
 
-    subprocess.run(command, check=True)
+    subprocess.run(command, check=True, cwd=results_dir)
 
     run_name = detect_run_name(Path(".nextflow.log"))
     if run_name:
