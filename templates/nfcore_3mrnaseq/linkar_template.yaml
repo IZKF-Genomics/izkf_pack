@@ -3,7 +3,8 @@ version: 0.1.0
 description: Facility-specific nf-core/rnaseq wrapper for 3' mRNA-seq runs.
 tools:
   required:
-    - nextflow
+    - pixi
+    - python3
     - docker
 params:
   agendo_id:
@@ -26,14 +27,18 @@ params:
     type: str
     default: ""
     description: Optional spike-in description. Values containing ERCC append _with_ERCC to the selected genome.
+  project_name:
+    type: str
+    default: ""
+    description: Project name used for --multiqc_title. The default binding resolves this from the active Linkar project.
   max_cpus:
     type: int
     required: false
-    description: Optional CPU cap forwarded to nf-core/rnaseq. The default binding sets this to 80 percent of host CPUs.
+    description: Optional CPU cap applied through the generated runtime Nextflow config. The default binding sets this to 80 percent of host CPUs.
   max_memory:
     type: str
     default: ""
-    description: Optional memory cap forwarded to nf-core/rnaseq. The default binding sets this to 80 percent of host RAM when detectable.
+    description: Optional memory cap applied through the generated runtime Nextflow config. The default binding sets this to 80 percent of host RAM when detectable.
 outputs:
   results_dir: {}
   multiqc_dir:
@@ -46,6 +51,8 @@ outputs:
     path: pipeline_info
   software_versions:
     path: software_versions.json
+  runtime_command:
+    path: runtime_command.json
 run:
   mode: render
   entry: run.sh

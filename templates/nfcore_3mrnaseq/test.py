@@ -9,8 +9,10 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+
 TEMPLATE_DIR = Path(__file__).resolve().parent
 FUNCTIONS_DIR = TEMPLATE_DIR.parent.parent / "functions"
+UMI_KIT = "UMI Second Strand SynthesisModule for QuantSeq FWD"
 
 
 def load_function(name: str):
@@ -23,7 +25,7 @@ def load_function(name: str):
     return module.resolve
 
 
-def make_fake_nextflow_bin(root: Path) -> Path:
+def make_fake_runtime_bin(root: Path) -> Path:
     bin_dir = root / "bin"
     bin_dir.mkdir()
     nextflow = bin_dir / "nextflow"
@@ -47,7 +49,7 @@ def make_fake_nextflow_bin(root: Path) -> Path:
         "  printf '<html>multiqc</html>\\n' > \"${outdir}/multiqc/multiqc_report.html\"\n"
         "  printf 'quant\\n' > \"${outdir}/salmon/quant.sf\"\n"
         "  printf 'trace\\n' > \"${outdir}/pipeline_info/execution_trace.txt\"\n"
-        "  printf 'Run name: test-run\\n' > .nextflow.log\n"
+        "  printf 'Run name: rnaseq-test-run\\n' > .nextflow.log\n"
         "  exit 0\n"
         "fi\n"
         "if [[ \"${1:-}\" == \"clean\" ]]; then\n"
@@ -58,6 +60,22 @@ def make_fake_nextflow_bin(root: Path) -> Path:
         encoding="utf-8",
     )
     nextflow.chmod(0o755)
+    pixi = bin_dir / "pixi"
+    pixi.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        "if [[ \"${1:-}\" == \"install\" ]]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"${1:-}\" == \"run\" && \"${2:-}\" == \"nextflow\" ]]; then\n"
+        "  shift 2\n"
+        f"exec {str(nextflow)} \"$@\"\n"
+        "fi\n"
+        "echo \"unsupported fake pixi invocation: $*\" >&2\n"
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    pixi.chmod(0o755)
     docker = bin_dir / "docker"
     docker.write_text("#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n", encoding="utf-8")
     docker.chmod(0o755)
@@ -67,22 +85,27 @@ def make_fake_nextflow_bin(root: Path) -> Path:
 def test_rendered_run_script() -> None:
     with tempfile.TemporaryDirectory(prefix="linkar-nfcore-3mrnaseq-test-") as tmp:
         tmpdir = Path(tmp)
-        fake_bin = make_fake_nextflow_bin(tmpdir)
+        fake_bin = make_fake_runtime_bin(tmpdir)
         samplesheet = tmpdir / "samplesheet.csv"
-        samplesheet.write_text("sample,fastq_1,fastq_2,strandedness\nS1,R1.fastq.gz,R2.fastq.gz,forward\n", encoding="utf-8")
+        samplesheet.write_text(
+            "sample,fastq_1,fastq_2,strandedness\nS1,R1.fastq.gz,R2.fastq.gz,forward\n",
+            encoding="utf-8",
+        )
         results_dir = tmpdir / "results"
         env = os.environ.copy()
         env["PATH"] = f"{fake_bin}:{env.get('PATH', '')}"
         env["NFCORE_ARGS_LOG"] = str(tmpdir / "args.log")
         env["LINKAR_RESULTS_DIR"] = str(results_dir)
+        env["LINKAR_PROJECT_DIR"] = str(tmpdir / "threeprime_project")
         env["SAMPLESHEET"] = str(samplesheet)
         env["GENOME"] = "GRCh38"
-        env["UMI"] = "UMI Second Strand SynthesisModule for QuantSeq FWD"
+        env["UMI"] = UMI_KIT
         env["SPIKEIN"] = "ERCC RNA Spike-in Mix"
+        env["PROJECT_NAME"] = "threeprime_project"
         env["MAX_CPUS"] = "16"
         env["MAX_MEMORY"] = "64GB"
         completed = subprocess.run(
-            ["bash", str(TEMPLATE_DIR / "run.sh")],
+            ["python3", str(TEMPLATE_DIR / "run.py")],
             cwd=tmpdir,
             env=env,
             text=True,
@@ -91,20 +114,45 @@ def test_rendered_run_script() -> None:
         )
         assert completed.returncode == 0, completed.stderr
         args_text = (tmpdir / "args.log").read_text(encoding="utf-8")
-        assert "--outdir" in args_text
-        assert str(results_dir) in args_text
+        assert "nf-core/rnaseq" in args_text
+        assert "-profile docker" in args_text
+        assert f"-c {results_dir / 'nextflow.config'}" in args_text
         assert "--genome GRCh38_with_ERCC" in args_text
+        assert "--multiqc_title threeprime_project" in args_text
         assert "--with_umi" in args_text
-        assert "--max_cpus 16" in args_text
-        assert "--max_memory 64GB" in args_text
+        assert "--umitools_extract_method regex" in args_text
+        assert "--max_cpus" not in args_text
+        assert "--max_memory" not in args_text
         assert (results_dir / "multiqc" / "multiqc_report.html").exists()
         assert (results_dir / "salmon" / "quant.sf").exists()
+        nextflow_config_text = (results_dir / "nextflow.config").read_text(encoding="utf-8")
+        assert "cpus: 16" in nextflow_config_text
+        assert "memory: '64.GB'" in nextflow_config_text
+        assert "__EDIT_ME_MAX_CPUS__" not in nextflow_config_text
+        assert "__EDIT_ME_MAX_MEMORY__" not in nextflow_config_text
+        runtime_payload = json.loads((results_dir / "runtime_command.json").read_text(encoding="utf-8"))
+        assert runtime_payload["template"] == "nfcore_3mrnaseq"
+        assert runtime_payload["engine"] == "nextflow"
+        assert runtime_payload["pipeline"] == "nf-core/rnaseq"
+        assert runtime_payload["pipeline_version"] == "3.22.2"
+        assert runtime_payload["command"][:4] == ["pixi", "run", "nextflow", "run"]
+        assert runtime_payload["params"]["genome"] == "GRCh38"
+        assert runtime_payload["params"]["effective_genome"] == "GRCh38_with_ERCC"
+        assert runtime_payload["params"]["project_name"] == "threeprime_project"
+        assert runtime_payload["params"]["umi"] == UMI_KIT
+        assert runtime_payload["params"]["spikein"] == "ERCC RNA Spike-in Mix"
+        assert runtime_payload["params"]["max_cpus"] == "16"
+        assert runtime_payload["params"]["max_memory"] == "64GB"
+        assert runtime_payload["artifacts"]["nextflow_config"] == str(results_dir / "nextflow.config")
+        assert runtime_payload["artifacts"]["software_versions"] == str(results_dir / "software_versions.json")
         versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
         versions = {entry["name"]: entry for entry in versions_payload["software"]}
         assert versions["nextflow"]["version"] == "nextflow version 24.10.0"
         assert versions["nf-core/rnaseq"]["version"] == "3.22.2"
         assert versions["execution_profile"]["version"] == "docker"
         assert versions["genome"]["version"] == "GRCh38_with_ERCC"
+        assert versions["umi"]["version"] == UMI_KIT
+        assert versions["spikein"]["version"] == "ERCC RNA Spike-in Mix"
 
 
 class FakeProject:
@@ -169,7 +217,7 @@ def test_agendo_bindings_use_cached_metadata() -> None:
             json.dumps(
                 {
                     "organism": "human",
-                    "umi": "UMI Second Strand SynthesisModule for QuantSeq FWD",
+                    "umi": UMI_KIT,
                     "spike_in": "ERCC RNA Spike-in Mix",
                 }
             ),
@@ -184,7 +232,7 @@ def test_agendo_bindings_use_cached_metadata() -> None:
         os.environ["LINKAR_HOME"] = str(tmpdir)
         try:
             assert load_function("get_agendo_genome")(CachedContext()) == "GRCh38"
-            assert load_function("get_agendo_umi")(CachedContext()) == "UMI Second Strand SynthesisModule for QuantSeq FWD"
+            assert load_function("get_agendo_umi")(CachedContext()) == UMI_KIT
             assert load_function("get_agendo_spikein")(CachedContext()) == "ERCC RNA Spike-in Mix"
         finally:
             if env_before is None:
@@ -239,14 +287,21 @@ def main() -> None:
     test_agendo_genome_unknown_organism_returns_placeholder()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
-    spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
+    run_py_text = (TEMPLATE_DIR / "run.py").read_text(encoding="utf-8")
+    nextflow_config_text = (TEMPLATE_DIR / "nextflow.config").read_text(encoding="utf-8")
     assert "entry: run.sh" in template_text
-    assert 'effective_genome="${GENOME}"' in run_sh_text
-    assert '--input "${SAMPLESHEET:?}"' in run_sh_text
-    assert 'if [[ "${UMI:-}" == "UMI Second Strand SynthesisModule for QuantSeq FWD" ]]' in run_sh_text
-    assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
-    assert "nf-core/rnaseq" in spec_text
-    assert template_text.index("  agendo_id:") < template_text.index("  genome:")
+    assert "- pixi" in template_text
+    assert "- python3" in template_text
+    assert "project_name:" in template_text
+    assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
+    assert 'subprocess.run(["pixi", "install"], check=True)' in run_py_text
+    assert 'runtime_command.json' in run_py_text
+    assert 'command_pretty' in run_py_text
+    assert 'results_dir / "nextflow.config"' in run_py_text
+    assert 'UMI Second Strand SynthesisModule for QuantSeq FWD' in run_py_text
+    assert 'path: runtime_command.json' in template_text
+    assert "__EDIT_ME_MAX_CPUS__" in nextflow_config_text
+    assert "__EDIT_ME_MAX_MEMORY__" in nextflow_config_text
     print("nfcore_3mrnaseq template test passed")
 
 

@@ -1,12 +1,15 @@
 # nfcore_3mrnaseq
 
-This template migrates the facility BPM wrapper for `nf-core/rnaseq` into a Linkar pack template.
+This template provides a clean Linkar wrapper around the facility-specific `nf-core/rnaseq`
+configuration used for 3' mRNA-seq runs.
 
-It remains facility-specific:
+It is intentionally opinionated:
 
-- fixed nf-core pipeline revision: `3.22.2`
+- fixed pipeline revision: `3.22.2`
 - fixed execution profile: `docker`
-- fixed site genome paths in [nextflow.config](/home/ckuo/github/izkf_pack/templates/nfcore_3mrnaseq/nextflow.config)
+- template-local `pixi.toml` provides `nextflow`
+- shared genome references come from [nextflow.config](/home/ckuo/github/izkf_pack/templates/nfcore_3mrnaseq/nextflow.config:1)
+- UMI handling is enabled automatically for the known Takara QuantSeq kit phrase
 
 ## Linkar interface
 
@@ -17,28 +20,64 @@ Exposed parameters:
 - `agendo_id`
 - `umi`
 - `spikein`
+- `project_name`
 - `max_cpus`
 - `max_memory`
 
 With `--binding default`, the pack can resolve:
 
-- `samplesheet` from the latest `demultiplex` outputs in the active project
-- `genome` from Agendo `organism`
-- `umi` from Agendo `umi`
-- `spikein` from Agendo `spike_in`
-- `max_cpus` and `max_memory` from 80 percent of host capacity
+- `samplesheet` from the latest `demultiplex.demux_fastq_files` outputs in the active project
+- `genome` from Agendo organism metadata
+- `umi` from Agendo UMI metadata
+- `spikein` from Agendo spike-in metadata
+- `project_name` from the active Linkar project name
+- `max_cpus` and `max_memory` from host capacity
+
+## Samplesheet generation
+
+The default binding generates the `nf-core/rnaseq` samplesheet from FASTQ names recorded by the
+latest `demultiplex` run.
+
+The generated columns are:
+
+- `sample`
+- `fastq_1`
+- `fastq_2`
+- `strandedness`
+
+For this template, the generated samplesheet uses `forward` strandedness.
 
 ## Runtime behavior
 
-The template keeps the execution logic in a standalone [run.sh](/home/ckuo/github/izkf_pack/templates/nfcore_3mrnaseq/run.sh:1).
+The template keeps a thin [run.sh](/home/ckuo/github/izkf_pack/templates/nfcore_3mrnaseq/run.sh:1)
+wrapper for direct execution, but the actual runtime logic lives in
+[run.py](/home/ckuo/github/izkf_pack/templates/nfcore_3mrnaseq/run.py:1).
 
-That script:
+`run.py`:
 
 - validates `genome` before launch
-- derives `effective_genome` from `spikein`
+- derives `effective_genome` from `spikein` when ERCC is present
+- installs the template-local `pixi` environment and runs `nextflow` from it
 - records `software_versions.json`
+- records `runtime_command.json` with the effective Nextflow invocation and resolved runtime context
+- sets `--multiqc_title` from the Linkar project name
+- enables UMI extraction flags for the known Takara QuantSeq kit phrase
+- writes a generated runtime `nextflow.config` and applies CPU / memory caps through `-c`
 - runs the fixed `nf-core/rnaseq` invocation
-- cleans the named Nextflow work directory when possible
+
+The template [nextflow.config](/home/ckuo/github/izkf_pack/templates/nfcore_3mrnaseq/nextflow.config:1)
+contains the shared genome references and runtime resource-limit placeholders used to produce the
+final generated config under `results/`.
+
+## Runtime metadata
+
+This template writes:
+
+- `software_versions.json`
+- `runtime_command.json`
+
+`runtime_command.json` is the preferred downstream source when another template needs to understand
+the actual runtime command and resolved parameters.
 
 ## Test commands
 
@@ -46,6 +85,7 @@ Direct local test:
 
 ```bash
 cd /home/ckuo/github/izkf_pack/templates/nfcore_3mrnaseq
+python3 run.py
 python3 test.py
 ```
 
