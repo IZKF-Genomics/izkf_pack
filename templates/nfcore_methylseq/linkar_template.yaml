@@ -3,7 +3,8 @@ version: 0.1.0
 description: Facility-specific nf-core/methylseq wrapper for RRBS runs.
 tools:
   required:
-    - nextflow
+    - pixi
+    - python3
     - docker
 params:
   agendo_id:

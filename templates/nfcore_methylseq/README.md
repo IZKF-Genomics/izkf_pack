@@ -6,6 +6,7 @@ It is intentionally narrow in the first version:
 
 - fixed pipeline revision: `4.2.0`
 - fixed execution profile: `docker`
+- template-local `pixi.toml` provides `nextflow`
 - no GPU support
 - RRBS enabled by default because RRBS is the main methylation protocol used in the lab
 
@@ -50,6 +51,7 @@ The template keeps the execution logic in a standalone [run.sh](/home/ckuo/githu
 That script:
 
 - validates `genome` before launch
+- installs the template-local `pixi` environment and runs `nextflow` from it
 - records `software_versions.json`
 - sets `--multiqc_title` from the Linkar project name
 - passes `--rrbs` by default

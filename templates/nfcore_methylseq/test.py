@@ -24,7 +24,7 @@ def load_function(name: str):
     return module.resolve
 
 
-def make_fake_nextflow_bin(root: Path) -> Path:
+def make_fake_runtime_bin(root: Path) -> Path:
     bin_dir = root / "bin"
     bin_dir.mkdir()
     nextflow = bin_dir / "nextflow"
@@ -58,6 +58,22 @@ def make_fake_nextflow_bin(root: Path) -> Path:
         encoding="utf-8",
     )
     nextflow.chmod(0o755)
+    pixi = bin_dir / "pixi"
+    pixi.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        "if [[ \"${1:-}\" == \"install\" ]]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [[ \"${1:-}\" == \"run\" && \"${2:-}\" == \"nextflow\" ]]; then\n"
+        "  shift 2\n"
+        f"exec {str(nextflow)} \"$@\"\n"
+        "fi\n"
+        "echo \"unsupported fake pixi invocation: $*\" >&2\n"
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    pixi.chmod(0o755)
     docker = bin_dir / "docker"
     docker.write_text("#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n", encoding="utf-8")
     docker.chmod(0o755)
@@ -67,7 +83,7 @@ def make_fake_nextflow_bin(root: Path) -> Path:
 def test_rendered_run_script() -> None:
     with tempfile.TemporaryDirectory(prefix="linkar-nfcore-methylseq-test-") as tmp:
         tmpdir = Path(tmp)
-        fake_bin = make_fake_nextflow_bin(tmpdir)
+        fake_bin = make_fake_runtime_bin(tmpdir)
         samplesheet = tmpdir / "samplesheet.csv"
         samplesheet.write_text(
             "sample,fastq_1,fastq_2,genome\nS1,R1.fastq.gz,R2.fastq.gz,\n",
@@ -176,7 +192,11 @@ def main() -> None:
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
     spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
     assert "entry: run.sh" in template_text
+    assert "- pixi" in template_text
     assert "default: true" in template_text
+    assert "pixi install" in run_sh_text
+    assert 'pixi run nextflow "${nextflow_args[@]}"' in run_sh_text
+    assert '--command "nextflow=pixi run nextflow -version"' in run_sh_text
     assert 'nextflow_args+=(--rrbs)' in run_sh_text
     assert '--multiqc_title "${project_title}"' in run_sh_text
     assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text

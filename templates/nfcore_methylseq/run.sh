@@ -15,11 +15,13 @@ if [[ -z "${project_title}" ]]; then
 fi
 
 echo "[info] $(date) nf-core/methylseq profile=docker genome=${GENOME} rrbs=${RRBS:-true}"
-nextflow -version || true
 mkdir -p "${LINKAR_RESULTS_DIR}"
+pixi install
+pixi run nextflow -version || true
 export RRBS_VALUE="${RRBS:-true}"
 python3 "${pack_root}/functions/software_versions.py" \
   --spec "${script_dir}/software_versions_spec.yaml" \
+  --command "nextflow=pixi run nextflow -version" \
   --output "${LINKAR_RESULTS_DIR}/software_versions.json"
 
 nextflow_args=(
@@ -44,9 +46,9 @@ if [[ -n "${MAX_MEMORY:-}" ]]; then
   nextflow_args+=(--max_memory "${MAX_MEMORY}")
 fi
 
-nextflow "${nextflow_args[@]}"
+pixi run nextflow "${nextflow_args[@]}"
 
 run_name="$(grep -oP 'Run name:\s+\K\S+' .nextflow.log | tail -n 1 || true)"
 if [[ -n "${run_name}" ]]; then
-  nextflow clean "${run_name}" -f || true
+  pixi run nextflow clean "${run_name}" -f || true
 fi
