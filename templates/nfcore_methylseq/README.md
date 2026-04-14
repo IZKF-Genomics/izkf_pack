@@ -63,8 +63,8 @@ wrapper for direct execution, but the actual runtime logic lives in
 
 The template [nextflow.config](/home/ckuo/github/izkf_pack/templates/nfcore_methylseq/nextflow.config:1)
 also reuses shared FASTA references under `/data/ref_genomes`. Commented `bismark_index` paths are
-included as placeholders for future centralized Bismark indices, but they are intentionally not
-enabled yet.
+included as placeholders for future centralized Bismark indices, and `fasta_index` is likewise
+kept commented until shared `.fai` files are available.
 
 ## Test commands
 
