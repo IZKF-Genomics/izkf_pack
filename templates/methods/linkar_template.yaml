@@ -17,6 +17,10 @@ params:
     type: bool
     default: false
     description: When true, polish deterministic drafts through an OpenAI-compatible chat completions API.
+  llm_config:
+    type: path
+    default: ""
+    description: Optional YAML or JSON file describing LLM settings. Useful for shared base URL, model, and token configuration.
   llm_base_url:
     type: str
     default: ""
@@ -46,12 +50,4 @@ outputs:
 run:
   mode: direct
   verbose_by_default: true
-  command: |
-    python3 ./run.py \
-      --results-dir "${LINKAR_RESULTS_DIR}" \
-      --project-dir "${param:project_dir}" \
-      --style "${param:style}" \
-      --use-llm "${param:use_llm}" \
-      --llm-base-url "${param:llm_base_url}" \
-      --llm-model "${param:llm_model}" \
-      --llm-temperature "${param:llm_temperature}"
+  entry: run.sh

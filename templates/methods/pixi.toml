@@ -1,0 +1,14 @@
+[workspace]
+authors = ["izkf_pack"]
+channels = ["conda-forge"]
+name = "methods"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[dependencies]
+python = "*"
+pyyaml = "*"
+
+[tasks]
+run-local = "python3 run.py"
+test = "python3 test.py"

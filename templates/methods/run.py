@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
@@ -18,6 +19,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-dir", default="..")
     parser.add_argument("--style", default="publication")
     parser.add_argument("--use-llm", default="false")
+    parser.add_argument("--llm-config", default="")
     parser.add_argument("--llm-base-url", default="")
     parser.add_argument("--llm-model", default="")
     parser.add_argument("--llm-temperature", type=float, default=0.2)
@@ -44,6 +46,22 @@ def load_yaml(path: Path) -> dict[str, Any]:
     return raw if isinstance(raw, dict) else {}
 
 
+def load_json(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def load_mapping(path: Path) -> dict[str, Any]:
+    if path.suffix.lower() == ".json":
+        return load_json(path)
+    return load_yaml(path)
+
+
 def write_yaml(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
@@ -52,16 +70,6 @@ def write_yaml(path: Path, payload: dict[str, Any]) -> None:
 def write_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-
-
-def read_json(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        return {}
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-    return raw if isinstance(raw, dict) else {}
 
 
 def redact_value(key: str, value: Any) -> Any:
@@ -116,16 +124,6 @@ def resolve_run_dir(project_dir: Path, entry: dict[str, Any]) -> Path | None:
     return path
 
 
-def read_runtime_summary(run_dir: Path | None) -> dict[str, Any]:
-    if run_dir is None:
-        return {}
-    runtime = read_json(run_dir / ".linkar" / "runtime.json")
-    return compact_mapping(
-        runtime,
-        keys=["command", "cwd", "returncode", "success", "started_at", "finished_at", "duration_seconds"],
-    )
-
-
 def resolve_output_path(project_dir: Path, value: Any) -> Path | None:
     if not isinstance(value, str) or not value.strip():
         return None
@@ -133,6 +131,31 @@ def resolve_output_path(project_dir: Path, value: Any) -> Path | None:
     if not path.is_absolute():
         path = (project_dir / path).resolve()
     return path
+
+
+def read_linkar_runtime(run_dir: Path | None) -> dict[str, Any]:
+    if run_dir is None:
+        return {}
+    runtime = load_json(run_dir / ".linkar" / "runtime.json")
+    return compact_mapping(
+        runtime,
+        keys=["command", "cwd", "returncode", "success", "started_at", "finished_at", "duration_seconds"],
+    )
+
+
+def load_runtime_command(project_dir: Path, run_dir: Path | None, outputs: dict[str, Any]) -> dict[str, Any]:
+    candidates: list[Path] = []
+    explicit = resolve_output_path(project_dir, outputs.get("runtime_command"))
+    if explicit is not None:
+        candidates.append(explicit)
+    if run_dir is not None:
+        candidates.append(run_dir / "results" / "runtime_command.json")
+    for path in candidates:
+        payload = load_json(path)
+        if payload:
+            payload.setdefault("path", str(path))
+            return payload
+    return {}
 
 
 def load_software_versions(project_dir: Path, outputs: dict[str, Any]) -> list[dict[str, Any]]:
@@ -181,51 +204,6 @@ def infer_organism_or_reference(params: dict[str, Any]) -> dict[str, Any]:
     return hints
 
 
-def collect_run_context(
-    project_dir: Path,
-    project_data: dict[str, Any],
-    catalog: dict[str, Any],
-) -> tuple[list[dict[str, Any]], list[str]]:
-    templates_catalog = catalog.get("templates") if isinstance(catalog.get("templates"), dict) else {}
-    runs: list[dict[str, Any]] = []
-    citation_ids: list[str] = []
-    for index, entry in enumerate(project_data.get("templates") or [], start=1):
-        if not isinstance(entry, dict):
-            continue
-        template_id = str(entry.get("id") or "").strip()
-        if not template_id or template_id in {"export", "methods"}:
-            continue
-        params = entry.get("params") if isinstance(entry.get("params"), dict) else {}
-        outputs = entry.get("outputs") if isinstance(entry.get("outputs"), dict) else {}
-        hint = templates_catalog.get(template_id) if isinstance(templates_catalog, dict) else {}
-        important_params = hint.get("important_params") if isinstance(hint, dict) else None
-        if not isinstance(important_params, list):
-            important_params = None
-        run_dir = resolve_run_dir(project_dir, entry)
-        citations = hint.get("citations") if isinstance(hint, dict) else []
-        if not isinstance(citations, list):
-            citations = []
-        citation_ids.extend(str(item) for item in citations if str(item).strip())
-        runs.append(
-            {
-                "order": index,
-                "template": template_id,
-                "version": entry.get("template_version"),
-                "instance_id": entry.get("instance_id"),
-                "label": hint.get("label") if isinstance(hint, dict) else None,
-                "summary": hint.get("summary") if isinstance(hint, dict) else None,
-                "tools": hint.get("tools") if isinstance(hint, dict) else [],
-                "params": compact_mapping(params, keys=important_params),
-                "organism_or_reference": infer_organism_or_reference(params),
-                "software_versions": load_software_versions(project_dir, outputs),
-                "outputs": summarize_outputs(outputs),
-                "runtime": read_runtime_summary(run_dir),
-                "citations": citations,
-            }
-        )
-    return runs, sorted(set(citation_ids))
-
-
 def summarize_outputs(outputs: dict[str, Any]) -> dict[str, Any]:
     summary: dict[str, Any] = {}
     for key, value in outputs.items():
@@ -236,15 +214,89 @@ def summarize_outputs(outputs: dict[str, Any]) -> dict[str, Any]:
     return summary
 
 
+def explain_params(params: dict[str, Any], explanations: dict[str, Any]) -> list[dict[str, str]]:
+    rendered: list[dict[str, str]] = []
+    for key, value in params.items():
+        detail = explanations.get(key) if isinstance(explanations, dict) else None
+        rendered.append(
+            {
+                "name": key,
+                "value": json.dumps(value, sort_keys=True) if isinstance(value, (list, dict)) else str(value),
+                "explanation": str(detail or "").strip(),
+            }
+        )
+    return rendered
+
+
+def select_catalog_entry(catalog: dict[str, Any], template_id: str) -> dict[str, Any]:
+    templates = catalog.get("templates")
+    if not isinstance(templates, dict):
+        return {}
+    entry = templates.get(template_id)
+    return entry if isinstance(entry, dict) else {}
+
+
+def collect_run_context(
+    project_dir: Path,
+    project_data: dict[str, Any],
+    catalog: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    runs: list[dict[str, Any]] = []
+    citation_ids: list[str] = []
+    for index, entry in enumerate(project_data.get("templates") or [], start=1):
+        if not isinstance(entry, dict):
+            continue
+        template_id = str(entry.get("id") or "").strip()
+        if not template_id or template_id in {"export", "methods"}:
+            continue
+        params = entry.get("params") if isinstance(entry.get("params"), dict) else {}
+        outputs = entry.get("outputs") if isinstance(entry.get("outputs"), dict) else {}
+        catalog_entry = select_catalog_entry(catalog, template_id)
+        important_params = catalog_entry.get("important_params")
+        if not isinstance(important_params, list):
+            important_params = None
+        params_compact = compact_mapping(params, keys=important_params)
+        run_dir = resolve_run_dir(project_dir, entry)
+        citations = catalog_entry.get("citations") if isinstance(catalog_entry.get("citations"), list) else []
+        citation_ids.extend(str(item) for item in citations if str(item).strip())
+        runtime_command = load_runtime_command(project_dir, run_dir, outputs)
+        runs.append(
+            {
+                "order": index,
+                "template": template_id,
+                "version": entry.get("template_version"),
+                "instance_id": entry.get("instance_id"),
+                "label": catalog_entry.get("label"),
+                "summary": catalog_entry.get("summary"),
+                "catalog": {
+                    "method_core": catalog_entry.get("method_core"),
+                    "method_details": catalog_entry.get("method_details") if isinstance(catalog_entry.get("method_details"), list) else [],
+                    "param_explanations": catalog_entry.get("param_explanations") if isinstance(catalog_entry.get("param_explanations"), dict) else {},
+                    "command_hints": catalog_entry.get("command_hints") if isinstance(catalog_entry.get("command_hints"), list) else [],
+                    "tools": catalog_entry.get("tools") if isinstance(catalog_entry.get("tools"), list) else [],
+                },
+                "params": params_compact,
+                "interpreted_params": explain_params(
+                    params_compact,
+                    catalog_entry.get("param_explanations") if isinstance(catalog_entry.get("param_explanations"), dict) else {},
+                ),
+                "organism_or_reference": infer_organism_or_reference(params),
+                "software_versions": load_software_versions(project_dir, outputs),
+                "outputs": summarize_outputs(outputs),
+                "runtime": read_linkar_runtime(run_dir),
+                "runtime_command": runtime_command,
+                "citations": citations,
+            }
+        )
+    return runs, sorted(set(citation_ids))
+
+
 def format_param_sentence(params: dict[str, Any]) -> str:
     if not params:
         return ""
     parts = []
     for key, value in params.items():
-        if isinstance(value, (list, dict)):
-            rendered = json.dumps(value, sort_keys=True)
-        else:
-            rendered = str(value)
+        rendered = json.dumps(value, sort_keys=True) if isinstance(value, (list, dict)) else str(value)
         parts.append(f"{key}={rendered}")
     return "; ".join(parts)
 
@@ -253,7 +305,7 @@ def deterministic_long_methods(context: dict[str, Any]) -> str:
     lines = ["# Methods", ""]
     project = context.get("project") if isinstance(context.get("project"), dict) else {}
     project_id = str(project.get("id") or "the project")
-    lines.append(f"Methods were generated from the recorded Linkar project history for `{project_id}`.")
+    lines.append(f"Methods were assembled from the recorded Linkar project history for `{project_id}`.")
     author = str(project.get("author") or "").strip()
     if author:
         lines.append(f"The recorded project author information was: {author}.")
@@ -264,9 +316,16 @@ def deterministic_long_methods(context: dict[str, Any]) -> str:
         label = str(run.get("label") or run.get("template") or "Workflow step")
         template = str(run.get("template") or "")
         lines.append(f"## {label}")
+        catalog = run.get("catalog") if isinstance(run.get("catalog"), dict) else {}
         summary = str(run.get("summary") or "").strip()
-        if summary:
+        method_core = str(catalog.get("method_core") or "").strip()
+        if method_core:
+            lines.append(method_core)
+        elif summary:
             lines.append(summary)
+        for detail in catalog.get("method_details") or []:
+            if isinstance(detail, str) and detail.strip():
+                lines.append(detail.strip())
         version = str(run.get("version") or "").strip()
         if version:
             lines.append(f"The recorded Linkar template version was `{version}`.")
@@ -274,6 +333,19 @@ def deterministic_long_methods(context: dict[str, Any]) -> str:
         param_text = format_param_sentence(params)
         if param_text:
             lines.append(f"Key recorded parameters for `{template}` were: {param_text}.")
+        interpreted_params = run.get("interpreted_params") if isinstance(run.get("interpreted_params"), list) else []
+        if interpreted_params:
+            explained = []
+            for item in interpreted_params:
+                if not isinstance(item, dict):
+                    continue
+                name = str(item.get("name") or "").strip()
+                value = str(item.get("value") or "").strip()
+                explanation = str(item.get("explanation") or "").strip()
+                if name and value and explanation:
+                    explained.append(f"{name}={value} ({explanation})")
+            if explained:
+                lines.append(f"Interpreted run-specific settings included: {'; '.join(explained)}.")
         hints = run.get("organism_or_reference") if isinstance(run.get("organism_or_reference"), dict) else {}
         if hints:
             lines.append(f"Organism, genome, or reference context included: {format_param_sentence(hints)}.")
@@ -291,6 +363,14 @@ def deterministic_long_methods(context: dict[str, Any]) -> str:
                     rendered_versions.append(name)
             if rendered_versions:
                 lines.append(f"Recorded software and reference versions included: {'; '.join(rendered_versions)}.")
+        runtime_command = run.get("runtime_command") if isinstance(run.get("runtime_command"), dict) else {}
+        command_pretty = str(runtime_command.get("command_pretty") or "").strip()
+        if command_pretty:
+            lines.append(f"Recorded execution command: `{command_pretty}`.")
+        command_hints = catalog.get("command_hints") if isinstance(catalog.get("command_hints"), list) else []
+        for hint in command_hints:
+            if isinstance(hint, str) and hint.strip():
+                lines.append(hint.strip())
         runtime = run.get("runtime") if isinstance(run.get("runtime"), dict) else {}
         if runtime.get("success") is not None:
             lines.append(f"The recorded runtime success state was `{runtime.get('success')}`.")
@@ -331,7 +411,11 @@ def build_prompt(context: dict[str, Any], long_draft: str, short_draft: str, ref
         [
             "You are helping write publication-ready scientific methods from structured workflow provenance.",
             f"Style: {style}",
-            "Use the structured context as the source of truth. Do not invent tools, organisms, references, or parameters.",
+            "Use the structured context as the source of truth.",
+            "Treat each template catalog entry as template-level scientific guidance.",
+            "Treat runtime_command, runtime params, software_versions, and recorded outputs as the run-specific truth for this project.",
+            "Do not invent tools, organisms, references, parameters, or citations.",
+            "Do not mention workflow steps that are absent from the structured context.",
             "Return JSON with keys: methods_long, methods_short, methods_references.",
             "",
             "Structured context:",
@@ -347,6 +431,18 @@ def build_prompt(context: dict[str, Any], long_draft: str, short_draft: str, ref
             references,
         ]
     )
+
+
+def extract_json_object(text: str) -> str:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```(?:json)?", "", stripped).strip()
+        stripped = re.sub(r"```$", "", stripped).strip()
+    start = stripped.find("{")
+    end = stripped.rfind("}")
+    if start >= 0 and end >= start:
+        return stripped[start : end + 1]
+    return stripped
 
 
 def call_openai_compatible_api(
@@ -380,7 +476,6 @@ def call_openai_compatible_api(
         body = resp.read().decode("utf-8", errors="replace")
     raw = json.loads(body)
     content = str(raw.get("choices", [{}])[0].get("message", {}).get("content") or "")
-    parsed: dict[str, Any] = {}
     try:
         parsed = json.loads(extract_json_object(content))
     except Exception:
@@ -388,16 +483,62 @@ def call_openai_compatible_api(
     return {"raw": raw, "parsed": parsed}
 
 
-def extract_json_object(text: str) -> str:
-    stripped = text.strip()
-    if stripped.startswith("```"):
-        stripped = re.sub(r"^```(?:json)?", "", stripped).strip()
-        stripped = re.sub(r"```$", "", stripped).strip()
-    start = stripped.find("{")
-    end = stripped.rfind("}")
-    if start >= 0 and end >= start:
-        return stripped[start : end + 1]
-    return stripped
+def llm_config_default_path(project_dir: Path) -> Path:
+    return project_dir / ".methods_llm.yaml"
+
+
+def resolve_llm_settings(args: argparse.Namespace, project_dir: Path) -> dict[str, Any]:
+    config_path = Path(args.llm_config).expanduser() if str(args.llm_config).strip() else None
+    if config_path is None:
+        env_path = os.environ.get("LINKAR_LLM_CONFIG", "").strip()
+        if env_path:
+            config_path = Path(env_path).expanduser()
+    if config_path is None:
+        default_path = llm_config_default_path(project_dir)
+        if default_path.exists():
+            config_path = default_path
+    config: dict[str, Any] = {}
+    if config_path is not None:
+        if not config_path.is_absolute():
+            config_path = (project_dir / config_path).resolve()
+        config = load_mapping(config_path)
+
+    api_key_env_name = str(config.get("api_key_env") or "").strip()
+    api_key = os.environ.get("LINKAR_LLM_API_KEY", "").strip()
+    api_key_source = "LINKAR_LLM_API_KEY" if api_key else ""
+    if not api_key and api_key_env_name:
+        api_key = os.environ.get(api_key_env_name, "").strip()
+        api_key_source = api_key_env_name if api_key else ""
+    if not api_key:
+        api_key = str(config.get("api_key") or config.get("token") or "").strip()
+        api_key_source = "llm_config" if api_key else ""
+
+    base_url = (
+        str(args.llm_base_url).strip()
+        or str(config.get("base_url") or "").strip()
+        or os.environ.get("LINKAR_LLM_BASE_URL", "").strip()
+    )
+    model = (
+        str(args.llm_model).strip()
+        or str(config.get("model") or "").strip()
+        or os.environ.get("LINKAR_LLM_MODEL", "").strip()
+    )
+    temperature = args.llm_temperature
+    if not str(args.llm_temperature).strip() and config.get("temperature") is not None:
+        try:
+            temperature = float(config.get("temperature"))
+        except Exception:
+            temperature = 0.2
+
+    return {
+        "config_path": str(config_path) if config_path is not None else "",
+        "config": compact_mapping(config),
+        "base_url": base_url,
+        "model": model,
+        "temperature": temperature,
+        "api_key": api_key,
+        "api_key_source": api_key_source,
+    }
 
 
 def main() -> int:
@@ -415,6 +556,7 @@ def main() -> int:
     project_data = load_yaml(project_file)
     catalog = load_yaml(template_dir / "methods_catalog.yaml")
     runs, citation_ids = collect_run_context(project_dir, project_data, catalog)
+    llm_settings = resolve_llm_settings(args, project_dir)
     context = {
         "project": {
             "id": project_data.get("id") or project_dir.name,
@@ -422,6 +564,15 @@ def main() -> int:
             "author": project_author_text(project_data),
         },
         "style": args.style,
+        "llm_settings": compact_mapping(
+            {
+                "config_path": llm_settings.get("config_path"),
+                "base_url": llm_settings.get("base_url"),
+                "model": llm_settings.get("model"),
+                "temperature": llm_settings.get("temperature"),
+                "api_key_source": llm_settings.get("api_key_source"),
+            }
+        ),
         "runs": runs,
         "citation_ids": citation_ids,
     }
@@ -433,21 +584,23 @@ def main() -> int:
     response_payload: dict[str, Any] = {
         "used_llm": False,
         "reason": "LLM polishing disabled.",
+        "llm_settings": context["llm_settings"],
     }
     if parse_bool(args.use_llm):
-        base_url = args.llm_base_url.strip() or os.environ.get("LINKAR_LLM_BASE_URL", "").strip()
-        model = args.llm_model.strip() or os.environ.get("LINKAR_LLM_MODEL", "").strip()
-        api_key = os.environ.get("LINKAR_LLM_API_KEY", "").strip()
+        base_url = str(llm_settings.get("base_url") or "").strip()
+        model = str(llm_settings.get("model") or "").strip()
+        api_key = str(llm_settings.get("api_key") or "").strip()
         if base_url and model and api_key:
             try:
                 response_payload = call_openai_compatible_api(
                     base_url=base_url,
                     api_key=api_key,
                     model=model,
-                    temperature=args.llm_temperature,
+                    temperature=float(llm_settings.get("temperature") or 0.2),
                     prompt=prompt,
                 )
                 response_payload["used_llm"] = True
+                response_payload["llm_settings"] = context["llm_settings"]
                 parsed = response_payload.get("parsed") if isinstance(response_payload.get("parsed"), dict) else {}
                 long_draft = str(parsed.get("methods_long") or long_draft)
                 short_draft = str(parsed.get("methods_short") or short_draft)
@@ -456,11 +609,13 @@ def main() -> int:
                 response_payload = {
                     "used_llm": False,
                     "reason": f"LLM polishing failed: {exc}",
+                    "llm_settings": context["llm_settings"],
                 }
         else:
             response_payload = {
                 "used_llm": False,
-                "reason": "LLM polishing requested but LINKAR_LLM_API_KEY, base URL, or model was missing.",
+                "reason": "LLM polishing requested but API key, base URL, or model was missing.",
+                "llm_settings": context["llm_settings"],
             }
 
     write_yaml(results_dir / "methods_context.yaml", context)
