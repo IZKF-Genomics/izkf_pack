@@ -196,6 +196,82 @@ Avoid:
 - mixing many unrelated responsibilities into one huge shell script
 - hiding critical behavior in undocumented helper files
 
+## Prefer `run.py` Once Logic Becomes Real
+
+For `izkf_pack`, a very effective pattern for medium or large templates is:
+
+```text
+templates/<template_id>/
+  linkar_template.yaml
+  run.sh
+  run.py
+  test.py
+  optional config templates...
+```
+
+Recommended role split:
+
+- `linkar_template.yaml` is the contract
+- `run.sh` is a thin human-facing entrypoint
+- `run.py` contains the actual runtime logic
+- `test.py` executes `run.py` directly with mocked tools and temporary files
+
+Use this when the template needs:
+
+- parameter validation
+- generated config files
+- structured command assembly
+- multiple runtime side effects
+- cleanup logic
+- runtime metadata outputs
+
+Keep `run.sh` very small. A good default is:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec python3 "${script_dir}/run.py"
+```
+
+This preserves the nice rendered-bundle workflow:
+
+```bash
+bash run.sh
+```
+
+while keeping the real logic in Python where it is easier to test and maintain.
+
+## Record Runtime Metadata Explicitly
+
+Do not assume future tooling should parse `run.sh` or `run.py` to reconstruct what happened.
+
+For important templates, prefer writing explicit runtime metadata files.
+
+Recommended pair:
+
+- `software_versions.json`
+- `runtime_command.json`
+
+Keep them separate:
+
+- `software_versions.json` records tools and versions
+- `runtime_command.json` records the effective runtime command and resolved context
+
+Suggested `runtime_command.json` fields:
+
+- `template`
+- `engine`
+- `pipeline`
+- `pipeline_version`
+- `command`
+- `command_pretty`
+- `params`
+- `artifacts`
+
+This is especially useful for downstream reporting templates such as `methods`.
+
 ## How Binding Works
 
 Bindings live at pack level in `linkar_pack.yaml`.
