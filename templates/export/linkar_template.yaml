@@ -101,7 +101,7 @@ run:
   command: |
     python3 ./run.py \
       --results-dir "${LINKAR_RESULTS_DIR}" \
-      --project-dir ".." \
+      --project-dir "${LINKAR_PROJECT_DIR:-..}" \
       --template-dir "." \
       --dry-run "${param:dry_run}" \
       --export-engine-api-url "${param:export_engine_api_url}" \
@@ -122,13 +122,14 @@ run:
       --timeout-seconds "${param:timeout_seconds}"
 render:
   command: |
-    if [[ ! -f "../project.yaml" ]]; then
+    project_dir="${LINKAR_PROJECT_DIR:-..}"
+    if [[ ! -f "${project_dir}/project.yaml" ]]; then
       echo "[error] export must be rendered inside a Linkar project directory." >&2
       exit 2
     fi
 
     python3 ./build_export_bundle.py \
-      --project-dir ".." \
+      --project-dir "${project_dir}" \
       --template-dir "." \
       --results-dir "./results" \
       --export-engine-backends "${param:export_engine_backends}" \

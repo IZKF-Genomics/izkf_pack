@@ -31,7 +31,7 @@ less results/export_job_spec.json
 If you want to rebuild the bundle manually:
 
 ```bash
-python3 build_export_bundle.py --project-dir .. --template-dir . --results-dir ./results
+python3 build_export_bundle.py --project-dir "${LINKAR_PROJECT_DIR:-..}" --template-dir . --results-dir ./results
 ```
 
 The launcher uses the prepared spec by default:
@@ -43,7 +43,7 @@ The launcher uses the prepared spec by default:
 You can also prepare without submission:
 
 ```bash
-python3 run.py --project-dir .. --template-dir . --results-dir ./results --dry-run true --export-engine-api-url http://127.0.0.1:9500
+python3 run.py --project-dir "${LINKAR_PROJECT_DIR:-..}" --template-dir . --results-dir ./results --dry-run true --export-engine-api-url http://127.0.0.1:9500
 ```
 
 Generated artifacts include:
@@ -57,6 +57,6 @@ Generated artifacts include:
 
 ## Notes
 
-- This template assumes it lives directly under a Linkar project root, so it can read `../project.yaml`.
+- At runtime the template prefers `LINKAR_PROJECT_DIR`, which Linkar exports automatically for project-backed runs and renders. Outside Linkar, it falls back to `..`.
 - The vendored [export_mapping.table.yaml](/home/ckuo/github/izkf_pack/templates/export/export_mapping.table.yaml) has been normalized for the current `izkf_pack` template ids and outputs.
 - Methods generation is now Linkar-native and is built from local project history through [build_export_bundle.py](/home/ckuo/github/izkf_pack/templates/export/build_export_bundle.py), not through BPM runtime hooks.
