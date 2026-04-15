@@ -32,6 +32,19 @@ mappings:
         description: "MultiQC report from nfcore_3mrnaseq."
         link_name: "nfcore_3mrnaseq MultiQC"
 
+  - template_id: nfcore_methylseq
+    src: "{template_root}"
+    dest: "2_Processed_data/nfcore_methylseq"
+    report_links:
+      - path: "."
+        section: processed
+        description: "This folder contains the rendered script bundle, configuration, and nf-core/methylseq results."
+        link_name: "nfcore_methylseq"
+      - path: "results/multiqc/multiqc_report.html"
+        section: processed/MultiQC
+        description: "MultiQC report from nfcore_methylseq."
+        link_name: "nfcore_methylseq MultiQC"
+
   - template_id: cellranger_atac
     src_project_key: "templates[id=cellranger_atac].outputs.results_dir"
     src: "{template_root}"
