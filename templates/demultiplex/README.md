@@ -64,6 +64,8 @@ pixi run demux-pipeline ...
 launcher for render mode. That keeps the template contract small while the real shell logic stays in
 one script that is easier to test and review. The rendered `run.sh` also writes
 `software_versions.json` inline so it does not depend on helper scripts from the pack checkout.
+After demultiplexing, it normalizes directory permissions under `results/output` to `775` so
+sample-project subdirectories match the surrounding output directories.
 
 ## Samplesheet resolution
 

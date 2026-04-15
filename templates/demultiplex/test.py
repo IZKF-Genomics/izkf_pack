@@ -47,7 +47,9 @@ def make_fake_pixi_bin(root: Path) -> Path:
         "args = parser.parse_args()\n"
         "args.outdir.mkdir(parents=True, exist_ok=True)\n"
         "(args.outdir / 'output').mkdir(exist_ok=True)\n"
+        "(args.outdir / 'output' / 'sample_project').mkdir(exist_ok=True)\n"
         "(args.outdir / 'output' / 'sample_R1.fastq.gz').write_text('demux\\n', encoding='utf-8')\n"
+        "(args.outdir / 'output' / 'sample_project' / 'sample_R1.fastq.gz').write_text('demux\\n', encoding='utf-8')\n"
         "if 'fastqc' in args.qc_tool:\n"
         "    fastqc_dir = args.outdir / 'fastqc'\n"
         "    fastqc_dir.mkdir(exist_ok=True)\n"
@@ -199,6 +201,7 @@ def main() -> None:
         )
         assert completed.returncode == 0, completed.stderr
         assert (results_dir / "output" / "sample_R1.fastq.gz").exists()
+        assert (results_dir / "output" / "sample_project").stat().st_mode & 0o777 == 0o775
         assert (results_dir / "fastqc" / "sample_fastqc.html").exists()
         assert (results_dir / "fastp" / "sample.html").exists()
         assert (results_dir / "fastp" / "sample.json").exists()
@@ -226,6 +229,7 @@ def main() -> None:
         assert 'git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"' in template_run_sh
         assert 'git -C "${upstream_repo_dir}" checkout "${upstream_commit}"' in template_run_sh
         assert 'pixi run demux-pipeline' in template_run_sh
+        assert 'find "${results_dir}/output" -type d -exec chmod 775 {} +' in template_run_sh
         assert "software_versions.json" in template_run_sh
         assert 'python3 - <<\'PY\'' in template_run_sh
         assert '"name": "bcl-convert"' in template_run_sh

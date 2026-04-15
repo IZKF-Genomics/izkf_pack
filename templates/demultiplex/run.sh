@@ -82,4 +82,8 @@ pixi run demux-pipeline \
   ${FASTQ_SCREEN_CONF:+--fastq-screen-conf "${FASTQ_SCREEN_CONF}"}
 popd >/dev/null
 
+if [[ -d "${results_dir}/output" ]]; then
+  find "${results_dir}/output" -type d -exec chmod 775 {} +
+fi
+
 rm -rf .pixi
