@@ -40,10 +40,17 @@ mappings:
         section: processed
         description: "This folder contains the rendered script bundle, configuration, and nf-core/methylseq results."
         link_name: "nfcore_methylseq"
-      - path: "results/multiqc/multiqc_report.html"
+      - path: "results/multiqc/*multiqc_report.html"
         section: processed/MultiQC
         description: "MultiQC report from nfcore_methylseq."
         link_name: "nfcore_methylseq MultiQC"
+      - path: "results/bismark/reports/*_bismark_bt2_PE_report.html"
+        section: processed/QC
+        description: "Per-sample Bismark paired-end alignment report from nfcore_methylseq."
+      - path: "results/bismark/summary/bismark_summary_report.html"
+        section: processed/QC
+        description: "Combined Bismark summary report from nfcore_methylseq."
+        link_name: "nfcore_methylseq Bismark summary"
 
   - template_id: cellranger_atac
     src_project_key: "templates[id=cellranger_atac].outputs.results_dir"
