@@ -9,6 +9,8 @@ It keeps the analyst-facing workflow in R/Quarto:
 - bundled [pixi.toml](/home/ckuo/github/izkf_pack/templates/dgea/pixi.toml) and [pixi.lock](/home/ckuo/github/izkf_pack/templates/dgea/pixi.lock)
 - bundled Positron settings in [.vscode/settings.json](/home/ckuo/github/izkf_pack/templates/dgea/.vscode/settings.json)
 
+The template only requires `pixi` on the host. `quarto` and `Rscript` are provided by the template-local Pixi environment.
+
 Instead of BPM Jinja rendering, Linkar now writes a small `dgea_inputs.R` file through [build_dgea_inputs.py](/home/ckuo/github/izkf_pack/templates/dgea/build_dgea_inputs.py). The constructor stays editable and programmable.
 
 ## Runtime model

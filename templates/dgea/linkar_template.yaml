@@ -1,11 +1,9 @@
 id: dgea
-version: 0.1.1
+version: 0.1.2
 description: Editable DGEA workspace with Pixi, Positron, and Quarto support.
 tools:
   required:
     - pixi
-    - quarto
-    - Rscript
 params:
   salmon_dir:
     type: path
