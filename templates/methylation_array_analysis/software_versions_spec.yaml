@@ -1,0 +1,16 @@
+template: methylation_array_analysis
+software:
+  - name: pixi
+    command: pixi --version
+  - name: quarto
+    command: quarto --version
+  - name: R
+    command: Rscript --version
+  - name: python
+    command: python3 --version
+  - name: minfi
+    command: pixi run Rscript -e "packageVersion('minfi')"
+  - name: DMRcate
+    command: pixi run Rscript -e "packageVersion('DMRcate')"
+  - name: missMethyl
+    command: pixi run Rscript -e "packageVersion('missMethyl')"

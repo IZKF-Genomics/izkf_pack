@@ -1,5 +1,5 @@
 id: export
-version: 0.1.0
+version: 0.1.1
 description: Prepare and submit an export bundle from Linkar project history.
 tools:
   required:

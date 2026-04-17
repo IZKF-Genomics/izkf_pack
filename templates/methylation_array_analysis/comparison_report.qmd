@@ -1,0 +1,440 @@
+---
+title: "Comparison Report"
+date: today
+params:
+  bundle_path: ""
+  report_title: "Comparison"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 2
+    toc-location: left
+    html-math-method: katex
+    embed-resources: true
+    page-layout: article
+    css: report-style.css
+    html-table-processing: none
+    theme: lumen
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+source("dnam_inputs.R")
+source("report_helpers.R")
+suppressPackageStartupMessages(library(plotly))
+bundle <- readRDS(params$bundle_path)
+cmp <- bundle$comparison
+embeddings <- bundle$embeddings
+dmp <- bundle$dmp
+dmr <- bundle$dmr
+enrichment <- bundle$enrichment
+drilldown <- bundle$drilldown
+
+read_if <- function(path) if (!is.null(path) && file.exists(path)) readr::read_csv(path, show_col_types = FALSE) else NULL
+
+pretty_dataset_label <- function(x) {
+  dplyr::recode(
+    x,
+    gse197094_epic = "GSE197094 EPIC",
+    gse216262_epic = "GSE216262 EPIC",
+    gse216262_450k = "GSE216262 450K",
+    own_batch_epic = "Own batch EPIC",
+    .default = gsub("_", " ", x)
+  )
+}
+
+normalize_chr <- function(x) {
+  x <- as.character(x)
+  x[x %in% c("", "NA", "NaN", "NULL")] <- NA_character_
+  x
+}
+
+prepare_embedding_df <- function(df) {
+  if (is.null(df) || nrow(df) == 0) return(df)
+  df <- tibble::as_tibble(df)
+  imp_x <- if ("import_group.x" %in% names(df)) normalize_chr(df[["import_group.x"]]) else rep(NA_character_, nrow(df))
+  imp_y <- if ("import_group.y" %in% names(df)) normalize_chr(df[["import_group.y"]]) else rep(NA_character_, nrow(df))
+  df$import_group <- dplyr::coalesce(imp_x, imp_y)
+  df$batch_label <- pretty_dataset_label(normalize_chr(df$batch))
+  df$hover_text <- paste0(
+    "<b>", normalize_chr(df$sample_id), "</b>",
+    "<br>Group: ", normalize_chr(df$group),
+    "<br>Batch: ", df$batch_label,
+    "<br>Dataset: ", pretty_dataset_label(normalize_chr(df$dataset_id)),
+    "<br>Import group: ", normalize_chr(df$import_group),
+    "<br>Sentrix: ", normalize_chr(df$SentrixBarcode), " / ", normalize_chr(df$SentrixPosition)
+  )
+  df
+}
+
+embedding_palette <- function(values) {
+  vals <- unique(stats::na.omit(as.character(values)))
+  if (length(vals) == 0) return(character())
+  setNames(grDevices::hcl.colors(length(vals), palette = "Dark 3"), vals)
+}
+
+build_embedding_plotly_2d <- function(df, x, y, color_var, title, height = 380) {
+  if (is.null(df) || !all(c(x, y, color_var) %in% names(df))) return(NULL)
+  palette_vals <- embedding_palette(df[[color_var]])
+  widget <- plotly::plot_ly(
+    data = df,
+    x = stats::as.formula(paste0("~`", x, "`")),
+    y = stats::as.formula(paste0("~`", y, "`")),
+    type = "scatter",
+    mode = "markers",
+    color = stats::as.formula(paste0("~`", color_var, "`")),
+    colors = unname(palette_vals),
+    text = ~hover_text,
+    hovertemplate = paste0("%{text}<br>", x, ": %{x:.3f}<br>", y, ": %{y:.3f}<extra></extra>"),
+    marker = list(size = 10, opacity = 0.9, line = list(width = 0.5, color = "white"))
+  ) |>
+    plotly::layout(
+      title = list(text = title, x = 0),
+      showlegend = FALSE,
+      xaxis = list(title = x, zeroline = FALSE),
+      yaxis = list(title = y, zeroline = FALSE),
+      hoverlabel = list(align = "left"),
+      autosize = TRUE,
+      margin = list(l = 60, r = 20, t = 65, b = 50),
+      height = height
+    )
+  widget <- plotly::config(widget, responsive = TRUE)
+  htmlwidgets::onRender(
+    widget,
+    "function(el, x) {
+      el.style.width = '100%';
+      el.style.maxWidth = '100%';
+      if (el.parentElement) {
+        el.parentElement.style.width = '100%';
+        el.parentElement.style.maxWidth = '100%';
+      }
+      var plotRoot = el.querySelector('.js-plotly-plot');
+      if (plotRoot) {
+        plotRoot.style.width = '100%';
+        plotRoot.style.maxWidth = '100%';
+        if (window.Plotly && window.Plotly.Plots) {
+          window.Plotly.Plots.resize(plotRoot);
+        }
+      }
+    }"
+  )
+}
+
+pca_df <- prepare_embedding_df(read_if(embeddings$artifacts$pca_csv %||% NULL))
+tsne_df <- prepare_embedding_df(read_if(embeddings$artifacts$tsne_csv %||% NULL))
+umap_df <- prepare_embedding_df(read_if(embeddings$artifacts$umap_csv %||% NULL))
+```
+
+## Comparison Definition
+
+This report is a standalone analysis for one comparison defined directly in `DNAm_constructor.R`.
+
+```{r cmp-summary}
+cmp_tbl <- tibble::tibble(
+  metric = c("comparison_name", "target_group", "base_group", "samples_used", "use_batch_corrected", "covariates", "dmp_alpha", "delta_beta_min", "dmr_enabled", "enrichment_enabled"),
+  value = c(
+    cmp$name,
+    cmp$target_group,
+    cmp$base_group,
+    nrow(dmp$meta),
+    as.character(isTRUE(cmp$use_batch_corrected)),
+    ifelse(length(cmp$covariates) > 0, paste(cmp$covariates, collapse = ", "), NA_character_),
+    cmp$dmp_alpha,
+    cmp$delta_beta_min,
+    as.character(isTRUE(cmp$dmr_enabled)),
+    as.character(isTRUE(cmp$enrichment_enabled))
+  )
+)
+render_report_table(cmp_tbl, page_length = 10)
+```
+
+```{r cmp-design-note}
+comparison_groups_present <- sort(unique(as.character(stats::na.omit(dmp$meta$group))))
+sample_manifest_full <- NULL
+if (file.exists("config/samples.csv")) {
+  sample_manifest_full <- suppressWarnings(readr::read_csv("config/samples.csv", show_col_types = FALSE))
+}
+
+group_components <- function(final_group_label) {
+  if (is.null(sample_manifest_full) || !"sample_id" %in% names(sample_manifest_full)) return(character())
+  join_cols <- intersect(c("sample_id", "dataset_id"), names(dmp$meta))
+  ref_cols <- intersect(c("sample_id", "dataset_id", "group"), names(sample_manifest_full))
+  if (!("group" %in% ref_cols) || length(join_cols) == 0) return(character())
+  used_tbl <- dplyr::as_tibble(dmp$meta) |>
+    dplyr::select(dplyr::all_of(c(join_cols, "group"))) |>
+    dplyr::rename(final_group = .data$group)
+  sample_manifest_full |>
+    dplyr::select(dplyr::all_of(ref_cols)) |>
+    dplyr::inner_join(used_tbl, by = join_cols) |>
+    dplyr::filter(.data$final_group == final_group_label) |>
+    dplyr::pull(.data$group) |>
+    unique() |>
+    sort()
+}
+
+target_components <- group_components(cmp$target_group)
+base_components <- group_components(cmp$base_group)
+is_two_group_contrast <- length(comparison_groups_present) == 2 &&
+  all(sort(c(cmp$target_group, cmp$base_group)) %in% comparison_groups_present)
+is_direct_pairwise <- is_two_group_contrast &&
+  length(target_components) <= 1 &&
+  length(base_components) <= 1
+is_pooled_two_group <- is_two_group_contrast && !is_direct_pairwise
+
+component_text <- function(label, components) {
+  if (length(components) == 0) {
+    sprintf("<code>%s</code>: composition could not be resolved from the current sample sheet.", label)
+  } else if (length(components) == 1) {
+    sprintf("<code>%s</code>: direct group <code>%s</code>.", label, components[[1]])
+  } else {
+    sprintf("<code>%s</code>: pooled/composite group containing %s.", label, paste(sprintf("<code>%s</code>", components), collapse = ", "))
+  }
+}
+
+if (is_direct_pairwise) {
+  htmltools::tagList(
+    htmltools::tags$p(
+      style = "margin-top: 0.4rem; color: #4A4A4A;",
+      htmltools::HTML(sprintf(
+        "<strong>Comparison design:</strong> Direct pairwise two-group comparison between <code>%s</code> and <code>%s</code>.",
+        cmp$target_group,
+        cmp$base_group
+      ))
+    ),
+    htmltools::tags$ul(
+      htmltools::tags$li(htmltools::HTML(component_text(cmp$target_group, target_components))),
+      htmltools::tags$li(htmltools::HTML(component_text(cmp$base_group, base_components)))
+    )
+  )
+} else if (is_pooled_two_group) {
+  htmltools::tagList(
+    htmltools::tags$p(
+      style = "margin-top: 0.4rem; color: #4A4A4A;",
+      htmltools::HTML(sprintf(
+        "<strong>Comparison design:</strong> Two-group contrast after relabeling/pooling. The statistical model compares <code>%s</code> versus <code>%s</code>, but at least one side contains samples pooled from multiple original groups.",
+        cmp$target_group,
+        cmp$base_group
+      ))
+    ),
+    htmltools::tags$ul(
+      htmltools::tags$li(htmltools::HTML(component_text(cmp$target_group, target_components))),
+      htmltools::tags$li(htmltools::HTML(component_text(cmp$base_group, base_components)))
+    )
+  )
+} else {
+  htmltools::tagList(
+    htmltools::tags$p(
+      style = "margin-top: 0.4rem; color: #4A4A4A;",
+      htmltools::HTML(sprintf(
+        "<strong>Comparison design:</strong> Not a simple two-group contrast. The filtered comparison set contains %d modeled groups: %s.",
+        length(comparison_groups_present),
+        paste(sprintf("<code>%s</code>", comparison_groups_present), collapse = ", ")
+      ))
+    ),
+    htmltools::tags$ul(
+      htmltools::tags$li(htmltools::HTML(component_text(cmp$target_group, target_components))),
+      htmltools::tags$li(htmltools::HTML(component_text(cmp$base_group, base_components)))
+    )
+  )
+}
+```
+
+## Sample Manifest
+
+```{r manifest}
+manifest_tbl <- preview_report_table(dmp$meta, max_rows_inline = 120)
+render_report_table(manifest_tbl, preferred = c("sample_id", "dataset_id", "group", "subgroup", "batch", "analysis_set", "sex", "age"), page_length = 15)
+report_preview_note(dmp$meta, max_rows_inline = 120, noun = "samples")
+if (!is.null(dmp$artifacts$manifest_csv)) report_download_link(dmp$artifacts$manifest_csv, label = "Download sample manifest")
+```
+
+## Comparison Embeddings
+
+These embeddings are computed only from the samples used in this comparison, so they show the contrast-specific structure rather than the full study cohort.
+
+### PCA
+
+```{r comparison-pca-group}
+if (!is.null(pca_df)) {
+  build_embedding_plotly_2d(pca_df, "PC1", "PC2", "group", "Comparison PCA by group")
+}
+```
+
+```{r comparison-pca-batch}
+if (!is.null(pca_df)) {
+  build_embedding_plotly_2d(pca_df, "PC1", "PC2", "batch_label", "Comparison PCA by batch")
+}
+```
+
+### t-SNE
+
+```{r comparison-tsne-group}
+if (!is.null(tsne_df)) {
+  build_embedding_plotly_2d(tsne_df, "TSNE1", "TSNE2", "group", "Comparison t-SNE by group")
+}
+```
+
+```{r comparison-tsne-batch}
+if (!is.null(tsne_df)) {
+  build_embedding_plotly_2d(tsne_df, "TSNE1", "TSNE2", "batch_label", "Comparison t-SNE by batch")
+}
+```
+
+### UMAP
+
+```{r comparison-umap-group}
+if (!is.null(umap_df)) {
+  build_embedding_plotly_2d(umap_df, "UMAP1", "UMAP2", "group", "Comparison UMAP by group")
+}
+```
+
+## Differential Methylation
+
+```{r dmp-summary}
+render_report_table(dmp$summary, preferred = c("comparison_name", "target_group", "base_group", "n_target", "n_base", "n_sig_cpg", "n_target_hyper", "n_target_hypo"), page_length = 10)
+```
+
+```{r dmp-volcano}
+if (file.exists(dmp$artifacts$volcano_png)) {
+  report_image(dmp$artifacts$volcano_png, alt = "DMP volcano plot")
+}
+```
+
+### Significant CpGs
+
+`direction` indicates methylation change in the target group relative to the base group. `hyper` means higher methylation in the target group, and `hypo` means lower methylation in the target group.
+
+```{r dmp-significant-table}
+dmp_sig_tbl <- dmp$table |>
+  dplyr::filter(.data$significant) |>
+  dplyr::arrange(.data$adj.P.Val, dplyr::desc(abs(.data$delta_beta)))
+if (nrow(dmp_sig_tbl) > 0) {
+  render_report_table(dmp_sig_tbl, preferred = c("CpG", "delta_beta", "adj.P.Val", "logFC", "direction", "UCSC_RefGene_Name", "Relation_to_Island"), page_length = 15, wide = TRUE)
+} else {
+  htmltools::tags$p("No CpGs passed the current significance thresholds for this comparison.")
+}
+```
+
+### Top Ranked CpGs
+
+```{r dmp-table-setup, include=FALSE}
+dmp_ranked_tbl <- dmp$table |>
+  dplyr::arrange(.data$adj.P.Val, dplyr::desc(abs(.data$delta_beta)))
+
+rank_hyper_tbl <- dmp_ranked_tbl |>
+  dplyr::filter(.data$significant, .data$direction == "target_hypermethylated")
+rank_hypo_tbl <- dmp_ranked_tbl |>
+  dplyr::filter(.data$significant, .data$direction == "target_hypomethylated")
+```
+
+#### Top Ranked Target-Hyper CpGs
+
+```{r dmp-table-hyper}
+if (nrow(rank_hyper_tbl) > 0) {
+  render_report_table(
+    rank_hyper_tbl,
+    preferred = c("CpG", "delta_beta", "adj.P.Val", "logFC", "UCSC_RefGene_Name", "Relation_to_Island"),
+    page_length = 15,
+    wide = TRUE
+  )
+} else {
+  htmltools::tags$p("No significant target-hyper CpGs for this comparison.")
+}
+```
+
+#### Top Ranked Target-Hypo CpGs
+
+```{r dmp-table-hypo}
+if (nrow(rank_hypo_tbl) > 0) {
+  render_report_table(
+    rank_hypo_tbl,
+    preferred = c("CpG", "delta_beta", "adj.P.Val", "logFC", "UCSC_RefGene_Name", "Relation_to_Island"),
+    page_length = 15,
+    wide = TRUE
+  )
+} else {
+  htmltools::tags$p("No significant target-hypo CpGs for this comparison.")
+}
+```
+
+```{r dmp-table-downloads}
+htmltools::tagList(
+  if (!is.null(dmp$artifacts$dmp_csv)) report_download_link(dmp$artifacts$dmp_csv, label = "Download full DMP table"),
+  if (!is.null(dmp$artifacts$dmp_sig_csv)) report_download_link(dmp$artifacts$dmp_sig_csv, label = "Download significant DMPs")
+)
+```
+
+## Differential Regions
+
+```{r dmr}
+if (is.null(dmr)) {
+  htmltools::tags$p("DMR analysis was disabled or did not produce results.")
+} else {
+  dmr_plot <- NULL
+  if (!is.null(dmr$artifacts$dmr_png) && file.exists(dmr$artifacts$dmr_png)) {
+    dmr_plot <- report_image(dmr$artifacts$dmr_png, alt = "Ranked DMR plot")
+  }
+  dmr_tbl <- dmr$table |>
+    dplyr::arrange(.data$HMFDR, dplyr::desc(abs(.data$meandiff)))
+  dmr_preview <- preview_report_table(dmr_tbl, max_rows_inline = 60)
+  htmltools::tagList(
+    render_report_table(dmr$summary, page_length = 10),
+    dmr_plot,
+    render_report_table(dmr_preview, preferred = c("region_id", "seqnames", "start", "end", "no.cpgs", "HMFDR", "meandiff", "direction", "overlapping.genes"), page_length = 15),
+    report_preview_note(dmr_tbl, max_rows_inline = 60, noun = "regions"),
+    if (!is.null(dmr$artifacts$dmr_csv)) report_download_link(dmr$artifacts$dmr_csv, label = "Download DMR table")
+  )
+}
+```
+
+## Enrichment
+
+```{r enrichment}
+if (is.null(enrichment)) {
+  htmltools::tags$p("Enrichment analysis was disabled or did not produce results.")
+} else {
+  enrichment_tbl <- enrichment$table |>
+    dplyr::mutate(
+      term_name = dplyr::coalesce(.data$Description, .data$TERM),
+      ontology = .data$ONTOLOGY
+    ) |>
+    dplyr::arrange(.data$direction, .data$collection, .data$FDR, .data$P.DE)
+  enrichment_preview <- enrichment_tbl |>
+    dplyr::group_by(.data$direction, .data$collection) |>
+    dplyr::slice_head(n = 10) |>
+    dplyr::ungroup()
+  htmltools::tagList(
+    render_report_table(enrichment_preview, preferred = c("direction", "collection", "ontology", "term_name", "TERM", "N", "DE", "P.DE", "FDR"), page_length = 15, wide = TRUE),
+    if (nrow(enrichment_tbl) > nrow(enrichment_preview)) htmltools::tags$p("Showing the top enrichment terms per methylation direction and collection."),
+    if (!is.null(enrichment$artifacts$enrichment_csv)) report_download_link(enrichment$artifacts$enrichment_csv, label = "Download enrichment summary")
+  )
+}
+```
+
+## Drilldown
+
+```{r drilldown}
+if (is.null(drilldown)) {
+  htmltools::tags$p("No drilldown targets were configured for this comparison.")
+} else {
+  drill_plot <- NULL
+  if (!is.null(drilldown$artifacts$heatmap_png) && file.exists(drilldown$artifacts$heatmap_png)) {
+    drill_plot <- report_image(drilldown$artifacts$heatmap_png, alt = "Drilldown heatmap")
+  }
+  drill_tbl <- NULL
+  if (!is.null(drilldown$artifacts$summary_csv)) {
+    drill_tbl <- readr::read_csv(drilldown$artifacts$summary_csv, show_col_types = FALSE)
+  }
+  htmltools::tagList(
+    drill_plot,
+    if (!is.null(drill_tbl)) render_report_table(drill_tbl, page_length = 15),
+    if (!is.null(drilldown$artifacts$summary_csv)) report_download_link(drilldown$artifacts$summary_csv, label = "Download drilldown summary"),
+    if (!is.null(drilldown$artifacts$beta_csv)) report_download_link(drilldown$artifacts$beta_csv, label = "Download drilldown beta matrix"),
+    if (!is.null(drilldown$artifacts$meta_csv)) report_download_link(drilldown$artifacts$meta_csv, label = "Download drilldown sample metadata")
+  )
+}
+```

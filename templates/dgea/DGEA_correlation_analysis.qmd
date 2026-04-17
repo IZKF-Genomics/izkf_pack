@@ -15,10 +15,7 @@ format:
 bibliography: references.bib
 params:
   authors: ""
-  comparisons: !r list(
-    list(title = "Correlation of IL10 and LPS (WT)", x = "IL10_vs_Control_in_WT", y = "LPS_vs_Control_in_WT"),
-    list(title = "Correlation of IL10 and LPS (KO)", x = "IL10_vs_Control_in_KO", y = "LPS_vs_Control_in_KO")
-  )
+  comparisons: []
 ---
 
 ```{r setup, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
@@ -28,14 +25,35 @@ library(ggplot2)
 library(ggpubr)
 
 stats_path <- function(tag) {
-  paste0("DGEA_", tag, "_genes_stats.csv")
+  candidates <- c(
+    paste0("DGEA_", tag, "_stat.csv"),
+    paste0("DGEA_", tag, "_genes_stats.csv")
+  )
+  hits <- candidates[file.exists(candidates)]
+  if (length(hits) > 0) {
+    return(hits[[1]])
+  }
+  candidates[[1]]
+}
+
+read_stats_table <- function(tag) {
+  path <- stats_path(tag)
+  df <- fread(path)
+  label_col <- intersect(c("gene_symbol", "gene_name", "gene_full_name"), names(df))[1]
+  if (is.na(label_col)) {
+    stop("Missing gene label column in ", path, ". Expected one of: gene_symbol, gene_name, gene_full_name.", call. = FALSE)
+  }
+  required_cols <- c("gene_id", label_col, "log2FoldChange")
+  missing_cols <- setdiff(required_cols, names(df))
+  if (length(missing_cols) > 0) {
+    stop("Missing required columns in ", path, ": ", paste(missing_cols, collapse = ", "), call. = FALSE)
+  }
+  df <- df[, ..required_cols]
+  setnames(df, old = label_col, new = "gene_label")
+  df
 }
 
 validate_comparisons <- function(comparisons) {
-  if (length(comparisons) == 0) {
-    stop("No comparisons provided. Set params$comparisons with list(title, x, y).")
-  }
-
   required_fields <- c("title", "x", "y")
   missing_fields <- lapply(comparisons, function(cmp) {
     setdiff(required_fields, names(cmp))
@@ -58,19 +76,20 @@ validate_comparisons <- function(comparisons) {
 }
 
 corr_figure <- function(title, x_tag, y_tag) {
-  xdata <- fread(stats_path(x_tag))[, c("gene_id", "gene_name", "log2FoldChange")]
-  ydata <- fread(stats_path(y_tag))[, c("gene_id", "gene_name", "log2FoldChange")]
+  xdata <- read_stats_table(x_tag)
+  ydata <- read_stats_table(y_tag)
 
   merged_table <- merge(
     xdata,
     ydata,
-    by = c("gene_id", "gene_name"),
+    by = "gene_id",
     suffixes = c(".x", ".y")
   )
+  merged_table$gene_label <- dplyr::coalesce(merged_table$gene_label.x, merged_table$gene_label.y)
 
-  yrange <- abs(max(ydata$log2FoldChange) - min(ydata$log2FoldChange))
-  statcor_y <- max(ydata$log2FoldChange)
-  statregline_y <- max(ydata$log2FoldChange) - 0.05 * yrange
+  yrange <- abs(max(merged_table$log2FoldChange.y) - min(merged_table$log2FoldChange.y))
+  statcor_y <- max(merged_table$log2FoldChange.y)
+  statregline_y <- max(merged_table$log2FoldChange.y) - 0.05 * yrange
 
   ggplot(merged_table, aes(log2FoldChange.x, log2FoldChange.y)) +
     geom_point(size = 1, color = "royalblue", alpha = 0.2) +
@@ -92,7 +111,7 @@ if (length(params$comparisons) > 0) {
 ### [Back to the main page](../Analysis_Report_RNAseq.html)
 
 This report correlates log2 fold-changes between comparison pairs.
-Each comparison expects input files named `DGEA_<tag>_genes_stats.csv`.
+It uses `DGEA_<tag>_stat.csv` files from the main DGEA workflow and also accepts legacy `DGEA_<tag>_genes_stats.csv` files.
 
 # Correlation plots
 

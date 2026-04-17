@@ -1,0 +1,9 @@
+.pixi/
+results/
+reports/
+data/geo/*
+data/local/*
+data/cache/*
+!data/geo/.gitkeep
+!data/local/.gitkeep
+!data/cache/.gitkeep

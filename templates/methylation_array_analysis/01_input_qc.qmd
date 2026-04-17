@@ -1,0 +1,242 @@
+---
+title: "01 Input QC"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 2
+    toc-location: left
+    html-math-method: katex
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+    page-layout: article
+    css: report-style.css
+    html-table-processing: none
+    theme: lumen
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+source("dnam_inputs.R")
+source("report_helpers.R")
+read_if <- function(path) if (file.exists(path)) readr::read_csv(path, show_col_types = FALSE) else NULL
+pretty_dataset_label <- function(x) {
+  dplyr::recode(
+    x,
+    gse197094_epic = "GSE197094 EPIC",
+    gse216262_epic = "GSE216262 EPIC",
+    gse216262_450k = "GSE216262 450K",
+    own_batch_epic = "Own batch EPIC",
+    .default = gsub("_", " ", x)
+  )
+}
+pretty_import_group_label <- function(x) {
+  dplyr::recode(
+    x,
+    EPIC_1051943 = "EPIC v1 (1051943)",
+    EPIC_1052641 = "EPIC v1 (1052641)",
+    EPIC_V2_1105209 = "EPIC v2",
+    `450K_622399` = "450K",
+    .default = gsub("_", " ", x)
+  )
+}
+qc_dataset_colors <- c(
+  "GSE197094 EPIC" = "#F8766D",
+  "GSE216262 EPIC" = "#00BA38",
+  "GSE216262 450K" = "#B79F00",
+  "Own batch EPIC" = "#619CFF"
+)
+qc_tbl <- read_if("results/tables/qc_metrics.csv")
+filter_summary <- read_if("results/tables/filter_summary.csv")
+preflight <- read_if("results/tables/idat_preflight.csv")
+preflight_preview <- if (is.null(preflight)) NULL else preview_report_table(preflight, max_rows_inline = 40)
+qc_preview <- if (is.null(qc_tbl)) NULL else preview_report_table(qc_tbl, max_rows_inline = 40)
+```
+
+## IDAT Preflight
+
+This table records whether both Red and Green IDAT files were found for every included sample before preprocessing started.
+
+```{r preflight-summary}
+if (!is.null(preflight) && nrow(preflight) > 0 && all(c("red_exists", "grn_exists") %in% names(preflight))) {
+  plot_df <- preflight |>
+    dplyr::mutate(
+      dataset_label = pretty_dataset_label(.data$dataset_id),
+      preflight_status = dplyr::case_when(
+        .data$red_exists & .data$grn_exists ~ "paired",
+        .data$red_exists | .data$grn_exists ~ "partial",
+        TRUE ~ "missing"
+      )
+    ) |>
+    dplyr::count(.data$dataset_label, .data$preflight_status, name = "n_samples")
+
+  ggplot(plot_df, aes(x = dataset_label, y = n_samples, fill = preflight_status)) +
+    geom_col(width = 0.72) +
+    labs(
+      title = "IDAT Pair Detection By Dataset",
+      x = NULL,
+      y = "Samples",
+      fill = "Status"
+    ) +
+    scale_fill_manual(values = c(paired = "#2A9D8F", partial = "#F4A261", missing = "#E76F51")) +
+    theme_pub()
+}
+```
+
+```{r preflight}
+if (!is.null(preflight)) {
+  render_report_table(preflight_preview, preferred = c("sample_id", "dataset_id", "idat_basename", "red_exists", "grn_exists"), page_length = 15)
+  report_preview_note(preflight, max_rows_inline = 40, noun = "preflight rows")
+}
+```
+
+## Sample-Level QC
+
+Samples with a high failed-probe fraction are likely technical outliers and should be excluded from interpretation.
+
+```{r qc-distribution, fig.width=13, fig.height=6.8}
+if (!is.null(qc_tbl) && nrow(qc_tbl) > 0) {
+  plot_df <- qc_tbl |>
+    dplyr::mutate(dataset_label = factor(pretty_dataset_label(.data$dataset_id), levels = names(qc_dataset_colors)))
+
+  ggplot(plot_df, aes(x = dataset_label, y = frac_failed, fill = dataset_label)) +
+    geom_violin(alpha = 0.22, color = NA, trim = FALSE) +
+    geom_boxplot(width = 0.16, outlier.shape = NA, alpha = 0.75, color = "#3A3A3A") +
+    geom_jitter(width = 0.08, size = 1.8, alpha = 0.65, color = "#2F4858") +
+    labs(
+      title = "Failed-Probe Fraction By Dataset",
+      subtitle = "QC distribution across included samples",
+      x = NULL,
+      y = "Fraction failed probes"
+    ) +
+    scale_fill_manual(values = qc_dataset_colors, drop = FALSE) +
+    scale_y_continuous(labels = function(x) sprintf("%.2f%%", 100 * x)) +
+    theme_pub() +
+    theme(
+      legend.position = "none",
+      axis.text.x = element_text(angle = 12, hjust = 1)
+    )
+}
+```
+
+```{r qc-outliers, fig.height=9.5, fig.width=13}
+if (!is.null(qc_tbl) && nrow(qc_tbl) > 0) {
+  top_n <- min(20, nrow(qc_tbl))
+  outlier_df <- qc_tbl |>
+    dplyr::arrange(dplyr::desc(.data$frac_failed), dplyr::desc(.data$mean_detp)) |>
+    dplyr::slice_head(n = top_n) |>
+    dplyr::mutate(
+      dataset_label = pretty_dataset_label(.data$dataset_id),
+      sample_id = factor(.data$sample_id, levels = rev(.data$sample_id)),
+      qc_label = ifelse(.data$qc_fail, "QC fail", "Retained"),
+      frac_failed_label = sprintf("%.2f%%", 100 * .data$frac_failed)
+    )
+
+  ggplot(outlier_df, aes(x = frac_failed, y = sample_id, color = dataset_label)) +
+    geom_segment(
+      aes(x = 0, xend = frac_failed, y = sample_id, yend = sample_id),
+      linewidth = 1.0,
+      alpha = 0.7,
+      color = "#C9CED6"
+    ) +
+    geom_point(aes(shape = qc_label), size = 3.3, stroke = 0.7) +
+    geom_text(
+      aes(label = frac_failed_label),
+      hjust = -0.15,
+      size = 3.5,
+      color = "#505050",
+      show.legend = FALSE
+    ) +
+    labs(
+      title = "Highest Failed-Probe Samples",
+      subtitle = sprintf("Top %d samples ranked by failed-probe fraction", top_n),
+      x = "Fraction failed probes",
+      y = NULL,
+      color = "Dataset",
+      shape = "QC status"
+    ) +
+    scale_color_manual(
+      values = qc_dataset_colors,
+      drop = FALSE
+    ) +
+    scale_x_continuous(
+      labels = function(x) sprintf("%.2f%%", 100 * x),
+      expand = expansion(mult = c(0, 0.12))
+    ) +
+    scale_shape_manual(values = c("Retained" = 16, "QC fail" = 17)) +
+    theme_pub() +
+    theme(
+      legend.position = "bottom",
+      legend.box = "vertical",
+      legend.title = element_text(face = "bold"),
+      legend.text = element_text(size = 11),
+      legend.spacing.x = unit(0.35, "cm"),
+      axis.text.y = element_text(size = 11)
+    ) +
+    guides(
+      color = guide_legend(order = 1, nrow = 2, byrow = TRUE, override.aes = list(size = 3.5, shape = 16)),
+      shape = guide_legend(order = 2, nrow = 1, byrow = TRUE)
+    )
+}
+```
+
+```{r qc-table}
+if (!is.null(qc_tbl)) {
+  render_report_table(qc_preview, preferred = c("dataset_id", "import_group", "sample_id", "mean_detp", "frac_failed", "qc_fail", "included_for_analysis"), page_length = 20)
+  report_preview_note(qc_tbl, max_rows_inline = 40, noun = "QC rows")
+}
+```
+
+## Probe Filtering Summary
+
+This table summarizes how many probes were removed for major technical filtering reasons in each dataset.
+
+```{r filter-plot, fig.width=14, fig.height=7.2}
+if (!is.null(filter_summary) && nrow(filter_summary) > 0) {
+  plot_df <- filter_summary |>
+    dplyr::mutate(
+      dataset_label = paste(pretty_dataset_label(.data$dataset_id), pretty_import_group_label(.data$import_group), sep = " | "),
+      dataset_label = factor(.data$dataset_label, levels = rev(.data$dataset_label))
+    ) |>
+    tidyr::pivot_longer(
+      cols = c("detection_fail", "snp_crosshyb", "sex_chr"),
+      names_to = "filter_type",
+      values_to = "n_probes"
+    ) |>
+    dplyr::mutate(
+      filter_type = factor(
+        .data$filter_type,
+        levels = c("detection_fail", "snp_crosshyb", "sex_chr"),
+        labels = c("Detection", "SNP/cross-reactive", "Sex chr")
+      )
+    )
+
+  ggplot(plot_df, aes(x = dataset_label, y = n_probes, fill = filter_type)) +
+    geom_col(width = 0.72) +
+    coord_flip() +
+    labs(
+      title = "Probe Filtering By Dataset",
+      x = NULL,
+      y = "Probes removed",
+      fill = "Filter"
+    ) +
+    theme_pub() +
+    theme(
+      legend.position = "top",
+      legend.title = element_text(face = "bold"),
+      legend.text = element_text(size = 11)
+    ) +
+    guides(fill = guide_legend(nrow = 1, byrow = TRUE))
+}
+```
+
+```{r filter-table}
+if (!is.null(filter_summary)) {
+  render_report_table(filter_summary, page_length = 10)
+}
+```

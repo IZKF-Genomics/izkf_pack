@@ -1,0 +1,540 @@
+---
+title: "02 All-Sample Embeddings"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 2
+    toc-location: left
+    html-math-method: katex
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+    page-layout: article
+    css: report-style.css
+    html-table-processing: none
+    theme: lumen
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+source("dnam_inputs.R")
+source("report_helpers.R")
+suppressPackageStartupMessages(library(plotly))
+
+read_if <- function(path) if (file.exists(path)) readr::read_csv(path, show_col_types = FALSE) else NULL
+
+raw_prefix <- if (file.exists("results/tables/overview_cohort_raw_pca.csv")) "overview_cohort_raw" else "raw_all_samples"
+corrected_prefix <- if (file.exists("results/tables/overview_cohort_corrected_pca.csv")) "overview_cohort_corrected" else "corrected_all_samples"
+
+pretty_dataset_label <- function(x) {
+  dplyr::recode(
+    x,
+    gse197094_epic = "GSE197094 EPIC",
+    gse216262_epic = "GSE216262 EPIC",
+    gse216262_450k = "GSE216262 450K",
+    own_batch_epic = "Own batch EPIC",
+    .default = gsub("_", " ", x)
+  )
+}
+
+pretty_import_group_label <- function(x) {
+  dplyr::recode(
+    x,
+    EPIC_1051943 = "EPIC v1 (1051943)",
+    EPIC_1052641 = "EPIC v1 (1052641)",
+    EPIC_V2_1105209 = "EPIC v2",
+    `450K_622399` = "450K",
+    .default = gsub("_", " ", x)
+  )
+}
+
+normalize_chr <- function(x) {
+  x <- as.character(x)
+  x[x %in% c("", "NA", "NaN", "NULL")] <- NA_character_
+  x
+}
+
+format_hover_value <- function(x, digits = 3) {
+  if (is.null(x) || length(x) == 0 || is.na(x)) return("NA")
+  if (is.numeric(x)) return(formatC(x, format = "f", digits = digits))
+  as.character(x)
+}
+
+prepare_embedding_df <- function(df) {
+  if (is.null(df) || nrow(df) == 0) return(df)
+  df <- tibble::as_tibble(df)
+  imp_x <- if ("import_group.x" %in% names(df)) normalize_chr(df[["import_group.x"]]) else rep(NA_character_, nrow(df))
+  imp_y <- if ("import_group.y" %in% names(df)) normalize_chr(df[["import_group.y"]]) else rep(NA_character_, nrow(df))
+  df$import_group <- dplyr::coalesce(imp_x, imp_y)
+  df$dataset_label <- pretty_dataset_label(normalize_chr(df$dataset_id))
+  df$batch_label <- pretty_dataset_label(normalize_chr(df$batch))
+  df$import_group_label <- pretty_import_group_label(normalize_chr(df$import_group))
+  df$qc_status <- ifelse(toupper(normalize_chr(df$qc_fail)) == "TRUE", "QC fail", "Retained")
+  df$hover_text <- paste0(
+    "<b>", normalize_chr(df$sample_id), "</b>",
+    "<br>Group: ", normalize_chr(df$group),
+    "<br>Batch: ", df$batch_label,
+    "<br>Dataset: ", df$dataset_label,
+    "<br>Import group: ", df$import_group_label,
+    "<br>Sentrix: ", normalize_chr(df$SentrixBarcode), " / ", normalize_chr(df$SentrixPosition),
+    "<br>Failed probes: ", ifelse(is.na(df$frac_failed), "NA", sprintf("%.2f%%", 100 * as.numeric(df$frac_failed))),
+    "<br>Mean detection p: ", ifelse(is.na(df$mean_detp), "NA", formatC(as.numeric(df$mean_detp), format = "e", digits = 2))
+  )
+  df
+}
+
+embedding_palette <- function(values) {
+  vals <- unique(stats::na.omit(as.character(values)))
+  if (length(vals) == 0) return(character())
+  setNames(grDevices::hcl.colors(length(vals), palette = "Dark 3"), vals)
+}
+
+build_embedding_plotly_2d <- function(df, x, y, color_var, title, subtitle = NULL, height = 420) {
+  if (is.null(df) || !all(c(x, y, color_var) %in% names(df))) return(NULL)
+  palette_vals <- embedding_palette(df[[color_var]])
+  widget <- plotly::plot_ly(
+    data = df,
+    x = stats::as.formula(paste0("~`", x, "`")),
+    y = stats::as.formula(paste0("~`", y, "`")),
+    type = "scatter",
+    mode = "markers",
+    color = stats::as.formula(paste0("~`", color_var, "`")),
+    colors = unname(palette_vals),
+    text = ~hover_text,
+    hovertemplate = paste0("%{text}<br>", x, ": %{x:.3f}<br>", y, ": %{y:.3f}<extra></extra>"),
+    marker = list(size = 11, opacity = 0.9, line = list(width = 0.5, color = "white"))
+  ) |>
+    plotly::layout(
+      title = list(text = if (is.null(subtitle)) title else paste0(title, "<br><sup>", subtitle, "</sup>"), x = 0),
+      showlegend = FALSE,
+      xaxis = list(title = x, zeroline = FALSE),
+      yaxis = list(title = y, zeroline = FALSE),
+      hoverlabel = list(align = "left"),
+      autosize = TRUE,
+      margin = list(l = 70, r = 20, t = 80, b = 55),
+      height = height
+    )
+  widget <- plotly::config(widget, responsive = TRUE)
+  htmlwidgets::onRender(
+    widget,
+    "function(el, x) {
+      el.style.width = '100%';
+      el.style.maxWidth = '100%';
+      if (el.parentElement) {
+        el.parentElement.style.width = '100%';
+        el.parentElement.style.maxWidth = '100%';
+      }
+      var plotRoot = el.querySelector('.js-plotly-plot');
+      if (plotRoot) {
+        plotRoot.style.width = '100%';
+        plotRoot.style.maxWidth = '100%';
+        if (window.Plotly && window.Plotly.Plots) {
+          window.Plotly.Plots.resize(plotRoot);
+        }
+      }
+    }"
+  )
+}
+
+build_embedding_plotly_3d <- function(df, x, y, z, color_var, title, subtitle = NULL, height = 460) {
+  if (is.null(df) || !all(c(x, y, z, color_var) %in% names(df))) return(NULL)
+  palette_vals <- embedding_palette(df[[color_var]])
+  widget <- plotly::plot_ly(
+    data = df,
+    x = stats::as.formula(paste0("~`", x, "`")),
+    y = stats::as.formula(paste0("~`", y, "`")),
+    z = stats::as.formula(paste0("~`", z, "`")),
+    type = "scatter3d",
+    mode = "markers",
+    color = stats::as.formula(paste0("~`", color_var, "`")),
+    colors = unname(palette_vals),
+    text = ~hover_text,
+    hovertemplate = paste0(
+      "%{text}<br>",
+      x, ": %{x:.3f}<br>",
+      y, ": %{y:.3f}<br>",
+      z, ": %{z:.3f}<extra></extra>"
+    ),
+    marker = list(size = 4.5, opacity = 0.85, line = list(width = 0.4, color = "white"))
+  ) |>
+    plotly::layout(
+      title = list(text = if (is.null(subtitle)) title else paste0(title, "<br><sup>", subtitle, "</sup>"), x = 0),
+      showlegend = FALSE,
+      scene = list(
+        xaxis = list(title = x),
+        yaxis = list(title = y),
+        zaxis = list(title = z),
+        camera = list(eye = list(x = 1.6, y = 1.6, z = 1.2))
+      ),
+      margin = list(l = 0, r = 0, t = 80, b = 30),
+      height = height
+    )
+  widget <- plotly::config(widget, responsive = TRUE)
+  htmlwidgets::onRender(
+    widget,
+    "function(el, x) {
+      el.style.width = '100%';
+      el.style.maxWidth = '100%';
+      if (el.parentElement) {
+        el.parentElement.style.width = '100%';
+        el.parentElement.style.maxWidth = '100%';
+      }
+      var plotRoot = el.querySelector('.js-plotly-plot');
+      if (plotRoot) {
+        plotRoot.style.width = '100%';
+        plotRoot.style.maxWidth = '100%';
+        if (window.Plotly && window.Plotly.Plots) {
+          window.Plotly.Plots.resize(plotRoot);
+        }
+      }
+    }"
+  )
+}
+
+categorical_effect_size <- function(coord, values) {
+  coord <- suppressWarnings(as.numeric(coord))
+  values <- normalize_chr(values)
+  keep <- !is.na(coord) & !is.na(values)
+  coord <- coord[keep]
+  values <- factor(values[keep])
+  if (length(coord) < 4 || nlevels(values) < 2 || nlevels(values) > 24) return(NA_real_)
+  grand_mean <- mean(coord)
+  ss_total <- sum((coord - grand_mean)^2)
+  if (ss_total <= 0) return(0)
+  grp_means <- tapply(coord, values, mean)
+  grp_n <- table(values)
+  ss_between <- sum(as.numeric(grp_n) * (as.numeric(grp_means) - grand_mean)^2)
+  unname(ss_between / ss_total)
+}
+
+numeric_effect_size <- function(coord, values) {
+  coord <- suppressWarnings(as.numeric(coord))
+  values <- suppressWarnings(as.numeric(values))
+  keep <- !is.na(coord) & !is.na(values)
+  if (sum(keep) < 4) return(NA_real_)
+  fit <- stats::lm(coord[keep] ~ values[keep])
+  unname(summary(fit)$r.squared)
+}
+
+build_driver_table <- function(df) {
+  if (is.null(df) || nrow(df) == 0 || !all(c("PC1", "PC2") %in% names(df))) return(NULL)
+  categorical_vars <- intersect(
+    c("batch_label", "dataset_label", "group", "import_group_label", "analysis_set", "SentrixBarcode", "SentrixPosition", "inferred_array_type", "inferred_array_label", "qc_status"),
+    names(df)
+  )
+  numeric_vars <- intersect(c("frac_failed", "mean_detp", "inferred_n_probes"), names(df))
+
+  rows <- list()
+  for (var in categorical_vars) {
+    rows[[length(rows) + 1]] <- tibble::tibble(
+      variable = var,
+      variable_type = "categorical",
+      pc1_effect = categorical_effect_size(df$PC1, df[[var]]),
+      pc2_effect = categorical_effect_size(df$PC2, df[[var]])
+    )
+  }
+  for (var in numeric_vars) {
+    rows[[length(rows) + 1]] <- tibble::tibble(
+      variable = var,
+      variable_type = "numeric",
+      pc1_effect = numeric_effect_size(df$PC1, df[[var]]),
+      pc2_effect = numeric_effect_size(df$PC2, df[[var]])
+    )
+  }
+
+  if (length(rows) == 0) return(NULL)
+  dplyr::bind_rows(rows) |>
+    dplyr::mutate(
+      pc1_effect = round(.data$pc1_effect, 3),
+      pc2_effect = round(.data$pc2_effect, 3),
+      strongest_effect = round(pmax(.data$pc1_effect, .data$pc2_effect, na.rm = TRUE), 3),
+      variable = dplyr::recode(
+        .data$variable,
+        batch_label = "Batch",
+        dataset_label = "Dataset",
+        import_group_label = "Import group",
+        analysis_set = "Analysis set",
+        inferred_array_type = "Inferred array type",
+        inferred_array_label = "Inferred array label",
+        SentrixBarcode = "Sentrix barcode",
+        SentrixPosition = "Sentrix position",
+        qc_status = "QC status",
+        frac_failed = "Failed-probe fraction",
+        mean_detp = "Mean detection p-value",
+        inferred_n_probes = "Inferred probe count",
+        group = "Group"
+      )
+    ) |>
+    dplyr::arrange(dplyr::desc(.data$strongest_effect), .data$variable)
+}
+
+raw_pca <- prepare_embedding_df(read_if(file.path("results/tables", paste0(raw_prefix, "_pca.csv"))))
+raw_tsne <- prepare_embedding_df(read_if(file.path("results/tables", paste0(raw_prefix, "_tsne.csv"))))
+raw_umap <- prepare_embedding_df(read_if(file.path("results/tables", paste0(raw_prefix, "_umap.csv"))))
+corrected_pca <- prepare_embedding_df(read_if(file.path("results/tables", paste0(corrected_prefix, "_pca.csv"))))
+corrected_tsne <- prepare_embedding_df(read_if(file.path("results/tables", paste0(corrected_prefix, "_tsne.csv"))))
+corrected_umap <- prepare_embedding_df(read_if(file.path("results/tables", paste0(corrected_prefix, "_umap.csv"))))
+
+raw_driver_tbl <- build_driver_table(raw_pca)
+corrected_driver_tbl <- build_driver_table(corrected_pca)
+```
+
+## Raw Merged Cohort
+
+These embeddings summarize the overview cohort before batch correction. Hovering over each point shows the sample identifier, group, batch, import group, Sentrix position, and basic QC values.
+
+### PCA
+
+```{r raw-pca-group}
+build_embedding_plotly_2d(
+  raw_pca,
+  "PC1",
+  "PC2",
+  "group",
+  "Raw PCA by group",
+  subtitle = sprintf("%d samples", nrow(raw_pca))
+)
+```
+
+```{r raw-pca-batch}
+build_embedding_plotly_2d(
+  raw_pca,
+  "PC1",
+  "PC2",
+  "batch_label",
+  "Raw PCA by batch",
+  subtitle = "Use hover to inspect samples that drive the visible separation"
+)
+```
+
+### t-SNE
+
+```{r raw-tsne-group}
+build_embedding_plotly_2d(
+  raw_tsne,
+  "TSNE1",
+  "TSNE2",
+  "group",
+  "Raw t-SNE by group"
+)
+```
+
+```{r raw-tsne-batch}
+build_embedding_plotly_2d(
+  raw_tsne,
+  "TSNE1",
+  "TSNE2",
+  "batch_label",
+  "Raw t-SNE by batch"
+)
+```
+
+### UMAP
+
+```{r raw-umap-group}
+if (!is.null(raw_umap)) {
+  build_embedding_plotly_2d(
+    raw_umap,
+    "UMAP1",
+    "UMAP2",
+    "group",
+    "Raw UMAP by group"
+  )
+}
+```
+
+```{r raw-umap-batch}
+if (!is.null(raw_umap)) {
+  build_embedding_plotly_2d(
+    raw_umap,
+    "UMAP1",
+    "UMAP2",
+    "batch_label",
+    "Raw UMAP by batch"
+  )
+}
+```
+
+### 3D PCA and 3D t-SNE
+
+```{r raw-pca3d}
+build_embedding_plotly_3d(
+  raw_pca,
+  "PC1",
+  "PC2",
+  "PC3",
+  "group",
+  "Raw 3D PCA by group",
+  subtitle = sprintf("%d samples", nrow(raw_pca))
+)
+```
+
+```{r raw-tsne3d}
+build_embedding_plotly_3d(
+  raw_tsne,
+  "TSNE1",
+  "TSNE2",
+  "TSNE3",
+  "group",
+  "Raw 3D t-SNE by group"
+)
+```
+
+## Potential Drivers Of The Separation
+
+When the raw PCA shows strong clustering by batch, the next question is whether that separation is most aligned with:
+
+- technical batch labels
+- dataset of origin
+- array import group or inferred array type
+- Sentrix barcode or position
+- QC metrics such as failed-probe fraction or mean detection p-value
+- biological group itself
+
+The table below scores how strongly each available variable aligns with `PC1` and `PC2` in the raw PCA. For categorical variables this is a simple variance-explained estimate; for numeric variables it is an `R²` from a one-variable linear model. Higher values suggest that variable is a stronger candidate driver of the separation.
+
+```{r raw-driver-table}
+if (!is.null(raw_driver_tbl)) {
+  render_report_table(
+    preview_report_table(raw_driver_tbl, max_rows_inline = 12),
+    preferred = c("variable", "variable_type", "pc1_effect", "pc2_effect", "strongest_effect"),
+    page_length = 12
+  )
+  report_preview_note(raw_driver_tbl, max_rows_inline = 12, noun = "driver rows")
+}
+```
+
+## Batch-Corrected Cohort
+
+When batch correction is enabled, the corrected embeddings below show whether technical separation has been reduced while preserving biological structure.
+
+### PCA
+
+```{r corrected-pca-group}
+if (!is.null(corrected_pca)) {
+  build_embedding_plotly_2d(
+    corrected_pca,
+    "PC1",
+    "PC2",
+    "group",
+    "Corrected PCA by group"
+  )
+}
+```
+
+```{r corrected-pca-batch}
+if (!is.null(corrected_pca)) {
+  build_embedding_plotly_2d(
+    corrected_pca,
+    "PC1",
+    "PC2",
+    "batch_label",
+    "Corrected PCA by batch"
+  )
+}
+```
+
+### t-SNE
+
+```{r corrected-tsne-group}
+if (!is.null(corrected_tsne)) {
+  build_embedding_plotly_2d(
+    corrected_tsne,
+    "TSNE1",
+    "TSNE2",
+    "group",
+    "Corrected t-SNE by group"
+  )
+}
+```
+
+```{r corrected-tsne-batch}
+if (!is.null(corrected_tsne)) {
+  build_embedding_plotly_2d(
+    corrected_tsne,
+    "TSNE1",
+    "TSNE2",
+    "batch_label",
+    "Corrected t-SNE by batch"
+  )
+}
+```
+
+### UMAP
+
+```{r corrected-umap-group}
+if (!is.null(corrected_umap)) {
+  build_embedding_plotly_2d(
+    corrected_umap,
+    "UMAP1",
+    "UMAP2",
+    "group",
+    "Corrected UMAP by group"
+  )
+}
+```
+
+```{r corrected-umap-batch}
+if (!is.null(corrected_umap)) {
+  build_embedding_plotly_2d(
+    corrected_umap,
+    "UMAP1",
+    "UMAP2",
+    "batch_label",
+    "Corrected UMAP by batch"
+  )
+}
+```
+
+### 3D PCA and 3D t-SNE
+
+```{r corrected-pca3d}
+if (!is.null(corrected_pca)) {
+  build_embedding_plotly_3d(
+    corrected_pca,
+    "PC1",
+    "PC2",
+    "PC3",
+    "group",
+    "Corrected 3D PCA by group"
+  )
+}
+```
+
+```{r corrected-tsne3d}
+if (!is.null(corrected_tsne)) {
+  build_embedding_plotly_3d(
+    corrected_tsne,
+    "TSNE1",
+    "TSNE2",
+    "TSNE3",
+    "group",
+    "Corrected 3D t-SNE by group"
+  )
+}
+```
+
+## What Else To Check
+
+Beyond the embedding plots themselves, the most useful follow-up checks for a suspected batch effect are:
+
+- whether `SentrixBarcode` or `SentrixPosition` ranks highly in the raw PCA driver table
+- whether `import_group` or `inferred_array_type` explains the split, which would suggest array-version structure rather than wet-lab handling alone
+- whether `frac_failed` or `mean_detp` aligns with the separation, which would suggest QC-driven structure
+- whether the same separation weakens after correction while the biological groups remain distinguishable
+
+```{r corrected-driver-table}
+if (!is.null(corrected_driver_tbl)) {
+  render_report_table(
+    preview_report_table(corrected_driver_tbl, max_rows_inline = 12),
+    preferred = c("variable", "variable_type", "pc1_effect", "pc2_effect", "strongest_effect"),
+    page_length = 12
+  )
+  report_preview_note(corrected_driver_tbl, max_rows_inline = 12, noun = "driver rows")
+}
+```

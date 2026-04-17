@@ -53,6 +53,10 @@ templates:
         function: get_dgea_name
       authors:
         function: get_dgea_authors
+  methylation_array_analysis:
+    params:
+      authors:
+        function: get_dgea_authors
   multiqc:
     params:
       input_dir:

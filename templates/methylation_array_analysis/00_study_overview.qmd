@@ -1,0 +1,154 @@
+---
+title: "00 Study Overview"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 2
+    toc-location: left
+    html-math-method: katex
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+    page-layout: article
+    css: report-style.css
+    html-table-processing: none
+    theme: lumen
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+source("dnam_inputs.R")
+source("report_helpers.R")
+cfg <- load_project_config("config/datasets.toml")
+read_if <- function(path) if (file.exists(path)) readr::read_csv(path, show_col_types = FALSE) else NULL
+run_summary <- read_if("results/tables/input_run_summary.csv")
+sample_inventory <- read_if("results/tables/sample_inventory_overview.csv")
+if (is.null(sample_inventory)) sample_inventory <- read_if("results/tables/sample_inventory.csv")
+overview_group_counts <- read_if("results/tables/overview_group_counts.csv")
+batch_summary <- read_if("results/tables/batch_correction_summary.csv")
+comparison_index <- read_if("results/tables/comparison_index.csv")
+overview_tbl <- tibble::tibble(
+  metric = c("project_name", "configured_array_type", "configured_genome_build", "n_enabled_datasets", "n_samples", "n_configured_comparisons"),
+  value = c(
+    project_name,
+    coalesce_chr(cfg$project$array_type, "AUTO"),
+    coalesce_chr(cfg$project$genome_build, "hg38"),
+    if (is.null(run_summary)) NA else nrow(run_summary),
+    if (is.null(sample_inventory)) NA else nrow(sample_inventory),
+    if (is.null(comparison_index) || "note" %in% names(comparison_index)) 0 else nrow(comparison_index)
+  )
+)
+write_table(overview_tbl, "results/tables/overview_table.csv")
+sample_inventory_preview <- if (is.null(sample_inventory)) NULL else preview_report_table(
+  sample_inventory,
+  max_rows_inline = 50
+)
+comparison_index_preview <- if (is.null(comparison_index)) NULL else preview_report_table(
+  comparison_index,
+  max_rows_inline = 30
+)
+```
+
+## Study Summary
+
+This report summarizes the rendered methylation array study workspace. The Linkar project itself is treated as the study, so the report name follows the project directory rather than a separate template parameter.
+
+```{r overview-table}
+render_report_table(overview_tbl, page_length = 10)
+```
+
+## Input Datasets
+
+These datasets were enabled and successfully merged for downstream analysis.
+
+```{r input-runs-plot}
+if (!is.null(run_summary) && all(c("dataset_id", "n_samples") %in% names(run_summary))) {
+  ds_plot <- run_summary |>
+    dplyr::group_by(.data$dataset_id) |>
+    dplyr::summarise(n_samples = sum(.data$n_samples, na.rm = TRUE), .groups = "drop") |>
+    dplyr::arrange(dplyr::desc(.data$n_samples), .data$dataset_id) |>
+    dplyr::mutate(dataset_id = factor(.data$dataset_id, levels = rev(unique(.data$dataset_id))))
+  ggplot(ds_plot, aes(x = dataset_id, y = n_samples)) +
+    geom_col(fill = "#4C78A8", width = 0.75) +
+    coord_flip() +
+    labs(
+      title = "Samples Per Enabled Dataset",
+      x = NULL,
+      y = "Samples"
+    ) +
+    theme_pub()
+}
+```
+
+```{r input-runs}
+if (!is.null(run_summary)) {
+  render_report_table(run_summary, preferred = c("dataset_id", "array_type", "n_samples", "n_common_probes", "normalization"), page_length = 10)
+} else {
+  cat("Input dataset summary not found.\n")
+}
+```
+
+## Sample Inventory
+
+This sample inventory is the cohort currently wired into the overview reports. If no
+overview-specific subset was prepared, the full merged inventory is shown instead.
+
+```{r sample-inventory}
+if (!is.null(sample_inventory)) {
+  render_report_table(sample_inventory_preview, preferred = c("sample_id", "dataset_id", "group", "subgroup", "batch", "analysis_set", "sex", "age"), page_length = 25)
+  report_preview_note(sample_inventory, max_rows_inline = 50, noun = "sample rows")
+}
+```
+
+## Overview Group Counts
+
+```{r overview-group-counts-plot}
+if (!is.null(overview_group_counts) && all(c("group", "n_samples") %in% names(overview_group_counts))) {
+  plot_df <- overview_group_counts |>
+    dplyr::arrange(dplyr::desc(.data$n_samples)) |>
+    dplyr::mutate(group = factor(.data$group, levels = rev(.data$group)))
+  ggplot(plot_df, aes(x = group, y = n_samples)) +
+    geom_col(fill = "#2A9D8F", width = 0.75) +
+    coord_flip() +
+    labs(
+      title = "Overview Cohort Size By Group",
+      x = NULL,
+      y = "Samples"
+    ) +
+    theme_pub()
+}
+```
+
+```{r overview-group-counts}
+if (!is.null(overview_group_counts)) {
+  render_report_table(overview_group_counts, preferred = c("group", "n_samples"), page_length = 15)
+}
+```
+
+## Batch Correction
+
+This table records whether batch-effect removal was applied to the merged cohort matrix and which variables were preserved in the correction model.
+
+```{r batch-summary}
+if (!is.null(batch_summary)) {
+  render_report_table(batch_summary, page_length = 10)
+}
+```
+
+## Comparison Index
+
+These are the standalone comparison reports configured in `DNAm_constructor.R`.
+
+```{r comparison-index}
+if (!is.null(comparison_index)) {
+  render_report_table(comparison_index_preview, preferred = c("report_order", "report_file", "comparison_name", "target_group", "base_group", "n_samples"), page_length = 20)
+  report_preview_note(comparison_index, max_rows_inline = 30, noun = "comparison rows")
+} else {
+  cat("No comparisons have been configured yet.\n")
+}
+```

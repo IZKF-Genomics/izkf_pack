@@ -1,0 +1,3 @@
+sample_id,dataset_id,group,subgroup,batch,analysis_set,include,exclude_reason,SentrixBarcode,SentrixPosition,idat_dir,idat_basename,sex,age,notes
+S1,dataset_1,groupA,,batch1,main,true,,1234567890,R01C01,,,,,
+S2,dataset_1,groupB,,batch1,main,true,,1234567890,R02C01,,,,,

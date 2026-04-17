@@ -1,5 +1,5 @@
 id: nfcore_methylseq
-version: 0.1.0
+version: 0.1.1
 description: Facility-specific nf-core/methylseq wrapper for RRBS runs.
 tools:
   required:
@@ -23,10 +23,6 @@ params:
     type: bool
     default: true
     description: Enable Reduced Representation Bisulfite Sequencing (RRBS) mode. This is the default protocol in the lab.
-  project_name:
-    type: str
-    default: ""
-    description: Project name used for --multiqc_title. The default binding resolves this from the active Linkar project.
   max_cpus:
     type: int
     required: false

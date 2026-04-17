@@ -1,0 +1,326 @@
+---
+title: "03 Batch Diagnostics"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 2
+    toc-location: left
+    html-math-method: katex
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+    page-layout: article
+    css: report-style.css
+    html-table-processing: none
+    theme: lumen
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+source("dnam_inputs.R")
+source("report_helpers.R")
+suppressPackageStartupMessages(library(plotly))
+
+read_if <- function(path) if (file.exists(path)) readr::read_csv(path, show_col_types = FALSE) else NULL
+
+pretty_dataset_label <- function(x) {
+  dplyr::recode(
+    x,
+    gse197094_epic = "GSE197094 EPIC",
+    gse216262_epic = "GSE216262 EPIC",
+    gse216262_450k = "GSE216262 450K",
+    own_batch_epic = "Own batch EPIC",
+    .default = gsub("_", " ", x)
+  )
+}
+
+pretty_import_group_label <- function(x) {
+  dplyr::recode(
+    x,
+    EPIC_1051943 = "EPIC v1 (1051943)",
+    EPIC_1052641 = "EPIC v1 (1052641)",
+    EPIC_V2_1105209 = "EPIC v2",
+    `450K_622399` = "450K",
+    .default = gsub("_", " ", x)
+  )
+}
+
+normalize_chr <- function(x) {
+  x <- as.character(x)
+  x[x %in% c("", "NA", "NaN", "NULL")] <- NA_character_
+  x
+}
+
+prepare_pca_df <- function(df) {
+  if (is.null(df) || nrow(df) == 0) return(df)
+  df <- tibble::as_tibble(df)
+  imp_x <- if ("import_group.x" %in% names(df)) normalize_chr(df[["import_group.x"]]) else rep(NA_character_, nrow(df))
+  imp_y <- if ("import_group.y" %in% names(df)) normalize_chr(df[["import_group.y"]]) else rep(NA_character_, nrow(df))
+  df$import_group <- dplyr::coalesce(imp_x, imp_y)
+  df$dataset_label <- pretty_dataset_label(normalize_chr(df$dataset_id))
+  df$batch_label <- pretty_dataset_label(normalize_chr(df$batch))
+  df$import_group_label <- pretty_import_group_label(normalize_chr(df$import_group))
+  df$hover_text <- paste0(
+    "<b>", normalize_chr(df$sample_id), "</b>",
+    "<br>Group: ", normalize_chr(df$group),
+    "<br>Batch: ", df$batch_label,
+    "<br>Dataset: ", df$dataset_label,
+    "<br>Import group: ", df$import_group_label,
+    "<br>Sentrix: ", normalize_chr(df$SentrixBarcode), " / ", normalize_chr(df$SentrixPosition),
+    "<br>PC1: ", formatC(df$PC1, digits = 3, format = "f"),
+    "<br>PC2: ", formatC(df$PC2, digits = 3, format = "f")
+  )
+  df
+}
+
+categorical_effect_size <- function(coord, values) {
+  coord <- suppressWarnings(as.numeric(coord))
+  values <- normalize_chr(values)
+  keep <- !is.na(coord) & !is.na(values)
+  coord <- coord[keep]
+  values <- factor(values[keep])
+  if (length(coord) < 4 || nlevels(values) < 2 || nlevels(values) > 24) return(NA_real_)
+  grand_mean <- mean(coord)
+  ss_total <- sum((coord - grand_mean)^2)
+  if (ss_total <= 0) return(0)
+  grp_means <- tapply(coord, values, mean)
+  grp_n <- table(values)
+  ss_between <- sum(as.numeric(grp_n) * (as.numeric(grp_means) - grand_mean)^2)
+  unname(ss_between / ss_total)
+}
+
+numeric_effect_size <- function(coord, values) {
+  coord <- suppressWarnings(as.numeric(coord))
+  values <- suppressWarnings(as.numeric(values))
+  keep <- !is.na(coord) & !is.na(values)
+  if (sum(keep) < 4) return(NA_real_)
+  fit <- stats::lm(coord[keep] ~ values[keep])
+  unname(summary(fit)$r.squared)
+}
+
+build_driver_table <- function(df) {
+  if (is.null(df) || nrow(df) == 0) return(NULL)
+  categorical_vars <- intersect(
+    c("batch_label", "dataset_label", "group", "import_group_label", "analysis_set", "SentrixBarcode", "SentrixPosition", "inferred_array_type", "inferred_array_label"),
+    names(df)
+  )
+  numeric_vars <- intersect(c("frac_failed", "mean_detp", "inferred_n_probes"), names(df))
+  rows <- list()
+  for (var in categorical_vars) {
+    rows[[length(rows) + 1]] <- tibble::tibble(
+      variable = var,
+      variable_type = "categorical",
+      pc1_effect = categorical_effect_size(df$PC1, df[[var]]),
+      pc2_effect = categorical_effect_size(df$PC2, df[[var]])
+    )
+  }
+  for (var in numeric_vars) {
+    rows[[length(rows) + 1]] <- tibble::tibble(
+      variable = var,
+      variable_type = "numeric",
+      pc1_effect = numeric_effect_size(df$PC1, df[[var]]),
+      pc2_effect = numeric_effect_size(df$PC2, df[[var]])
+    )
+  }
+  if (length(rows) == 0) return(NULL)
+  dplyr::bind_rows(rows) |>
+    dplyr::mutate(
+      strongest_effect = pmax(.data$pc1_effect, .data$pc2_effect, na.rm = TRUE),
+      pc1_effect = round(.data$pc1_effect, 3),
+      pc2_effect = round(.data$pc2_effect, 3),
+      strongest_effect = round(.data$strongest_effect, 3),
+      variable = dplyr::recode(
+        .data$variable,
+        batch_label = "Batch",
+        dataset_label = "Dataset",
+        import_group_label = "Import group",
+        analysis_set = "Analysis set",
+        inferred_array_type = "Inferred array type",
+        inferred_array_label = "Inferred array label",
+        SentrixBarcode = "Sentrix barcode",
+        SentrixPosition = "Sentrix position",
+        frac_failed = "Failed-probe fraction",
+        mean_detp = "Mean detection p-value",
+        inferred_n_probes = "Inferred probe count",
+        group = "Group"
+      )
+    ) |>
+    dplyr::arrange(dplyr::desc(.data$strongest_effect), .data$variable)
+}
+
+build_count_table <- function(df, row_var, col_var) {
+  if (is.null(df) || !all(c(row_var, col_var) %in% names(df))) return(NULL)
+  df |>
+    dplyr::mutate(
+      row_value = normalize_chr(.data[[row_var]]),
+      col_value = normalize_chr(.data[[col_var]])
+    ) |>
+    dplyr::filter(!is.na(.data$row_value), !is.na(.data$col_value)) |>
+    dplyr::count(.data$row_value, .data$col_value, name = "n_samples") |>
+    tidyr::pivot_wider(names_from = .data$col_value, values_from = .data$n_samples, values_fill = 0) |>
+    dplyr::rename(!!row_var := .data$row_value)
+}
+
+build_pc_boxplot <- function(df, pc_col, title) {
+  if (is.null(df) || !all(c(pc_col, "batch_label", "group", "hover_text") %in% names(df))) return(NULL)
+  palette_vals <- stats::setNames(grDevices::hcl.colors(length(unique(stats::na.omit(df$group))), "Dark 3"), sort(unique(stats::na.omit(df$group))))
+  widget <- plotly::plot_ly(
+    data = df,
+    x = ~batch_label,
+    y = stats::as.formula(paste0("~`", pc_col, "`")),
+    color = ~group,
+    colors = unname(palette_vals),
+    type = "box",
+    boxpoints = "all",
+    jitter = 0.28,
+    pointpos = 0,
+    text = ~hover_text,
+    hovertemplate = paste0("%{text}<br>", pc_col, ": %{y:.3f}<extra></extra>"),
+    marker = list(size = 8, opacity = 0.8),
+    line = list(width = 1)
+  ) |>
+    plotly::layout(
+      title = list(text = title, x = 0),
+      xaxis = list(title = "", tickangle = -15),
+      yaxis = list(title = pc_col),
+      legend = list(orientation = "h", y = -0.22, x = 0, title = list(text = "")),
+      margin = list(l = 70, r = 20, t = 65, b = 95),
+      height = 460,
+      hoverlabel = list(align = "left")
+    )
+  widget <- plotly::config(widget, responsive = TRUE)
+  htmlwidgets::onRender(
+    widget,
+    "function(el, x) {
+      el.style.width = '100%';
+      el.style.maxWidth = '100%';
+      if (el.parentElement) {
+        el.parentElement.style.width = '100%';
+        el.parentElement.style.maxWidth = '100%';
+      }
+      var plotRoot = el.querySelector('.js-plotly-plot');
+      if (plotRoot) {
+        plotRoot.style.width = '100%';
+        plotRoot.style.maxWidth = '100%';
+        if (window.Plotly && window.Plotly.Plots) {
+          window.Plotly.Plots.resize(plotRoot);
+        }
+      }
+    }"
+  )
+}
+
+raw_pca <- prepare_pca_df(read_if("results/tables/overview_cohort_raw_pca.csv"))
+if (is.null(raw_pca)) raw_pca <- prepare_pca_df(read_if("results/tables/raw_all_samples_pca.csv"))
+corrected_pca <- prepare_pca_df(read_if("results/tables/overview_cohort_corrected_pca.csv"))
+if (is.null(corrected_pca)) corrected_pca <- prepare_pca_df(read_if("results/tables/corrected_all_samples_pca.csv"))
+
+raw_driver_tbl <- build_driver_table(raw_pca)
+corrected_driver_tbl <- build_driver_table(corrected_pca)
+batch_group_tbl <- build_count_table(raw_pca, "batch_label", "group")
+batch_dataset_tbl <- build_count_table(raw_pca, "batch_label", "dataset_label")
+batch_import_tbl <- build_count_table(raw_pca, "batch_label", "import_group_label")
+```
+
+## Why A Separate Batch Diagnostics Report
+
+This report focuses on the question raised by the embedding plots: which technical or metadata variables best explain the visible separation in the raw cohort, and how much of that separation remains after correction.
+
+## Raw PCA Diagnostics
+
+### PC1 By Batch
+
+```{r raw-pc1-batch}
+build_pc_boxplot(raw_pca, "PC1", "Raw PC1 by batch")
+```
+
+### PC2 By Batch
+
+```{r raw-pc2-batch}
+build_pc_boxplot(raw_pca, "PC2", "Raw PC2 by batch")
+```
+
+## Candidate Drivers Of The Raw Separation
+
+Higher values below indicate that a variable aligns more strongly with the first two raw principal components.
+
+```{r raw-driver-table}
+if (!is.null(raw_driver_tbl)) {
+  render_report_table(
+    preview_report_table(raw_driver_tbl, max_rows_inline = 15),
+    preferred = c("variable", "variable_type", "pc1_effect", "pc2_effect", "strongest_effect")
+  )
+  report_preview_note(raw_driver_tbl, max_rows_inline = 15, noun = "driver rows")
+}
+```
+
+## Cross-Tabulations
+
+### Batch By Group
+
+```{r batch-group}
+if (!is.null(batch_group_tbl)) {
+  render_report_table(batch_group_tbl)
+}
+```
+
+### Batch By Dataset
+
+```{r batch-dataset}
+if (!is.null(batch_dataset_tbl)) {
+  render_report_table(batch_dataset_tbl)
+}
+```
+
+### Batch By Import Group
+
+```{r batch-import}
+if (!is.null(batch_import_tbl)) {
+  render_report_table(batch_import_tbl)
+}
+```
+
+## After Batch Correction
+
+### Corrected PC1 By Batch
+
+```{r corrected-pc1-batch}
+if (!is.null(corrected_pca)) {
+  build_pc_boxplot(corrected_pca, "PC1", "Corrected PC1 by batch")
+}
+```
+
+### Corrected PC2 By Batch
+
+```{r corrected-pc2-batch}
+if (!is.null(corrected_pca)) {
+  build_pc_boxplot(corrected_pca, "PC2", "Corrected PC2 by batch")
+}
+```
+
+### Candidate Drivers After Correction
+
+```{r corrected-driver-table}
+if (!is.null(corrected_driver_tbl)) {
+  render_report_table(
+    preview_report_table(corrected_driver_tbl, max_rows_inline = 15),
+    preferred = c("variable", "variable_type", "pc1_effect", "pc2_effect", "strongest_effect")
+  )
+  report_preview_note(corrected_driver_tbl, max_rows_inline = 15, noun = "driver rows")
+}
+```
+
+## How To Interpret This
+
+The most useful clues for a true batch effect are:
+
+- `Batch` or `Dataset` ranking highly in the raw driver table
+- `Sentrix barcode` or `Sentrix position` ranking highly, which suggests slide/array-placement structure
+- `Import group` or `Inferred array type` ranking highly, which suggests EPIC/EPICv2/450K structure
+- `Failed-probe fraction` or `Mean detection p-value` ranking highly, which suggests QC-driven separation
+- these signals weakening after correction while the biological group structure remains

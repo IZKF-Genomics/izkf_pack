@@ -1,0 +1,33 @@
+id: methylation_array_analysis
+version: 0.1.0
+description: Editable Illumina methylation array analysis workspace with staged preprocessing, batch-aware cohort analysis, and Quarto reports.
+tools:
+  required:
+    - pixi
+    - python3
+params:
+  authors:
+    type: str
+    default: ""
+    description: Optional author list shown in reports. When omitted, the workspace derives a fallback from Linkar project metadata when available.
+outputs:
+  results_dir: {}
+  run_info:
+    path: results/run_info.yaml
+  software_versions:
+    path: results/software_versions.json
+  datasets_config:
+    path: config/datasets.toml
+  samples_config:
+    path: config/samples.csv
+  html_reports:
+    glob: reports/*.html
+  tables:
+    glob: results/tables/**/*.csv
+  figures:
+    glob: results/figures/**/*.{png,html}
+  rds_objects:
+    glob: results/rds/*.rds
+run:
+  mode: render
+  entry: run.sh

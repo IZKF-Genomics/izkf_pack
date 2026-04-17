@@ -1,5 +1,5 @@
 id: nfcore_3mrnaseq
-version: 0.1.0
+version: 0.1.1
 description: Facility-specific nf-core/rnaseq wrapper for 3' mRNA-seq runs.
 tools:
   required:

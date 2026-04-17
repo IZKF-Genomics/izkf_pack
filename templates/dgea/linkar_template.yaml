@@ -1,5 +1,5 @@
 id: dgea
-version: 0.1.0
+version: 0.1.1
 description: Editable DGEA workspace with Pixi, Positron, and Quarto support.
 tools:
   required:
