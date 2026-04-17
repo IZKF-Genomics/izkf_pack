@@ -71,7 +71,8 @@ def main() -> int:
         functions_text = (TEMPLATE_DIR / "DGEA_functions.R").read_text(encoding="utf-8")
         spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
         assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
-        assert "output_dir = results_dir" in functions_text
+        assert 'qmd_file <- "DGEA_all_samples.qmd"' in functions_text
+        assert 'template_path = file.path(workspace_dir, "SimpleComparison_template.qmd")' in functions_text
         assert "quarto" in spec_text
     return 0
 

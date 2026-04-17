@@ -129,8 +129,6 @@ render_DGEA_report <- function(config) {
   quarto::quarto_render(
     input = qmd_path,
     output_file = output_file,
-    output_dir = results_dir,
-    execute_params = execute_params,
     quiet = TRUE
   )
   invisible(output_path)
@@ -154,14 +152,21 @@ render_DGEA_all_sample <- function(config) {
     authors = config$authors %||% "PROJECT_AUTHORS"
   )
 
+  qmd_file <- "DGEA_all_samples.qmd"
+  qmd_path <- file.path(results_dir, qmd_file)
+  write_qmd_with_params(
+    template_path = file.path(workspace_dir, "DGEA_all_samples.qmd"),
+    output_path = qmd_path,
+    params = execute_params
+  )
+  message("Writing standalone QMD to: ", normalizePath(qmd_path, winslash = "/", mustWork = FALSE))
+
   output_file <- "DGEA_all_samples.html"
   output_path <- file.path(results_dir, output_file)
   message("Rendering DGEA all-samples report to: ", normalizePath(output_path, winslash = "/", mustWork = FALSE))
   quarto::quarto_render(
-    input = file.path(workspace_dir, "DGEA_all_samples.qmd"),
+    input = qmd_path,
     output_file = output_file,
-    output_dir = results_dir,
-    execute_params = execute_params,
     quiet = TRUE
   )
   invisible(output_path)
@@ -191,14 +196,21 @@ render_simple_report <- function(config) {
     filetag = filetag
   )
 
+  qmd_file <- paste0("SimpleComparison_", filetag, ".qmd")
+  qmd_path <- file.path(results_dir, qmd_file)
+  write_qmd_with_params(
+    template_path = file.path(workspace_dir, "SimpleComparison_template.qmd"),
+    output_path = qmd_path,
+    params = execute_params
+  )
+  message("Writing standalone QMD to: ", normalizePath(qmd_path, winslash = "/", mustWork = FALSE))
+
   output_file <- paste0("SimpleComparison_", filetag, ".html")
   output_path <- file.path(results_dir, output_file)
   message("Rendering simple comparison report to: ", normalizePath(output_path, winslash = "/", mustWork = FALSE))
   quarto::quarto_render(
-    input = file.path(workspace_dir, "SimpleComparison_template.qmd"),
+    input = qmd_path,
     output_file = output_file,
-    output_dir = results_dir,
-    execute_params = execute_params,
     quiet = TRUE
   )
   invisible(output_path)
