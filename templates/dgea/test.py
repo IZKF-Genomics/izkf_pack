@@ -73,6 +73,7 @@ def main() -> int:
         assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
         assert 'qmd_file <- "DGEA_all_samples.qmd"' in functions_text
         assert 'template_path = file.path(workspace_dir, "SimpleComparison_template.qmd")' in functions_text
+        assert 'support_files <- c("references.bib", "thermofisher_LSG_manuals_cms_095046.txt")' in functions_text
         assert "quarto" in spec_text
     return 0
 
