@@ -102,7 +102,7 @@ def test_rendered_run_script() -> None:
         env["MAX_CPUS"] = "12"
         env["MAX_MEMORY"] = "48GB"
         completed = subprocess.run(
-            ["python3", str(TEMPLATE_DIR / "run.py")],
+            ["bash", str(TEMPLATE_DIR / "run.sh"), "-resume"],
             cwd=tmpdir,
             env=env,
             text=True,
@@ -117,6 +117,7 @@ def test_rendered_run_script() -> None:
         assert "--rrbs" in args_text
         assert "--multiqc_title rrbs_project" in args_text
         assert "--genome GRCm39" in args_text
+        assert "-resume" in args_text
         assert "--max_cpus" not in args_text
         assert "--max_memory" not in args_text
         assert "gpu" not in args_text
@@ -137,6 +138,7 @@ def test_rendered_run_script() -> None:
         assert runtime_payload["params"]["genome"] == "GRCm39"
         assert runtime_payload["params"]["rrbs"] is True
         assert runtime_payload["params"]["project_name"] == "rrbs_project"
+        assert runtime_payload["params"]["resume"] is True
         assert runtime_payload["params"]["max_cpus"] == "12"
         assert runtime_payload["params"]["max_memory"] == "48GB"
         assert runtime_payload["artifacts"]["nextflow_config"] == str(results_dir / "nextflow.config")
@@ -217,6 +219,7 @@ def main() -> None:
     assert "- pixi" in template_text
     assert "default: true" in template_text
     assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
+    assert 'LINKAR_NEXTFLOW_RESUME=true' in run_sh_text
     assert 'subprocess.run(["pixi", "install"], check=True)' in run_py_text
     assert '["pixi", "run", "nextflow", "-version"]' in run_py_text
     assert 'runtime_command.json' in run_py_text

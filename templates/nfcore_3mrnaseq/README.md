@@ -20,7 +20,6 @@ Exposed parameters:
 - `agendo_id`
 - `umi`
 - `spikein`
-- `project_name`
 - `max_cpus`
 - `max_memory`
 
@@ -30,7 +29,6 @@ With `--binding default`, the pack can resolve:
 - `genome` from Agendo organism metadata
 - `umi` from Agendo UMI metadata
 - `spikein` from Agendo spike-in metadata
-- `project_name` from the active Linkar project name
 - `max_cpus` and `max_memory` from host capacity
 
 ## Samplesheet generation
@@ -60,7 +58,6 @@ wrapper for direct execution, but the actual runtime logic lives in
 - installs the template-local `pixi` environment and runs `nextflow` from it
 - records `software_versions.json`
 - records `runtime_command.json` with the effective Nextflow invocation and resolved runtime context
-- sets `--multiqc_title` from the Linkar project name
 - enables UMI extraction flags for the known Takara QuantSeq kit phrase
 - writes a generated runtime `nextflow.config` and applies CPU / memory caps through `-c`
 - runs the fixed `nf-core/rnaseq` invocation

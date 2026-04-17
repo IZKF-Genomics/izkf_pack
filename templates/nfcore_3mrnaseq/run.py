@@ -27,14 +27,8 @@ def optional_env(name: str, default: str = "") -> str:
     return os.environ.get(name, default).strip()
 
 
-def project_title() -> str:
-    explicit = optional_env("PROJECT_NAME")
-    if explicit:
-        return explicit
-    project_dir = optional_env("LINKAR_PROJECT_DIR")
-    if project_dir:
-        return Path(project_dir).name
-    return Path.cwd().name
+def env_flag(name: str) -> bool:
+    return optional_env(name).lower() in {"1", "true", "yes", "on"}
 
 
 def normalize_memory(value: str) -> str:
@@ -123,8 +117,8 @@ def build_nextflow_command(
     samplesheet: str,
     results_dir: str,
     genome: str,
-    multiqc_title: str,
     umi: str,
+    resume: bool,
 ) -> list[str]:
     command = [
         "pixi",
@@ -142,8 +136,6 @@ def build_nextflow_command(
         samplesheet,
         "--outdir",
         results_dir,
-        "--multiqc_title",
-        multiqc_title,
         "--extra_salmon_quant_args=--noLengthCorrection",
         "--extra_star_align_args=--alignIntronMax 1000000 --alignIntronMin 20 --alignMatesGapMax 1000000 --alignSJoverhangMin 8 --outFilterMismatchNmax 999 --outFilterMultimapNmax 20 --outFilterType BySJout --outFilterMismatchNoverLmax 0.1 --clip3pAdapterSeq AAAAAAAA",
         "--genome",
@@ -156,6 +148,8 @@ def build_nextflow_command(
         "--featurecounts_group_type",
         "gene_type",
     ]
+    if resume:
+        command.append("-resume")
     if umi == UMI_KIT:
         command.extend(
             [
@@ -177,7 +171,7 @@ def write_runtime_command(
     raw_genome: str,
     umi: str,
     spikein: str,
-    project_name: str,
+    resume: bool,
     max_cpus: str,
     max_memory: str,
     nextflow_config: Path,
@@ -195,7 +189,7 @@ def write_runtime_command(
             "effective_genome": genome,
             "umi": umi,
             "spikein": spikein,
-            "project_name": project_name,
+            "resume": resume,
             "max_cpus": max_cpus,
             "max_memory": max_memory,
         },
@@ -225,16 +219,16 @@ def main() -> int:
 
     spikein = optional_env("SPIKEIN")
     umi = optional_env("UMI")
-    title = project_title()
     chosen_genome = effective_genome(genome, spikein)
     results_dir = Path(require_env("LINKAR_RESULTS_DIR")).resolve()
     results_dir.mkdir(parents=True, exist_ok=True)
     samplesheet = str(Path(require_env("SAMPLESHEET")).resolve())
+    resume = env_flag("LINKAR_NEXTFLOW_RESUME")
     max_cpus = optional_env("MAX_CPUS")
     max_memory = optional_env("MAX_MEMORY")
 
     print(
-        f"[info] {PIPELINE_NAME} profile={EXECUTION_PROFILE} genome={chosen_genome}",
+        f"[info] {PIPELINE_NAME} profile={EXECUTION_PROFILE} genome={chosen_genome} resume={str(resume).lower()}",
         flush=True,
     )
 
@@ -262,8 +256,8 @@ def main() -> int:
         samplesheet=samplesheet,
         results_dir=str(results_dir),
         genome=chosen_genome,
-        multiqc_title=title,
         umi=umi,
+        resume=resume,
     )
     write_runtime_command(
         results_dir / "runtime_command.json",
@@ -272,7 +266,7 @@ def main() -> int:
         raw_genome=genome,
         umi=umi,
         spikein=spikein,
-        project_name=title,
+        resume=resume,
         max_cpus=max_cpus,
         max_memory=max_memory,
         nextflow_config=runtime_nextflow_config,

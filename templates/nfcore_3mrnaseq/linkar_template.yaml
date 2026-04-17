@@ -27,10 +27,6 @@ params:
     type: str
     default: ""
     description: Optional spike-in description. Values containing ERCC append _with_ERCC to the selected genome.
-  project_name:
-    type: str
-    default: ""
-    description: Project name used for --multiqc_title. The default binding resolves this from the active Linkar project.
   max_cpus:
     type: int
     required: false
