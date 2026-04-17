@@ -104,11 +104,14 @@ render_DGEA_report <- function(config) {
   dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
   stage_render_support_files(workspace_dir, results_dir)
 
-  filetag <- if (!is.null(config$additional_tag) &&
-                  nzchar(config$additional_tag)) {
-    paste0(config$target_group, "_vs_", config$base_group, "_", config$additional_tag)
+  base_filetag <- paste0(config$target_group, "_vs_", config$base_group)
+  additional_tag <- null_if_na(config$additional_tag)
+  filetag <- if (!is.null(additional_tag) &&
+                  nzchar(additional_tag) &&
+                  !identical(additional_tag, base_filetag)) {
+    paste0(base_filetag, "_", additional_tag)
   } else {
-    paste0(config$target_group, "_vs_", config$base_group)
+    base_filetag
   }
 
   csv_path <- file.path(results_dir, paste0("DGEA_", filetag, "_samplesheet.csv"))
@@ -125,7 +128,7 @@ render_DGEA_report <- function(config) {
     authors = config$authors %||% "PROJECT_AUTHORS",
     base_group = config$base_group,
     target_group = config$target_group,
-    additional_tag = null_if_na(config$additional_tag),
+    additional_tag = additional_tag,
     design_formula = if (inherits(config$design_formula, "formula")) {
       paste(as.character(config$design_formula), collapse = " ")
     } else {
