@@ -1,0 +1,12 @@
+tools:
+  - pixi
+  - python
+  - quarto
+
+params:
+  - name: organism
+    env: ORGANISM
+  - name: input_format
+    env: INPUT_FORMAT
+  - name: doublet_method
+    env: DOUBLET_METHOD
