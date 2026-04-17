@@ -76,6 +76,23 @@ stage_render_support_files <- function(workspace_dir, results_dir) {
   }
 }
 
+render_quarto_in_results <- function(qmd_path, output_file, results_dir) {
+  old_wd <- getwd()
+  on.exit(setwd(old_wd), add = TRUE)
+  setwd(results_dir)
+  quarto::quarto_render(
+    input = basename(qmd_path),
+    output_file = output_file,
+    quiet = TRUE
+  )
+  misplaced_output <- file.path(old_wd, output_file)
+  expected_output <- file.path(results_dir, output_file)
+  if (file.exists(misplaced_output) && normalizePath(misplaced_output, winslash = "/", mustWork = FALSE) !=
+      normalizePath(expected_output, winslash = "/", mustWork = FALSE)) {
+    file.rename(misplaced_output, expected_output)
+  }
+}
+
 ####################################################################
 # Render DGEA reports (no hidden RData; pass params explicitly)
 ####################################################################
@@ -138,11 +155,7 @@ render_DGEA_report <- function(config) {
   output_file <- paste0("DGEA_", filetag, ".html")
   output_path <- file.path(results_dir, output_file)
   message("Rendering DGEA report to: ", normalizePath(output_path, winslash = "/", mustWork = FALSE))
-  quarto::quarto_render(
-    input = qmd_path,
-    output_file = output_file,
-    quiet = TRUE
-  )
+  render_quarto_in_results(qmd_path, output_file, results_dir)
   invisible(output_path)
 }
 
@@ -177,11 +190,7 @@ render_DGEA_all_sample <- function(config) {
   output_file <- "DGEA_all_samples.html"
   output_path <- file.path(results_dir, output_file)
   message("Rendering DGEA all-samples report to: ", normalizePath(output_path, winslash = "/", mustWork = FALSE))
-  quarto::quarto_render(
-    input = qmd_path,
-    output_file = output_file,
-    quiet = TRUE
-  )
+  render_quarto_in_results(qmd_path, output_file, results_dir)
   invisible(output_path)
 }
 
@@ -222,11 +231,7 @@ render_simple_report <- function(config) {
   output_file <- paste0("SimpleComparison_", filetag, ".html")
   output_path <- file.path(results_dir, output_file)
   message("Rendering simple comparison report to: ", normalizePath(output_path, winslash = "/", mustWork = FALSE))
-  quarto::quarto_render(
-    input = qmd_path,
-    output_file = output_file,
-    quiet = TRUE
-  )
+  render_quarto_in_results(qmd_path, output_file, results_dir)
   invisible(output_path)
 }
 

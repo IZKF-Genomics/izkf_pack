@@ -74,6 +74,8 @@ def main() -> int:
         assert 'qmd_file <- "DGEA_all_samples.qmd"' in functions_text
         assert 'template_path = file.path(workspace_dir, "SimpleComparison_template.qmd")' in functions_text
         assert 'support_files <- c("references.bib", "thermofisher_LSG_manuals_cms_095046.txt")' in functions_text
+        assert "render_quarto_in_results <- function" in functions_text
+        assert "file.rename(misplaced_output, expected_output)" in functions_text
         assert "quarto" in spec_text
     return 0
 
