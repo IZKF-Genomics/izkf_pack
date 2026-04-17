@@ -128,7 +128,8 @@ render_DGEA_report <- function(config) {
   message("Rendering DGEA report to: ", normalizePath(output_path, winslash = "/", mustWork = FALSE))
   quarto::quarto_render(
     input = qmd_path,
-    output_file = output_path,
+    output_file = output_file,
+    output_dir = results_dir,
     execute_params = execute_params,
     quiet = TRUE
   )
@@ -158,7 +159,8 @@ render_DGEA_all_sample <- function(config) {
   message("Rendering DGEA all-samples report to: ", normalizePath(output_path, winslash = "/", mustWork = FALSE))
   quarto::quarto_render(
     input = file.path(workspace_dir, "DGEA_all_samples.qmd"),
-    output_file = output_path,
+    output_file = output_file,
+    output_dir = results_dir,
     execute_params = execute_params,
     quiet = TRUE
   )
@@ -194,7 +196,8 @@ render_simple_report <- function(config) {
   message("Rendering simple comparison report to: ", normalizePath(output_path, winslash = "/", mustWork = FALSE))
   quarto::quarto_render(
     input = file.path(workspace_dir, "SimpleComparison_template.qmd"),
-    output_file = output_path,
+    output_file = output_file,
+    output_dir = results_dir,
     execute_params = execute_params,
     quiet = TRUE
   )
