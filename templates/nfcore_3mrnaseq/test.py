@@ -9,6 +9,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import yaml
+
 
 TEMPLATE_DIR = Path(__file__).resolve().parent
 FUNCTIONS_DIR = TEMPLATE_DIR.parent.parent / "functions"
@@ -301,6 +303,11 @@ def main() -> None:
     assert 'path: runtime_command.json' in template_text
     assert "__EDIT_ME_MAX_CPUS__" in nextflow_config_text
     assert "__EDIT_ME_MAX_MEMORY__" in nextflow_config_text
+    pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
+    pack_data = yaml.safe_load(pack_text)
+    nfcore_params = pack_data["templates"]["nfcore_3mrnaseq"]["params"]
+    assert "umi" not in nfcore_params
+    assert "spikein" not in nfcore_params
     print("nfcore_3mrnaseq template test passed")
 
 

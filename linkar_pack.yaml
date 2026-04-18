@@ -13,10 +13,6 @@ templates:
         function: generate_nfcore_rnaseq_samplesheet_forward
       genome:
         function: get_agendo_genome
-      umi:
-        function: get_agendo_umi
-      spikein:
-        function: get_agendo_spikein
       max_cpus:
         function: get_host_max_cpus
       max_memory:
