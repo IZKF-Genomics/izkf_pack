@@ -52,6 +52,15 @@ The runtime side then contributes:
 - software and reference versions from `software_versions.json`
 - Linkar runtime status from `.linkar/runtime.json`
 
+When repeated templates appear in one project, the methods generator uses the
+run-specific `params.name` when available, otherwise the rendered folder name,
+to disambiguate sections such as `Differential gene expression analysis: Liver`
+and `Differential gene expression analysis: Bile Duct`.
+
+For templates that do not explicitly publish `software_versions` in
+`project.yaml`, the methods generator also falls back to
+`<run_dir>/results/software_versions.json` when present.
+
 `methods` combines these sources into deterministic drafts first, and only then optionally asks an
 LLM to polish the prose.
 

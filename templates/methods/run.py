@@ -124,6 +124,19 @@ def resolve_run_dir(project_dir: Path, entry: dict[str, Any]) -> Path | None:
     return path
 
 
+def run_display_label(entry: dict[str, Any], catalog_entry: dict[str, Any], run_dir: Path | None) -> str:
+    base_label = str(catalog_entry.get("label") or entry.get("id") or "Workflow step").strip()
+    params = entry.get("params") if isinstance(entry.get("params"), dict) else {}
+    name = str(params.get("name") or "").strip()
+    if name:
+        return f"{base_label}: {name}"
+    if run_dir is not None:
+        basename = run_dir.name.strip()
+        if basename and basename.lower() != str(entry.get("id") or "").strip().lower():
+            return f"{base_label}: {basename}"
+    return base_label
+
+
 def resolve_output_path(project_dir: Path, value: Any) -> Path | None:
     if not isinstance(value, str) or not value.strip():
         return None
@@ -158,10 +171,19 @@ def load_runtime_command(project_dir: Path, run_dir: Path | None, outputs: dict[
     return {}
 
 
-def load_software_versions(project_dir: Path, outputs: dict[str, Any]) -> list[dict[str, Any]]:
+def load_software_versions(project_dir: Path, run_dir: Path | None, outputs: dict[str, Any]) -> list[dict[str, Any]]:
     versions: list[dict[str, Any]] = []
+    candidates: list[Path] = []
     software_path = resolve_output_path(project_dir, outputs.get("software_versions"))
-    if software_path is not None and software_path.exists():
+    if software_path is not None:
+        candidates.append(software_path)
+    if run_dir is not None:
+        candidates.append(run_dir / "results" / "software_versions.json")
+    seen: set[Path] = set()
+    for software_path in candidates:
+        if software_path in seen or not software_path.exists():
+            continue
+        seen.add(software_path)
         try:
             raw = json.loads(software_path.read_text(encoding="utf-8"))
             items = raw.get("software") if isinstance(raw, dict) else None
@@ -266,7 +288,7 @@ def collect_run_context(
                 "template": template_id,
                 "version": entry.get("template_version"),
                 "instance_id": entry.get("instance_id"),
-                "label": catalog_entry.get("label"),
+                "label": run_display_label(entry, catalog_entry, run_dir),
                 "category": str(catalog_entry.get("category") or "").strip(),
                 "publication_relevance": parse_bool(catalog_entry.get("publication_relevance"), default=True),
                 "summary": catalog_entry.get("summary"),
@@ -284,11 +306,12 @@ def collect_run_context(
                     catalog_entry.get("param_explanations") if isinstance(catalog_entry.get("param_explanations"), dict) else {},
                 ),
                 "organism_or_reference": infer_organism_or_reference(params),
-                "software_versions": load_software_versions(project_dir, outputs),
+                "software_versions": load_software_versions(project_dir, run_dir, outputs),
                 "outputs": summarize_outputs(outputs),
                 "runtime": read_linkar_runtime(run_dir),
                 "runtime_command": runtime_command,
                 "citations": citations,
+                "run_dir": str(run_dir) if run_dir is not None else "",
             }
         )
     return runs, sorted(set(citation_ids))

@@ -136,6 +136,73 @@ def test_generation_with_runtime_command() -> None:
         assert response["used_llm"] is False
 
 
+def test_dgea_label_and_software_version_fallback() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        project_dir = root / "project"
+        results_dir = root / "results"
+        run_dir = project_dir / "DGEA_Liver"
+        (run_dir / ".linkar").mkdir(parents=True)
+        (run_dir / ".linkar" / "runtime.json").write_text(
+            json.dumps({"success": True, "returncode": 0}),
+            encoding="utf-8",
+        )
+        results_source = run_dir / "results"
+        results_source.mkdir()
+        (results_source / "software_versions.json").write_text(
+            json.dumps({"software": [{"name": "quarto", "version": "1.6.0", "source": "command"}]}),
+            encoding="utf-8",
+        )
+        project_dir.mkdir(exist_ok=True)
+        (project_dir / "project.yaml").write_text(
+            yaml.safe_dump(
+                {
+                    "id": "example_project_002",
+                    "author": {"name": "Example User", "organization": "Example Org"},
+                    "templates": [
+                        {
+                            "id": "dgea",
+                            "template_version": "0.1.2",
+                            "instance_id": "dgea_001",
+                            "path": "DGEA_Liver",
+                            "params": {
+                                "samplesheet": "/tmp/samplesheet.csv",
+                                "organism": "sscrofa",
+                                "application": "3mrnaseq",
+                                "name": "Liver",
+                            },
+                            "outputs": {},
+                        }
+                    ],
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+
+        subprocess.run(
+            [
+                "python3",
+                str(TEMPLATE_DIR / "run.py"),
+                "--results-dir",
+                str(results_dir),
+                "--project-dir",
+                str(project_dir),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        long_text = (results_dir / "methods_long.md").read_text(encoding="utf-8")
+        context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
+        assert "Differential gene expression analysis: Liver" in long_text
+        assert "quarto: 1.6.0" in long_text
+        assert context["runs"][0]["label"] == "Differential gene expression analysis: Liver"
+        assert context["runs"][0]["software_versions"][0]["name"] == "quarto"
+        assert context["runs"][0]["run_dir"].endswith("DGEA_Liver")
+
+
 def test_llm_config_resolution() -> None:
     module = load_run_module()
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -188,6 +255,7 @@ def test_llm_config_resolution() -> None:
 
 def main() -> int:
     test_generation_with_runtime_command()
+    test_dgea_label_and_software_version_fallback()
     test_llm_config_resolution()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
