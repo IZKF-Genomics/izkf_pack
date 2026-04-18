@@ -146,10 +146,13 @@ if (length(missing_samples) > 0) {
 
 ```{r, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
 for (sample in samples$sample) {
-  cat("\\n### ", sample, "\\n")
   fig <- plot_scatter_spikein(FC_tab, whichmix = "mix1", sample = sample)
-  cat(htmltools::renderTags(as.widget(fig))$html)
-  cat("\\n")
+  section <- htmltools::tagList(
+    htmltools::tags$h3(sample),
+    as.widget(fig)
+  )
+  cat(htmltools::renderTags(section)$html)
+  cat("\n")
 }
 ```
 
