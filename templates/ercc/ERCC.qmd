@@ -142,17 +142,14 @@ if (length(missing_samples) > 0) {
 }
 ```
 
-## Dynamic range and lower limit of detection {.tabset}
+## Dynamic range and lower limit of detection {.panel-tabset}
 
 ```{r, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
 for (sample in samples$sample) {
   fig <- plot_scatter_spikein(FC_tab, whichmix = "mix1", sample = sample)
-  section <- htmltools::tagList(
-    htmltools::tags$h3(sample),
-    as.widget(fig)
-  )
-  cat(htmltools::renderTags(section)$html)
-  cat("\n")
+  cat("\n\n### ", sample, "\n\n", sep = "")
+  print(fig)
+  cat("\n\n")
 }
 ```
 
