@@ -74,6 +74,7 @@ def main() -> int:
         rnaseq_bile_dir = project_dir / "nfcore_bile_duct"
         dgea_liver_dir = project_dir / "DGEA_Liver"
         dgea_bile_dir = project_dir / "DGEA_Bile_Duct"
+        methylation_dir = project_dir / "methylation_array_analysis"
         ercc_dir = project_dir / "ercc"
         (demux_dir / "results" / "output").mkdir(parents=True)
         (demux_dir / "results" / "multiqc").mkdir(parents=True)
@@ -81,6 +82,10 @@ def main() -> int:
         (rnaseq_bile_dir / "results" / "multiqc").mkdir(parents=True)
         (dgea_liver_dir / "results").mkdir(parents=True)
         (dgea_bile_dir / "results").mkdir(parents=True)
+        (methylation_dir / "results" / "tables").mkdir(parents=True)
+        (methylation_dir / "results" / "figures").mkdir(parents=True)
+        (methylation_dir / "results" / "rds").mkdir(parents=True)
+        (methylation_dir / "reports").mkdir(parents=True)
         (ercc_dir / "results").mkdir(parents=True)
         (demux_dir / "results" / "output" / "sample.fastq.gz").write_text("fq\n", encoding="utf-8")
         (demux_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
@@ -94,6 +99,13 @@ def main() -> int:
         (dgea_bile_dir / "results" / "DGEA_all_samples.html").write_text("<html></html>\n", encoding="utf-8")
         (dgea_bile_dir / "results" / "run_info.yaml").write_text("template: dgea\n", encoding="utf-8")
         (dgea_bile_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
+        (methylation_dir / "results" / "run_info.yaml").write_text(
+            "template: methylation_array_analysis\n", encoding="utf-8"
+        )
+        (methylation_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
+        (methylation_dir / "reports" / "00_study_overview.html").write_text("<html></html>\n", encoding="utf-8")
+        (methylation_dir / "reports" / "02b_own_samples_embeddings.html").write_text("<html></html>\n", encoding="utf-8")
+        (methylation_dir / "reports" / "17_ProjectSpecific_Contrast.html").write_text("<html></html>\n", encoding="utf-8")
         (ercc_dir / "results" / "ERCC.html").write_text("<html></html>\n", encoding="utf-8")
         (ercc_dir / "results" / "run_info.yaml").write_text("template: ercc\n", encoding="utf-8")
         (ercc_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
@@ -143,6 +155,13 @@ def main() -> int:
                     },
                 },
                 {
+                    "id": "methylation_array_analysis",
+                    "path": str(methylation_dir),
+                    "outputs": {
+                        "results_dir": str((methylation_dir / "results").resolve()),
+                    },
+                },
+                {
                     "id": "ercc",
                     "path": str(ercc_dir),
                     "outputs": {
@@ -179,7 +198,7 @@ def main() -> int:
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
-        assert len(spec["export_list"]) == 10
+        assert len(spec["export_list"]) == 12
         assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
         export_srcs = {entry["src"] for entry in spec["export_list"]}
         export_dests = {entry["dest"] for entry in spec["export_list"]}
@@ -188,14 +207,24 @@ def main() -> int:
         assert "2_Processed_data/nfcore_3mrnaseq/nfcore_bile_duct" in export_dests
         assert "2_Processed_data/dgea/DGEA_Liver/results" in export_dests
         assert "2_Processed_data/dgea/DGEA_Bile_Duct/results" in export_dests
+        assert "2_Processed_data/methylation_array_analysis/results" in export_dests
         assert "3_Reports/dgea/DGEA_Liver" in export_dests
         assert "3_Reports/dgea/DGEA_Bile_Duct" in export_dests
+        assert "3_Reports/methylation_array_analysis" in export_dests
         assert "3_Reports/ercc/ercc" in export_dests
         dgea_report_entries = [entry for entry in spec["export_list"] if entry["dest"].startswith("3_Reports/dgea/")]
         assert any(
             any(link.get("path") == "DGEA_all_samples.html" for link in entry.get("report_links", []))
             for entry in dgea_report_entries
         )
+        methylation_report_entry = next(
+            entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/methylation_array_analysis"
+        )
+        methylation_report_paths = {link["path"] for link in methylation_report_entry.get("report_links", [])}
+        assert "." in methylation_report_paths
+        assert "00_study_overview.html" in methylation_report_paths
+        assert "02b_own_samples_embeddings.html" in methylation_report_paths
+        assert "17_ProjectSpecific_Contrast.html" in methylation_report_paths
         assert (export_dir / "results" / "metadata_context.yaml").exists()
         assert (export_dir / "results" / "project_methods.md").exists()
 
