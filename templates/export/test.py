@@ -71,13 +71,18 @@ def main() -> int:
         export_dir = project_dir / "export"
         demux_dir = project_dir / "demultiplex"
         rnaseq_dir = project_dir / "nfcore_3mrnaseq"
+        ercc_dir = project_dir / "ercc"
         (demux_dir / "results" / "output").mkdir(parents=True)
         (demux_dir / "results" / "multiqc").mkdir(parents=True)
         (rnaseq_dir / "results" / "multiqc").mkdir(parents=True)
+        (ercc_dir / "results").mkdir(parents=True)
         (demux_dir / "results" / "output" / "sample.fastq.gz").write_text("fq\n", encoding="utf-8")
         (demux_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
         (rnaseq_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
         (rnaseq_dir / "run.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+        (ercc_dir / "results" / "ERCC.html").write_text("<html></html>\n", encoding="utf-8")
+        (ercc_dir / "results" / "run_info.yaml").write_text("template: ercc\n", encoding="utf-8")
+        (ercc_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
         export_dir.mkdir(parents=True)
 
         project_yaml = {
@@ -98,6 +103,14 @@ def main() -> int:
                     "path": str(rnaseq_dir),
                     "outputs": {
                         "multiqc_report": str((rnaseq_dir / "results" / "multiqc" / "multiqc_report.html").resolve()),
+                    },
+                },
+                {
+                    "id": "ercc",
+                    "path": str(ercc_dir),
+                    "outputs": {
+                        "results_dir": str((ercc_dir / "results").resolve()),
+                        "html_report": str((ercc_dir / "results" / "ERCC.html").resolve()),
                     },
                 },
             ],
@@ -129,8 +142,12 @@ def main() -> int:
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
-        assert len(spec["export_list"]) == 3
+        assert len(spec["export_list"]) == 5
         assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
+        export_srcs = {entry["src"] for entry in spec["export_list"]}
+        export_dests = {entry["dest"] for entry in spec["export_list"]}
+        assert str((ercc_dir / "results").resolve()) in export_srcs
+        assert "3_Reports/ercc" in export_dests
         assert (export_dir / "results" / "metadata_context.yaml").exists()
         assert (export_dir / "results" / "project_methods.md").exists()
 

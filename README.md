@@ -296,6 +296,7 @@ If a required parameter cannot be resolved automatically, pass it explicitly wit
 | [`nfcore_3mrnaseq`](templates/nfcore_3mrnaseq/linkar_template.yaml) | Run the site-specific `nf-core/rnaseq` wrapper for 3' mRNA-seq projects. | [README](templates/nfcore_3mrnaseq/README.md) |
 | [`scverse_scrna_prep`](templates/scverse_scrna_prep/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq preprocessing workspace with Quarto QC reporting. | [README](templates/scverse_scrna_prep/README.md) |
 | [`dgea`](templates/dgea/linkar_template.yaml) | Create and run an editable R/Quarto differential expression workspace. | [README](templates/dgea/README.md) |
+| [`ercc`](templates/ercc/linkar_template.yaml) | Create and run an editable ERCC spike-in QC workspace with Quarto reporting. | [README](templates/ercc/README.md) |
 | [`methylation_array_analysis`](templates/methylation_array_analysis/linkar_template.yaml) | Create and run an editable Illumina methylation array study workspace with preprocessing, batch-aware analysis, and ordered Quarto reports. | [README](templates/methylation_array_analysis/README.md) |
 | [`cellranger_atac`](templates/cellranger_atac/linkar_template.yaml) | Discover ATAC samples, run `cellranger-atac count`, and optionally aggregate libraries. | [README](templates/cellranger_atac/README.md) |
 | [`methods`](templates/methods/linkar_template.yaml) | Generate long and short project methods drafts from Linkar project history. | [README](templates/methods/README.md) |
