@@ -53,6 +53,14 @@ templates:
         function: get_dgea_name
       authors:
         function: get_dgea_authors
+  ercc:
+    params:
+      salmon_dir:
+        function: get_dgea_salmon_dir
+      samplesheet:
+        function: get_dgea_samplesheet
+      authors:
+        function: get_dgea_authors
   methylation_array_analysis:
     params:
       authors:

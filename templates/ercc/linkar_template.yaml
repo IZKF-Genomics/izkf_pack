@@ -1,0 +1,35 @@
+id: ercc
+version: 0.1.0
+description: Editable ERCC spike-in QC workspace with Quarto reporting.
+tools:
+  required:
+    - pixi
+    - python3
+params:
+  salmon_dir:
+    type: path
+    required: true
+    description: Path to the salmon quant directory containing `salmon.merged.gene_tpm.tsv`.
+  samplesheet:
+    type: path
+    required: true
+    description: Path to an nf-core-style samplesheet CSV containing a `sample` column.
+  authors:
+    type: str
+    default: ""
+    description: Optional comma-separated author names shown in the report header.
+outputs:
+  results_dir: {}
+  html_report:
+    path: results/ERCC.html
+  html_assets:
+    glob: results/ERCC_files/**
+  run_info:
+    path: results/run_info.yaml
+  software_versions:
+    path: results/software_versions.json
+  runtime_qmd:
+    path: ERCC.runtime.qmd
+run:
+  mode: render
+  entry: run.sh

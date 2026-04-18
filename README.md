@@ -163,6 +163,14 @@ linkar run dgea \
   --verbose
 ```
 
+Run the ERCC spike-in QC report when the same RNA-seq quantification outputs are available:
+
+```bash
+linkar run ercc \
+  --outdir ./ercc \
+  --verbose
+```
+
 ### RRBS methylation-seq
 
 Run the RRBS-first `nf-core/methylseq` wrapper after demultiplex outputs are recorded:
