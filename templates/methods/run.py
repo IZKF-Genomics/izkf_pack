@@ -545,7 +545,11 @@ def resolve_llm_settings(args: argparse.Namespace, project_dir: Path) -> dict[st
     if config_path is not None:
         if not config_path.is_absolute():
             config_path = (project_dir / config_path).resolve()
-        config = load_mapping(config_path)
+        if config_path.is_dir():
+            directory_default = config_path / ".methods_llm.yaml"
+            config_path = directory_default if directory_default.exists() else None
+        if config_path is not None:
+            config = load_mapping(config_path)
 
     api_key = os.environ.get("LINKAR_LLM_API_KEY", "").strip()
     api_key_source = "LINKAR_LLM_API_KEY" if api_key else ""

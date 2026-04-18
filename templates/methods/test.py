@@ -5,6 +5,7 @@ import argparse
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -279,6 +280,49 @@ def test_ercc_catalog_entry_shapes_methods_text() -> None:
         assert context["runs"][0]["catalog"]["method_core"]
 
 
+def test_run_sh_resolves_project_dir_from_linkar_runtime_copy() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        project_dir = root / "project"
+        results_dir = root / "results"
+        runtime_dir = project_dir / ".linkar" / "runs" / "methods_001"
+        runtime_dir.mkdir(parents=True)
+        project_dir.mkdir(exist_ok=True)
+
+        (project_dir / "project.yaml").write_text(
+            yaml.safe_dump(
+                {
+                    "id": "example_project_004",
+                    "author": {"name": "Example User", "organization": "Example Org"},
+                    "templates": [],
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+
+        shutil.copy2(TEMPLATE_DIR / "run.py", runtime_dir / "run.py")
+        shutil.copy2(TEMPLATE_DIR / "run.sh", runtime_dir / "run.sh")
+        shutil.copy2(TEMPLATE_DIR / "methods_catalog.yaml", runtime_dir / "methods_catalog.yaml")
+        (runtime_dir / "run.sh").chmod(0o755)
+
+        env = os.environ.copy()
+        env["LINKAR_RESULTS_DIR"] = str(results_dir)
+        env["PROJECT_DIR"] = str(root)
+        completed = subprocess.run(
+            [str(runtime_dir / "run.sh")],
+            check=True,
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=root,
+        )
+
+        assert "methods_context.yaml" in completed.stdout
+        context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
+        assert context["project"]["path"] == str(project_dir.resolve())
+
+
 def test_llm_config_resolution() -> None:
     module = load_run_module()
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -301,7 +345,7 @@ def test_llm_config_resolution() -> None:
             project_dir=str(project_dir),
             style="publication",
             use_llm="true",
-            llm_config="",
+            llm_config=str(project_dir),
             llm_base_url="",
             llm_model="",
             llm_temperature=0.2,
@@ -333,6 +377,7 @@ def main() -> int:
     test_generation_with_runtime_command()
     test_dgea_label_and_software_version_fallback()
     test_ercc_catalog_entry_shapes_methods_text()
+    test_run_sh_resolves_project_dir_from_linkar_runtime_copy()
     test_llm_config_resolution()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
