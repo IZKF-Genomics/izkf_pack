@@ -89,6 +89,39 @@ templates:
     citations:
       - deseq2
       - quarto
+
+  ercc:
+    category: quality_control
+    publication_relevance: true
+    label: ERCC spike-in quality control
+    summary: ERCC spike-in behavior was reviewed in a dedicated reporting workspace using Salmon quantification outputs and sample metadata.
+    method_core: ERCC spike-in performance was assessed in a dedicated quality-control workspace built from sample-level Salmon quantification outputs and accompanying sample metadata, with Quarto-rendered reporting of spike-in dynamic range and detection behavior across samples.
+    method_details:
+      - This template should be described as assay quality control rather than as primary biological analysis.
+      - When the template is paired with 3' mRNA-seq processing, it should be interpreted as a downstream review of ERCC spike-in consistency across the processed libraries.
+    important_params:
+      - salmon_dir
+      - samplesheet
+      - authors
+    param_explanations:
+      salmon_dir: Quantification directory used as the source of ERCC abundance estimates.
+      samplesheet: Sample metadata table used to associate quantification outputs with biological sample labels.
+      authors: Recorded report authorship metadata for the generated QC workspace.
+    param_context:
+      - salmon_dir and samplesheet jointly define which quantification outputs and sample identities are included in the ERCC quality-control report.
+      - The methods text should emphasize spike-in assessment and reporting rather than restating the upstream alignment and quantification workflow in full.
+    command_hints:
+      - When runtime metadata are sparse, prefer the catalog description plus software_versions to explain this QC stage.
+      - If the report is rendered through Quarto, describe it as a project-level QC report generated from recorded quantification results.
+    tools:
+      - Salmon
+      - R
+      - Quarto
+    citations:
+      - salmon
+      - quarto
+      - ercc_spikein
+
   nfcore_3mrnaseq:
     category: analysis
     publication_relevance: true
@@ -198,3 +231,6 @@ references:
   quarto:
     text: "Quarto open-source scientific and technical publishing system."
     url: "https://quarto.org/"
+  ercc_spikein:
+    text: "Jiang L, Schlesinger F, Davis CA, et al. Synthetic spike-in standards for RNA-seq experiments. Genome Research. 2011."
+    url: "https://doi.org/10.1101/gr.121095.111"

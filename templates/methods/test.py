@@ -203,6 +203,82 @@ def test_dgea_label_and_software_version_fallback() -> None:
         assert context["runs"][0]["run_dir"].endswith("DGEA_Liver")
 
 
+def test_ercc_catalog_entry_shapes_methods_text() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        project_dir = root / "project"
+        results_dir = root / "results"
+        run_dir = project_dir / "ercc"
+        (run_dir / ".linkar").mkdir(parents=True)
+        (run_dir / ".linkar" / "runtime.json").write_text(
+            json.dumps({"success": True, "returncode": 0}),
+            encoding="utf-8",
+        )
+        results_source = run_dir / "results"
+        results_source.mkdir()
+        (results_source / "software_versions.json").write_text(
+            json.dumps(
+                {
+                    "software": [
+                        {"name": "pixi", "version": "pixi 0.64.0", "source": "command"},
+                        {"name": "quarto", "version": "1.6.0", "source": "command"},
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        project_dir.mkdir(exist_ok=True)
+        (project_dir / "project.yaml").write_text(
+            yaml.safe_dump(
+                {
+                    "id": "example_project_003",
+                    "author": {"name": "Example User", "organization": "Example Org"},
+                    "templates": [
+                        {
+                            "id": "ercc",
+                            "template_version": "0.1.0",
+                            "instance_id": "ercc_001",
+                            "path": "ercc",
+                            "params": {
+                                "salmon_dir": "/tmp/star_salmon",
+                                "samplesheet": "/tmp/samplesheet.csv",
+                                "authors": "Example User",
+                            },
+                            "outputs": {
+                                "results_dir": str(results_source),
+                            },
+                        }
+                    ],
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+
+        subprocess.run(
+            [
+                "python3",
+                str(TEMPLATE_DIR / "run.py"),
+                "--results-dir",
+                str(results_dir),
+                "--project-dir",
+                str(project_dir),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        long_text = (results_dir / "methods_long.md").read_text(encoding="utf-8")
+        refs = (results_dir / "methods_references.md").read_text(encoding="utf-8")
+        context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
+        assert "ERCC spike-in quality control" in long_text
+        assert "Salmon quantification outputs" in long_text
+        assert "Synthetic spike-in standards for RNA-seq experiments" in refs
+        assert context["runs"][0]["label"] == "ERCC spike-in quality control"
+        assert context["runs"][0]["catalog"]["method_core"]
+
+
 def test_llm_config_resolution() -> None:
     module = load_run_module()
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -256,6 +332,7 @@ def test_llm_config_resolution() -> None:
 def main() -> int:
     test_generation_with_runtime_command()
     test_dgea_label_and_software_version_fallback()
+    test_ercc_catalog_entry_shapes_methods_text()
     test_llm_config_resolution()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
