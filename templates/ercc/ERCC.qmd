@@ -148,7 +148,7 @@ if (length(missing_samples) > 0) {
 for (sample in samples$sample) {
   fig <- plot_scatter_spikein(FC_tab, whichmix = "mix1", sample = sample)
   cat("\n\n### ", sample, "\n\n", sep = "")
-  print(fig)
+  cat(htmltools::renderTags(as.widget(fig))$html)
   cat("\n\n")
 }
 ```

@@ -64,6 +64,7 @@ def main() -> int:
         assert "Samplesheet sample names are missing" in runtime_qmd
         assert "{.panel-tabset}" in runtime_qmd
         assert 'cat("\\n\\n### ' in runtime_qmd
+        assert "renderTags(as.widget(fig))$html" in runtime_qmd
         assert run_info["params"]["sample_count"] == 2
         assert run_info["params"]["authors"] == "A, B"
         assert '--output "${results_dir}/software_versions.json"' in run_sh
