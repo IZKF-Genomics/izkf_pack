@@ -58,5 +58,5 @@ Generated artifacts include:
 ## Notes
 
 - At runtime the template prefers `LINKAR_PROJECT_DIR`, which Linkar exports automatically for project-backed runs and renders. Outside Linkar, it falls back to `..`.
-- The vendored [export_mapping.table.yaml](/home/ckuo/github/izkf_pack/templates/export/export_mapping.table.yaml) has been normalized for the current `izkf_pack` template ids and outputs.
+- The vendored [export_mapping.table.yaml](/home/ckuo/github/izkf_pack/templates/export/export_mapping.table.yaml) has been normalized for the current `izkf_pack` template ids and outputs. Repeated template runs are namespaced by their rendered folder names such as `nfcore_liver`, `nfcore_bile_duct`, `DGEA_Liver`, or `DGEA_Bile_Duct`.
 - Methods generation is now Linkar-native and is built from local project history through [build_export_bundle.py](/home/ckuo/github/izkf_pack/templates/export/build_export_bundle.py), not through BPM runtime hooks.

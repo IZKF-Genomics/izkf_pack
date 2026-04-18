@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import glob
 import json
+import re
 import secrets
 import socket
 from dataclasses import dataclass
@@ -218,6 +219,40 @@ def auto_link_name(path: str, dest: str) -> str:
     return base.replace("_", " ").strip() if base else ""
 
 
+def safe_slug(value: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", value.strip())
+    return slug.strip("._-")
+
+
+def template_placeholders(template_id: str, entry: dict[str, Any]) -> dict[str, str]:
+    template_path = str(entry.get("path") or "").strip()
+    template_basename = Path(template_path).name if template_path else template_id
+    params = entry.get("params")
+    params_name = ""
+    if isinstance(params, dict):
+        raw_name = params.get("name")
+        if isinstance(raw_name, str):
+            params_name = raw_name.strip()
+    template_label = params_name or template_basename
+    template_slug = safe_slug(template_label) or safe_slug(template_basename) or template_id
+    return {
+        "template_id": template_id,
+        "template_root": template_path,
+        "template_path": template_path,
+        "template_basename": template_basename,
+        "template_label": template_label,
+        "template_slug": template_slug,
+        "instance_id": str(entry.get("instance_id") or "").strip(),
+    }
+
+
+def expand_placeholders(value: str, placeholders: dict[str, str]) -> str:
+    expanded = value
+    for key, replacement in placeholders.items():
+        expanded = expanded.replace("{" + key + "}", replacement)
+    return expanded
+
+
 def normalize_path_for_link(resolved: str, src_root: Path) -> str:
     if ":" in resolved:
         host, rest = resolved.split(":", 1)
@@ -250,6 +285,7 @@ def build_report_links(
     src: Path,
     dest: str,
     project_data: dict[str, Any],
+    placeholders: dict[str, str],
 ) -> list[dict[str, str]]:
     report_links = entry.get("report_links")
     if not isinstance(report_links, list) or not report_links:
@@ -264,15 +300,21 @@ def build_report_links(
         path = resolve_report_link_path(item, project_data, src_root)
         if not isinstance(path, str) or not path:
             continue
+        path = expand_placeholders(path, placeholders)
         section = item.get("section")
         if not isinstance(section, str) or not section.strip():
             continue
+        section = expand_placeholders(section.strip(), placeholders)
         description = item.get("description")
         if not isinstance(description, str):
             description = ""
+        else:
+            description = expand_placeholders(description, placeholders)
         link_name = item.get("link_name")
         if not isinstance(link_name, str):
             link_name = ""
+        else:
+            link_name = expand_placeholders(link_name, placeholders)
 
         if has_glob(path):
             matches = sorted(Path(p) for p in glob.glob(str(src_root / path), recursive=True))
@@ -328,13 +370,14 @@ def build_export_list(project_dir: Path, project_data: dict[str, Any], template_
             if entry.get("id") == template_id or entry.get("source_template") == template_id
         ]
         for entry in matches:
+            placeholders = template_placeholders(template_id, entry)
             src = mapping.get("src")
             if not isinstance(src, str) or not src.strip():
                 continue
             template_path = entry.get("path")
             if not isinstance(template_path, str) or not template_path.strip():
                 continue
-            src = src.replace("{template_root}", template_path.strip())
+            src = expand_placeholders(src, placeholders)
             project_key = mapping.get("src_project_key")
             if isinstance(project_key, str) and project_key.strip():
                 resolved = resolve_project_key(project_data, project_key)
@@ -345,17 +388,20 @@ def build_export_list(project_dir: Path, project_data: dict[str, Any], template_
                 src_path = (project_dir / src_path).resolve()
             if not src_path.exists():
                 continue
-            dest = str(mapping.get("dest") or "").replace("{template_id}", template_id)
+            dest = expand_placeholders(str(mapping.get("dest") or ""), placeholders)
             if not dest:
                 continue
             export_entry: dict[str, Any] = {
                 "src": str(src_path),
                 "dest": dest,
-                "host": str(mapping.get("host") or default_host),
-                "project": str(mapping.get("project") or project_data.get("id") or project_dir.name),
-                "mode": str(mapping.get("mode") or "symlink"),
+                "host": expand_placeholders(str(mapping.get("host") or default_host), placeholders),
+                "project": expand_placeholders(
+                    str(mapping.get("project") or project_data.get("id") or project_dir.name),
+                    placeholders,
+                ),
+                "mode": expand_placeholders(str(mapping.get("mode") or "symlink"), placeholders),
             }
-            report_links = build_report_links(mapping, src_path, dest, project_data)
+            report_links = build_report_links(mapping, src_path, dest, project_data, placeholders)
             if report_links:
                 export_entry["report_links"] = report_links
             export_list.append(export_entry)

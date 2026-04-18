@@ -70,16 +70,30 @@ def main() -> int:
         project_dir = root / "study"
         export_dir = project_dir / "export"
         demux_dir = project_dir / "demultiplex"
-        rnaseq_dir = project_dir / "nfcore_3mrnaseq"
+        rnaseq_dir = project_dir / "nfcore_liver"
+        rnaseq_bile_dir = project_dir / "nfcore_bile_duct"
+        dgea_liver_dir = project_dir / "DGEA_Liver"
+        dgea_bile_dir = project_dir / "DGEA_Bile_Duct"
         ercc_dir = project_dir / "ercc"
         (demux_dir / "results" / "output").mkdir(parents=True)
         (demux_dir / "results" / "multiqc").mkdir(parents=True)
         (rnaseq_dir / "results" / "multiqc").mkdir(parents=True)
+        (rnaseq_bile_dir / "results" / "multiqc").mkdir(parents=True)
+        (dgea_liver_dir / "results").mkdir(parents=True)
+        (dgea_bile_dir / "results").mkdir(parents=True)
         (ercc_dir / "results").mkdir(parents=True)
         (demux_dir / "results" / "output" / "sample.fastq.gz").write_text("fq\n", encoding="utf-8")
         (demux_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
         (rnaseq_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
+        (rnaseq_bile_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
         (rnaseq_dir / "run.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+        (rnaseq_bile_dir / "run.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+        (dgea_liver_dir / "results" / "DGEA_all_samples.html").write_text("<html></html>\n", encoding="utf-8")
+        (dgea_liver_dir / "results" / "run_info.yaml").write_text("template: dgea\n", encoding="utf-8")
+        (dgea_liver_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
+        (dgea_bile_dir / "results" / "DGEA_all_samples.html").write_text("<html></html>\n", encoding="utf-8")
+        (dgea_bile_dir / "results" / "run_info.yaml").write_text("template: dgea\n", encoding="utf-8")
+        (dgea_bile_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
         (ercc_dir / "results" / "ERCC.html").write_text("<html></html>\n", encoding="utf-8")
         (ercc_dir / "results" / "run_info.yaml").write_text("template: ercc\n", encoding="utf-8")
         (ercc_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
@@ -103,6 +117,29 @@ def main() -> int:
                     "path": str(rnaseq_dir),
                     "outputs": {
                         "multiqc_report": str((rnaseq_dir / "results" / "multiqc" / "multiqc_report.html").resolve()),
+                    },
+                },
+                {
+                    "id": "nfcore_3mrnaseq",
+                    "path": str(rnaseq_bile_dir),
+                    "outputs": {
+                        "multiqc_report": str((rnaseq_bile_dir / "results" / "multiqc" / "multiqc_report.html").resolve()),
+                    },
+                },
+                {
+                    "id": "dgea",
+                    "path": str(dgea_liver_dir),
+                    "params": {"name": "Liver"},
+                    "outputs": {
+                        "results_dir": str((dgea_liver_dir / "results").resolve()),
+                    },
+                },
+                {
+                    "id": "dgea",
+                    "path": str(dgea_bile_dir),
+                    "params": {"name": "Bile Duct"},
+                    "outputs": {
+                        "results_dir": str((dgea_bile_dir / "results").resolve()),
                     },
                 },
                 {
@@ -142,12 +179,23 @@ def main() -> int:
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
-        assert len(spec["export_list"]) == 5
+        assert len(spec["export_list"]) == 10
         assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
         export_srcs = {entry["src"] for entry in spec["export_list"]}
         export_dests = {entry["dest"] for entry in spec["export_list"]}
         assert str((ercc_dir / "results").resolve()) in export_srcs
-        assert "3_Reports/ercc" in export_dests
+        assert "2_Processed_data/nfcore_3mrnaseq/nfcore_liver" in export_dests
+        assert "2_Processed_data/nfcore_3mrnaseq/nfcore_bile_duct" in export_dests
+        assert "2_Processed_data/dgea/DGEA_Liver/results" in export_dests
+        assert "2_Processed_data/dgea/DGEA_Bile_Duct/results" in export_dests
+        assert "3_Reports/dgea/DGEA_Liver" in export_dests
+        assert "3_Reports/dgea/DGEA_Bile_Duct" in export_dests
+        assert "3_Reports/ercc/ercc" in export_dests
+        dgea_report_entries = [entry for entry in spec["export_list"] if entry["dest"].startswith("3_Reports/dgea/")]
+        assert any(
+            any(link.get("path") == "DGEA_all_samples.html" for link in entry.get("report_links", []))
+            for entry in dgea_report_entries
+        )
         assert (export_dir / "results" / "metadata_context.yaml").exists()
         assert (export_dir / "results" / "project_methods.md").exists()
 
