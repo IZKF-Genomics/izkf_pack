@@ -68,6 +68,7 @@ templates:
       - Sample metadata were used to define biological groups and comparisons for downstream modeling and reporting.
       - Count or quantification summaries from upstream RNA-seq processing were organized for contrast definition, statistical testing, and reporting.
       - Differential expression modeling is DESeq2-based when that tool is listed among the recorded software or citations.
+      - When functional interpretation is enabled in the reporting workspace, Gene Ontology enrichment and ranked-list GSEA are performed with clusterProfiler.
     important_params:
       - samplesheet
       - organism
@@ -89,8 +90,10 @@ templates:
       - R
       - Quarto
       - DESeq2
+      - clusterProfiler
     citations:
       - deseq2
+      - clusterprofiler
       - quarto
 
   ercc:
@@ -335,6 +338,9 @@ references:
   quarto:
     text: "Quarto open-source scientific and technical publishing system."
     url: "https://quarto.org/"
+  clusterprofiler:
+    text: "Wu T, Wang E, Hu Y, et al. clusterProfiler 4.0: A universal enrichment tool for interpreting omics data. The Innovation. 2021."
+    url: "https://doi.org/10.1016/j.xinn.2021.100141"
   ercc_spikein:
     text: "Jiang L, Schlesinger F, Davis CA, et al. Synthetic spike-in standards for RNA-seq experiments. Genome Research. 2011."
     url: "https://doi.org/10.1101/gr.121095.111"
