@@ -1,6 +1,6 @@
 # archive_projects
 
-`archive_projects` archives project directories from `/data/projects` into
+`archive_projects` archives project directories from a project root such as `/path/to/projects` into
 `/mnt/nextgen2/archive/projects`.
 
 It uses the shared manifest root:
@@ -12,7 +12,7 @@ By default, cleanup is enabled after successful verify.
 
 ## Key parameters
 
-- `source_root`: source projects root, default `/data/projects`
+- `source_root`: source projects root, default `/path/to/projects`
 - `target_root`: archive destination root
 - `retention_days`: minimum project age before archiving
 - `yes`: confirm execution for non-dry runs
@@ -27,6 +27,6 @@ By default, cleanup is enabled after successful verify.
 ## Test command
 
 ```bash
-cd /home/ckuo/github/izkf_pack/templates/archive_projects
+cd templates/archive_projects
 python3 test.py
 ```

@@ -12,7 +12,7 @@ stack are installed inside the template-local Pixi environment.
 
 The template is centered around:
 
-- [DNAm_constructor.R](/home/ckuo/github/izkf_pack/templates/methylation_array_analysis/DNAm_constructor.R)
+- [DNAm_constructor.R](DNAm_constructor.R)
 - `config/datasets.toml`
 - `config/samples.csv`
 
@@ -30,7 +30,7 @@ The normal user flow is:
 Render the workspace into your Linkar project:
 
 ```bash
-linkar render methylation_array_analysis --pack /home/ckuo/github/izkf_pack
+linkar render methylation_array_analysis --pack /path/to/izkf_pack
 cd methylation_array_analysis
 ```
 
@@ -46,7 +46,7 @@ Edit:
 
 - `config/datasets.toml`
 - `config/samples.csv`
-- [DNAm_constructor.R](/home/ckuo/github/izkf_pack/templates/methylation_array_analysis/DNAm_constructor.R)
+- [DNAm_constructor.R](DNAm_constructor.R)
 
 Run the full study:
 
@@ -123,7 +123,7 @@ pixi run preflight
 
 ## Edit The Sample Table
 
-The auto-generated [config/samples.csv](/home/ckuo/github/izkf_pack/templates/methylation_array_analysis/config/samples.csv) is the main place to curate the cohort.
+The auto-generated [config/samples.csv](config/samples.csv) is the main place to curate the cohort.
 
 Typical edits:
 
@@ -148,7 +148,7 @@ If you make dataset-level changes later, run `pixi run sync-samples` again. Exis
 
 ## Define Comparisons In The Constructor
 
-Comparisons are defined directly in [DNAm_constructor.R](/home/ckuo/github/izkf_pack/templates/methylation_array_analysis/DNAm_constructor.R), not in a CSV.
+Comparisons are defined directly in [DNAm_constructor.R](DNAm_constructor.R), not in a CSV.
 
 The constructor builds:
 
@@ -267,7 +267,7 @@ Inside a rendered workspace:
 Or directly through Linkar:
 
 ```bash
-linkar run methylation_array_analysis --pack /home/ckuo/github/izkf_pack
+linkar run methylation_array_analysis --pack /path/to/izkf_pack
 ```
 
 ## Outputs

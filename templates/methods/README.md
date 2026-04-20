@@ -5,7 +5,7 @@ entries, recorded software versions, and runtime command metadata.
 
 This template is designed to synthesize:
 
-- template-level scientific descriptions from [methods_catalog.yaml](/home/ckuo/github/izkf_pack/templates/methods/methods_catalog.yaml:1)
+- template-level scientific descriptions from [methods_catalog.yaml](methods_catalog.yaml)
 - project-level runtime context from `project.yaml`
 - recorded `software_versions.json`
 - recorded `runtime_command.json`
@@ -108,9 +108,9 @@ settings: token, URL, and model.
 
 ## Runtime behavior
 
-The template keeps a thin [run.sh](/home/ckuo/github/izkf_pack/templates/methods/run.sh:1) wrapper
+The template keeps a thin [run.sh](run.sh) wrapper
 for direct execution, while the real logic lives in
-[run.py](/home/ckuo/github/izkf_pack/templates/methods/run.py:1).
+[run.py](run.py).
 
 `run.py`:
 
@@ -128,13 +128,13 @@ for direct execution, while the real logic lives in
 Direct local test:
 
 ```bash
-cd /home/ckuo/github/izkf_pack/templates/methods
+cd templates/methods
 pixi run test
 ```
 
 Direct local execution:
 
 ```bash
-cd /home/ckuo/github/izkf_pack/templates/methods
+cd templates/methods
 pixi run run-local -- --results-dir ./results --project-dir ..
 ```

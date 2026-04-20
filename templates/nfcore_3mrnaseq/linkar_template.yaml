@@ -22,11 +22,11 @@ params:
   umi:
     type: str
     default: ""
-    description: Optional UMI kit description. The known Takara QuantSeq phrase enables the nf-core UMI flags.
+    description: Optional UMI description. The facility default UMI metadata label enables the nf-core UMI flags. CLI shorthand values true, yes, on, and 1 resolve to the facility default UMI setting.
   spikein:
     type: str
     default: ""
-    description: Optional spike-in description. Values containing ERCC append _with_ERCC to the selected genome.
+    description: Optional spike-in description. Values containing ERCC append _with_ERCC to the selected genome. CLI shorthand values true, yes, on, and 1 resolve to the facility default ERCC spike-in.
   max_cpus:
     type: int
     required: false

@@ -13,13 +13,13 @@ It uses a shared manifest root:
 Dry run:
 
 ```bash
-linkar run archive_raw --pack /home/ckuo/github/izkf_pack --dry-run true
+linkar run archive_raw --pack /path/to/izkf_pack --dry-run true
 ```
 
 Execute:
 
 ```bash
-linkar run archive_raw --pack /home/ckuo/github/izkf_pack --yes true
+linkar run archive_raw --pack /path/to/izkf_pack --yes true
 ```
 
 `archive_raw` does not delete source runs.
@@ -41,6 +41,6 @@ linkar run archive_raw --pack /home/ckuo/github/izkf_pack --yes true
 ## Test command
 
 ```bash
-cd /home/ckuo/github/izkf_pack/templates/archive_raw
+cd templates/archive_raw
 python3 test.py
 ```

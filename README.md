@@ -9,7 +9,7 @@ The pack is intentionally practical:
 - `discovery/` contains read-only helpers for finding projects, sequencing runs, references, and processed run folders.
 - `linkar_pack.yaml` wires selected templates to default binding functions.
 
-Template authors and AI agents should also read [TEMPLATE_AUTHORING_FOR_AGENTS.md](/home/ckuo/github/izkf_pack/TEMPLATE_AUTHORING_FOR_AGENTS.md:1) before adding a new template. For the general Linkar-side guidance on `run.command`, `run.sh`, `run.py`, and runtime metadata patterns, see the Linkar website tutorial at [python-entry-and-runtime-metadata.md](/home/ckuo/github/linkar/website/src/content/tutorials/python-entry-and-runtime-metadata.md:1).
+Template authors and AI agents should also read [TEMPLATE_AUTHORING_FOR_AGENTS.md](TEMPLATE_AUTHORING_FOR_AGENTS.md) before adding a new template. For the general Linkar-side guidance on `run.command`, `run.sh`, `run.py`, and runtime metadata patterns, see the Linkar tutorial `python-entry-and-runtime-metadata.md` in the Linkar docs site.
 
 ## Install
 
@@ -60,7 +60,7 @@ linkar project init \
 Create a new project directory:
 
 ```bash
-cd /data/projects/
+cd /path/to/projects/
 linkar project init --name example_project
 cd example_project
 linkar project view
@@ -69,10 +69,10 @@ linkar project view
 Create a project and adopt an existing Linkar run:
 
 ```bash
-cd /data/projects/
+cd /path/to/projects/
 linkar project init \
   --name example_project \
-  --adopt /data/processed_runs/example_run
+  --adopt /path/to/processed_runs/example_run
 ```
 
 ## Run Demultiplexing
@@ -82,10 +82,10 @@ Use this when starting from a raw sequencing run folder.
 Inspect first, then execute manually:
 
 ```bash
-cd /data/processed_runs/
+cd /path/to/processed_runs/
 
 linkar render demultiplex \
-  --bcl-dir /data/raw_runs/example_run \
+  --bcl-dir /path/to/raw_runs/example_run \
   --agendo-id EXAMPLE_REQUEST_ID
 
 cd example_run
@@ -97,10 +97,10 @@ linkar collect example_run
 One-shot execution:
 
 ```bash
-cd /data/processed_runs/
+cd /path/to/processed_runs/
 
 linkar run demultiplex \
-  --bcl-dir /data/raw_runs/example_run \
+  --bcl-dir /path/to/raw_runs/example_run \
   --agendo-id EXAMPLE_REQUEST_ID \
   --verbose
 ```
@@ -111,7 +111,7 @@ Export an ad hoc demultiplexing run:
 
 ```bash
 linkar run export_demux \
-  --run-dir /data/processed_runs/example_run \
+  --run-dir /path/to/processed_runs/example_run \
   --project-name example_fastq_export \
   --verbose
 ```
@@ -123,11 +123,11 @@ linkar run export_demux \
 After finishing demultiplexing, create a project and adopt the processed run:
 
 ```bash
-cd /data/projects/
+cd /path/to/projects/
 
 linkar project init \
   --name example_3mrnaseq_project \
-  --adopt /data/processed_runs/example_run
+  --adopt /path/to/processed_runs/example_run
 
 cd example_3mrnaseq_project
 linkar project view
@@ -190,8 +190,8 @@ Run Cell Ranger ATAC after a compatible FASTQ directory is recorded or passed ex
 
 ```bash
 linkar run cellranger_atac \
-  --fastq-dir /data/processed_runs/example_run/results/output/example_project \
-  --reference /data/references/example_cellranger_atac_reference \
+  --fastq-dir /path/to/processed_runs/example_run/results/output/example_project \
+  --reference /path/to/references/example_cellranger_atac_reference \
   --outdir ./cellranger_atac \
   --verbose
 ```
@@ -349,7 +349,7 @@ Example:
 from discovery.projects import list_projects
 from discovery.references import recommended_references
 
-projects = list_projects("/data/projects")
+projects = list_projects("/path/to/projects")
 references = recommended_references(organism="example_organism", workflow="example_workflow")
 ```
 

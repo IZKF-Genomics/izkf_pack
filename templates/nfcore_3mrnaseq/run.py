@@ -15,6 +15,9 @@ PIPELINE_VERSION = "3.22.2"
 EXECUTION_PROFILE = "docker"
 GENOME_PLACEHOLDER = "__EDIT_ME_GENOME__"
 UMI_KIT = "UMI Second Strand SynthesisModule for QuantSeq FWD"
+SPIKEIN_KIT = "ERCC RNA Spike-in Mix"
+TRUTHY_VALUES = {"1", "true", "yes", "on"}
+FALSY_VALUES = {"0", "false", "no", "off"}
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,8 +38,16 @@ def optional_env(name: str, default: str = "") -> str:
     return os.environ.get(name, default).strip()
 
 
-def env_flag(name: str) -> bool:
-    return optional_env(name).lower() in {"1", "true", "yes", "on"}
+def normalize_toggle_param(value: str, *, enabled_value: str) -> str:
+    normalized = value.strip()
+    if not normalized:
+        return ""
+    lowered = normalized.lower()
+    if lowered in TRUTHY_VALUES:
+        return enabled_value
+    if lowered in FALSY_VALUES:
+        return ""
+    return normalized
 
 
 def normalize_memory(value: str) -> str:
@@ -119,6 +130,10 @@ def write_runtime_nextflow_config(
     output_path.write_text(text, encoding="utf-8")
 
 
+def relative_path_for_command(base_dir: Path, target: Path) -> str:
+    return os.path.relpath(target, start=base_dir)
+
+
 def build_nextflow_command(
     *,
     nextflow_config: Path,
@@ -126,7 +141,6 @@ def build_nextflow_command(
     results_dir: str,
     genome: str,
     umi: str,
-    resume: bool,
 ) -> list[str]:
     command = [
         "pixi",
@@ -156,8 +170,6 @@ def build_nextflow_command(
         "--featurecounts_group_type",
         "gene_type",
     ]
-    if resume:
-        command.append("-resume")
     if umi == UMI_KIT:
         command.extend(
             [
@@ -171,46 +183,53 @@ def build_nextflow_command(
     return command
 
 
+def format_shell_command_lines(command: list[str]) -> list[str]:
+    lines: list[str] = []
+    index = 0
+    leading_parts: list[str] = []
+    while index < len(command) and not command[index].startswith("-"):
+        leading_parts.append(shlex.quote(command[index]))
+        index += 1
+    if leading_parts:
+        lines.append(" ".join(leading_parts))
+    while index < len(command):
+        token = command[index]
+        rendered = shlex.quote(token)
+        if token.startswith("--") and "=" in token:
+            key, value = token.split("=", 1)
+            escaped_value = (
+                value.replace("\\", "\\\\")
+                .replace('"', '\\"')
+                .replace("$", "\\$")
+                .replace("`", "\\`")
+            )
+            rendered = f'{key}="{escaped_value}"'
+        if token.startswith("-") and index + 1 < len(command):
+            next_token = command[index + 1]
+            if not next_token.startswith("-"):
+                rendered = f"{rendered} {shlex.quote(next_token)}"
+                index += 1
+        lines.append(rendered)
+        index += 1
+    return lines
+
+
 def write_resolved_run_script(
     output_path: Path,
     *,
     command: list[str],
 ) -> None:
-    quoted_parts = "\n".join(f"  {json.dumps(part)}" for part in command)
+    command_lines = format_shell_command_lines(command)
+    command_text = " \\\n".join(command_lines)
     script = (
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n\n"
         'script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"\n'
-        "resume_requested=false\n\n"
-        'for arg in "$@"; do\n'
-        '  case "$arg" in\n'
-        "    -resume)\n"
-        "      resume_requested=true\n"
-        "      ;;\n"
-        "    -h|--help)\n"
-        '      echo "Usage: ./run.sh [-resume]"\n'
-        "      exit 0\n"
-        "      ;;\n"
-        "    *)\n"
-        '      echo "[error] unsupported argument: ${arg}" >&2\n'
-        '      echo "Usage: ./run.sh [-resume]" >&2\n'
-        "      exit 2\n"
-        "      ;;\n"
-        "  esac\n"
-        "done\n\n"
         'cd "${script_dir}"\n\n'
         "# Install the template-local environment before launching Nextflow.\n"
         "pixi install\n\n"
-        "command=(\n"
-        f"{quoted_parts}\n"
-        ")\n\n"
-        'if [[ "${resume_requested}" == "true" ]]; then\n'
-        '  command+=("-resume")\n'
-        "fi\n\n"
-        'printf "[info] running:"\n'
-        'printf " %q" "${command[@]}"\n'
-        'printf "\\n"\n'
-        '"${command[@]}"\n'
+        'echo "[info] running"\n\n'
+        f"{command_text}\n"
     )
     output_path.write_text(script, encoding="utf-8")
     output_path.chmod(0o755)
@@ -224,7 +243,6 @@ def write_runtime_command(
     raw_genome: str,
     umi: str,
     spikein: str,
-    resume: bool,
     max_cpus: str,
     max_memory: str,
     nextflow_config: Path,
@@ -243,7 +261,6 @@ def write_runtime_command(
             "effective_genome": genome,
             "umi": umi,
             "spikein": spikein,
-            "resume": resume,
             "max_cpus": max_cpus,
             "max_memory": max_memory,
         },
@@ -273,18 +290,17 @@ def main() -> int:
             f"[error] genome is unresolved. Edit run.sh and replace {GENOME_PLACEHOLDER} with a supported genome before running."
         )
 
-    spikein = optional_env("SPIKEIN")
-    umi = optional_env("UMI")
+    spikein = normalize_toggle_param(optional_env("SPIKEIN"), enabled_value=SPIKEIN_KIT)
+    umi = normalize_toggle_param(optional_env("UMI"), enabled_value=UMI_KIT)
     chosen_genome = effective_genome(genome, spikein)
     results_dir = Path(require_env("LINKAR_RESULTS_DIR")).resolve()
     results_dir.mkdir(parents=True, exist_ok=True)
-    samplesheet = str(Path(require_env("SAMPLESHEET")).resolve())
-    resume = env_flag("LINKAR_NEXTFLOW_RESUME")
+    samplesheet_path = Path(require_env("SAMPLESHEET")).resolve()
     max_cpus = optional_env("MAX_CPUS")
     max_memory = optional_env("MAX_MEMORY")
 
     print(
-        f"[info] {PIPELINE_NAME} profile={EXECUTION_PROFILE} genome={chosen_genome} resume={str(resume).lower()}",
+        f"[info] {PIPELINE_NAME} profile={EXECUTION_PROFILE} genome={chosen_genome}",
         flush=True,
     )
 
@@ -299,7 +315,12 @@ def main() -> int:
         spikein=spikein,
     )
 
-    runtime_nextflow_config = results_dir / "nextflow.config"
+    resolved_run_script = Path(args.run_script)
+    if not resolved_run_script.is_absolute():
+        resolved_run_script = (script_dir / resolved_run_script).resolve()
+    run_workspace_dir = resolved_run_script.parent
+
+    runtime_nextflow_config = run_workspace_dir / "nextflow.config"
     write_runtime_nextflow_config(
         script_dir / "nextflow.config",
         runtime_nextflow_config,
@@ -308,16 +329,12 @@ def main() -> int:
     )
 
     command = build_nextflow_command(
-        nextflow_config=runtime_nextflow_config,
-        samplesheet=samplesheet,
-        results_dir=str(results_dir),
+        nextflow_config=Path(relative_path_for_command(run_workspace_dir, runtime_nextflow_config)),
+        samplesheet=relative_path_for_command(run_workspace_dir, samplesheet_path),
+        results_dir=relative_path_for_command(run_workspace_dir, results_dir),
         genome=chosen_genome,
         umi=umi,
-        resume=False,
     )
-    resolved_run_script = Path(args.run_script)
-    if not resolved_run_script.is_absolute():
-        resolved_run_script = (script_dir / resolved_run_script).resolve()
     write_resolved_run_script(
         resolved_run_script,
         command=command,
@@ -329,7 +346,6 @@ def main() -> int:
         raw_genome=genome,
         umi=umi,
         spikein=spikein,
-        resume=resume,
         max_cpus=max_cpus,
         max_memory=max_memory,
         nextflow_config=runtime_nextflow_config,
@@ -340,10 +356,7 @@ def main() -> int:
         print(f"[info] wrote {resolved_run_script}", flush=True)
         return 0
 
-    run_script_command = ["bash", str(resolved_run_script)]
-    if resume:
-        run_script_command.append("-resume")
-    subprocess.run(run_script_command, check=True, cwd=script_dir)
+    subprocess.run(["bash", str(resolved_run_script)], check=True, cwd=script_dir)
 
     run_name = detect_run_name(results_dir / ".nextflow.log")
     if run_name:

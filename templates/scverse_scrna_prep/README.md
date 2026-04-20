@@ -42,12 +42,12 @@ At least one of `input_h5ad` or `input_matrix` must be set before execution.
 
 ## Runtime behavior
 
-The launcher [run.sh](/home/ckuo/github/izkf_pack/templates/scverse_scrna_prep/run.sh:1):
+The launcher [run.sh](run.sh):
 
 - creates the runtime config under `config/project.toml`
 - records resolved parameters in `results/run_info.yaml`
 - installs the template-local Pixi environment
-- renders [00_qc.qmd](/home/ckuo/github/izkf_pack/templates/scverse_scrna_prep/00_qc.qmd:1) to HTML
+- renders [00_qc.qmd](00_qc.qmd) to HTML
 - writes `results/software_versions.json`
 
 The notebook supports:
@@ -72,6 +72,6 @@ The notebook supports:
 ## Test command
 
 ```bash
-cd /home/ckuo/github/izkf_pack/templates/scverse_scrna_prep
+cd templates/scverse_scrna_prep
 python3 test.py
 ```

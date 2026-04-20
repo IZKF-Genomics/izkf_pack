@@ -27,6 +27,6 @@ By default, cleanup is enabled after successful verify.
 ## Test command
 
 ```bash
-cd /home/ckuo/github/izkf_pack/templates/archive_fastq
+cd templates/archive_fastq
 python3 test.py
 ```
