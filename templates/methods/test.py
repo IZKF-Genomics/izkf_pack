@@ -544,6 +544,71 @@ params {
     assert "--genome Sscrofa11.1_with_ERCC" in command_block
 
 
+def test_inferred_versions_and_reference_urls() -> None:
+    module = load_run_module()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        nfcore_dir = root / "nfcore_run"
+        dgea_dir = root / "DGEA_Test"
+        (nfcore_dir / "work" / "a" / "b").mkdir(parents=True)
+        (dgea_dir / "results").mkdir(parents=True)
+        (nfcore_dir / "work" / "a" / "b" / "versions.yml").write_text(
+            '"NFCORE_RNASEQ:RNASEQ:QUANTIFY_STAR_SALMON:SALMON_QUANT":\n'
+            "    salmon: 1.10.3\n"
+            '"NFCORE_RNASEQ:PREPARE_GENOME:STAR_GENOMEGENERATE":\n'
+            "    star: 2.7.11b\n",
+            encoding="utf-8",
+        )
+        (dgea_dir / "pixi.lock").write_text(
+            "\n".join(
+                [
+                    "bioconductor-deseq2-1.46.0-r44he5774e6_1.tar.bz2",
+                    "bioconductor-clusterprofiler-4.14.0-r44hdfd78af_0.tar.bz2",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        inferred_nfcore = module.infer_additional_versions(nfcore_dir)
+        inferred_dgea = module.infer_additional_versions(dgea_dir)
+        citation_ids = ["star", "salmon", "deseq2"]
+        catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
+        numbered = module.numbered_references_markdown(citation_ids, catalog)
+        replaced = module.replace_references_section("Example text\n\nReferences\n1. old ref\n", numbered)
+        context = {
+            "runs": [
+                {
+                    "template": "nfcore_3mrnaseq",
+                    "software_versions": inferred_nfcore,
+                },
+                {
+                    "template": "dgea",
+                    "software_versions": [
+                        {"name": "R", "version": "Rscript (R) version 4.4.3 (2025-02-28)"},
+                        *inferred_dgea,
+                    ],
+                },
+            ]
+        }
+        preserved = module.preserve_important_versions(
+            "Short draft mentioning STAR 2.7.11b and Salmon 1.10.3 and DESeq2 1.46.0.\n\nReferences\n1. x\n",
+            "Short draft mentioning STAR 2.7.11b and Salmon 1.10.3 and DESeq2 1.46.0 and R 4.4.3.\n\nReferences\n1. y\n",
+            context,
+        )
+
+    assert any(item["name"] == "star" and item["version"] == "2.7.11b" for item in inferred_nfcore)
+    assert any(item["name"] == "salmon" and item["version"] == "1.10.3" for item in inferred_nfcore)
+    assert any(item["name"] == "DESeq2" and item["version"] == "1.46.0" for item in inferred_dgea)
+    assert any(item["name"] == "clusterProfiler" and item["version"] == "4.14.0" for item in inferred_dgea)
+    assert "https://doi.org/10.1093/bioinformatics/bts635" in numbered
+    assert "https://doi.org/10.1038/nmeth.4197" in numbered
+    assert "https://doi.org/10.1186/s13059-014-0550-8" in numbered
+    assert "old ref" not in replaced
+    assert "References" in replaced
+    assert "R 4.4.3" in preserved
+
+
 def main() -> int:
     test_generation_with_runtime_command()
     test_dgea_label_and_software_version_fallback()
@@ -552,6 +617,7 @@ def main() -> int:
     test_llm_config_resolution()
     test_project_api_metadata_resolution_and_rendering()
     test_nfcore_reference_and_command_details_ignore_project_umi()
+    test_inferred_versions_and_reference_urls()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     catalog_text = (TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8")

@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shlex
+from glob import glob
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -503,7 +504,56 @@ def load_software_versions(project_dir: Path, run_dir: Path | None, outputs: dic
                 "source": "output",
             }
         )
+    if run_dir is not None:
+        versions.extend(infer_additional_versions(run_dir))
     return versions
+
+
+def infer_additional_versions(run_dir: Path) -> list[dict[str, Any]]:
+    inferred: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add(name: str, version: str, source: str, path: Path) -> None:
+        normalized_name = normalize_id_value(name)
+        normalized_version = normalize_id_value(version)
+        if not normalized_name or not normalized_version:
+            return
+        key = (normalized_name.lower(), normalized_version)
+        if key in seen:
+            return
+        seen.add(key)
+        inferred.append(
+            {
+                "name": normalized_name,
+                "version": normalized_version,
+                "source": source,
+                "path": str(path),
+            }
+        )
+
+    for tool_name in ("star", "salmon"):
+        for raw_path in glob(str(run_dir / "work" / "**" / "versions.yml"), recursive=True):
+            path = Path(raw_path)
+            if not path.exists():
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+            match = re.search(rf"^\s*{re.escape(tool_name)}:\s*([^\s]+)", text, flags=re.IGNORECASE | re.MULTILINE)
+            if match:
+                add(tool_name, match.group(1), "inferred_from_versions_yml", path)
+                break
+
+    pixi_lock = run_dir / "pixi.lock"
+    if pixi_lock.exists():
+        text = pixi_lock.read_text(encoding="utf-8", errors="replace")
+        for package_name, tool_name in [
+            ("bioconductor-deseq2", "DESeq2"),
+            ("bioconductor-clusterprofiler", "clusterProfiler"),
+        ]:
+            match = re.search(rf"{re.escape(package_name)}-([0-9]+(?:\.[0-9]+)+)-", text, flags=re.IGNORECASE)
+            if match:
+                add(tool_name, match.group(1), "inferred_from_pixi_lock", pixi_lock)
+
+    return inferred
 
 
 def infer_organism_or_reference(params: dict[str, Any]) -> dict[str, Any]:
@@ -641,11 +691,33 @@ def software_display_name(name: str) -> str:
     mapping = {
         "bcl-convert": "BCL Convert",
         "cellranger-atac": "Cell Ranger ATAC",
+        "deseq2": "DESeq2",
+        "clusterprofiler": "clusterProfiler",
+        "salmon": "Salmon",
+        "star": "STAR",
         "nextflow": "Nextflow",
         "quarto": "Quarto",
         "pixi": "pixi",
     }
     return mapping.get(name.lower(), name)
+
+
+def version_map_for_run(run: dict[str, Any]) -> dict[str, str]:
+    version_map: dict[str, str] = {}
+    for item in run.get("software_versions") or []:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip().lower()
+        if not name:
+            continue
+        cleaned = clean_runtime_version(
+            str(item.get("name") or ""),
+            normalize_id_value(item.get("version")),
+            normalize_id_value(item.get("raw")),
+        )
+        if cleaned and name not in version_map:
+            version_map[name] = cleaned
+    return version_map
 
 
 def format_publication_value(key: str, value: Any) -> str:
@@ -1304,7 +1376,12 @@ def short_nfcore_sentence(runs: list[dict[str, Any]], citation_map: dict[str, in
     runtime_command = nfcore_runs[0].get("runtime_command") if isinstance(nfcore_runs[0].get("runtime_command"), dict) else {}
     pipeline_version = normalize_id_value(runtime_command.get("pipeline_version"))
     nextflow_version = ""
+    star_version = ""
+    salmon_version = ""
     for run in nfcore_runs:
+        version_map = version_map_for_run(run)
+        star_version = star_version or version_map.get("star", "")
+        salmon_version = salmon_version or version_map.get("salmon", "")
         for item in run.get("software_versions") or []:
             if not isinstance(item, dict):
                 continue
@@ -1323,7 +1400,13 @@ def short_nfcore_sentence(runs: list[dict[str, Any]], citation_map: dict[str, in
         base += f" v{pipeline_version}"
     if nextflow_version:
         base += f" via Nextflow {nextflow_version}"
-    base += ", using STAR for alignment and Salmon for quantification"
+    base += ", using STAR"
+    if star_version:
+        base += f" {star_version}"
+    base += " for alignment and Salmon"
+    if salmon_version:
+        base += f" {salmon_version}"
+    base += " for quantification"
 
     run_specific_bits: list[str] = []
     for run in nfcore_runs:
@@ -1377,7 +1460,12 @@ def short_downstream_sentence(runs: list[dict[str, Any]], citation_map: dict[str
             else:
                 cohort_text = " for the " + " and ".join(cohort_names) + " cohorts"
         r_version = ""
+        deseq2_version = ""
+        clusterprofiler_version = ""
         for run in dgea_runs:
+            version_map = version_map_for_run(run)
+            deseq2_version = deseq2_version or version_map.get("deseq2", "")
+            clusterprofiler_version = clusterprofiler_version or version_map.get("clusterprofiler", "")
             for item in run.get("software_versions") or []:
                 if not isinstance(item, dict):
                     continue
@@ -1390,9 +1478,14 @@ def short_downstream_sentence(runs: list[dict[str, Any]], citation_map: dict[str
                     break
             if r_version:
                 break
-        sentence = f"Differential expression analyses{cohort_text} were prepared in R/Quarto workspaces configured for DESeq2-based reporting from quantification outputs and sample metadata"
+        sentence = f"Differential expression analyses{cohort_text} were prepared in R/Quarto workspaces configured for DESeq2"
+        if deseq2_version:
+            sentence += f" {deseq2_version}"
+        sentence += "-based reporting from quantification outputs and sample metadata"
         if r_version:
             sentence += f", using {short_r_version(r_version)}"
+        if clusterprofiler_version:
+            sentence += f", with optional clusterProfiler {clusterprofiler_version} enrichment workflows"
         parts.append(
             sentence
             + inline_citations(["deseq2", "clusterprofiler", "quarto"], citation_map)
@@ -1455,6 +1548,44 @@ def references_markdown(citation_ids: list[str], catalog: dict[str, Any]) -> str
     return "\n".join(lines) + "\n"
 
 
+def replace_references_section(text: str, references_block: str) -> str:
+    body = text.rstrip()
+    marker = re.search(r"(?im)^##\s+References\s*$|^References\s*$", body)
+    if marker:
+        body = body[: marker.start()].rstrip()
+    return body + "\n\n" + references_block.strip() + "\n"
+
+
+def important_short_version_phrases(context: dict[str, Any]) -> list[str]:
+    phrases: list[str] = []
+    for run in context.get("runs") or []:
+        if not isinstance(run, dict):
+            continue
+        template = str(run.get("template") or "").strip()
+        version_map = version_map_for_run(run)
+        if template == "nfcore_3mrnaseq":
+            if version_map.get("star"):
+                phrases.append(f"STAR {version_map['star']}")
+            if version_map.get("salmon"):
+                phrases.append(f"Salmon {version_map['salmon']}")
+        elif template == "dgea":
+            if version_map.get("deseq2"):
+                phrases.append(f"DESeq2 {version_map['deseq2']}")
+            if version_map.get("clusterprofiler"):
+                phrases.append(f"clusterProfiler {version_map['clusterprofiler']}")
+            r_version = version_map.get("r")
+            if r_version:
+                phrases.append(short_r_version(r_version))
+    return unique_ordered(phrases)
+
+
+def preserve_important_versions(short_text: str, deterministic_text: str, context: dict[str, Any]) -> str:
+    required = important_short_version_phrases(context)
+    if required and any(phrase not in short_text for phrase in required if phrase in deterministic_text):
+        return deterministic_text
+    return short_text
+
+
 def build_prompt(context: dict[str, Any], long_draft: str, short_draft: str, references: str, style: str) -> str:
     return "\n".join(
         [
@@ -1478,6 +1609,7 @@ def build_prompt(context: dict[str, Any], long_draft: str, short_draft: str, ref
             "When multiple settings or parameters are relevant, present them as bullet lists instead of dense prose.",
             "Only mention settings that materially affect the analysis or interpretation.",
             "Include the relevant citations and reference items for each workflow step in the long methods text when they are available in the structured context.",
+            "Do not shorten, paraphrase, or abbreviate the provided reference text entries. Preserve their wording and include the URL for every reference item that has one.",
             "Avoid repeating the same workflow description when adjacent sections can be phrased concisely.",
             "Do not invent tools, organisms, references, parameters, or citations.",
             "Do not mention workflow steps that are absent from the structured context.",
@@ -1676,6 +1808,9 @@ def main() -> int:
                 long_draft = str(parsed.get("methods_long") or long_draft)
                 short_draft = str(parsed.get("methods_short") or short_draft)
                 refs = str(parsed.get("methods_references") or refs)
+                refs = references_markdown(citation_ids, catalog)
+                short_draft = replace_references_section(short_draft, numbered_references_markdown(citation_ids, catalog))
+                short_draft = preserve_important_versions(short_draft, deterministic_short_methods(context, catalog), context)
             except Exception as exc:
                 response_payload = {
                     "used_llm": False,
