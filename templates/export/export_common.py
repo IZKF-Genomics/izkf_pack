@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import glob
 import json
+import os
 import re
 import secrets
 import socket
@@ -400,7 +401,7 @@ def build_export_list(project_dir: Path, project_data: dict[str, Any], template_
                     src = resolved.strip()
             src_path = Path(src).expanduser()
             if not src_path.is_absolute():
-                src_path = (project_dir / src_path).resolve()
+                src_path = Path(os.path.abspath(project_dir / src_path))
             if not src_path.exists():
                 continue
             dest = expand_placeholders(str(mapping.get("dest") or ""), placeholders)
