@@ -1011,6 +1011,12 @@ def format_multiline_shell_command(command_parts: list[str]) -> str:
     if not command_parts:
         return ""
 
+    def render_part(part: str) -> str:
+        if part.startswith("-") and "=" in part:
+            flag, value = part.split("=", 1)
+            return f"{flag}={shlex.quote(value)}"
+        return shlex.quote(part)
+
     leading: list[str] = []
     remainder_start = 0
     for index, part in enumerate(command_parts):
@@ -1025,7 +1031,7 @@ def format_multiline_shell_command(command_parts: list[str]) -> str:
     index = remainder_start
     while index < len(command_parts):
         part = command_parts[index]
-        rendered = shlex.quote(part)
+        rendered = render_part(part)
         if "=" in part or not part.startswith("-"):
             lines.append(rendered)
             index += 1
