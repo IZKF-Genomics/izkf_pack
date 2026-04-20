@@ -603,7 +603,7 @@ def collect_run_context(
                 "run_dir": str(run_dir) if run_dir is not None else "",
             }
         )
-    return runs, sorted(set(citation_ids))
+    return runs, unique_ordered(citation_ids)
 
 
 def format_param_sentence(params: dict[str, Any]) -> str:
@@ -1181,6 +1181,19 @@ def numbered_references_markdown(citation_ids: list[str], catalog: dict[str, Any
     return "\n".join(lines) + "\n"
 
 
+def citation_number_map(citation_ids: list[str]) -> dict[str, int]:
+    return {citation_id: index for index, citation_id in enumerate(unique_ordered(citation_ids), start=1)}
+
+
+def inline_citations(citation_ids: list[str], number_map: dict[str, int]) -> str:
+    numbers = [number_map[citation_id] for citation_id in citation_ids if citation_id in number_map]
+    numbers = list(dict.fromkeys(numbers))
+    if not numbers:
+        return ""
+    rendered = ", ".join(str(number) for number in numbers)
+    return f" [{rendered}]"
+
+
 def short_assay_sentence(context: dict[str, Any], runs: list[dict[str, Any]]) -> str:
     meta = project_metadata(context)
     assay = format_publication_value("application", meta.get("application"))
@@ -1245,7 +1258,7 @@ def short_assay_sentence(context: dict[str, Any], runs: list[dict[str, Any]]) ->
     return sentence + " " + " ".join(sequencing_bits).strip() + "."
 
 
-def short_demultiplex_sentence(runs: list[dict[str, Any]]) -> str:
+def short_demultiplex_sentence(runs: list[dict[str, Any]], citation_map: dict[str, int]) -> str:
     run = next((run for run in runs if str(run.get("template") or "").strip() == "demultiplex"), None)
     if not isinstance(run, dict):
         return ""
@@ -1270,16 +1283,21 @@ def short_demultiplex_sentence(runs: list[dict[str, Any]]) -> str:
         qc_bits.append(qc_tool)
     if (run.get("outputs") if isinstance(run.get("outputs"), dict) else {}).get("multiqc_report"):
         qc_bits.append("MultiQC")
+    citations = ["bcl_convert"]
+    if qc_tool.lower() == "falco":
+        citations.append("falco")
+    if "MultiQC" in qc_bits:
+        citations.append("multiqc")
     sentence = f"Sequencing reads were demultiplexed into FASTQ files with {bcl_phrase}."
     if qc_bits:
         if len(qc_bits) == 1:
             sentence += f" Read quality was assessed with {qc_bits[0]}."
         else:
             sentence += f" Read quality was assessed with {qc_bits[0]} and summarized with {qc_bits[1]}."
-    return sentence
+    return sentence.rstrip(".") + inline_citations(citations, citation_map) + "."
 
 
-def short_nfcore_sentence(runs: list[dict[str, Any]]) -> str:
+def short_nfcore_sentence(runs: list[dict[str, Any]], citation_map: dict[str, int]) -> str:
     nfcore_runs = [run for run in runs if str(run.get("template") or "").strip() == "nfcore_3mrnaseq"]
     if not nfcore_runs:
         return ""
@@ -1330,7 +1348,10 @@ def short_nfcore_sentence(runs: list[dict[str, Any]]) -> str:
             else:
                 run_specific_bits.append("libraries were processed " + ", ".join(bits))
 
-    sentence = base + "."
+    sentence = base + inline_citations(
+        ["nextflow", "nfcore_framework", "nfcore_rnaseq", "star", "salmon"],
+        citation_map,
+    ) + "."
     if run_specific_bits:
         sentence += " " + " ".join(
             piece[0].upper() + piece[1:] + "." if piece and piece[-1] != "." else piece for piece in run_specific_bits
@@ -1338,7 +1359,7 @@ def short_nfcore_sentence(runs: list[dict[str, Any]]) -> str:
     return sentence
 
 
-def short_downstream_sentence(runs: list[dict[str, Any]]) -> str:
+def short_downstream_sentence(runs: list[dict[str, Any]], citation_map: dict[str, int]) -> str:
     dgea_runs = [run for run in runs if str(run.get("template") or "").strip() == "dgea"]
     ercc_runs = [run for run in runs if str(run.get("template") or "").strip() == "ercc"]
     parts: list[str] = []
@@ -1372,9 +1393,17 @@ def short_downstream_sentence(runs: list[dict[str, Any]]) -> str:
         sentence = f"Differential expression analyses{cohort_text} were prepared in R/Quarto workspaces configured for DESeq2-based reporting from quantification outputs and sample metadata"
         if r_version:
             sentence += f", using {short_r_version(r_version)}"
-        parts.append(sentence + ".")
+        parts.append(
+            sentence
+            + inline_citations(["deseq2", "clusterprofiler", "quarto"], citation_map)
+            + "."
+        )
     if ercc_runs:
-        parts.append("ERCC spike-in performance was additionally assessed from Salmon quantification outputs in a Quarto-rendered quality-control report.")
+        parts.append(
+            "ERCC spike-in performance was additionally assessed from Salmon quantification outputs in a Quarto-rendered quality-control report"
+            + inline_citations(["ercc_spikein", "salmon", "quarto"], citation_map)
+            + "."
+        )
     return " ".join(parts)
 
 
@@ -1387,19 +1416,23 @@ def deterministic_short_methods(context: dict[str, Any], catalog: dict[str, Any]
     if not runs:
         return "No publication-relevant workflow steps were identified in the recorded project history.\n"
 
+    ordered_citation_ids = [str(item) for item in context.get("citation_ids") or [] if str(item).strip()]
+    citation_map = citation_number_map(ordered_citation_ids)
     sentences = [
         short_assay_sentence(context, runs),
-        short_demultiplex_sentence(runs),
-        short_nfcore_sentence(runs),
-        short_downstream_sentence(runs),
+        short_demultiplex_sentence(runs, citation_map),
+        short_nfcore_sentence(runs, citation_map),
+        short_downstream_sentence(runs, citation_map),
     ]
     fallback_sentences = [build_publication_summary(run) for run in runs if build_publication_summary(run)]
-    text = " ".join(sentence for sentence in sentences if sentence).strip()
+    lead_paragraph = " ".join(sentence for sentence in sentences[:3] if sentence).strip()
+    downstream_paragraph = " ".join(sentence for sentence in sentences[3:] if sentence).strip()
+    text = "\n\n".join(paragraph for paragraph in [lead_paragraph, downstream_paragraph] if paragraph).strip()
     if not text:
         text = " ".join(fallback_sentences).strip()
 
     references = numbered_references_markdown(
-        [str(item) for item in context.get("citation_ids") or [] if str(item).strip()],
+        ordered_citation_ids,
         catalog,
     )
     return text.rstrip() + "\n\n" + references

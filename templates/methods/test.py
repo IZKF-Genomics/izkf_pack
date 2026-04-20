@@ -137,6 +137,7 @@ def test_generation_with_runtime_command() -> None:
         assert "publication-relevant workflow step" not in short_text
         assert "References" in short_text
         assert short_text.strip().splitlines()[0].endswith(".")
+        assert "\n\n" in short_text
         assert "\n1. " in short_text
         assert "Cell Ranger ATAC" in refs
         assert "runtime_command" in prompt
