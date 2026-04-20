@@ -47,24 +47,42 @@ For this template, the generated samplesheet uses `forward` strandedness.
 
 ## Runtime behavior
 
-The template keeps a thin [run.sh](/home/ckuo/github/izkf_pack/templates/nfcore_3mrnaseq/run.sh:1)
-wrapper for direct execution, but the actual runtime logic lives in
+The actual runtime logic lives in
 [run.py](/home/ckuo/github/izkf_pack/templates/nfcore_3mrnaseq/run.py:1).
 
 `run.py`:
 
 - validates `genome` before launch
 - derives `effective_genome` from `spikein` when ERCC is present
+- writes a fully resolved rerunnable shell script with the exact `nextflow` command
 - installs the template-local `pixi` environment and runs `nextflow` from it
 - records `software_versions.json`
 - records `runtime_command.json` with the effective Nextflow invocation and resolved runtime context
 - enables UMI extraction flags for the known Takara QuantSeq kit phrase
 - writes a generated runtime `nextflow.config` and applies CPU / memory caps through `-c`
-- runs the fixed `nf-core/rnaseq` invocation
+- runs the generated shell script
 
 The template [nextflow.config](/home/ckuo/github/izkf_pack/templates/nfcore_3mrnaseq/nextflow.config:1)
 contains the shared genome references and runtime resource-limit placeholders used to produce the
 final generated config under `results/`.
+
+When Linkar renders this template, it asks `run.py` to write `./run.sh` in the rendered workspace.
+That generated `run.sh` contains:
+
+- `pixi install`
+- the exact resolved `nextflow run nf-core/rnaseq ...` command
+- optional `-resume` support for reruns
+
+That means users can inspect the real command in plain shell and rerun the analysis later with:
+
+```bash
+./run.sh
+./run.sh -resume
+```
+
+The repository copy of [run.sh](/home/ckuo/github/izkf_pack/templates/nfcore_3mrnaseq/run.sh:1) is
+kept as a small developer wrapper. It writes `resolved_run.sh` locally so the tracked template file
+is not overwritten during template development.
 
 ## Runtime metadata
 

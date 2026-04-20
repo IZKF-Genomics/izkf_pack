@@ -26,6 +26,7 @@ Exposed parameters:
 
 - `project_dir`
 - `style`
+- `metadata_api_url`
 - `use_llm`
 - `llm_config`
 - `llm_base_url`
@@ -51,6 +52,7 @@ The runtime side then contributes:
 - recorded runtime command metadata from `runtime_command.json`
 - software and reference versions from `software_versions.json`
 - Linkar runtime status from `.linkar/runtime.json`
+- optional project-level assay metadata from the Agendo combined metadata API when an `agendo_id` is present in project history
 
 When repeated templates appear in one project, the methods generator uses the
 run-specific `params.name` when available, otherwise the rendered folder name,
@@ -114,6 +116,7 @@ for direct execution, while the real logic lives in
 
 - loads `project.yaml`
 - reads the methods catalog
+- resolves `agendo_id` from recorded project history and fetches combined project metadata when available
 - loads `software_versions.json` and `runtime_command.json` from recorded runs when available
 - builds deterministic long and short methods drafts
 - collects citations into `methods_references.md`

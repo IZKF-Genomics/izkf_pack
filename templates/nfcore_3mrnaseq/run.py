@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -14,6 +15,13 @@ PIPELINE_VERSION = "3.22.2"
 EXECUTION_PROFILE = "docker"
 GENOME_PLACEHOLDER = "__EDIT_ME_GENOME__"
 UMI_KIT = "UMI Second Strand SynthesisModule for QuantSeq FWD"
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Resolve and run nf-core/rnaseq for 3' mRNA-seq.")
+    parser.add_argument("--render-only", action="store_true", help="Write the resolved run.sh and exit.")
+    parser.add_argument("--run-script", default="resolved_run.sh", help="Path to the generated rerunnable shell script.")
+    return parser.parse_args()
 
 
 def require_env(name: str) -> str:
@@ -163,6 +171,51 @@ def build_nextflow_command(
     return command
 
 
+def write_resolved_run_script(
+    output_path: Path,
+    *,
+    command: list[str],
+) -> None:
+    quoted_parts = "\n".join(f"  {json.dumps(part)}" for part in command)
+    script = (
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n\n"
+        'script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"\n'
+        "resume_requested=false\n\n"
+        'for arg in "$@"; do\n'
+        '  case "$arg" in\n'
+        "    -resume)\n"
+        "      resume_requested=true\n"
+        "      ;;\n"
+        "    -h|--help)\n"
+        '      echo "Usage: ./run.sh [-resume]"\n'
+        "      exit 0\n"
+        "      ;;\n"
+        "    *)\n"
+        '      echo "[error] unsupported argument: ${arg}" >&2\n'
+        '      echo "Usage: ./run.sh [-resume]" >&2\n'
+        "      exit 2\n"
+        "      ;;\n"
+        "  esac\n"
+        "done\n\n"
+        'cd "${script_dir}"\n\n'
+        "# Install the template-local environment before launching Nextflow.\n"
+        "pixi install\n\n"
+        "command=(\n"
+        f"{quoted_parts}\n"
+        ")\n\n"
+        'if [[ "${resume_requested}" == "true" ]]; then\n'
+        '  command+=("-resume")\n'
+        "fi\n\n"
+        'printf "[info] running:"\n'
+        'printf " %q" "${command[@]}"\n'
+        'printf "\\n"\n'
+        '"${command[@]}"\n'
+    )
+    output_path.write_text(script, encoding="utf-8")
+    output_path.chmod(0o755)
+
+
 def write_runtime_command(
     output_path: Path,
     *,
@@ -176,6 +229,7 @@ def write_runtime_command(
     max_memory: str,
     nextflow_config: Path,
     software_versions: Path,
+    run_script: Path,
 ) -> None:
     payload = {
         "template": "nfcore_3mrnaseq",
@@ -196,6 +250,7 @@ def write_runtime_command(
         "artifacts": {
             "nextflow_config": str(nextflow_config),
             "software_versions": str(software_versions),
+            "run_script": str(run_script),
         },
     }
     output_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
@@ -210,6 +265,7 @@ def detect_run_name(log_path: Path) -> str:
 
 
 def main() -> int:
+    args = parse_args()
     script_dir = Path(__file__).resolve().parent
     genome = require_env("GENOME")
     if genome == GENOME_PLACEHOLDER:
@@ -257,7 +313,14 @@ def main() -> int:
         results_dir=str(results_dir),
         genome=chosen_genome,
         umi=umi,
-        resume=resume,
+        resume=False,
+    )
+    resolved_run_script = Path(args.run_script)
+    if not resolved_run_script.is_absolute():
+        resolved_run_script = (script_dir / resolved_run_script).resolve()
+    write_resolved_run_script(
+        resolved_run_script,
+        command=command,
     )
     write_runtime_command(
         results_dir / "runtime_command.json",
@@ -271,9 +334,16 @@ def main() -> int:
         max_memory=max_memory,
         nextflow_config=runtime_nextflow_config,
         software_versions=software_versions_path,
+        run_script=resolved_run_script,
     )
+    if args.render_only:
+        print(f"[info] wrote {resolved_run_script}", flush=True)
+        return 0
 
-    subprocess.run(command, check=True, cwd=results_dir)
+    run_script_command = ["bash", str(resolved_run_script)]
+    if resume:
+        run_script_command.append("-resume")
+    subprocess.run(run_script_command, check=True, cwd=script_dir)
 
     run_name = detect_run_name(results_dir / ".nextflow.log")
     if run_name:

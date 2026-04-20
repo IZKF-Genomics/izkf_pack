@@ -51,4 +51,8 @@ outputs:
     path: runtime_command.json
 run:
   mode: render
-  entry: run.sh
+  command: |
+    python3 ./run.py --run-script ./run.sh
+render:
+  command: |
+    python3 ./run.py --render-only --run-script ./run.sh

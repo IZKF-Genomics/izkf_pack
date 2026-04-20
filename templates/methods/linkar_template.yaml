@@ -13,6 +13,10 @@ params:
     type: str
     default: publication
     description: Output style hint. Use publication, concise, or technical.
+  metadata_api_url:
+    type: str
+    default: https://genomics.rwth-aachen.de/api
+    description: Optional base URL for project-level combined metadata lookup by Agendo request id.
   use_llm:
     type: bool
     default: false

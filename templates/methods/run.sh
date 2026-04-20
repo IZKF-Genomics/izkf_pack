@@ -19,6 +19,7 @@ exec python3 "${script_dir}/run.py" \
   --results-dir "${LINKAR_RESULTS_DIR}" \
   --project-dir "${project_dir}" \
   --style "${STYLE:-publication}" \
+  --metadata-api-url "${METADATA_API_URL:-}" \
   --use-llm "${USE_LLM:-false}" \
   --llm-config "${LLM_CONFIG:-}" \
   --llm-base-url "${LLM_BASE_URL:-}" \

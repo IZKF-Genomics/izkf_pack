@@ -105,8 +105,9 @@ def test_rendered_run_script() -> None:
         env["SPIKEIN"] = "ERCC RNA Spike-in Mix"
         env["MAX_CPUS"] = "16"
         env["MAX_MEMORY"] = "64GB"
+        rendered_run_script = tmpdir / "run.sh"
         completed = subprocess.run(
-            ["bash", str(TEMPLATE_DIR / "run.sh"), "-resume"],
+            ["python3", str(TEMPLATE_DIR / "run.py"), "--run-script", str(rendered_run_script)],
             cwd=tmpdir,
             env=env,
             text=True,
@@ -114,6 +115,20 @@ def test_rendered_run_script() -> None:
             check=False,
         )
         assert completed.returncode == 0, completed.stderr
+        rendered_run_text = rendered_run_script.read_text(encoding="utf-8")
+        assert "pixi install" in rendered_run_text
+        assert "Usage: ./run.sh [-resume]" in rendered_run_text
+        assert '"--with_umi"' in rendered_run_text
+        assert '"--umitools_extract_method"' in rendered_run_text
+        rerun = subprocess.run(
+            ["bash", str(rendered_run_script), "-resume"],
+            cwd=tmpdir,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert rerun.returncode == 0, rerun.stderr
         args_text = (tmpdir / "args.log").read_text(encoding="utf-8")
         assert "nf-core/rnaseq" in args_text
         assert "-profile docker" in args_text
@@ -141,11 +156,12 @@ def test_rendered_run_script() -> None:
         assert runtime_payload["params"]["effective_genome"] == "GRCh38_with_ERCC"
         assert runtime_payload["params"]["umi"] == UMI_KIT
         assert runtime_payload["params"]["spikein"] == "ERCC RNA Spike-in Mix"
-        assert runtime_payload["params"]["resume"] is True
+        assert runtime_payload["params"]["resume"] is False
         assert runtime_payload["params"]["max_cpus"] == "16"
         assert runtime_payload["params"]["max_memory"] == "64GB"
         assert runtime_payload["artifacts"]["nextflow_config"] == str(results_dir / "nextflow.config")
         assert runtime_payload["artifacts"]["software_versions"] == str(results_dir / "software_versions.json")
+        assert runtime_payload["artifacts"]["run_script"] == str(rendered_run_script)
         versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
         versions = {entry["name"]: entry for entry in versions_payload["software"]}
         assert versions["nextflow"]["version"] == "nextflow version 24.10.0"
@@ -290,12 +306,16 @@ def main() -> None:
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
     run_py_text = (TEMPLATE_DIR / "run.py").read_text(encoding="utf-8")
     nextflow_config_text = (TEMPLATE_DIR / "nextflow.config").read_text(encoding="utf-8")
-    assert "entry: run.sh" in template_text
+    assert "python3 ./run.py --run-script ./run.sh" in template_text
+    assert "python3 ./run.py --render-only --run-script ./run.sh" in template_text
     assert "- pixi" in template_text
     assert "- python3" in template_text
-    assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
+    assert 'resolved_run.sh' in run_sh_text
     assert 'LINKAR_NEXTFLOW_RESUME=true' in run_sh_text
+    assert 'exec python3 "${script_dir}/run.py" --run-script "${script_dir}/resolved_run.sh"' in run_sh_text
     assert 'subprocess.run(["pixi", "install"], check=True)' in run_py_text
+    assert 'pixi install' in run_py_text
+    assert 'Usage: ./run.sh [-resume]' in run_py_text
     assert 'runtime_command.json' in run_py_text
     assert 'command_pretty' in run_py_text
     assert 'results_dir / "nextflow.config"' in run_py_text
@@ -306,8 +326,8 @@ def main() -> None:
     pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
     pack_data = yaml.safe_load(pack_text)
     nfcore_params = pack_data["templates"]["nfcore_3mrnaseq"]["params"]
-    assert "umi" not in nfcore_params
-    assert "spikein" not in nfcore_params
+    assert nfcore_params["umi"]["function"] == "get_agendo_umi"
+    assert nfcore_params["spikein"]["function"] == "get_agendo_spikein"
     print("nfcore_3mrnaseq template test passed")
 
 
