@@ -45,6 +45,20 @@ Inside an active Linkar project:
 - `.linkar/runs/` stores per-run snapshots and runtime context.
 - repeated renders or runs can append history even when the visible outdir stays the same.
 
+Follow the repository README usage patterns unless the user explicitly wants a different flow:
+
+1. start from a processed sequencing run or project directory
+2. render first when the user wants to inspect generated files
+3. run `bash run.sh` in the rendered directory for render-first templates
+4. run `linkar collect <outdir>` after manual execution or edits
+5. use `linkar run <template>` for one-shot execution when inspection is not needed
+
+When the task involves a new project, prefer the README pattern:
+
+- demultiplex first
+- `linkar project init --adopt ...` after processed outputs exist
+- run downstream templates from inside the project directory
+
 ## Important Repo Conventions
 
 - Always prefix shell commands with `rtk`.
@@ -53,6 +67,22 @@ Inside an active Linkar project:
 - Do not overwrite unrelated user edits.
 - Commit each logical fix separately when making repo changes.
 - Keep README paths GitHub-friendly; do not write workstation-specific paths in docs.
+- Prefer the examples and naming patterns from `README.md` when drafting commands for users.
+
+## Start With README Practice
+
+Before suggesting commands, check whether the root `README.md` already defines the expected usage pattern.
+
+Important README-backed practices:
+
+- install the pack globally with `linkar config pack add ...`
+- configure author defaults with `linkar config author set ...`
+- adopt processed runs into a project before downstream analysis
+- use `linkar project view` and `linkar project runs` for orientation
+- use `linkar inspect RUN_INSTANCE_ID` when the user wants run details
+- use `linkar collect ./run_directory` after manual execution of rendered bundles
+
+Do not invent a different house style for commands when the README already shows the preferred flow.
 
 ## Template Design Rules
 
@@ -74,6 +104,8 @@ Important local conventions:
 - Starts from raw sequencing run folders.
 - Produces FASTQ, QC, and MultiQC outputs.
 - Often seeds downstream project adoption.
+- README-backed pattern:
+  render in a processed runs directory, execute `bash run.sh`, then `linkar collect`.
 
 ### `nfcore_3mrnaseq`
 
@@ -82,6 +114,9 @@ Important local conventions:
   rendered `run.sh` should show the exact multiline Nextflow command clearly.
 - `umi` and `spikein` support facility shorthands like `true`, but methods text should reflect the actual rendered command.
 - Prefer relative paths in rendered commands where possible.
+- Default bindings in `linkar_pack.yaml` resolve `samplesheet`, `genome`, `umi`, `spikein`, `max_cpus`, and `max_memory`.
+- README-backed practice for split batches:
+  users may render multiple `nfcore_3mrnaseq` outdirs and manually adjust the generated `samplesheet.csv`.
 
 ### `nfcore_methylseq`
 
@@ -93,6 +128,7 @@ Important local conventions:
 - Editable downstream analysis workspace.
 - Uses quantified RNA-seq outputs and generates HTML reports.
 - GO / GSEA references should match the actual package used by the template.
+- If multiple upstream nf-core runs exist, prefer explicit `--salmon-dir` and `--samplesheet` values.
 
 ### `ercc`
 
@@ -106,6 +142,8 @@ Important local conventions:
 - Publication-facing wording matters more than internal template trivia.
 - For nf-core sections, UMI, genome, spike-in, and key parameters should come from the rendered or recorded command when available, not only from Agendo metadata.
 - `methods_short.md` should be a clean condensation of the long version, not an unrelated summary.
+- README-backed practice:
+  keep LLM secrets in the environment, not in `project.yaml`.
 
 ### `export`
 
@@ -113,6 +151,8 @@ Important local conventions:
 - If `export_job_spec.json` already exists, current logic can reuse it instead of rebuilding.
 - When export output looks stale, inspect the existing spec before changing mappings.
 - `report_links` in the spec come from `templates/export/export_mapping.table.yaml`.
+- README-backed practice:
+  prefer `linkar render export`, inspect `results/export_job_spec.json`, then run `bash run.sh` when the user wants review before submission.
 
 ## Project History And `.linkar/runs`
 
@@ -164,6 +204,7 @@ Depending on the task, start with:
 - `project.yaml`
 - `.linkar/meta.json`
 - `.linkar/runtime.json`
+- `.linkar/runs/<instance_id>/`
 - `results/runtime_command.json`
 - `results/software_versions.json`
 - template `test.py`
@@ -181,6 +222,7 @@ After template changes, run the smallest relevant verification:
 - template-local `test.py`
 - targeted render/run dry-run checks when safe
 - YAML validation for `linkar_template.yaml` edits
+- CLI help checks when Linkar core behavior is uncertain
 
 If a change affects docs and runtime behavior, update both.
 
