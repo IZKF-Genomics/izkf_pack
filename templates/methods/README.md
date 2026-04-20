@@ -22,6 +22,32 @@ The template writes:
 
 ## Linkar interface
 
+The `methods` template is a render-first workspace. In a project, the recommended visible bundle is
+`./methods`, not `.linkar/runs/...`.
+
+Typical usage:
+
+```bash
+linkar run methods \
+  --outdir ./methods \
+  --refresh
+```
+
+or inspect first:
+
+```bash
+linkar render methods \
+  --outdir ./methods
+
+cd methods
+bash run.sh
+cd ..
+linkar collect ./methods
+```
+
+Rerunning with the same visible bundle overwrites `methods/results/*` with the latest generated
+drafts.
+
 Exposed parameters:
 
 - `project_dir`

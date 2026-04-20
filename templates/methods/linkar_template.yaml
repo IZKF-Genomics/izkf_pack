@@ -1,5 +1,5 @@
 id: methods
-version: 0.1.0
+version: 0.1.1
 description: Generate project-level methods drafts from Linkar project history.
 tools:
   required:
@@ -52,6 +52,6 @@ outputs:
   methods_response:
     path: methods_response.json
 run:
-  mode: direct
+  mode: render
   verbose_by_default: true
   entry: run.sh

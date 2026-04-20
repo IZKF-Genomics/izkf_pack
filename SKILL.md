@@ -138,12 +138,13 @@ Important local conventions:
 ### `methods`
 
 - Generates `methods_long.md`, `methods_short.md`, citations, and prompt/response artifacts.
+- Treat it as a render-first visible workspace, typically `./methods`.
 - LLM polishing is enabled by default.
 - Publication-facing wording matters more than internal template trivia.
 - For nf-core sections, UMI, genome, spike-in, and key parameters should come from the rendered or recorded command when available, not only from Agendo metadata.
 - `methods_short.md` should be a clean condensation of the long version, not an unrelated summary.
 - README-backed practice:
-  keep LLM secrets in the environment, not in `project.yaml`.
+  keep LLM secrets in the environment, not in `project.yaml`, and use `linkar run methods --outdir ./methods --refresh` for reruns.
 
 ### `export`
 

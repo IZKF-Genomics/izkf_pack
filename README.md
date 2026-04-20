@@ -144,7 +144,7 @@ linkar render nfcore_3mrnaseq \
   --genome Sscrofa11.1
 ```
 
-Then render the template again for another batch with different parameters:
+Don't forget to manually adjust the generated `samplesheet.csv` which by default includes all samples. Then render the template again for another batch with different parameters:
 
 ```bash
 linkar render nfcore_3mrnaseq \
@@ -210,8 +210,12 @@ export LINKAR_LLM_API_KEY="..."
 export LINKAR_LLM_BASE_URL="https://api.example.org/v1"
 export LINKAR_LLM_MODEL="example-model"
 
-linkar run methods
+linkar run methods \
+  --outdir ./methods \
+  --refresh
 ```
+
+This keeps the visible methods workspace in `./methods` and overwrites `methods/results/` on reruns instead of leaving the user to inspect historical `.linkar/runs/...` snapshots.
 
 ## Export
 
