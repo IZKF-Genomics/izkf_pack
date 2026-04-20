@@ -62,7 +62,7 @@ Use this when starting from a raw sequencing run folder.
 Inspect first, then execute manually:
 
 ```bash
-cd /data/fastq/
+cd /path/to/processed_runs/
 
 linkar render demultiplex \
   --bcl-dir /path/to/raw_runs/example_run \
@@ -96,12 +96,12 @@ linkar run export_demux \
   --verbose
 ```
 
-## Run nfcore RNAseq processing for 3' mRNA-seq
+## Run nf-core RNA-seq Processing for 3' mRNA-seq
 
 After finishing demultiplexing, create a project and adopt the processed run:
 
 ```bash
-cd /data/projects/
+cd /path/to/projects/
 
 linkar project init \
   --name example_3mrnaseq_project \
@@ -133,18 +133,24 @@ cd ..
 linkar collect nfcore_3mrnaseq
 ```
 
-In case there are multiple batches in the project where you want to run separate nfcore processing runs, you can do:
+If there are multiple batches in the project and you want to run separate nf-core processing runs, you can do:
+
 ```bash
 linkar render nfcore_3mrnaseq \
---agendo-id EXAMPLE_REQUEST_ID --umi true --spikein true \
---outdir nfcore_tissue1 --genome Sscrofa11.1
+  --agendo-id EXAMPLE_REQUEST_ID \
+  --umi true \
+  --spikein true \
+  --outdir nfcore_tissue1 \
+  --genome Sscrofa11.1
 ```
 
-And render this template for another batch with different params:
+Then render the template again for another batch with different parameters:
+
 ```bash
 linkar render nfcore_3mrnaseq \
---agendo-id EXAMPLE_REQUEST_ID \
---outdir nfcore_tissue2 --genome Sscrofa11.1
+  --agendo-id EXAMPLE_REQUEST_ID \
+  --outdir nfcore_tissue2 \
+  --genome Sscrofa11.1
 ```
 
 ## Run Differential Gene Expression Analysis
@@ -155,15 +161,15 @@ Run the editable DGEA workspace after RNA-seq quantification outputs are recorde
 linkar run dgea
 ```
 
-If there are multiple nfcore runs in the project and you want to specific certain results from them:
+If there are multiple nf-core runs in the project and you want to use a specific upstream result set:
 
 ```bash
 linkar render dgea \
---salmon-dir nfcore_tissue1/results/star_salmon/ \
---organism sscrofa \
---application 3mrnaseq \
---outdir DGEA_Tissue1 \
---samplesheet nfcore_tissue1/samplesheet.csv
+  --salmon-dir nfcore_tissue1/results/star_salmon/ \
+  --organism sscrofa \
+  --application 3mrnaseq \
+  --outdir DGEA_Tissue1 \
+  --samplesheet nfcore_tissue1/samplesheet.csv
 ```
 
 ## Run ERCC spike-in QC report
