@@ -135,10 +135,6 @@ def run_display_label(entry: dict[str, Any], catalog_entry: dict[str, Any], run_
     name = str(params.get("name") or "").strip()
     if name:
         return f"{base_label}: {name}"
-    if run_dir is not None:
-        basename = run_dir.name.strip()
-        if basename and basename.lower() != str(entry.get("id") or "").strip().lower():
-            return f"{base_label}: {basename}"
     return base_label
 
 
@@ -995,10 +991,56 @@ def collect_recorded_command_block(run: dict[str, Any]) -> str:
     if template not in {"nfcore_3mrnaseq", "nfcore_methylseq"}:
         return ""
     runtime_command = run.get("runtime_command") if isinstance(run.get("runtime_command"), dict) else {}
-    command_pretty = normalize_id_value(runtime_command.get("command_pretty"))
-    if not command_pretty:
+    command = runtime_command.get("command")
+    command_parts: list[str] = []
+    if isinstance(command, list):
+        command_parts = [str(part) for part in command if str(part).strip()]
+    if not command_parts:
+        command_pretty = normalize_id_value(runtime_command.get("command_pretty"))
+        if command_pretty:
+            try:
+                command_parts = shlex.split(command_pretty)
+            except ValueError:
+                command_parts = [command_pretty]
+    if not command_parts:
         return ""
-    return "```bash\n" + command_pretty + "\n```"
+    return "```bash\n" + format_multiline_shell_command(command_parts) + "\n```"
+
+
+def format_multiline_shell_command(command_parts: list[str]) -> str:
+    if not command_parts:
+        return ""
+
+    leading: list[str] = []
+    remainder_start = 0
+    for index, part in enumerate(command_parts):
+        if part.startswith("-"):
+            remainder_start = index
+            break
+        leading.append(shlex.quote(part))
+    else:
+        return " ".join(leading)
+
+    lines = [" ".join(leading)] if leading else []
+    index = remainder_start
+    while index < len(command_parts):
+        part = command_parts[index]
+        rendered = shlex.quote(part)
+        if "=" in part or not part.startswith("-"):
+            lines.append(rendered)
+            index += 1
+            continue
+        if index + 1 < len(command_parts) and not command_parts[index + 1].startswith("-"):
+            next_part = shlex.quote(command_parts[index + 1])
+            lines.append(f"{rendered} {next_part}")
+            index += 2
+            continue
+        lines.append(rendered)
+        index += 1
+
+    if len(lines) == 1:
+        return lines[0]
+    return " \\\n".join(lines)
 
 
 def collect_setting_bullets(run: dict[str, Any], context: dict[str, Any]) -> list[str]:

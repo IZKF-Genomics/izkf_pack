@@ -640,6 +640,47 @@ def test_inline_citation_rendering() -> None:
     assert "<code>code</code>" in rendered
 
 
+def test_run_display_label_ignores_run_directory_suffix() -> None:
+    module = load_run_module()
+    label = module.run_display_label(
+        {"id": "demultiplex", "params": {}},
+        {"label": "Demultiplexing and sequencing quality control"},
+        Path("/tmp/260416_NB501289_0993_AHWJHLBGYX"),
+    )
+    assert label == "Demultiplexing and sequencing quality control"
+
+
+def test_recorded_command_block_is_multiline() -> None:
+    module = load_run_module()
+    block = module.collect_recorded_command_block(
+        {
+            "template": "nfcore_3mrnaseq",
+            "runtime_command": {
+                "command": [
+                    "pixi",
+                    "run",
+                    "nextflow",
+                    "run",
+                    "nf-core/rnaseq",
+                    "-r",
+                    "3.22.2",
+                    "-profile",
+                    "docker",
+                    "--genome",
+                    "Sscrofa11.1_with_ERCC",
+                    "--featurecounts_group_type",
+                    "gene_type",
+                    "--extra_salmon_quant_args=--noLengthCorrection",
+                ]
+            },
+        }
+    )
+    assert "pixi run nextflow run nf-core/rnaseq \\\n" in block
+    assert "-r 3.22.2" in block
+    assert "--genome Sscrofa11.1_with_ERCC" in block
+    assert "--extra_salmon_quant_args=--noLengthCorrection" in block
+
+
 def main() -> int:
     test_generation_with_runtime_command()
     test_dgea_label_and_software_version_fallback()
@@ -651,6 +692,8 @@ def main() -> int:
     test_inferred_versions_and_reference_urls()
     test_llm_output_does_not_override_detailed_long_methods()
     test_inline_citation_rendering()
+    test_run_display_label_ignores_run_directory_suffix()
+    test_recorded_command_block_is_multiline()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     catalog_text = (TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8")
