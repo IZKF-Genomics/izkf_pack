@@ -368,6 +368,73 @@ def collect_project_metadata_bullets(context: dict[str, Any]) -> list[str]:
     return lines
 
 
+def project_assay_description(context: dict[str, Any]) -> str:
+    meta = project_metadata(context)
+    if not meta:
+        return ""
+
+    assay = format_publication_value("application", meta.get("application"))
+    library_kit = normalize_id_value(meta.get("library_kit"))
+    index_kit = normalize_id_value(meta.get("index_kit"))
+    umi = normalize_id_value(meta.get("umi"))
+    spike_in = normalize_id_value(meta.get("spike_in"))
+    read_type = normalize_id_value(meta.get("read_type"))
+    read1 = normalize_id_value(meta.get("cycles_read1"))
+    read2 = normalize_id_value(meta.get("cycles_read2"))
+    index1 = normalize_id_value(meta.get("cycles_index1"))
+    index2 = normalize_id_value(meta.get("cycles_index2"))
+    sequencer = normalize_id_value(meta.get("sequencer"))
+    instrument = normalize_id_value(meta.get("instrument"))
+    sequencing_kit = normalize_id_value(meta.get("sequencing_kit"))
+    phix = normalize_id_value(meta.get("phix_percentage"))
+
+    prep_bits = [item for item in [library_kit, index_kit, umi] if item]
+    if not prep_bits and not any([assay, sequencer, sequencing_kit]):
+        return ""
+
+    assay_prefix = f"{assay} libraries" if assay else "Libraries"
+    sentence = f"{assay_prefix} were prepared"
+    if prep_bits:
+        if len(prep_bits) == 1:
+            sentence += f" using {prep_bits[0]}"
+        elif len(prep_bits) == 2:
+            sentence += f" using {prep_bits[0]} and {prep_bits[1]}"
+        else:
+            sentence += f" using {', '.join(prep_bits[:-1])}, and {prep_bits[-1]}"
+    if spike_in:
+        sentence += f"; {spike_in} was included as spike-in control"
+    sentence += "."
+
+    sequencing_sentence = ""
+    if read_type == "single-end" and read1:
+        sequencing_sentence = f"Single-end sequencing ({read1} cycles)"
+    elif read_type == "paired-end" and read1 and read2:
+        sequencing_sentence = f"Paired-end sequencing ({read1} + {read2} cycles)"
+    elif read_type:
+        sequencing_sentence = f"{read_type.capitalize()} sequencing"
+
+    if sequencing_sentence:
+        platform = " / ".join(item for item in [sequencer, instrument] if item)
+        sequencing_sentence += " was performed"
+        if platform:
+            sequencing_sentence += f" on {platform}"
+        if sequencing_kit:
+            sequencing_sentence += f" using the {sequencing_kit}"
+        if index1 and index2:
+            if index1 == index2:
+                sequencing_sentence += f" with dual {index1}-cycle indices"
+            else:
+                sequencing_sentence += f" with index reads of {index1} and {index2} cycles"
+        elif index1 or index2:
+            sequencing_sentence += f" with index reads of {index1 or index2} cycles"
+        if phix:
+            phix_text = phix.removesuffix(".0") if phix.endswith(".0") else phix
+            sequencing_sentence += f" and {phix_text}% PhiX"
+        sequencing_sentence += "."
+
+    return " ".join(part for part in [sentence, sequencing_sentence] if part).strip()
+
+
 def read_linkar_runtime(run_dir: Path | None) -> dict[str, Any]:
     if run_dir is None:
         return {}
@@ -1010,6 +1077,10 @@ def deterministic_long_methods(context: dict[str, Any], catalog: dict[str, Any])
         lines.append("Project-level sequencing metadata were recovered from the Agendo combined metadata API and used as assay context for the methods narrative.")
         lines.append("")
         lines.extend(project_metadata)
+        assay_description = project_assay_description(context)
+        if assay_description:
+            lines.append("")
+            lines.append(assay_description)
         lines.append("")
     publication_runs = [
         run
@@ -1031,7 +1102,6 @@ def deterministic_long_methods(context: dict[str, Any], catalog: dict[str, Any])
         details = collect_method_detail_bullets(run)
         if details:
             lines.append("")
-            lines.append("### Computational Approach")
             lines.extend(details)
         settings = collect_setting_bullets(run, context)
         if settings:
@@ -1366,8 +1436,10 @@ def build_prompt(context: dict[str, Any], long_draft: str, short_draft: str, ref
             "Keep the long methods text readable for scientific users and focused on publication-relevant analytical content.",
             "Use a clear section structure.",
             "For the long methods text, include enough methodological detail to explain the computational approach used in each workflow step.",
+            "For the short methods text, produce a clean condensed version of the long methods text, not an unrelated re-summary.",
             "For the short methods text, write compact manuscript prose in 1-2 short paragraphs, followed by a references section.",
             "Follow Nature-style methods guidance: be concise, include the information needed for interpretation and replication, and avoid re-describing standard published methods when a citation suffices.",
+            "For the long methods text, it is acceptable to use clear subsection headings such as Relevant Settings, Reference Details, Key Command Parameters, Software, and References, but avoid unnecessary internal headings like Computational Approach when simple detailed bullets read more naturally.",
             "When project-level assay metadata are available, include the crucial sequencing and library-preparation details in a concise publication-appropriate way.",
             "For pipeline-style workflows such as nf-core runs, include the key recorded command parameters and the best available reference details, including genome and annotation version when recoverable from recorded files.",
             "When multiple settings or parameters are relevant, present them as bullet lists instead of dense prose.",

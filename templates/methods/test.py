@@ -126,13 +126,14 @@ def test_generation_with_runtime_command() -> None:
         assert "example_reference" in long_text
         assert "Cell Ranger ATAC" in long_text
         assert "2.2.0" in long_text
-        assert "### Computational Approach" in long_text
+        assert "### Computational Approach" not in long_text
         assert "### Relevant Settings" in long_text
         assert "### Software" in long_text
         assert "### References" in long_text
         assert "cellranger-atac count --id sample_a" not in long_text
         assert "Linkar" not in long_text
         assert "recorded project author" not in long_text.lower()
+        assert "Project-level sequencing metadata were recovered" not in long_text
         assert "publication-relevant workflow step" not in short_text
         assert "References" in short_text
         assert short_text.strip().splitlines()[0].endswith(".")
@@ -208,7 +209,7 @@ def test_dgea_label_and_software_version_fallback() -> None:
         long_text = (results_dir / "methods_long.md").read_text(encoding="utf-8")
         context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
         assert "Differential gene expression analysis: Liver" in long_text
-        assert "### Computational Approach" in long_text
+        assert "### Computational Approach" not in long_text
         assert "### Relevant Settings" in long_text
         assert "### Software" in long_text
         assert "### References" in long_text
@@ -290,7 +291,7 @@ def test_ercc_catalog_entry_shapes_methods_text() -> None:
         context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
         assert "ERCC spike-in quality control" in long_text
         assert "Salmon quantification results" in long_text
-        assert "### Computational Approach" in long_text
+        assert "### Computational Approach" not in long_text
         assert "### References" in long_text
         assert "Example User" not in long_text
         assert "Linkar" not in long_text
@@ -455,6 +456,7 @@ def test_project_api_metadata_resolution_and_rendering() -> None:
     assert "Library kit" in long_text
     assert "Read configuration" in long_text
     assert "single-end; R1 76/I1 8/I2 8" in long_text
+    assert "libraries were prepared using" in long_text
 
 
 def test_nfcore_reference_and_command_details_ignore_project_umi() -> None:
