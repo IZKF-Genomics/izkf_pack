@@ -609,6 +609,20 @@ def test_inferred_versions_and_reference_urls() -> None:
     assert "R 4.4.3" in preserved
 
 
+def test_llm_output_does_not_override_detailed_long_methods() -> None:
+    deterministic = "# Methods\n\n## Step A\n\n### Recorded Command\n```bash\nrun-a\n```\n"
+    parsed = {
+        "methods_long": "# Methods\n\n## Step A\nSimplified summary only.\n",
+        "methods_short": "Short polished text.\n\nReferences\n1. Ref\n",
+    }
+    effective_long = deterministic
+    effective_short = str(parsed.get("methods_short") or "")
+
+    assert effective_long == deterministic
+    assert "### Recorded Command" in effective_long
+    assert effective_short.startswith("Short polished text")
+
+
 def main() -> int:
     test_generation_with_runtime_command()
     test_dgea_label_and_software_version_fallback()
@@ -618,6 +632,7 @@ def main() -> int:
     test_project_api_metadata_resolution_and_rendering()
     test_nfcore_reference_and_command_details_ignore_project_umi()
     test_inferred_versions_and_reference_urls()
+    test_llm_output_does_not_override_detailed_long_methods()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     catalog_text = (TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8")

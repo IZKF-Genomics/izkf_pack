@@ -1805,7 +1805,6 @@ def main() -> int:
                 response_payload["used_llm"] = True
                 response_payload["llm_settings"] = context["llm_settings"]
                 parsed = response_payload.get("parsed") if isinstance(response_payload.get("parsed"), dict) else {}
-                long_draft = str(parsed.get("methods_long") or long_draft)
                 short_draft = str(parsed.get("methods_short") or short_draft)
                 refs = str(parsed.get("methods_references") or refs)
                 refs = references_markdown(citation_ids, catalog)
