@@ -695,10 +695,6 @@ def project_metadata(context: dict[str, Any]) -> dict[str, Any]:
     return project_api.get("project_metadata") if isinstance(project_api.get("project_metadata"), dict) else {}
 
 
-def nfcore_project_umi_text(context: dict[str, Any]) -> str:
-    return normalize_id_value(project_metadata(context).get("umi"))
-
-
 def load_text_file(path_str: str) -> str:
     path = Path(path_str)
     if not path.exists():
@@ -793,7 +789,9 @@ def collect_command_parameter_bullets(run: dict[str, Any], context: dict[str, An
         items.append(("Execution profile", profile))
 
     if template == "nfcore_3mrnaseq":
-        genome = format_publication_value("genome", params.get("effective_genome") or params.get("genome") or "")
+        genome = runtime_command_value_after_flag(run, "--genome") or format_publication_value(
+            "genome", params.get("effective_genome") or params.get("genome") or ""
+        )
         if genome:
             items.append(("Command genome", genome))
         if runtime_command_has_flag(run, "--gencode"):
@@ -821,21 +819,20 @@ def collect_command_parameter_bullets(run: dict[str, Any], context: dict[str, An
         )
         if star_args:
             items.append(("STAR alignment arguments", star_args))
-        umi_project_value = nfcore_project_umi_text(context)
         umi_runtime_value = format_publication_value("umi", params.get("umi") or "")
         if runtime_command_has_flag(run, "--with_umi"):
-            items.append(("UMI handling", umi_runtime_value or umi_project_value or "enabled"))
+            items.append(("UMI handling", umi_runtime_value or "enabled"))
             extract_method = runtime_command_value_after_flag(run, "--umitools_extract_method")
             if extract_method:
                 items.append(("UMI extract method", extract_method))
             bc_pattern = runtime_command_value_after_flag(run, "--umitools_bc_pattern")
             if bc_pattern:
                 items.append(("UMI barcode pattern", bc_pattern))
-        elif umi_project_value:
-            items.append(("UMI chemistry", umi_project_value))
 
     if template == "nfcore_methylseq":
-        genome = format_publication_value("genome", params.get("genome") or "")
+        genome = runtime_command_value_after_flag(run, "--genome") or format_publication_value(
+            "genome", params.get("genome") or ""
+        )
         if genome:
             items.append(("Command genome", genome))
         if runtime_command_has_flag(run, "--rrbs") or parse_bool(params.get("rrbs"), default=False):
@@ -870,18 +867,17 @@ def collect_setting_bullets(run: dict[str, Any], context: dict[str, Any]) -> lis
     items: list[tuple[str, str]] = []
 
     if template == "nfcore_3mrnaseq":
-        reference = format_publication_value("genome", params.get("effective_genome") or params.get("genome") or "")
+        reference = runtime_command_value_after_flag(run, "--genome") or format_publication_value(
+            "genome", params.get("effective_genome") or params.get("genome") or ""
+        )
         spikein = format_publication_value("spikein", params.get("spikein") or "")
         umi_value = format_publication_value("umi", params.get("umi") or "")
-        project_umi = nfcore_project_umi_text(context)
         if reference:
             items.append(("Reference genome", reference))
         if spikein:
             items.append(("Spike-in control", spikein))
         if runtime_command_has_flag(run, "--with_umi"):
-            items.append(("UMI handling", umi_value or project_umi or "enabled"))
-        elif project_umi:
-            items.append(("UMI chemistry", project_umi))
+            items.append(("UMI handling", umi_value or "enabled"))
     else:
         label_map = {
             "reference": "Reference",

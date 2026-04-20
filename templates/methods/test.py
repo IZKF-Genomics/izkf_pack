@@ -454,7 +454,7 @@ def test_project_api_metadata_resolution_and_rendering() -> None:
     assert "single-end; R1 76/I1 8/I2 8" in long_text
 
 
-def test_nfcore_reference_and_command_details_with_project_umi() -> None:
+def test_nfcore_reference_and_command_details_ignore_project_umi() -> None:
     module = load_run_module()
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
@@ -522,10 +522,11 @@ params {
         command_params = module.collect_command_parameter_bullets(run, context)
         command_block = module.collect_recorded_command_block(run)
 
-    assert any("UMI chemistry" in line for line in settings)
+    assert not any("UMI" in line for line in settings)
     assert any("Annotation version" in line and "115" in line for line in reference_details)
     assert any("Command genome" in line and "Sscrofa11.1_with_ERCC" in line for line in command_params)
     assert any("Annotation mode" in line and "Gencode" in line for line in command_params)
+    assert not any("UMI" in line for line in command_params)
     assert "nf-core/rnaseq" in command_block
     assert "--genome Sscrofa11.1_with_ERCC" in command_block
 
@@ -537,7 +538,7 @@ def main() -> int:
     test_run_sh_resolves_project_dir_from_linkar_runtime_copy()
     test_llm_config_resolution()
     test_project_api_metadata_resolution_and_rendering()
-    test_nfcore_reference_and_command_details_with_project_umi()
+    test_nfcore_reference_and_command_details_ignore_project_umi()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     catalog_text = (TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8")
