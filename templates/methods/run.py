@@ -21,7 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-dir", default="..")
     parser.add_argument("--style", default="publication")
     parser.add_argument("--metadata-api-url", default="")
-    parser.add_argument("--use-llm", default="false")
+    parser.add_argument("--use-llm", default="true")
     parser.add_argument("--llm-config", default="")
     parser.add_argument("--llm-base-url", default="")
     parser.add_argument("--llm-model", default="")
@@ -1654,7 +1654,7 @@ def main() -> int:
 
     response_payload: dict[str, Any] = {
         "used_llm": False,
-        "reason": "LLM polishing disabled.",
+        "reason": "LLM polishing not used.",
         "llm_settings": context["llm_settings"],
     }
     if parse_bool(args.use_llm):

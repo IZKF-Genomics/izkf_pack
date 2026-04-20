@@ -55,26 +55,6 @@ linkar project init \
   --author-email "another.user@example.org"
 ```
 
-## Create A Project
-
-Create a new project directory:
-
-```bash
-cd /path/to/projects/
-linkar project init --name example_project
-cd example_project
-linkar project view
-```
-
-Create a project and adopt an existing Linkar run:
-
-```bash
-cd /path/to/projects/
-linkar project init \
-  --name example_project \
-  --adopt /path/to/processed_runs/example_run
-```
-
 ## Run Demultiplexing
 
 Use this when starting from a raw sequencing run folder.
@@ -82,7 +62,7 @@ Use this when starting from a raw sequencing run folder.
 Inspect first, then execute manually:
 
 ```bash
-cd /path/to/processed_runs/
+cd /data/fastq/
 
 linkar render demultiplex \
   --bcl-dir /path/to/raw_runs/example_run \
@@ -116,14 +96,12 @@ linkar run export_demux \
   --verbose
 ```
 
-## Run Analysis
-
-### 3' mRNA-seq
+## Run nfcore RNAseq processing for 3' mRNA-seq
 
 After finishing demultiplexing, create a project and adopt the processed run:
 
 ```bash
-cd /path/to/projects/
+cd /data/projects/
 
 linkar project init \
   --name example_3mrnaseq_project \
@@ -155,69 +133,78 @@ cd ..
 linkar collect nfcore_3mrnaseq
 ```
 
+In case there are multiple batches in the project where you want to run separate nfcore processing runs, you can do:
+```bash
+linkar render nfcore_3mrnaseq \
+--agendo-id EXAMPLE_REQUEST_ID --umi true --spikein true \
+--outdir nfcore_tissue1 --genome Sscrofa11.1
+```
+
+And render this template for another batch with different params:
+```bash
+linkar render nfcore_3mrnaseq \
+--agendo-id EXAMPLE_REQUEST_ID \
+--outdir nfcore_tissue2 --genome Sscrofa11.1
+```
+
+## Run Differential Gene Expression Analysis
+
 Run the editable DGEA workspace after RNA-seq quantification outputs are recorded:
 
 ```bash
-linkar run dgea \
-  --outdir ./dgea \
-  --verbose
+linkar run dgea
 ```
+
+If there are multiple nfcore runs in the project and you want to specific certain results from them:
+
+```bash
+linkar render dgea \
+--salmon-dir nfcore_tissue1/results/star_salmon/ \
+--organism sscrofa \
+--application 3mrnaseq \
+--outdir DGEA_Tissue1 \
+--samplesheet nfcore_tissue1/samplesheet.csv
+```
+
+## Run ERCC spike-in QC report
 
 Run the ERCC spike-in QC report when the same RNA-seq quantification outputs are available:
 
 ```bash
-linkar run ercc \
-  --outdir ./ercc \
-  --verbose
+linkar run ercc
 ```
 
-### RRBS methylation-seq
+## RRBS methylation-seq
 
 Run the RRBS-first `nf-core/methylseq` wrapper after demultiplex outputs are recorded:
 
 ```bash
 linkar run nfcore_methylseq \
-  --agendo-id EXAMPLE_REQUEST_ID \
-  --outdir ./nfcore_methylseq \
-  --verbose
+  --agendo-id EXAMPLE_REQUEST_ID
 ```
 
 The default binding can generate the methylseq samplesheet from demultiplexed FASTQ names, resolve `genome`, and set the MultiQC title from the project name.
 
-### Single-cell ATAC-seq
+## Single-cell ATAC-seq
 
 Run Cell Ranger ATAC after a compatible FASTQ directory is recorded or passed explicitly:
 
 ```bash
 linkar run cellranger_atac \
   --fastq-dir /path/to/processed_runs/example_run/results/output/example_project \
-  --reference /path/to/references/example_cellranger_atac_reference \
-  --outdir ./cellranger_atac \
-  --verbose
+  --reference /path/to/references/example_cellranger_atac_reference
 ```
 
 ## Generate Methods
 
-Use this after one or more analysis runs have been adopted into `project.yaml`.
-
-```bash
-linkar run methods \
-  --outdir ./methods \
-  --use-llm false \
-  --verbose
-```
-
-Optional LLM polishing uses an OpenAI-compatible API. Keep secrets in the environment, not in `project.yaml`:
+Use this after one or more analysis runs have been adopted into `project.yaml`. The template now attempts LLM polishing by default and falls back to deterministic drafts if the API settings are missing. Keep secrets in the environment, not in `project.yaml`:
 
 ```bash
 export LINKAR_LLM_API_KEY="..."
 export LINKAR_LLM_BASE_URL="https://api.example.org/v1"
 export LINKAR_LLM_MODEL="example-model"
 
-linkar run methods \
-  --outdir ./methods \
-  --use-llm true \
-  --verbose
+linkar run methods
 ```
 
 ## Export
@@ -236,9 +223,7 @@ bash run.sh
 One-shot export:
 
 ```bash
-linkar run export \
-  --outdir ./export \
-  --verbose
+linkar run export
 ```
 
 Check an export job:

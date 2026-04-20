@@ -20,7 +20,7 @@ exec python3 "${script_dir}/run.py" \
   --project-dir "${project_dir}" \
   --style "${STYLE:-publication}" \
   --metadata-api-url "${METADATA_API_URL:-}" \
-  --use-llm "${USE_LLM:-false}" \
+  --use-llm "${USE_LLM:-true}" \
   --llm-config "${LLM_CONFIG:-}" \
   --llm-base-url "${LLM_BASE_URL:-}" \
   --llm-model "${LLM_MODEL:-}" \

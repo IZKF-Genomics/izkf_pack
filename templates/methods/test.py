@@ -109,6 +109,8 @@ def test_generation_with_runtime_command() -> None:
                 str(results_dir),
                 "--project-dir",
                 str(project_dir),
+                "--use-llm",
+                "false",
             ],
             check=True,
             capture_output=True,
@@ -201,6 +203,8 @@ def test_dgea_label_and_software_version_fallback() -> None:
                 str(results_dir),
                 "--project-dir",
                 str(project_dir),
+                "--use-llm",
+                "false",
             ],
             check=True,
             capture_output=True,
@@ -281,6 +285,8 @@ def test_ercc_catalog_entry_shapes_methods_text() -> None:
                 str(results_dir),
                 "--project-dir",
                 str(project_dir),
+                "--use-llm",
+                "false",
             ],
             check=True,
             capture_output=True,
@@ -330,6 +336,7 @@ def test_run_sh_resolves_project_dir_from_linkar_runtime_copy() -> None:
         env = os.environ.copy()
         env["LINKAR_RESULTS_DIR"] = str(results_dir)
         env["PROJECT_DIR"] = str(root)
+        env["USE_LLM"] = "false"
         completed = subprocess.run(
             [str(runtime_dir / "run.sh")],
             check=True,

@@ -9,7 +9,7 @@ This template is designed to synthesize:
 - project-level runtime context from `project.yaml`
 - recorded `software_versions.json`
 - recorded `runtime_command.json`
-- optional LLM polishing through an OpenAI-compatible API
+- LLM polishing through an OpenAI-compatible API, with deterministic fallback when settings are missing
 
 The template writes:
 
@@ -68,9 +68,9 @@ LLM to polish the prose.
 
 ## LLM configuration
 
-By default the template is deterministic and does not call any LLM.
+By default the template attempts LLM polishing. If the API key, base URL, or model is missing, it falls back to the deterministic drafts and records the reason in `methods_response.json`.
 
-When `use_llm=true`, the standard user-facing setup is to define all three environment variables:
+The standard user-facing setup is to define all three environment variables:
 
 ```bash
 export LINKAR_LLM_API_KEY="..."

@@ -19,8 +19,8 @@ params:
     description: Optional base URL for project-level combined metadata lookup by Agendo request id.
   use_llm:
     type: bool
-    default: false
-    description: When true, polish deterministic drafts through an OpenAI-compatible chat completions API.
+    default: true
+    description: When true, polish deterministic drafts through an OpenAI-compatible chat completions API. This template defaults to LLM polishing and falls back to deterministic drafts if LLM settings are missing.
   llm_config:
     type: path
     default: ""
