@@ -43,8 +43,12 @@ outputs:
     path: methods_context.yaml
   methods_long:
     path: methods_long.md
+  methods_long_html:
+    path: methods_long.html
   methods_short:
     path: methods_short.md
+  methods_short_html:
+    path: methods_short.html
   methods_references:
     path: methods_references.md
   methods_prompt:

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import html
 import json
 import os
 import re
@@ -1556,6 +1557,160 @@ def replace_references_section(text: str, references_block: str) -> str:
     return body + "\n\n" + references_block.strip() + "\n"
 
 
+def render_inline_html(text: str) -> str:
+    parts = re.split(r"(`[^`]+`)", text)
+    rendered: list[str] = []
+    url_pattern = re.compile(r"(https?://[^\s<]+)")
+    for part in parts:
+        if not part:
+            continue
+        if part.startswith("`") and part.endswith("`") and len(part) >= 2:
+            rendered.append(f"<code>{html.escape(part[1:-1])}</code>")
+            continue
+        escaped = html.escape(part)
+        escaped = url_pattern.sub(lambda m: f'<a href="{m.group(1)}">{m.group(1)}</a>', escaped)
+        rendered.append(escaped)
+    return "".join(rendered)
+
+
+def markdown_fragment_to_html(markdown_text: str) -> str:
+    lines = markdown_text.splitlines()
+    html_lines: list[str] = []
+    paragraph: list[str] = []
+    list_items: list[str] = []
+    list_kind = ""
+    in_code_block = False
+    code_lines: list[str] = []
+
+    def flush_paragraph() -> None:
+        nonlocal paragraph
+        if paragraph:
+            text = " ".join(line.strip() for line in paragraph if line.strip())
+            html_lines.append(f"<p>{render_inline_html(text)}</p>")
+            paragraph = []
+
+    def flush_list() -> None:
+        nonlocal list_items, list_kind
+        if list_items and list_kind:
+            html_lines.append(f"<{list_kind}>")
+            html_lines.extend(list_items)
+            html_lines.append(f"</{list_kind}>")
+        list_items = []
+        list_kind = ""
+
+    def flush_code_block() -> None:
+        nonlocal code_lines
+        html_lines.append("<pre><code>")
+        html_lines.append(html.escape("\n".join(code_lines)))
+        html_lines.append("</code></pre>")
+        code_lines = []
+
+    for raw_line in lines:
+        line = raw_line.rstrip("\n")
+        stripped = line.strip()
+
+        if stripped.startswith("```"):
+            flush_paragraph()
+            flush_list()
+            if in_code_block:
+                flush_code_block()
+                in_code_block = False
+            else:
+                in_code_block = True
+                code_lines = []
+            continue
+
+        if in_code_block:
+            code_lines.append(line)
+            continue
+
+        if not stripped:
+            flush_paragraph()
+            flush_list()
+            continue
+
+        heading = re.match(r"^(#{1,6})\s+(.*)$", stripped)
+        if heading:
+            flush_paragraph()
+            flush_list()
+            level = len(heading.group(1))
+            html_lines.append(f"<h{level}>{render_inline_html(heading.group(2).strip())}</h{level}>")
+            continue
+
+        bullet = re.match(r"^- (.*)$", stripped)
+        if bullet:
+            flush_paragraph()
+            if list_kind not in {"", "ul"}:
+                flush_list()
+            list_kind = "ul"
+            list_items.append(f"<li>{render_inline_html(bullet.group(1).strip())}</li>")
+            continue
+
+        numbered = re.match(r"^\d+\.\s+(.*)$", stripped)
+        if numbered:
+            flush_paragraph()
+            if list_kind not in {"", "ol"}:
+                flush_list()
+            list_kind = "ol"
+            list_items.append(f"<li>{render_inline_html(numbered.group(1).strip())}</li>")
+            continue
+
+        if list_kind:
+            flush_list()
+        paragraph.append(stripped)
+
+    if in_code_block:
+        flush_code_block()
+    flush_paragraph()
+    flush_list()
+    return "\n".join(html_lines)
+
+
+def render_methods_html(markdown_text: str, title: str) -> str:
+    body = markdown_fragment_to_html(markdown_text)
+    escaped_title = html.escape(title)
+    return "\n".join(
+        [
+            "<!DOCTYPE html>",
+            '<html lang="en">',
+            "<head>",
+            '  <meta charset="utf-8">',
+            '  <meta name="viewport" content="width=device-width, initial-scale=1">',
+            f"  <title>{escaped_title}</title>",
+            "  <style>",
+            "    :root { color-scheme: light; --bg: #f5f2ea; --paper: #fffdf8; --ink: #1d2421; --muted: #5e6762; --line: #d8d0c3; --accent: #235347; --code: #f0ebe0; }",
+            "    * { box-sizing: border-box; }",
+            "    body { margin: 0; background: linear-gradient(180deg, #efe7da 0%, #f7f4ee 40%, #f1ede5 100%); color: var(--ink); font-family: Georgia, 'Times New Roman', serif; line-height: 1.7; }",
+            "    main { max-width: 920px; margin: 0 auto; padding: 48px 24px 72px; }",
+            "    article { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 40px 42px; box-shadow: 0 20px 45px rgba(59, 49, 33, 0.08); }",
+            "    h1, h2, h3 { line-height: 1.25; color: #17211d; }",
+            "    h1 { font-size: 2.25rem; margin: 0 0 1.4rem; letter-spacing: -0.02em; }",
+            "    h2 { font-size: 1.45rem; margin: 2.2rem 0 0.9rem; padding-top: 0.2rem; border-top: 1px solid rgba(35, 83, 71, 0.12); }",
+            "    h3 { font-size: 1.05rem; margin: 1.6rem 0 0.7rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }",
+            "    p, ul, ol, pre { margin: 0.9rem 0; }",
+            "    ul, ol { padding-left: 1.4rem; }",
+            "    li + li { margin-top: 0.35rem; }",
+            "    code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; background: var(--code); border-radius: 4px; padding: 0.08rem 0.3rem; font-size: 0.92em; }",
+            "    pre { background: #1f2724; color: #f7f5ee; padding: 16px 18px; border-radius: 12px; overflow-x: auto; }",
+            "    pre code { background: transparent; color: inherit; padding: 0; }",
+            "    a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(35, 83, 71, 0.28); }",
+            "    a:hover { border-bottom-color: rgba(35, 83, 71, 0.7); }",
+            "    @media (max-width: 720px) { main { padding: 20px 12px 36px; } article { padding: 24px 18px; border-radius: 12px; } h1 { font-size: 1.8rem; } }",
+            "  </style>",
+            "</head>",
+            "<body>",
+            "  <main>",
+            "    <article>",
+            body,
+            "    </article>",
+            "  </main>",
+            "</body>",
+            "</html>",
+            "",
+        ]
+    )
+
+
 def important_short_version_phrases(context: dict[str, Any]) -> list[str]:
     phrases: list[str] = []
     for run in context.get("runs") or []:
@@ -1826,6 +1981,8 @@ def main() -> int:
     write_yaml(results_dir / "methods_context.yaml", context)
     (results_dir / "methods_long.md").write_text(long_draft, encoding="utf-8")
     (results_dir / "methods_short.md").write_text(short_draft, encoding="utf-8")
+    (results_dir / "methods_long.html").write_text(render_methods_html(long_draft, "Methods Long"), encoding="utf-8")
+    (results_dir / "methods_short.html").write_text(render_methods_html(short_draft, "Methods Short"), encoding="utf-8")
     (results_dir / "methods_references.md").write_text(refs, encoding="utf-8")
     (results_dir / "methods_prompt.md").write_text(prompt, encoding="utf-8")
     write_json(results_dir / "methods_response.json", response_payload)
@@ -1833,6 +1990,8 @@ def main() -> int:
     print(f"[info] wrote {results_dir / 'methods_context.yaml'}")
     print(f"[info] wrote {results_dir / 'methods_long.md'}")
     print(f"[info] wrote {results_dir / 'methods_short.md'}")
+    print(f"[info] wrote {results_dir / 'methods_long.html'}")
+    print(f"[info] wrote {results_dir / 'methods_short.html'}")
     print(f"[info] wrote {results_dir / 'methods_references.md'}")
     return 0
 

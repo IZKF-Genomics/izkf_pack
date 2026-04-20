@@ -15,7 +15,9 @@ The template writes:
 
 - `results/methods_context.yaml`
 - `results/methods_long.md`
+- `results/methods_long.html`
 - `results/methods_short.md`
+- `results/methods_short.html`
 - `results/methods_references.md`
 - `results/methods_prompt.md`
 - `results/methods_response.json`

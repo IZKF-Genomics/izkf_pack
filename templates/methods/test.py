@@ -119,6 +119,8 @@ def test_generation_with_runtime_command() -> None:
         assert "methods_long.md" in completed.stdout
         long_text = (results_dir / "methods_long.md").read_text(encoding="utf-8")
         short_text = (results_dir / "methods_short.md").read_text(encoding="utf-8")
+        long_html = (results_dir / "methods_long.html").read_text(encoding="utf-8")
+        short_html = (results_dir / "methods_short.html").read_text(encoding="utf-8")
         refs = (results_dir / "methods_references.md").read_text(encoding="utf-8")
         context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
         prompt = (results_dir / "methods_prompt.md").read_text(encoding="utf-8")
@@ -141,6 +143,11 @@ def test_generation_with_runtime_command() -> None:
         assert short_text.strip().splitlines()[0].endswith(".")
         assert "\n\n" in short_text
         assert "\n1. " in short_text
+        assert "<!DOCTYPE html>" in long_html
+        assert "<h1>Methods</h1>" in long_html
+        assert "<article>" in long_html
+        assert "<!DOCTYPE html>" in short_html
+        assert "References" in short_html
         assert "Cell Ranger ATAC" in refs
         assert "runtime_command" in prompt
         assert context["runs"][0]["template"] == "cellranger_atac"
@@ -642,7 +649,11 @@ def main() -> int:
     assert "entry: run.sh" in template_text
     assert "llm_config:" in template_text
     assert "metadata_api_url:" in template_text
+    assert "methods_long_html:" in template_text
+    assert "methods_short_html:" in template_text
     assert "runtime_command.json" in readme_text
+    assert "results/methods_long.html" in readme_text
+    assert "results/methods_short.html" in readme_text
     assert "nfcore_methylseq:" in catalog_text
     assert "methylation_array_analysis:" in catalog_text
     assert "scverse_scrna_prep:" in catalog_text

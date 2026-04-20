@@ -74,10 +74,18 @@ mappings:
         section: reports/Methods
         description: "Publication-ready long methods draft generated from Linkar project history."
         link_name: "Long methods draft"
+      - path: "methods_long.html"
+        section: reports/Methods
+        description: "Standalone HTML rendering of the long methods draft."
+        link_name: "Long methods HTML"
       - path: "methods_short.md"
         section: reports/Methods
         description: "Short methods summary generated from Linkar project history."
         link_name: "Short methods summary"
+      - path: "methods_short.html"
+        section: reports/Methods
+        description: "Standalone HTML rendering of the short methods summary."
+        link_name: "Short methods HTML"
       - path: "methods_references.md"
         section: reports/Methods
         description: "Reference list collected for methods generation."
