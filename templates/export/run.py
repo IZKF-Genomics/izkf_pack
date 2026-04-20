@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+from collections import OrderedDict
 from pathlib import Path
 
 import yaml
@@ -95,32 +96,33 @@ def load_json(path: Path) -> dict:
     return payload if isinstance(payload, dict) else {}
 
 
-def load_project_templates(project_path: Path) -> list[str]:
+def load_project_template_counts(project_path: Path) -> list[tuple[str, int]]:
     project_yaml = project_path / "project.yaml"
     if not project_yaml.exists():
         return []
     payload = yaml.safe_load(project_yaml.read_text(encoding="utf-8")) or {}
     templates = payload.get("templates") or []
-    ids: list[str] = []
+    counts: OrderedDict[str, int] = OrderedDict()
     for entry in templates:
         if not isinstance(entry, dict):
             continue
         template_id = str(entry.get("id") or "").strip()
         if template_id and template_id != "export":
-            ids.append(template_id)
-    return ids
+            counts[template_id] = counts.get(template_id, 0) + 1
+    return list(counts.items())
 
 
 def describe_prepared_bundle(project_dir: Path, results_dir: Path) -> None:
     spec = load_json(results_dir / "export_job_spec.json")
-    template_ids = load_project_templates(project_dir)
+    template_counts = load_project_template_counts(project_dir)
     export_list = spec.get("export_list") or []
     authors = spec.get("authors") or []
     backends = spec.get("backend") or []
 
     print_key_value("Project", str(spec.get("project_name") or project_dir.name))
-    if template_ids:
-        print_key_value("Project templates", ", ".join(template_ids))
+    if template_counts:
+        summary = ", ".join(f"{template_id} ({count})" for template_id, count in template_counts)
+        print_key_value("Project templates", summary)
     print_key_value("Export entries", str(len(export_list)))
     if isinstance(backends, list) and backends:
         print_key_value("Backends", ", ".join(str(item) for item in backends))

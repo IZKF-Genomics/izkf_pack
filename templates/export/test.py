@@ -195,6 +195,8 @@ def main() -> int:
             text=True,
         )
         assert "Dry Run Complete" in dry_run.stdout
+        assert "Project templates:" in dry_run.stdout
+        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), ercc (1)" in dry_run.stdout
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
