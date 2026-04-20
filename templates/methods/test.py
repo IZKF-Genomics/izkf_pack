@@ -133,7 +133,10 @@ def test_generation_with_runtime_command() -> None:
         assert "cellranger-atac count --id sample_a" not in long_text
         assert "Linkar" not in long_text
         assert "recorded project author" not in long_text.lower()
-        assert "1 publication-relevant workflow step" in short_text
+        assert "publication-relevant workflow step" not in short_text
+        assert "References" in short_text
+        assert short_text.strip().splitlines()[0].endswith(".")
+        assert "\n1. " in short_text
         assert "Cell Ranger ATAC" in refs
         assert "runtime_command" in prompt
         assert context["runs"][0]["template"] == "cellranger_atac"

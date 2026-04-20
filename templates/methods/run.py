@@ -1067,19 +1067,272 @@ def deterministic_long_methods(context: dict[str, Any], catalog: dict[str, Any])
     return "\n".join(lines).rstrip() + "\n"
 
 
-def deterministic_short_methods(context: dict[str, Any]) -> str:
+def clean_kit_name(text: str) -> str:
+    value = normalize_id_value(text)
+    if not value:
+        return ""
+    value = re.sub(r"\s+for Illumina$", "", value, flags=re.IGNORECASE).strip()
+    return value
+
+
+def short_r_version(text: str) -> str:
+    value = normalize_id_value(text)
+    match = re.search(r"\bversion\s+([0-9]+(?:\.[0-9]+)+)", value, flags=re.IGNORECASE)
+    if match:
+        return f"R {match.group(1)}"
+    return value
+
+
+def unique_ordered(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for item in items:
+        if not item or item in seen:
+            continue
+        ordered.append(item)
+        seen.add(item)
+    return ordered
+
+
+def numbered_references_markdown(citation_ids: list[str], catalog: dict[str, Any]) -> str:
+    refs = catalog.get("references") if isinstance(catalog.get("references"), dict) else {}
+    lines = ["References"]
+    if not citation_ids:
+        lines.append("1. No template-level references were selected.")
+        return "\n".join(lines) + "\n"
+    for index, citation_id in enumerate(citation_ids, start=1):
+        entry = refs.get(citation_id) if isinstance(refs, dict) else None
+        if isinstance(entry, dict):
+            text = str(entry.get("text") or citation_id).strip()
+            url = str(entry.get("url") or "").strip()
+            lines.append(f"{index}. {text}" + (f" {url}" if url else ""))
+        else:
+            lines.append(f"{index}. {citation_id}")
+    return "\n".join(lines) + "\n"
+
+
+def short_assay_sentence(context: dict[str, Any], runs: list[dict[str, Any]]) -> str:
+    meta = project_metadata(context)
+    assay = format_publication_value("application", meta.get("application"))
+    library_kit = clean_kit_name(meta.get("library_kit"))
+    index_kit = normalize_id_value(meta.get("index_kit"))
+    sequencer = normalize_id_value(meta.get("sequencer"))
+    instrument = normalize_id_value(meta.get("instrument"))
+    sequencing_kit = normalize_id_value(meta.get("sequencing_kit"))
+    phix = normalize_id_value(meta.get("phix_percentage"))
+    cycles_read1 = normalize_id_value(meta.get("cycles_read1"))
+    cycles_index1 = normalize_id_value(meta.get("cycles_index1"))
+    cycles_index2 = normalize_id_value(meta.get("cycles_index2"))
+    cycles_read2 = normalize_id_value(meta.get("cycles_read2"))
+    read_type = normalize_id_value(meta.get("read_type"))
+    any_umi = any(runtime_command_has_flag(run, "--with_umi") for run in runs)
+    umi_label = normalize_id_value(meta.get("umi")) if any_umi else ""
+    spike_in = normalize_id_value(meta.get("spike_in"))
+
+    if not any([assay, library_kit, index_kit, sequencer, sequencing_kit]):
+        return ""
+
+    assay_prefix = f"{assay} libraries" if assay else "Sequencing libraries"
+    sentence = f"{assay_prefix} were prepared"
+    if library_kit:
+        sentence += f" using the {library_kit}"
+    if index_kit:
+        sentence += f" with {index_kit}"
+    if umi_label:
+        connector = " and the " if library_kit or index_kit else " using the "
+        sentence += f"{connector}{umi_label}"
+    if spike_in:
+        sentence += f"; {spike_in} was used as spike-in control"
+    sentence += "."
+
+    sequencing_bits: list[str] = []
+    if read_type == "single-end" and cycles_read1:
+        sequencing_bits.append(f"Single-end sequencing ({cycles_read1} cycles)")
+    elif read_type == "paired-end" and cycles_read1 and cycles_read2:
+        sequencing_bits.append(f"Paired-end sequencing ({cycles_read1} + {cycles_read2} cycles)")
+    elif read_type:
+        sequencing_bits.append(f"{read_type.capitalize()} sequencing")
+    else:
+        sequencing_bits.append("Sequencing")
+
+    if sequencer and instrument:
+        sequencing_bits.append(f"was performed on a {sequencer} instrument ({instrument})")
+    elif sequencer:
+        sequencing_bits.append(f"was performed on {sequencer}")
+    elif instrument:
+        sequencing_bits.append(f"was performed on instrument {instrument}")
+    if sequencing_kit:
+        sequencing_bits.append(f"using the {sequencing_kit}")
+    if cycles_index1 and cycles_index2 and cycles_index1 == cycles_index2:
+        sequencing_bits.append(f"with dual {cycles_index1}-cycle indices")
+    elif cycles_index1 or cycles_index2:
+        index_bits = "/".join(part for part in [cycles_index1, cycles_index2] if part)
+        sequencing_bits.append(f"with index reads of {index_bits} cycles")
+    if phix:
+        phix_text = phix.removesuffix(".0") if phix.endswith(".0") else phix
+        sequencing_bits.append(f"and {phix_text}% PhiX")
+
+    return sentence + " " + " ".join(sequencing_bits).strip() + "."
+
+
+def short_demultiplex_sentence(runs: list[dict[str, Any]]) -> str:
+    run = next((run for run in runs if str(run.get("template") or "").strip() == "demultiplex"), None)
+    if not isinstance(run, dict):
+        return ""
+    version_map = {
+        str(item.get("name") or "").lower(): clean_runtime_version(
+            str(item.get("name") or ""),
+            normalize_id_value(item.get("version")),
+            normalize_id_value(item.get("raw")),
+        )
+        for item in (run.get("software_versions") or [])
+        if isinstance(item, dict)
+    }
+    bcl_version = version_map.get("bcl-convert", "")
+    bcl_phrase = "BCL Convert"
+    if bcl_version:
+        match = re.search(r"Version\s+([0-9][^\s]*)", bcl_version)
+        if match:
+            bcl_phrase += f" v{match.group(1)}"
+    qc_tool = format_publication_value("qc_tool", merged_run_params(run).get("qc_tool") or "")
+    qc_bits = []
+    if qc_tool:
+        qc_bits.append(qc_tool)
+    if (run.get("outputs") if isinstance(run.get("outputs"), dict) else {}).get("multiqc_report"):
+        qc_bits.append("MultiQC")
+    sentence = f"Sequencing reads were demultiplexed into FASTQ files with {bcl_phrase}."
+    if qc_bits:
+        if len(qc_bits) == 1:
+            sentence += f" Read quality was assessed with {qc_bits[0]}."
+        else:
+            sentence += f" Read quality was assessed with {qc_bits[0]} and summarized with {qc_bits[1]}."
+    return sentence
+
+
+def short_nfcore_sentence(runs: list[dict[str, Any]]) -> str:
+    nfcore_runs = [run for run in runs if str(run.get("template") or "").strip() == "nfcore_3mrnaseq"]
+    if not nfcore_runs:
+        return ""
+    runtime_command = nfcore_runs[0].get("runtime_command") if isinstance(nfcore_runs[0].get("runtime_command"), dict) else {}
+    pipeline_version = normalize_id_value(runtime_command.get("pipeline_version"))
+    nextflow_version = ""
+    for run in nfcore_runs:
+        for item in run.get("software_versions") or []:
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("name") or "").lower() == "nextflow":
+                nextflow_version = clean_runtime_version(
+                    "nextflow",
+                    normalize_id_value(item.get("version")),
+                    normalize_id_value(item.get("raw")),
+                )
+                break
+        if nextflow_version:
+            break
+
+    base = "RNA-seq data were processed with nf-core/rnaseq"
+    if pipeline_version:
+        base += f" v{pipeline_version}"
+    if nextflow_version:
+        base += f" via Nextflow {nextflow_version}"
+    base += ", using STAR for alignment and Salmon for quantification"
+
+    run_specific_bits: list[str] = []
+    for run in nfcore_runs:
+        label = str(run.get("label") or "").lower()
+        cohort = ""
+        if "liver" in label:
+            cohort = "liver"
+        elif "bile" in label:
+            cohort = "bile duct"
+        genome = runtime_command_value_after_flag(run, "--genome") or ""
+        bits: list[str] = []
+        if genome:
+            bits.append(f"against {genome}")
+        if runtime_command_has_flag(run, "--with_umi"):
+            bits.append("with UMI-aware extraction enabled")
+        featurecounts_group = runtime_command_value_after_flag(run, "--featurecounts_group_type")
+        if featurecounts_group:
+            bits.append(f"using featureCounts grouping by {featurecounts_group}")
+        if bits:
+            if cohort:
+                run_specific_bits.append(f"{cohort} libraries were processed " + ", ".join(bits))
+            else:
+                run_specific_bits.append("libraries were processed " + ", ".join(bits))
+
+    sentence = base + "."
+    if run_specific_bits:
+        sentence += " " + " ".join(
+            piece[0].upper() + piece[1:] + "." if piece and piece[-1] != "." else piece for piece in run_specific_bits
+        )
+    return sentence
+
+
+def short_downstream_sentence(runs: list[dict[str, Any]]) -> str:
+    dgea_runs = [run for run in runs if str(run.get("template") or "").strip() == "dgea"]
+    ercc_runs = [run for run in runs if str(run.get("template") or "").strip() == "ercc"]
+    parts: list[str] = []
+    if dgea_runs:
+        cohort_names = unique_ordered(
+            [
+                normalize_id_value((run.get("params") if isinstance(run.get("params"), dict) else {}).get("name"))
+                for run in dgea_runs
+            ]
+        )
+        cohort_text = ""
+        if cohort_names:
+            if len(cohort_names) == 1:
+                cohort_text = f" for the {cohort_names[0]} cohort"
+            else:
+                cohort_text = " for the " + " and ".join(cohort_names) + " cohorts"
+        r_version = ""
+        for run in dgea_runs:
+            for item in run.get("software_versions") or []:
+                if not isinstance(item, dict):
+                    continue
+                if str(item.get("name") or "").lower() == "r":
+                    r_version = clean_runtime_version(
+                        "R",
+                        normalize_id_value(item.get("version")),
+                        normalize_id_value(item.get("raw")),
+                    )
+                    break
+            if r_version:
+                break
+        sentence = f"Differential expression analyses{cohort_text} were prepared in R/Quarto workspaces configured for DESeq2-based reporting from quantification outputs and sample metadata"
+        if r_version:
+            sentence += f", using {short_r_version(r_version)}"
+        parts.append(sentence + ".")
+    if ercc_runs:
+        parts.append("ERCC spike-in performance was additionally assessed from Salmon quantification outputs in a Quarto-rendered quality-control report.")
+    return " ".join(parts)
+
+
+def deterministic_short_methods(context: dict[str, Any], catalog: dict[str, Any]) -> str:
     runs = [
         run
         for run in context.get("runs") or []
         if isinstance(run, dict) and parse_bool(run.get("publication_relevance"), default=True)
     ]
-    steps = [str(run.get("label") or run.get("template")) for run in runs]
-    project = context.get("project") if isinstance(context.get("project"), dict) else {}
-    project_id = str(project.get("id") or "the project")
-    text = f"Project `{project_id}` includes {len(runs)} publication-relevant workflow step(s)"
-    if steps:
-        text += ": " + ", ".join(steps)
-    return text + ".\n"
+    if not runs:
+        return "No publication-relevant workflow steps were identified in the recorded project history.\n"
+
+    sentences = [
+        short_assay_sentence(context, runs),
+        short_demultiplex_sentence(runs),
+        short_nfcore_sentence(runs),
+        short_downstream_sentence(runs),
+    ]
+    fallback_sentences = [build_publication_summary(run) for run in runs if build_publication_summary(run)]
+    text = " ".join(sentence for sentence in sentences if sentence).strip()
+    if not text:
+        text = " ".join(fallback_sentences).strip()
+
+    references = numbered_references_markdown(
+        [str(item) for item in context.get("citation_ids") or [] if str(item).strip()],
+        catalog,
+    )
+    return text.rstrip() + "\n\n" + references
 
 
 def references_markdown(citation_ids: list[str], catalog: dict[str, Any]) -> str:
@@ -1113,6 +1366,8 @@ def build_prompt(context: dict[str, Any], long_draft: str, short_draft: str, ref
             "Keep the long methods text readable for scientific users and focused on publication-relevant analytical content.",
             "Use a clear section structure.",
             "For the long methods text, include enough methodological detail to explain the computational approach used in each workflow step.",
+            "For the short methods text, write compact manuscript prose in 1-2 short paragraphs, followed by a references section.",
+            "Follow Nature-style methods guidance: be concise, include the information needed for interpretation and replication, and avoid re-describing standard published methods when a citation suffices.",
             "When project-level assay metadata are available, include the crucial sequencing and library-preparation details in a concise publication-appropriate way.",
             "For pipeline-style workflows such as nf-core runs, include the key recorded command parameters and the best available reference details, including genome and annotation version when recoverable from recorded files.",
             "When multiple settings or parameters are relevant, present them as bullet lists instead of dense prose.",
@@ -1288,7 +1543,7 @@ def main() -> int:
         "citation_ids": citation_ids,
     }
     long_draft = deterministic_long_methods(context, catalog)
-    short_draft = deterministic_short_methods(context)
+    short_draft = deterministic_short_methods(context, catalog)
     refs = references_markdown(citation_ids, catalog)
     prompt = build_prompt(context, long_draft, short_draft, refs, args.style)
 
