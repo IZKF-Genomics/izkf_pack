@@ -640,6 +640,36 @@ def test_inline_citation_rendering() -> None:
     assert "<code>code</code>" in rendered
 
 
+def test_short_technical_terms_are_highlighted() -> None:
+    module = load_run_module()
+    context = {
+        "project_api": {
+            "project_metadata": {
+                "application": "3mRNAseq",
+                "library_kit": "QuantSeq 3' mRNA-Seq Library Prep Kit v2 FWD for Illumina",
+                "index_kit": "Lexogen UDI 12 nt Unique Dual Indexing Set A1 Cat.#198.96",
+                "umi": "UMI Second Strand SynthesisModule for QuantSeq FWD",
+                "spike_in": "ERCC RNA Spike-in Mix",
+                "sequencing_kit": "NextSeq 500/550 High Output v2.5 kit (75 cycles)",
+            }
+        }
+    }
+    text = (
+        "Libraries were prepared using QuantSeq 3' mRNA-Seq Library Prep Kit v2 FWD for Illumina "
+        "with Lexogen UDI 12 nt Unique Dual Indexing Set A1 Cat.#198.96 and "
+        "UMI Second Strand SynthesisModule for QuantSeq FWD; ERCC RNA Spike-in Mix was used. "
+        "Sequencing used the NextSeq 500/550 High Output v2.5 kit (75 cycles).\n\n"
+        "References\n1. Example"
+    )
+    rendered = module.emphasize_short_technical_terms(text, context)
+    assert "`QuantSeq 3' mRNA-Seq Library Prep Kit v2 FWD for Illumina`" in rendered
+    assert "`Lexogen UDI 12 nt Unique Dual Indexing Set A1 Cat.#198.96`" in rendered
+    assert "`UMI Second Strand SynthesisModule for QuantSeq FWD`" in rendered
+    assert "`ERCC RNA Spike-in Mix`" in rendered
+    assert "`NextSeq 500/550 High Output v2.5 kit (75 cycles)`" in rendered
+    assert "References\n1. Example" in rendered
+
+
 def test_run_display_label_ignores_run_directory_suffix() -> None:
     module = load_run_module()
     label = module.run_display_label(
@@ -694,6 +724,7 @@ def main() -> int:
     test_inferred_versions_and_reference_urls()
     test_llm_output_does_not_override_detailed_long_methods()
     test_inline_citation_rendering()
+    test_short_technical_terms_are_highlighted()
     test_run_display_label_ignores_run_directory_suffix()
     test_recorded_command_block_is_multiline()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")

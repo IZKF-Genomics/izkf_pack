@@ -1318,7 +1318,7 @@ def inline_citations(citation_ids: list[str], number_map: dict[str, int]) -> str
 def short_assay_sentence(context: dict[str, Any], runs: list[dict[str, Any]]) -> str:
     meta = project_metadata(context)
     assay = format_publication_value("application", meta.get("application"))
-    library_kit = clean_kit_name(meta.get("library_kit"))
+    library_kit = normalize_id_value(meta.get("library_kit"))
     index_kit = normalize_id_value(meta.get("index_kit"))
     sequencer = normalize_id_value(meta.get("sequencer"))
     instrument = normalize_id_value(meta.get("instrument"))
@@ -1841,6 +1841,40 @@ def preserve_important_versions(short_text: str, deterministic_text: str, contex
     return short_text
 
 
+def short_highlight_terms(context: dict[str, Any]) -> list[str]:
+    meta = project_metadata(context)
+    terms = [
+        normalize_id_value(meta.get("library_kit")),
+        normalize_id_value(meta.get("index_kit")),
+        normalize_id_value(meta.get("umi")),
+        normalize_id_value(meta.get("spike_in")),
+        normalize_id_value(meta.get("sequencing_kit")),
+    ]
+    formatted_assay = format_publication_value("application", meta.get("application"))
+    if formatted_assay:
+        terms.append(formatted_assay)
+    return unique_ordered([term for term in terms if term])
+
+
+def emphasize_short_technical_terms(short_text: str, context: dict[str, Any]) -> str:
+    terms = sorted(short_highlight_terms(context), key=len, reverse=True)
+    if not terms:
+        return short_text
+
+    references_match = re.search(r"(?ms)\n\nReferences\s*\n", short_text)
+    if references_match:
+        body = short_text[: references_match.start()]
+        tail = short_text[references_match.start() :]
+    else:
+        body = short_text
+        tail = ""
+
+    for term in terms:
+        pattern = re.compile(rf"(?<!`){re.escape(term)}(?!`)")
+        body = pattern.sub(lambda _: f"`{term}`", body)
+    return body + tail
+
+
 def build_prompt(context: dict[str, Any], long_draft: str, short_draft: str, references: str, style: str) -> str:
     return "\n".join(
         [
@@ -1857,6 +1891,7 @@ def build_prompt(context: dict[str, Any], long_draft: str, short_draft: str, ref
             "For the long methods text, include enough methodological detail to explain the computational approach used in each workflow step.",
             "For the short methods text, produce a clean condensed version of the long methods text, not an unrelated re-summary.",
             "For the short methods text, write compact manuscript prose in 1-2 short paragraphs, followed by a references section.",
+            "In the short methods text, preserve exact technical product names and assay-specific terms so they remain visually identifiable.",
             "Follow Nature-style methods guidance: be concise, include the information needed for interpretation and replication, and avoid re-describing standard published methods when a citation suffices.",
             "For the long methods text, it is acceptable to use clear subsection headings such as Relevant Settings, Reference Details, Key Command Parameters, Software, and References, but avoid unnecessary internal headings like Computational Approach when simple detailed bullets read more naturally.",
             "When project-level assay metadata are available, include the crucial sequencing and library-preparation details in a concise publication-appropriate way.",
@@ -2065,6 +2100,7 @@ def main() -> int:
                 refs = references_markdown(citation_ids, catalog)
                 short_draft = replace_references_section(short_draft, numbered_references_markdown(citation_ids, catalog))
                 short_draft = preserve_important_versions(short_draft, deterministic_short_methods(context, catalog), context)
+                short_draft = emphasize_short_technical_terms(short_draft, context)
             except Exception as exc:
                 response_payload = {
                     "used_llm": False,
@@ -2077,6 +2113,8 @@ def main() -> int:
                 "reason": "LLM polishing requested but API key, base URL, or model was missing.",
                 "llm_settings": context["llm_settings"],
             }
+
+    short_draft = emphasize_short_technical_terms(short_draft, context)
 
     write_yaml(results_dir / "methods_context.yaml", context)
     (results_dir / "methods_long.md").write_text(long_draft, encoding="utf-8")
