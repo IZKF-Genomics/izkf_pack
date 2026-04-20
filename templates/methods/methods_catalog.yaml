@@ -54,6 +54,7 @@ templates:
       - MultiQC
     citations:
       - bcl_convert
+      - falco
       - multiqc
 
   dgea:
@@ -298,6 +299,9 @@ references:
   bcl_convert:
     text: "Illumina. BCL Convert software documentation."
     url: "https://support-docs.illumina.com/SW/BCL_Convert/Content/SW/BCLConvert/BCLConvert.htm"
+  falco:
+    text: "de Sena Brandine G and Smith AD. Falco: high-speed FastQC emulation for quality control of sequencing data. F1000Research 2021, 8:1874."
+    url: "https://doi.org/10.12688/f1000research.21142.2"
   multiqc:
     text: "Ewels P, Magnusson M, Lundin S, Kaller M. MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics. 2016."
     url: "https://doi.org/10.1093/bioinformatics/btw354"
