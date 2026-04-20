@@ -355,9 +355,24 @@ def load_mapping_table(template_dir: Path) -> list[dict[str, Any]]:
     return [entry for entry in mappings if isinstance(entry, dict)]
 
 
+def dedupe_template_entries(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    latest_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+    order: list[tuple[str, str]] = []
+    for entry in entries:
+        template_id = str(entry.get("id") or entry.get("source_template") or "").strip()
+        path = str(entry.get("path") or "").strip()
+        key = (template_id, path)
+        if key not in latest_by_key:
+            order.append(key)
+        latest_by_key[key] = entry
+    return [latest_by_key[key] for key in order]
+
+
 def build_export_list(project_dir: Path, project_data: dict[str, Any], template_dir: Path) -> list[dict[str, Any]]:
     mappings = load_mapping_table(template_dir)
-    template_entries = [entry for entry in project_data.get("templates") or [] if isinstance(entry, dict)]
+    template_entries = dedupe_template_entries(
+        [entry for entry in project_data.get("templates") or [] if isinstance(entry, dict)]
+    )
     export_list: list[dict[str, Any]] = []
     default_host = socket.gethostname()
     for mapping in mappings:

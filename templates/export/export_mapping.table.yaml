@@ -67,7 +67,6 @@ mappings:
         link_name: "cellranger_atac aggregated web summary"
 
   - template_id: methods
-    src_project_key: "templates[id=methods].outputs.results_dir"
     src: "{template_root}/results"
     dest: "3_Reports/methods"
     report_links:

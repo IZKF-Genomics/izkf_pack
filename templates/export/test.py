@@ -76,6 +76,7 @@ def main() -> int:
         dgea_bile_dir = project_dir / "DGEA_Bile_Duct"
         methylation_dir = project_dir / "methylation_array_analysis"
         ercc_dir = project_dir / "ercc"
+        methods_dir = project_dir / "methods"
         (demux_dir / "results" / "output").mkdir(parents=True)
         (demux_dir / "results" / "multiqc").mkdir(parents=True)
         (rnaseq_dir / "results" / "multiqc").mkdir(parents=True)
@@ -87,6 +88,7 @@ def main() -> int:
         (methylation_dir / "results" / "rds").mkdir(parents=True)
         (methylation_dir / "reports").mkdir(parents=True)
         (ercc_dir / "results").mkdir(parents=True)
+        (methods_dir / "results").mkdir(parents=True)
         (demux_dir / "results" / "output" / "sample.fastq.gz").write_text("fq\n", encoding="utf-8")
         (demux_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
         (rnaseq_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
@@ -109,6 +111,9 @@ def main() -> int:
         (ercc_dir / "results" / "ERCC.html").write_text("<html></html>\n", encoding="utf-8")
         (ercc_dir / "results" / "run_info.yaml").write_text("template: ercc\n", encoding="utf-8")
         (ercc_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
+        (methods_dir / "results" / "methods_long.md").write_text("# Long methods\n", encoding="utf-8")
+        (methods_dir / "results" / "methods_short.md").write_text("# Short methods\n", encoding="utf-8")
+        (methods_dir / "results" / "methods_references.md").write_text("# References\n", encoding="utf-8")
         export_dir.mkdir(parents=True)
 
         project_yaml = {
@@ -169,6 +174,24 @@ def main() -> int:
                         "html_report": str((ercc_dir / "results" / "ERCC.html").resolve()),
                     },
                 },
+                {
+                    "id": "methods",
+                    "instance_id": "methods_001",
+                    "path": "methods",
+                    "history_path": ".linkar/runs/methods_001",
+                    "outputs": {
+                        "results_dir": str((project_dir / ".linkar" / "runs" / "methods_001" / "results").resolve()),
+                    },
+                },
+                {
+                    "id": "methods",
+                    "instance_id": "methods_002",
+                    "path": "methods",
+                    "history_path": ".linkar/runs/methods_002",
+                    "outputs": {
+                        "results_dir": str((project_dir / ".linkar" / "runs" / "methods_002" / "results").resolve()),
+                    },
+                },
             ],
         }
         (project_dir / "project.yaml").write_text(yaml.safe_dump(project_yaml, sort_keys=False), encoding="utf-8")
@@ -196,15 +219,16 @@ def main() -> int:
         )
         assert "Dry Run Complete" in dry_run.stdout
         assert "Project templates:" in dry_run.stdout
-        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), ercc (1)" in dry_run.stdout
+        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), ercc (1), methods (2)" in dry_run.stdout
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
-        assert len(spec["export_list"]) == 12
+        assert len(spec["export_list"]) == 13
         assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
         export_srcs = {entry["src"] for entry in spec["export_list"]}
         export_dests = {entry["dest"] for entry in spec["export_list"]}
         assert str((ercc_dir / "results").resolve()) in export_srcs
+        assert str((methods_dir / "results").resolve()) in export_srcs
         assert "2_Processed_data/nfcore_3mrnaseq/nfcore_liver" in export_dests
         assert "2_Processed_data/nfcore_3mrnaseq/nfcore_bile_duct" in export_dests
         assert "2_Processed_data/dgea/DGEA_Liver/results" in export_dests
@@ -214,11 +238,17 @@ def main() -> int:
         assert "3_Reports/dgea/DGEA_Bile_Duct" in export_dests
         assert "3_Reports/methylation_array_analysis" in export_dests
         assert "3_Reports/ercc/ercc" in export_dests
+        assert "3_Reports/methods" in export_dests
+        methods_entries = [entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/methods"]
+        assert len(methods_entries) == 1
+        assert methods_entries[0]["src"] == str((methods_dir / "results").resolve())
         dgea_report_entries = [entry for entry in spec["export_list"] if entry["dest"].startswith("3_Reports/dgea/")]
         assert any(
             any(link.get("path") == "DGEA_all_samples.html" for link in entry.get("report_links", []))
             for entry in dgea_report_entries
         )
+        methods_paths = {link["path"] for link in methods_entries[0].get("report_links", [])}
+        assert {"methods_long.md", "methods_short.md", "methods_references.md"} <= methods_paths
         methylation_report_entry = next(
             entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/methylation_array_analysis"
         )
