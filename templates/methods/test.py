@@ -145,6 +145,7 @@ def test_generation_with_runtime_command() -> None:
         assert "\n1. " in short_text
         assert "<!DOCTYPE html>" in long_html
         assert "<h1>Methods</h1>" in long_html
+        assert 'class="sidebar"' in long_html
         assert "<article>" in long_html
         assert "<!DOCTYPE html>" in short_html
         assert "References" in short_html
@@ -630,6 +631,15 @@ def test_llm_output_does_not_override_detailed_long_methods() -> None:
     assert effective_short.startswith("Short polished text")
 
 
+def test_inline_citation_rendering() -> None:
+    module = load_run_module()
+    rendered = module.render_inline_html("Example text [1, 2] with `code`.")
+    assert 'class="citation-ref"' in rendered
+    assert ">1<" in rendered
+    assert ">2<" in rendered
+    assert "<code>code</code>" in rendered
+
+
 def main() -> int:
     test_generation_with_runtime_command()
     test_dgea_label_and_software_version_fallback()
@@ -640,6 +650,7 @@ def main() -> int:
     test_nfcore_reference_and_command_details_ignore_project_umi()
     test_inferred_versions_and_reference_urls()
     test_llm_output_does_not_override_detailed_long_methods()
+    test_inline_citation_rendering()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     catalog_text = (TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8")

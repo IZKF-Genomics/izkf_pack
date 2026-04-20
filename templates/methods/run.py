@@ -1561,6 +1561,7 @@ def render_inline_html(text: str) -> str:
     parts = re.split(r"(`[^`]+`)", text)
     rendered: list[str] = []
     url_pattern = re.compile(r"(https?://[^\s<]+)")
+    citation_pattern = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
     for part in parts:
         if not part:
             continue
@@ -1569,18 +1570,32 @@ def render_inline_html(text: str) -> str:
             continue
         escaped = html.escape(part)
         escaped = url_pattern.sub(lambda m: f'<a href="{m.group(1)}">{m.group(1)}</a>', escaped)
+        escaped = citation_pattern.sub(
+            lambda m: "".join(
+                f'<sup class="citation-ref" aria-label="Reference {html.escape(number.strip())}">{html.escape(number.strip())}</sup>'
+                for number in m.group(1).split(",")
+            ),
+            escaped,
+        )
         rendered.append(escaped)
     return "".join(rendered)
 
 
-def markdown_fragment_to_html(markdown_text: str) -> str:
+def slugify_heading(text: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", text.strip().lower()).strip("-")
+    return slug or "section"
+
+
+def markdown_fragment_to_html(markdown_text: str) -> tuple[str, list[dict[str, str]]]:
     lines = markdown_text.splitlines()
     html_lines: list[str] = []
+    sections: list[dict[str, str]] = []
     paragraph: list[str] = []
     list_items: list[str] = []
     list_kind = ""
     in_code_block = False
     code_lines: list[str] = []
+    heading_ids: dict[str, int] = {}
 
     def flush_paragraph() -> None:
         nonlocal paragraph
@@ -1634,7 +1649,16 @@ def markdown_fragment_to_html(markdown_text: str) -> str:
             flush_paragraph()
             flush_list()
             level = len(heading.group(1))
-            html_lines.append(f"<h{level}>{render_inline_html(heading.group(2).strip())}</h{level}>")
+            title = heading.group(2).strip()
+            attrs = ""
+            if level == 2:
+                base_id = slugify_heading(title)
+                count = heading_ids.get(base_id, 0) + 1
+                heading_ids[base_id] = count
+                heading_id = base_id if count == 1 else f"{base_id}-{count}"
+                sections.append({"id": heading_id, "title": title})
+                attrs = f' id="{heading_id}"'
+            html_lines.append(f"<h{level}{attrs}>{render_inline_html(title)}</h{level}>")
             continue
 
         bullet = re.match(r"^- (.*)$", stripped)
@@ -1663,12 +1687,16 @@ def markdown_fragment_to_html(markdown_text: str) -> str:
         flush_code_block()
     flush_paragraph()
     flush_list()
-    return "\n".join(html_lines)
+    return "\n".join(html_lines), sections
 
 
 def render_methods_html(markdown_text: str, title: str) -> str:
-    body = markdown_fragment_to_html(markdown_text)
+    body, sections = markdown_fragment_to_html(markdown_text)
     escaped_title = html.escape(title)
+    sidebar_links = "\n".join(
+        f'          <li><a href="#{html.escape(section["id"])}">{html.escape(section["title"])}</a></li>'
+        for section in sections
+    )
     return "\n".join(
         [
             "<!DOCTYPE html>",
@@ -1678,28 +1706,52 @@ def render_methods_html(markdown_text: str, title: str) -> str:
             '  <meta name="viewport" content="width=device-width, initial-scale=1">',
             f"  <title>{escaped_title}</title>",
             "  <style>",
-            "    :root { color-scheme: light; --bg: #f5f2ea; --paper: #fffdf8; --ink: #1d2421; --muted: #5e6762; --line: #d8d0c3; --accent: #235347; --code: #f0ebe0; }",
+            "    :root { color-scheme: light; --bg: #f4f2ee; --paper: #ffffff; --ink: #20252a; --muted: #65707c; --line: #d7dde5; --accent: #1f4e79; --accent-soft: #e8f1fb; --code: #f4f6f8; --citation-bg: #fff2bf; --citation-ink: #7a5200; }",
             "    * { box-sizing: border-box; }",
-            "    body { margin: 0; background: linear-gradient(180deg, #efe7da 0%, #f7f4ee 40%, #f1ede5 100%); color: var(--ink); font-family: Georgia, 'Times New Roman', serif; line-height: 1.7; }",
-            "    main { max-width: 920px; margin: 0 auto; padding: 48px 24px 72px; }",
-            "    article { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 40px 42px; box-shadow: 0 20px 45px rgba(59, 49, 33, 0.08); }",
-            "    h1, h2, h3 { line-height: 1.25; color: #17211d; }",
-            "    h1 { font-size: 2.25rem; margin: 0 0 1.4rem; letter-spacing: -0.02em; }",
-            "    h2 { font-size: 1.45rem; margin: 2.2rem 0 0.9rem; padding-top: 0.2rem; border-top: 1px solid rgba(35, 83, 71, 0.12); }",
-            "    h3 { font-size: 1.05rem; margin: 1.6rem 0 0.7rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }",
-            "    p, ul, ol, pre { margin: 0.9rem 0; }",
-            "    ul, ol { padding-left: 1.4rem; }",
-            "    li + li { margin-top: 0.35rem; }",
-            "    code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; background: var(--code); border-radius: 4px; padding: 0.08rem 0.3rem; font-size: 0.92em; }",
-            "    pre { background: #1f2724; color: #f7f5ee; padding: 16px 18px; border-radius: 12px; overflow-x: auto; }",
-            "    pre code { background: transparent; color: inherit; padding: 0; }",
-            "    a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(35, 83, 71, 0.28); }",
-            "    a:hover { border-bottom-color: rgba(35, 83, 71, 0.7); }",
-            "    @media (max-width: 720px) { main { padding: 20px 12px 36px; } article { padding: 24px 18px; border-radius: 12px; } h1 { font-size: 1.8rem; } }",
+            "    html { scroll-behavior: smooth; }",
+            "    body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif; line-height: 1.72; }",
+            "    .page { max-width: 1380px; margin: 0 auto; padding: 32px 24px 56px; display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 28px; align-items: start; }",
+            "    .sidebar { position: sticky; top: 24px; align-self: start; background: rgba(255, 255, 255, 0.78); border: 1px solid var(--line); border-radius: 20px; padding: 24px 22px; backdrop-filter: blur(6px); }",
+            "    .sidebar .eyebrow { margin: 0 0 0.45rem; font-family: Arial, Helvetica, sans-serif; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }",
+            "    .sidebar h1 { margin: 0 0 0.8rem; font-size: 1.5rem; line-height: 1.2; letter-spacing: -0.02em; }",
+            "    .sidebar p { margin: 0 0 1.2rem; color: var(--muted); font-size: 0.96rem; }",
+            "    .sidebar nav ul { list-style: none; margin: 0; padding: 0; }",
+            "    .sidebar nav li + li { margin-top: 0.55rem; }",
+            "    .sidebar nav a { color: var(--ink); text-decoration: none; display: block; padding: 0.45rem 0.6rem; border-radius: 10px; border: 1px solid transparent; }",
+            "    .sidebar nav a:hover { background: var(--accent-soft); border-color: rgba(31, 78, 121, 0.16); }",
+            "    article { background: var(--paper); border: 1px solid var(--line); border-radius: 24px; padding: 52px 64px; box-shadow: 0 22px 50px rgba(38, 48, 60, 0.08); }",
+            "    article > h1:first-child { margin-top: 0; }",
+            "    h1, h2, h3 { line-height: 1.25; color: #17212b; }",
+            "    h1 { font-size: 2.35rem; margin: 0 0 1.5rem; letter-spacing: -0.03em; }",
+            "    h2 { font-size: 1.38rem; margin: 2.4rem 0 0.95rem; padding-top: 1rem; border-top: 1px solid var(--line); scroll-margin-top: 24px; }",
+            "    h3 { font-family: Arial, Helvetica, sans-serif; font-size: 0.83rem; margin: 1.55rem 0 0.6rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.16em; }",
+            "    p, ul, ol, pre { margin: 0.92rem 0; }",
+            "    p { font-size: 1.02rem; }",
+            "    ul, ol { padding-left: 1.35rem; }",
+            "    li + li { margin-top: 0.38rem; }",
+            "    code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; background: var(--code); border: 1px solid #e0e5ea; border-radius: 4px; padding: 0.08rem 0.3rem; font-size: 0.9em; }",
+            "    pre { background: #18212b; color: #f5f7fa; padding: 18px 20px; border-radius: 14px; overflow-x: auto; border: 1px solid rgba(255, 255, 255, 0.06); }",
+            "    pre code { background: transparent; border: 0; color: inherit; padding: 0; }",
+            "    a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(31, 78, 121, 0.24); }",
+            "    a:hover { border-bottom-color: rgba(31, 78, 121, 0.68); }",
+            "    .citation-ref { display: inline-flex; align-items: center; justify-content: center; min-width: 1.2rem; height: 1.2rem; margin-left: 0.12rem; padding: 0 0.24rem; border-radius: 999px; background: var(--citation-bg); color: var(--citation-ink); font-family: Arial, Helvetica, sans-serif; font-size: 0.64rem; font-weight: 700; line-height: 1; vertical-align: super; box-shadow: inset 0 0 0 1px rgba(122, 82, 0, 0.12); }",
+            "    .citation-ref + .citation-ref { margin-left: 0.16rem; }",
+            "    @media (max-width: 1080px) { .page { grid-template-columns: 1fr; } .sidebar { position: static; } article { padding: 38px 28px; } }",
+            "    @media (max-width: 720px) { .page { padding: 16px 12px 28px; gap: 16px; } .sidebar { padding: 18px 16px; border-radius: 14px; } article { padding: 24px 18px; border-radius: 16px; } h1 { font-size: 1.85rem; } }",
             "  </style>",
             "</head>",
             "<body>",
-            "  <main>",
+            '  <main class="page">',
+            '    <aside class="sidebar">',
+            '      <p class="eyebrow">Methods Draft</p>',
+            f"      <h1>{escaped_title}</h1>",
+            "      <p>Clean publication-style rendering with section navigation and readable citations.</p>",
+            "      <nav aria-label=\"Methods sections\">",
+            "        <ul>",
+            sidebar_links,
+            "        </ul>",
+            "      </nav>",
+            "    </aside>",
             "    <article>",
             body,
             "    </article>",
