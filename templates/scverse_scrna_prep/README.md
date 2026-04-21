@@ -39,6 +39,13 @@ Important parameters:
 
 At least one of `input_h5ad` or `input_matrix` must be set before execution, and `organism` must be provided for QC gene annotation.
 
+With `--binding default`, the pack can resolve these values automatically from the latest recorded `nfcore_scrnaseq` run when present:
+
+- `input_h5ad` from `selected_matrix_h5ad`
+- `input_source_template` from the upstream template id
+- `ambient_correction_applied` and `ambient_correction_method` from the selected matrix filename
+- `organism` from the upstream genome metadata
+
 ## Runtime behavior
 
 The launcher [run.sh](run.sh):

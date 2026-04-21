@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 
-UPSTREAM_TEMPLATE_IDS = ("nfcore_3mrnaseq", "nfcore_rnaseq")
+UPSTREAM_TEMPLATE_IDS = ("nfcore_scrnaseq",)
 
 
 def _templates(ctx) -> list[dict[str, Any]]:
@@ -47,28 +47,6 @@ def latest_param(ctx, key: str, template_ids: tuple[str, ...] = UPSTREAM_TEMPLAT
     return None
 
 
-def project_author_names(ctx) -> str:
-    if ctx.project is None:
-        return ""
-    data = getattr(ctx.project, "data", {}) or {}
-    author = data.get("author")
-    if isinstance(author, dict):
-        name = str(author.get("name") or "").strip()
-        if name:
-            return name
-    authors = data.get("authors") or []
-    names: list[str] = []
-    if isinstance(authors, list):
-        for item in authors:
-            if isinstance(item, dict):
-                name = str(item.get("name") or "").strip()
-                if name:
-                    names.append(name)
-            elif isinstance(item, str) and item.strip():
-                names.append(item.strip())
-    return ", ".join(names)
-
-
 def map_genome_to_organism(genome: object) -> str:
     value = str(genome or "").strip().lower()
     mapping = {
@@ -90,3 +68,13 @@ def map_genome_to_organism(genome: object) -> str:
         "drerio": "drerio",
     }
     return mapping.get(value, "")
+
+
+def selected_matrix_name(ctx) -> str:
+    value = latest_output(ctx, "selected_matrix_h5ad")
+    if not isinstance(value, str):
+        return ""
+    path = value.strip()
+    if not path:
+        return ""
+    return path.rsplit("/", 1)[-1]

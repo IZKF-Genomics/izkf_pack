@@ -4,9 +4,17 @@ This pack uses a consistent pattern for the nf-core style templates, especially:
 
 - [`nfcore_3mrnaseq`](../templates/nfcore_3mrnaseq/README.md)
 - [`nfcore_methylseq`](../templates/nfcore_methylseq/README.md)
+- [`nfcore_scrnaseq`](../templates/nfcore_scrnaseq/README.md)
 
 The goal is to make the final command easy to inspect, rerun, and cite later in
 methods generation.
+
+These templates also rely on facility-managed shared references and binaries
+prepared by the companion repository
+[`genomics-assets`](https://github.com/IZKF-Genomics/genomics-assets). In
+practice, `izkf_pack` consumes paths such as `/data/ref_genomes/...` and
+`/data/shared/10xGenomics/...`, while `genomics-assets` is responsible for
+building or fetching them.
 
 ## Preferred launcher pattern
 

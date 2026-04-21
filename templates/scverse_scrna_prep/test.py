@@ -5,11 +5,23 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+import importlib.util
 
 import yaml
 
 
 TEMPLATE_DIR = Path(__file__).resolve().parent
+FUNCTIONS_DIR = TEMPLATE_DIR.parent.parent / "functions"
+
+
+def load_function(name: str):
+    path = FUNCTIONS_DIR / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(f"test_{name}", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Could not load function module: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.resolve
 
 
 def assert_fails(command: list[str], expected_message: str) -> None:
@@ -17,6 +29,31 @@ def assert_fails(command: list[str], expected_message: str) -> None:
     assert result.returncode != 0
     combined = f"{result.stdout}\n{result.stderr}"
     assert expected_message in combined
+
+
+class FakeProject:
+    def __init__(self, templates: list[dict]) -> None:
+        self.data = {"templates": templates}
+
+
+class FakeTemplate:
+    root = TEMPLATE_DIR
+
+
+class FakeContext:
+    def __init__(self, templates: list[dict]) -> None:
+        self.project = FakeProject(templates)
+        self.template = FakeTemplate()
+        self.resolved_params = {}
+
+    def latest_output(self, key: str, template_id: str | None = None):
+        for entry in reversed(self.project.data["templates"]):
+            if template_id is not None and entry.get("id") != template_id:
+                continue
+            outputs = entry.get("outputs") or {}
+            if key in outputs:
+                return outputs[key]
+        return None
 
 
 def main() -> int:
@@ -131,6 +168,22 @@ PY""",
         check=True,
     )
 
+    upstream_templates = [
+        {
+            "id": "nfcore_scrnaseq",
+            "params": {"genome": "GRCz11", "aligner": "star"},
+            "outputs": {
+                "selected_matrix_h5ad": "/tmp/results/star/mtx_conversions/combined_cellbender_filter_matrix.h5ad",
+            },
+        }
+    ]
+    ctx = FakeContext(upstream_templates)
+    assert load_function("get_scrna_prep_input_h5ad")(ctx) == "/tmp/results/star/mtx_conversions/combined_cellbender_filter_matrix.h5ad"
+    assert load_function("get_scrna_prep_input_source_template")(ctx) == "nfcore_scrnaseq"
+    assert load_function("get_scrna_prep_ambient_correction_applied")(ctx) is True
+    assert load_function("get_scrna_prep_ambient_correction_method")(ctx) == "cellbender"
+    assert load_function("get_scrna_prep_organism")(ctx) == "drerio"
+
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
     qmd_text = (TEMPLATE_DIR / "00_qc.qmd").read_text(encoding="utf-8")
@@ -142,10 +195,16 @@ PY""",
     assert "--output-dir reports" in run_sh_text
     assert 'title: "00 scRNA Preprocessing QC"' in qmd_text
     assert "config/project.toml" in readme_text
+    assert "selected_matrix_h5ad" in readme_text
     assert "doublet_method" in spec_text
     assert "authors:" not in template_text
     assert "--authors" not in run_sh_text
     assert "author:" not in qmd_text
+    pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
+    pack_data = yaml.safe_load(pack_text)
+    params = pack_data["templates"]["scverse_scrna_prep"]["params"]
+    assert params["input_h5ad"]["function"] == "get_scrna_prep_input_h5ad"
+    assert params["organism"]["function"] == "get_scrna_prep_organism"
     print("scverse_scrna_prep template test passed")
     return 0
 

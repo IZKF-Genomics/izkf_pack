@@ -9,6 +9,8 @@ The pack is intentionally practical:
 - `discovery/` contains read-only helpers for finding projects, sequencing runs, references, and processed run folders.
 - `linkar_pack.yaml` wires selected templates to default binding functions.
 
+This pack assumes facility-managed shared references and 10x assets are prepared outside the pack itself. Those shared assets are maintained in the companion repository [`genomics-assets`](https://github.com/IZKF-Genomics/genomics-assets).
+
 ## Start Here
 
 If you are new to the pack, the usual path is:
@@ -43,6 +45,9 @@ General pack docs:
 - [docs/template_outputs.md](docs/template_outputs.md): common runtime artifacts across templates
 - [docs/facility_defaults.md](docs/facility_defaults.md): facility-specific assumptions used across templates
 - [docs/scverse_scrna_prep.md](docs/scverse_scrna_prep.md): scRNA workspace notes beyond the template README
+
+Template-specific READMEs stay inside each template directory and are listed in
+the [Template Catalog](#template-catalog) below.
 
 Template authors and AI agents should also read [TEMPLATE_AUTHORING_FOR_AGENTS.md](TEMPLATE_AUTHORING_FOR_AGENTS.md) before adding a new template. For the general Linkar-side guidance on `run.command`, `run.sh`, `run.py`, and runtime metadata patterns, see the Linkar tutorial `python-entry-and-runtime-metadata.md` in the Linkar docs site.
 

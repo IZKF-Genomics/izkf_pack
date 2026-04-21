@@ -55,6 +55,16 @@ Environment variables:
 
 - `LINKAR_HOME`
 
+### `generate_nfcore_scrnaseq_samplesheet`
+
+Source: [`generate_nfcore_scrnaseq_samplesheet.py`](generate_nfcore_scrnaseq_samplesheet.py)
+
+Generates an `nf-core/scrnaseq` samplesheet from the latest recorded demultiplexed FASTQ pairs. It writes a cached samplesheet under the Linkar cache directory and includes the optional `expected_cells` column when that parameter is already resolved.
+
+Environment variables:
+
+- `LINKAR_HOME`
+
 ### `generate_nfcore_3mrnaseq_samplesheet`
 
 Source: [`generate_nfcore_3mrnaseq_samplesheet.py`](generate_nfcore_3mrnaseq_samplesheet.py)
@@ -145,6 +155,36 @@ Maps upstream genome or organism metadata to the organism value expected by the 
 Source: [`get_dgea_application.py`](get_dgea_application.py)
 
 Returns the upstream template id as the application label for DGEA reports.
+
+### `get_scrna_prep_input_h5ad`
+
+Source: [`get_scrna_prep_input_h5ad.py`](get_scrna_prep_input_h5ad.py)
+
+Returns the latest upstream `nfcore_scrnaseq.selected_matrix_h5ad` output so `scverse_scrna_prep` can reuse the preferred single-cell matrix automatically.
+
+### `get_scrna_prep_input_source_template`
+
+Source: [`get_scrna_prep_input_source_template.py`](get_scrna_prep_input_source_template.py)
+
+Returns the latest upstream single-cell template id, currently `nfcore_scrnaseq`, for provenance tracking in `scverse_scrna_prep`.
+
+### `get_scrna_prep_ambient_correction_applied`
+
+Source: [`get_scrna_prep_ambient_correction_applied.py`](get_scrna_prep_ambient_correction_applied.py)
+
+Infers whether ambient RNA correction was applied upstream by inspecting the selected `nfcore_scrnaseq` matrix filename for markers such as `cellbender` or `emptydrops`.
+
+### `get_scrna_prep_ambient_correction_method`
+
+Source: [`get_scrna_prep_ambient_correction_method.py`](get_scrna_prep_ambient_correction_method.py)
+
+Returns the inferred ambient RNA correction method name, such as `cellbender`, `emptydrops`, or `none`, from the selected upstream `nfcore_scrnaseq` matrix.
+
+### `get_scrna_prep_organism`
+
+Source: [`get_scrna_prep_organism.py`](get_scrna_prep_organism.py)
+
+Maps the latest upstream `nfcore_scrnaseq` genome or organism value to the organism label expected by `scverse_scrna_prep`.
 
 ### `get_dgea_name`
 

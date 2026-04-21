@@ -138,6 +138,36 @@ def run_display_label(entry: dict[str, Any], catalog_entry: dict[str, Any], run_
     return base_label
 
 
+def infer_run_variant_name(entry: dict[str, Any], run_dir: Path | None) -> str:
+    template_id = str(entry.get("id") or "").strip().lower()
+    if run_dir is None:
+        return ""
+
+    candidate = run_dir.name.strip()
+    if not candidate:
+        return ""
+
+    normalized = candidate.lower()
+    prefixes = {
+        template_id,
+        "nfcore_3mrnaseq",
+        "nfcore",
+        "dgea",
+        "ercc",
+    }
+    for prefix in prefixes:
+        if prefix and normalized.startswith(prefix + "_"):
+            candidate = candidate[len(prefix) + 1 :]
+            break
+
+    candidate = candidate.strip("_- ")
+    if not candidate:
+        return ""
+
+    words = [part for part in re.split(r"[_\-\s]+", candidate) if part]
+    return " ".join(word.capitalize() for word in words)
+
+
 def resolve_output_path(project_dir: Path, value: Any) -> Path | None:
     if not isinstance(value, str) or not value.strip():
         return None
@@ -601,6 +631,16 @@ def collect_run_context(
 ) -> tuple[list[dict[str, Any]], list[str]]:
     runs: list[dict[str, Any]] = []
     citation_ids: list[str] = []
+    template_counts: dict[str, int] = {}
+    templates = project_data.get("templates") or []
+    if isinstance(templates, list):
+        for entry in templates:
+            if not isinstance(entry, dict):
+                continue
+            template_id = str(entry.get("id") or "").strip()
+            if not template_id or template_id in {"export", "methods"}:
+                continue
+            template_counts[template_id] = template_counts.get(template_id, 0) + 1
     for index, entry in enumerate(project_data.get("templates") or [], start=1):
         if not isinstance(entry, dict):
             continue
@@ -618,13 +658,19 @@ def collect_run_context(
         citations = catalog_entry.get("citations") if isinstance(catalog_entry.get("citations"), list) else []
         citation_ids.extend(str(item) for item in citations if str(item).strip())
         runtime_command = load_runtime_command(project_dir, run_dir, outputs)
+        label = run_display_label(entry, catalog_entry, run_dir)
+        params_name = str(params.get("name") or "").strip()
+        if template_counts.get(template_id, 0) > 1 and not params_name:
+            variant = infer_run_variant_name(entry, run_dir)
+            if variant and label == str(catalog_entry.get("label") or template_id).strip():
+                label = f"{label}: {variant}"
         runs.append(
             {
                 "order": index,
                 "template": template_id,
                 "version": entry.get("template_version"),
                 "instance_id": entry.get("instance_id"),
-                "label": run_display_label(entry, catalog_entry, run_dir),
+                "label": label,
                 "category": str(catalog_entry.get("category") or "").strip(),
                 "publication_relevance": parse_bool(catalog_entry.get("publication_relevance"), default=True),
                 "summary": catalog_entry.get("summary"),
@@ -717,6 +763,51 @@ def version_map_for_run(run: dict[str, Any]) -> dict[str, str]:
     return version_map
 
 
+def humanize_base_genome_identifier(text: str) -> str:
+    value = normalize_id_value(text)
+    if not value:
+        return ""
+
+    known = {
+        "GRCh38": "Human genome (GRCh38)",
+        "hg38": "Human genome (hg38)",
+        "hg19": "Human genome (hg19)",
+        "GRCm39": "Mouse genome (GRCm39)",
+        "mm10": "Mouse genome (mm10)",
+        "mm39": "Mouse genome (mm39)",
+    }
+    if value in known:
+        return known[value]
+
+    species_matches = [
+        (r"^Sscrofa(.+)$", "Sus scrofa genome"),
+        (r"^Mmulatta(.+)$", "Macaca mulatta genome"),
+        (r"^Rnorvegicus(.+)$", "Rattus norvegicus genome"),
+        (r"^Btaurus(.+)$", "Bos taurus genome"),
+        (r"^Ggallus(.+)$", "Gallus gallus genome"),
+        (r"^Drerio(.+)$", "Danio rerio genome"),
+    ]
+    for pattern, species_label in species_matches:
+        match = re.match(pattern, value)
+        if match:
+            build = match.group(1).strip("._- ")
+            if build:
+                return f"{species_label} (build {build})"
+            return species_label
+
+    return value
+
+
+def humanize_genome_identifier(text: str) -> str:
+    value = normalize_id_value(text)
+    if not value:
+        return ""
+    if value.endswith("_with_ERCC"):
+        base = humanize_base_genome_identifier(value.removesuffix("_with_ERCC"))
+        return f"{base} augmented with ERCC spike-in sequences"
+    return humanize_base_genome_identifier(value)
+
+
 def format_publication_value(key: str, value: Any) -> str:
     if isinstance(value, bool):
         return "enabled" if value else "disabled"
@@ -727,6 +818,8 @@ def format_publication_value(key: str, value: Any) -> str:
         normalized = text.lower().replace("-", "").replace("_", "").replace(" ", "")
         if normalized in {"3mrnaseq", "3mrna", "3mseq"}:
             return "3' mRNA-seq"
+    if key == "genome":
+        return humanize_genome_identifier(text)
     if key == "qc_tool":
         mapping = {"falco": "Falco", "fastqc": "FastQC"}
         return mapping.get(text.lower(), text)
@@ -878,15 +971,17 @@ def collect_reference_detail_bullets(run: dict[str, Any]) -> list[str]:
     config_text = load_text_file(config_path)
     genome_blocks = parse_nextflow_genome_blocks(config_text) if config_text else {}
 
-    requested_genome = format_publication_value("genome", params.get("genome") or "")
-    effective_genome = format_publication_value("genome", params.get("effective_genome") or params.get("genome") or "")
-    block = genome_blocks.get(effective_genome) or {}
+    requested_genome_raw = normalize_id_value(params.get("genome") or "")
+    effective_genome_raw = normalize_id_value(params.get("effective_genome") or params.get("genome") or "")
+    requested_genome = format_publication_value("genome", requested_genome_raw)
+    effective_genome = format_publication_value("genome", effective_genome_raw)
+    block = genome_blocks.get(effective_genome_raw) or {}
     fasta_path = normalize_id_value(block.get("fasta"))
     gtf_path = normalize_id_value(block.get("gtf"))
     annotation_version = derive_annotation_version(gtf_path)
 
-    if not annotation_version and effective_genome.endswith("_with_ERCC"):
-        base_block = genome_blocks.get(effective_genome.removesuffix("_with_ERCC")) or {}
+    if not annotation_version and effective_genome_raw.endswith("_with_ERCC"):
+        base_block = genome_blocks.get(effective_genome_raw.removesuffix("_with_ERCC")) or {}
         annotation_version = derive_annotation_version(normalize_id_value(base_block.get("gtf")))
 
     items = [
@@ -925,9 +1020,10 @@ def collect_command_parameter_bullets(run: dict[str, Any], context: dict[str, An
         items.append(("Execution profile", profile))
 
     if template == "nfcore_3mrnaseq":
-        genome = runtime_command_value_after_flag(run, "--genome") or format_publication_value(
-            "genome", params.get("effective_genome") or params.get("genome") or ""
-        )
+        genome = format_publication_value(
+            "genome",
+            runtime_command_value_after_flag(run, "--genome") or params.get("effective_genome") or params.get("genome") or "",
+        ) or format_publication_value("genome", params.get("effective_genome") or params.get("genome") or "")
         if genome:
             items.append(("Command genome", genome))
         if runtime_command_has_flag(run, "--gencode"):
@@ -966,9 +1062,10 @@ def collect_command_parameter_bullets(run: dict[str, Any], context: dict[str, An
                 items.append(("UMI barcode pattern", bc_pattern))
 
     if template == "nfcore_methylseq":
-        genome = runtime_command_value_after_flag(run, "--genome") or format_publication_value(
-            "genome", params.get("genome") or ""
-        )
+        genome = format_publication_value(
+            "genome",
+            runtime_command_value_after_flag(run, "--genome") or params.get("genome") or "",
+        ) or format_publication_value("genome", params.get("genome") or "")
         if genome:
             items.append(("Command genome", genome))
         if runtime_command_has_flag(run, "--rrbs") or parse_bool(params.get("rrbs"), default=False):
@@ -1055,9 +1152,10 @@ def collect_setting_bullets(run: dict[str, Any], context: dict[str, Any]) -> lis
     items: list[tuple[str, str]] = []
 
     if template == "nfcore_3mrnaseq":
-        reference = runtime_command_value_after_flag(run, "--genome") or format_publication_value(
-            "genome", params.get("effective_genome") or params.get("genome") or ""
-        )
+        reference = format_publication_value(
+            "genome",
+            runtime_command_value_after_flag(run, "--genome") or params.get("effective_genome") or params.get("genome") or "",
+        ) or format_publication_value("genome", params.get("effective_genome") or params.get("genome") or "")
         spikein = format_publication_value("spikein", params.get("spikein") or "")
         umi_value = format_publication_value("umi", params.get("umi") or "")
         if reference:
@@ -1465,7 +1563,7 @@ def short_nfcore_sentence(runs: list[dict[str, Any]], citation_map: dict[str, in
             cohort = "liver"
         elif "bile" in label:
             cohort = "bile duct"
-        genome = runtime_command_value_after_flag(run, "--genome") or ""
+        genome = format_publication_value("genome", runtime_command_value_after_flag(run, "--genome") or "")
         bits: list[str] = []
         if genome:
             bits.append(f"against {genome}")

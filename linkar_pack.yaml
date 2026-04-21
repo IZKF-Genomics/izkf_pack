@@ -33,6 +33,16 @@ templates:
         function: get_host_max_cpus
       max_memory:
         function: get_host_max_memory
+  nfcore_scrnaseq:
+    params:
+      samplesheet:
+        function: generate_nfcore_scrnaseq_samplesheet
+      genome:
+        function: get_agendo_genome
+      max_cpus:
+        function: get_host_max_cpus
+      max_memory:
+        function: get_host_max_memory
   cellranger_atac:
     params:
       fastq_dir:
@@ -65,6 +75,18 @@ templates:
     params:
       authors:
         function: get_dgea_authors
+  scverse_scrna_prep:
+    params:
+      input_h5ad:
+        function: get_scrna_prep_input_h5ad
+      input_source_template:
+        function: get_scrna_prep_input_source_template
+      ambient_correction_applied:
+        function: get_scrna_prep_ambient_correction_applied
+      ambient_correction_method:
+        function: get_scrna_prep_ambient_correction_method
+      organism:
+        function: get_scrna_prep_organism
   multiqc:
     params:
       input_dir:
