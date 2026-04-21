@@ -1,0 +1,146 @@
+id: scverse_scrna_integrate
+version: 0.1.0
+description: Editable scverse/Scanpy single-cell RNA-seq integration workspace with baseline and integrated QC reporting.
+tools:
+  required:
+    - pixi
+    - python3
+    - quarto
+params:
+  input_h5ad:
+    type: path
+    default: ""
+    description: Optional prep-stage `.h5ad` input. When empty, the latest `scverse_scrna_prep` output is used when available.
+  input_source_template:
+    type: str
+    default: ""
+    description: Optional provenance label recording which upstream template produced the chosen input.
+  integration_method:
+    type: str
+    default: "scvi"
+    description: Integration backend. Supported values are `scvi`, `scanvi`, `harmony`, `bbknn`, and `scanorama`.
+  batch_key:
+    type: str
+    default: "batch"
+    description: Required batch column in `adata.obs` used for integration. Execution fails if the column is absent or only one real batch is present.
+  condition_key:
+    type: str
+    default: "condition"
+    description: Optional condition column used for diagnostics when available.
+  sample_id_key:
+    type: str
+    default: "sample_id"
+    description: Optional sample identifier column used in tables and hover labels.
+  sample_label_key:
+    type: str
+    default: "sample_display"
+    description: Optional display label column used in plots and summary tables.
+  label_key_for_metrics:
+    type: str
+    default: ""
+    description: Optional label column used for biological conservation metrics and scANVI-style interpretation of integration quality.
+  run_scib_metrics:
+    type: bool
+    default: true
+    description: Attempt scIB metric calculation when the package and required metadata are available.
+  use_hvgs_only:
+    type: bool
+    default: true
+    description: Restrict integration and evaluation to highly variable genes when available.
+  n_top_hvgs:
+    type: int
+    default: 3000
+    description: Number of highly variable genes to use when the input object does not already contain HVG flags.
+  n_pcs:
+    type: int
+    default: 30
+    description: Number of principal components used for classical integration methods and baseline PCA.
+  n_neighbors:
+    type: int
+    default: 15
+    description: Number of neighbors used to build baseline and integrated graphs.
+  umap_min_dist:
+    type: str
+    default: "0.5"
+    description: UMAP `min_dist` used for baseline and integrated embeddings.
+  cluster_resolution:
+    type: str
+    default: "0.8"
+    description: Leiden resolution used on baseline and integrated graphs.
+  random_seed:
+    type: int
+    default: 0
+    description: Random seed used for UMAP and stochastic model setup where supported.
+  harmony_theta:
+    type: str
+    default: "2.0"
+    description: Harmony diversity penalty parameter.
+  harmony_lambda:
+    type: str
+    default: "1.0"
+    description: Harmony ridge penalty parameter.
+  harmony_max_iter:
+    type: int
+    default: 20
+    description: Maximum Harmony iterations.
+  bbknn_neighbors_within_batch:
+    type: int
+    default: 3
+    description: BBKNN neighbors per batch. For very large datasets this may be increased.
+  bbknn_trim:
+    type: int
+    default: 0
+    description: Optional BBKNN trim parameter. Leave `0` to keep the library default.
+  scanvi_label_key:
+    type: str
+    default: ""
+    description: Required label column for `scanvi`.
+  scanvi_unlabeled_category:
+    type: str
+    default: "Unknown"
+    description: Category in `scanvi_label_key` treated as unlabeled by scANVI.
+  scvi_latent_dim:
+    type: int
+    default: 30
+    description: Latent dimension used by scVI/scANVI.
+  scvi_max_epochs:
+    type: int
+    default: 200
+    description: Maximum training epochs for scVI/scANVI.
+  scvi_gene_likelihood:
+    type: str
+    default: "zinb"
+    description: Gene likelihood for scVI/scANVI. Supported values are `zinb`, `nb`, `poisson`, and `normal`.
+  scvi_accelerator:
+    type: str
+    default: "auto"
+    description: Lightning accelerator for scVI/scANVI training. Supported values are `auto`, `cpu`, and `gpu`.
+  scvi_devices:
+    type: int
+    default: 1
+    description: Number of devices used by scVI/scANVI training.
+outputs:
+  results_dir: {}
+  run_info:
+    path: results/run_info.yaml
+  software_versions:
+    path: results/software_versions.json
+  config_file:
+    path: config/project.toml
+  integrated_h5ad:
+    path: results/adata.integrated.h5ad
+  integration_summary:
+    path: results/tables/integration_summary.csv
+  integration_metrics:
+    path: results/tables/integration_metrics.csv
+  batch_mixing_summary:
+    path: results/tables/batch_mixing_summary.csv
+  cluster_counts:
+    path: results/tables/cluster_counts.csv
+  html_reports:
+    glob: reports/*.html
+  tables:
+    glob: results/tables/*.csv
+run:
+  mode: render
+  entry: run.sh

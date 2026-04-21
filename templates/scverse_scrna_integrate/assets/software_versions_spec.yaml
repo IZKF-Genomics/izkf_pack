@@ -1,0 +1,14 @@
+tools:
+  - pixi
+  - python
+  - quarto
+
+params:
+  - name: integration_method
+    env: INTEGRATION_METHOD
+  - name: batch_key
+    env: BATCH_KEY
+  - name: label_key_for_metrics
+    env: LABEL_KEY_FOR_METRICS
+  - name: run_scib_metrics
+    env: RUN_SCIB_METRICS
