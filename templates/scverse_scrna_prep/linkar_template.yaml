@@ -125,6 +125,8 @@ outputs:
     path: config/project.toml
   sample_metadata_template:
     path: assets/samples.csv
+  scrna_prep_h5ad:
+    path: results/adata.prep.h5ad
   html_reports:
     glob: reports/*.html
   h5ad_outputs:

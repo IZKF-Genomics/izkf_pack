@@ -201,14 +201,16 @@ PY""",
         {
             "id": "scverse_scrna_prep",
             "outputs": {
-                "integrated_h5ad": "/tmp/not_this_one.h5ad",
                 "scrna_prep_h5ad": "/tmp/results/adata.prep.h5ad",
                 "integrated_h5ad": "/tmp/results/adata.integrated.h5ad",
+                "h5ad_outputs": ["/tmp/results/adata.prep.h5ad", "/tmp/results/adata.integrated.h5ad"],
                 "results_dir": "/tmp/results",
             },
         }
     ]
     ctx = FakeContext(upstream_templates)
+    assert load_function("get_scrna_integrate_input_h5ad")(ctx) == "/tmp/results/adata.prep.h5ad"
+    assert load_function("get_scrna_integrate_input_source_template")(ctx) == "scverse_scrna_prep"
 
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
@@ -225,6 +227,11 @@ PY""",
     assert "compare_baseline_and_integrated" in qmd_text
     assert "unintegrated baseline" in readme_text.lower()
     assert "integration_method" in spec_text
+    pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
+    pack_data = yaml.safe_load(pack_text)
+    params = pack_data["templates"]["scverse_scrna_integrate"]["params"]
+    assert params["input_h5ad"]["function"] == "get_scrna_integrate_input_h5ad"
+    assert params["input_source_template"]["function"] == "get_scrna_integrate_input_source_template"
     print("scverse_scrna_integrate template test passed")
     return 0
 

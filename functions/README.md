@@ -186,6 +186,18 @@ Source: [`get_scrna_prep_organism.py`](get_scrna_prep_organism.py)
 
 Maps the latest upstream `nfcore_scrnaseq` genome or organism value to the organism label expected by `scverse_scrna_prep`.
 
+### `get_scrna_integrate_input_h5ad`
+
+Source: [`get_scrna_integrate_input_h5ad.py`](get_scrna_integrate_input_h5ad.py)
+
+Returns the latest upstream `scverse_scrna_prep.scrna_prep_h5ad` output so `scverse_scrna_integrate` can reuse the prepared AnnData object automatically. For backward compatibility it also falls back to the matching `adata.prep.h5ad` entry inside `h5ad_outputs`.
+
+### `get_scrna_integrate_input_source_template`
+
+Source: [`get_scrna_integrate_input_source_template.py`](get_scrna_integrate_input_source_template.py)
+
+Returns the latest upstream single-cell preparation template id, currently `scverse_scrna_prep`, for provenance tracking in `scverse_scrna_integrate`.
+
 ### `get_dgea_name`
 
 Source: [`get_dgea_name.py`](get_dgea_name.py)
