@@ -162,6 +162,15 @@ layered = ad.AnnData(X=np.array([[0.1, 0.2], [0.3, 0.4]], dtype=float))
 layered.layers["counts"] = np.array([[5, 0], [7, 9]], dtype=float)
 layered = ensure_preprocessing_counts_matrix(layered, input_format="h5ad")
 assert np.array_equal(np.asarray(layered.X), np.asarray(layered.layers["counts"]))
+
+sparse_counts = ad.AnnData(X=__import__("scipy").sparse.csr_matrix(np.random.poisson(1.0, size=(30, 12))))
+import scanpy as sc
+sc.pp.normalize_total(sparse_counts, target_sum=1e4)
+sc.pp.log1p(sparse_counts)
+sc.pp.highly_variable_genes(sparse_counts, n_top_genes=5, flavor="seurat")
+sc.tl.pca(sparse_counts, n_comps=4, svd_solver="arpack", mask_var="highly_variable")
+assert __import__("scipy").sparse.issparse(sparse_counts.X)
+assert sparse_counts.obsm["X_pca"].shape == (30, 4)
 PY""",
         ],
         cwd=TEMPLATE_DIR,
@@ -197,6 +206,8 @@ PY""",
     assert "config/project.toml" in readme_text
     assert "selected_matrix_h5ad" in readme_text
     assert "doublet_method" in spec_text
+    assert 'mask_var="highly_variable"' in qmd_text
+    assert "sc.pp.scale(filtered" not in qmd_text
     assert "authors:" not in template_text
     assert "--authors" not in run_sh_text
     assert "author:" not in qmd_text
