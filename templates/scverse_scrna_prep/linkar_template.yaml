@@ -124,7 +124,7 @@ outputs:
   config_file:
     path: config/project.toml
   sample_metadata_template:
-    path: config/samples.csv
+    path: assets/samples.csv
   html_reports:
     glob: reports/*.html
   h5ad_outputs:

@@ -5,9 +5,21 @@ This template creates an editable `scverse` / `scanpy` preprocessing workspace f
 It follows the same Linkar pattern as the other analysis workspaces in this pack:
 
 - `run.sh` is the user-facing launcher
-- `build_scrna_prep_inputs.py` writes the runtime `config/project.toml` and `results/run_info.yaml`
+- `run.py` contains the runtime orchestration and writes `config/project.toml` plus `results/run_info.yaml`
 - `pixi.toml` defines the local Python/Quarto environment
-- `00_qc.qmd` contains the preprocessing and report logic
+- `qc.qmd` contains the preprocessing and report logic
+- `assets/` stores static template fixtures such as the sample metadata stub and software-version spec
+- `lib/` stores notebook helper code
+
+## Layout
+
+- `qc.qmd`: report source and preprocessing workflow
+- `assets/`: static template-owned files checked into git
+- `config/`: runtime-generated project config
+- `lib/`: reusable Python helpers imported by the notebook
+- `run.py`: main execution logic
+- `run.sh`: thin launcher kept for the Linkar entrypoint
+- `test.py`: template-local verification
 
 ## Linkar interface
 
@@ -39,6 +51,8 @@ Important parameters:
 
 At least one of `input_h5ad` or `input_matrix` must be set before execution, and `organism` must be provided for QC gene annotation.
 
+When `sample_metadata` is not provided, the template defaults to `assets/samples.csv`.
+
 With `--binding default`, the pack can resolve these values automatically from the latest recorded `nfcore_scrnaseq` run when present:
 
 - `input_h5ad` from `selected_matrix_h5ad`
@@ -53,7 +67,7 @@ The launcher [run.sh](run.sh):
 - creates the runtime config under `config/project.toml`
 - records resolved parameters in `results/run_info.yaml`
 - installs the template-local Pixi environment
-- renders [00_qc.qmd](00_qc.qmd) to HTML
+- renders [qc.qmd](qc.qmd) to HTML
 - writes `results/software_versions.json`
 
 The notebook supports:
@@ -77,7 +91,7 @@ QC gene annotation expects gene symbols for mitochondrial / ribosomal / hemoglob
 - `results/tables/*.csv`
 - `results/run_info.yaml`
 - `results/software_versions.json`
-- `reports/00_qc.html`
+- `reports/qc.html`
 
 ## Test command
 

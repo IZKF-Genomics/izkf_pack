@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -14,18 +15,21 @@ TEMPLATE_DIR = Path(__file__).resolve().parent
 FUNCTIONS_DIR = TEMPLATE_DIR.parent.parent / "functions"
 
 
-def load_function(name: str):
-    path = FUNCTIONS_DIR / f"{name}.py"
-    spec = importlib.util.spec_from_file_location(f"test_{name}", path)
+def load_module(path: Path, name: str):
+    spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
-        raise RuntimeError(f"Could not load function module: {path}")
+        raise RuntimeError(f"Could not load module: {path}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module.resolve
+    return module
 
 
-def assert_fails(command: list[str], expected_message: str) -> None:
-    result = subprocess.run(command, text=True, capture_output=True)
+def load_function(name: str):
+    return load_module(FUNCTIONS_DIR / f"{name}.py", f"test_{name}").resolve
+
+
+def assert_fails(command: list[str], expected_message: str, *, env: dict[str, str] | None = None) -> None:
+    result = subprocess.run(command, text=True, capture_output=True, env=env)
     assert result.returncode != 0
     combined = f"{result.stdout}\n{result.stderr}"
     assert expected_message in combined
@@ -57,41 +61,67 @@ class FakeContext:
 
 
 def main() -> int:
+    run_module = load_module(TEMPLATE_DIR / "run.py", "test_scverse_scrna_prep_run")
     with tempfile.TemporaryDirectory(prefix="linkar-scverse-scrna-prep-test-") as tmp:
-        workspace = Path(tmp) / "workspace"
         project_dir = Path(tmp) / "260417_scRNA_Project"
-        results_dir = workspace / "results"
-        workspace.mkdir()
+        results_dir = Path(tmp) / "results"
+        (TEMPLATE_DIR / "config").mkdir(exist_ok=True)
+        results_dir.mkdir()
         project_dir.mkdir()
         (project_dir / "project.yaml").write_text(yaml.safe_dump({}, sort_keys=False), encoding="utf-8")
 
-        subprocess.run(
-            [
-                sys.executable,
-                str(TEMPLATE_DIR / "build_scrna_prep_inputs.py"),
-                "--workspace-dir",
-                str(workspace),
-                "--project-dir",
-                str(project_dir),
-                "--results-dir",
-                str(results_dir),
-                "--input-h5ad",
-                "/tmp/input.h5ad",
-                "--input-format",
-                "h5ad",
-                "--sample-metadata",
-                "config/samples.csv",
-                "--organism",
-                "human",
-                "--doublet-method",
-                "scrublet",
-                "--filter-predicted-doublets",
-                "true",
-            ],
-            check=True,
+        params = {
+            "input_h5ad": "/tmp/input.h5ad",
+            "input_matrix": "",
+            "input_source_template": "",
+            "ambient_correction_applied": "false",
+            "ambient_correction_method": "none",
+            "input_format": "h5ad",
+            "var_names": "gene_symbols",
+            "sample_metadata": "assets/samples.csv",
+            "organism": "human",
+            "batch_key": "batch",
+            "condition_key": "condition",
+            "sample_id_key": "sample_id",
+            "doublet_method": "scrublet",
+            "filter_predicted_doublets": "true",
+            "qc_mode": "fixed",
+            "qc_nmads": "3.0",
+            "min_genes": "200",
+            "min_cells": "3",
+            "min_counts": "500",
+            "max_pct_counts_mt": "20.0",
+            "max_pct_counts_ribo": "",
+            "max_pct_counts_hb": "",
+            "n_top_hvgs": "3000",
+            "n_pcs": "30",
+            "n_neighbors": "15",
+            "leiden_resolution": "",
+            "resolution_grid": "0.2,0.4,0.6,0.8,1.0,1.2",
+        }
+        run_module.validate_params(params)
+        run_module.write_project_config(
+            TEMPLATE_DIR / "config" / "project.toml",
+            params,
+            project_name=project_dir.name,
+            sample_metadata="assets/samples.csv",
         )
+        original_project_dir = run_module.PROJECT_DIR
+        original_results_dir = run_module.RESULTS_DIR
+        run_module.PROJECT_DIR = project_dir
+        run_module.RESULTS_DIR = results_dir
+        try:
+            run_module.write_run_info(
+                results_dir / "run_info.yaml",
+                params,
+                project_name=project_dir.name,
+                sample_metadata="assets/samples.csv",
+            )
+        finally:
+            run_module.PROJECT_DIR = original_project_dir
+            run_module.RESULTS_DIR = original_results_dir
 
-        config_text = (workspace / "config" / "project.toml").read_text(encoding="utf-8")
+        config_text = (TEMPLATE_DIR / "config" / "project.toml").read_text(encoding="utf-8")
         run_info = yaml.safe_load((results_dir / "run_info.yaml").read_text(encoding="utf-8"))
 
         assert 'name = "260417_scRNA_Project"' in config_text
@@ -109,32 +139,22 @@ def main() -> int:
         assert_fails(
             [
                 sys.executable,
-                str(TEMPLATE_DIR / "build_scrna_prep_inputs.py"),
-                "--workspace-dir",
-                str(workspace),
-                "--project-dir",
-                str(project_dir),
-                "--results-dir",
-                str(results_dir),
-                "--organism",
-                "human",
+                str(TEMPLATE_DIR / "run.py"),
             ],
-            "Set either --input-h5ad or --input-matrix",
+            "Set either INPUT_H5AD or INPUT_MATRIX",
+            env={**os.environ, "LINKAR_PACK_ROOT": str(TEMPLATE_DIR.parent.parent)},
         )
         assert_fails(
             [
                 sys.executable,
-                str(TEMPLATE_DIR / "build_scrna_prep_inputs.py"),
-                "--workspace-dir",
-                str(workspace),
-                "--project-dir",
-                str(project_dir),
-                "--results-dir",
-                str(results_dir),
-                "--input-h5ad",
-                "/tmp/input.h5ad",
+                str(TEMPLATE_DIR / "run.py"),
             ],
-            "Set --organism",
+            "Set ORGANISM",
+            env={
+                **os.environ,
+                "LINKAR_PACK_ROOT": str(TEMPLATE_DIR.parent.parent),
+                "INPUT_H5AD": "/tmp/input.h5ad",
+            },
         )
 
     subprocess.run(
@@ -142,6 +162,9 @@ def main() -> int:
             "bash",
             "-lc",
             """pixi run python - <<'PY'
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path("lib").resolve()))
 import numpy as np
 import anndata as ad
 from scrna_prep_io import ensure_preprocessing_counts_matrix, RAW_H5AD_ERROR
@@ -207,14 +230,18 @@ PY""",
 
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
-    qmd_text = (TEMPLATE_DIR / "00_qc.qmd").read_text(encoding="utf-8")
+    run_py_text = (TEMPLATE_DIR / "run.py").read_text(encoding="utf-8")
+    qmd_text = (TEMPLATE_DIR / "qc.qmd").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
-    spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
+    spec_text = (TEMPLATE_DIR / "assets" / "software_versions_spec.yaml").read_text(encoding="utf-8")
 
     assert "id: scverse_scrna_prep" in template_text
-    assert "build_scrna_prep_inputs.py" in run_sh_text
-    assert "--output-dir reports" in run_sh_text
-    assert 'title: "00 scRNA Preprocessing QC"' in qmd_text
+    assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
+    assert "quarto" in run_py_text
+    assert "assets/samples.csv" in run_py_text
+    assert "lib" in qmd_text
+    assert "--output-dir" in run_py_text
+    assert 'title: "scRNA Preprocessing QC"' in qmd_text
     assert "config/project.toml" in readme_text
     assert "selected_matrix_h5ad" in readme_text
     assert "doublet_method" in spec_text

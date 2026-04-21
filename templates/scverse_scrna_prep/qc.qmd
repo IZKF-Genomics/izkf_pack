@@ -1,5 +1,5 @@
 ---
-title: "00 scRNA Preprocessing QC"
+title: "scRNA Preprocessing QC"
 date: today
 jupyter: python3
 format:
@@ -42,6 +42,10 @@ from IPython.display import Markdown, display
 from plotly.subplots import make_subplots
 from scipy.stats import median_abs_deviation
 from sklearn.metrics import davies_bouldin_score
+
+LIB_DIR = Path(".").resolve() / "lib"
+if str(LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(LIB_DIR))
 
 from scrna_prep_io import (
     ensure_preprocessing_counts_matrix,
