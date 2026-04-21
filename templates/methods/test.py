@@ -680,6 +680,42 @@ def test_run_display_label_ignores_run_directory_suffix() -> None:
     assert label == "Demultiplexing and sequencing quality control"
 
 
+def test_collect_run_context_adds_variant_names_for_duplicate_nfcore_runs() -> None:
+    module = load_run_module()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project_dir = Path(tmpdir)
+        (project_dir / "project.yaml").write_text("", encoding="utf-8")
+        project_data = {
+            "templates": [
+                {
+                    "id": "nfcore_3mrnaseq",
+                    "instance_id": "nfcore_3mrnaseq_001",
+                    "path": "nfcore_liver",
+                    "params": {},
+                    "outputs": {},
+                },
+                {
+                    "id": "nfcore_3mrnaseq",
+                    "instance_id": "nfcore_3mrnaseq_002",
+                    "path": "nfcore_bile_duct",
+                    "params": {},
+                    "outputs": {},
+                },
+            ]
+        }
+        catalog = {
+            "templates": {
+                "nfcore_3mrnaseq": {
+                    "label": "3' mRNA-seq processing",
+                    "publication_relevance": True,
+                }
+            }
+        }
+        runs, _ = module.collect_run_context(project_dir, project_data, catalog)
+        assert runs[0]["label"] == "3' mRNA-seq processing: Liver"
+        assert runs[1]["label"] == "3' mRNA-seq processing: Bile Duct"
+
+
 def test_recorded_command_block_is_multiline() -> None:
     module = load_run_module()
     block = module.collect_recorded_command_block(
@@ -726,6 +762,7 @@ def main() -> int:
     test_inline_citation_rendering()
     test_short_technical_terms_are_highlighted()
     test_run_display_label_ignores_run_directory_suffix()
+    test_collect_run_context_adds_variant_names_for_duplicate_nfcore_runs()
     test_recorded_command_block_is_multiline()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")

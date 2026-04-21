@@ -138,6 +138,36 @@ def run_display_label(entry: dict[str, Any], catalog_entry: dict[str, Any], run_
     return base_label
 
 
+def infer_run_variant_name(entry: dict[str, Any], run_dir: Path | None) -> str:
+    template_id = str(entry.get("id") or "").strip().lower()
+    if run_dir is None:
+        return ""
+
+    candidate = run_dir.name.strip()
+    if not candidate:
+        return ""
+
+    normalized = candidate.lower()
+    prefixes = {
+        template_id,
+        "nfcore_3mrnaseq",
+        "nfcore",
+        "dgea",
+        "ercc",
+    }
+    for prefix in prefixes:
+        if prefix and normalized.startswith(prefix + "_"):
+            candidate = candidate[len(prefix) + 1 :]
+            break
+
+    candidate = candidate.strip("_- ")
+    if not candidate:
+        return ""
+
+    words = [part for part in re.split(r"[_\-\s]+", candidate) if part]
+    return " ".join(word.capitalize() for word in words)
+
+
 def resolve_output_path(project_dir: Path, value: Any) -> Path | None:
     if not isinstance(value, str) or not value.strip():
         return None
@@ -601,6 +631,16 @@ def collect_run_context(
 ) -> tuple[list[dict[str, Any]], list[str]]:
     runs: list[dict[str, Any]] = []
     citation_ids: list[str] = []
+    template_counts: dict[str, int] = {}
+    templates = project_data.get("templates") or []
+    if isinstance(templates, list):
+        for entry in templates:
+            if not isinstance(entry, dict):
+                continue
+            template_id = str(entry.get("id") or "").strip()
+            if not template_id or template_id in {"export", "methods"}:
+                continue
+            template_counts[template_id] = template_counts.get(template_id, 0) + 1
     for index, entry in enumerate(project_data.get("templates") or [], start=1):
         if not isinstance(entry, dict):
             continue
@@ -618,13 +658,19 @@ def collect_run_context(
         citations = catalog_entry.get("citations") if isinstance(catalog_entry.get("citations"), list) else []
         citation_ids.extend(str(item) for item in citations if str(item).strip())
         runtime_command = load_runtime_command(project_dir, run_dir, outputs)
+        label = run_display_label(entry, catalog_entry, run_dir)
+        params_name = str(params.get("name") or "").strip()
+        if template_counts.get(template_id, 0) > 1 and not params_name:
+            variant = infer_run_variant_name(entry, run_dir)
+            if variant and label == str(catalog_entry.get("label") or template_id).strip():
+                label = f"{label}: {variant}"
         runs.append(
             {
                 "order": index,
                 "template": template_id,
                 "version": entry.get("template_version"),
                 "instance_id": entry.get("instance_id"),
-                "label": run_display_label(entry, catalog_entry, run_dir),
+                "label": label,
                 "category": str(catalog_entry.get("category") or "").strip(),
                 "publication_relevance": parse_bool(catalog_entry.get("publication_relevance"), default=True),
                 "summary": catalog_entry.get("summary"),
