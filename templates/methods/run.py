@@ -640,6 +640,10 @@ def resolve_catalog_citations(template_id: str, catalog_entry: dict[str, Any], p
             citations.append(method)
         if parse_bool(params.get("run_scib_metrics"), default=False):
             citations.append("scib")
+    if template_id == "scverse_scrna_annotate":
+        method = normalize_id_value(params.get("annotation_method"))
+        if method == "celltypist":
+            citations.append("celltypist")
     return unique_ordered(citations)
 
 
@@ -1613,6 +1617,7 @@ def short_downstream_sentence(runs: list[dict[str, Any]], citation_map: dict[str
     ercc_runs = [run for run in runs if str(run.get("template") or "").strip() == "ercc"]
     scrna_runs = [run for run in runs if str(run.get("template") or "").strip() == "scverse_scrna_prep"]
     integrate_runs = [run for run in runs if str(run.get("template") or "").strip() == "scverse_scrna_integrate"]
+    annotate_runs = [run for run in runs if str(run.get("template") or "").strip() == "scverse_scrna_annotate"]
     parts: list[str] = []
     if dgea_runs:
         cohort_names = unique_ordered(
@@ -1703,6 +1708,22 @@ def short_downstream_sentence(runs: list[dict[str, Any]], citation_map: dict[str
             sentence += ", including optional scIB benchmarking"
             citation_ids.append("scib")
         sentence += ", and reported in a Quarto QC notebook"
+        parts.append(sentence + inline_citations(citation_ids, citation_map) + ".")
+    if annotate_runs:
+        params = merged_run_params(annotate_runs[0])
+        method = normalize_id_value(params.get("annotation_method"))
+        cluster_key = normalize_id_value(params.get("cluster_key")) or "leiden"
+        sentence = (
+            "Cell identities were then reviewed in a Scanpy/scverse annotation workspace "
+            f"using cluster-level summaries keyed on {cluster_key}"
+        )
+        citation_ids = ["scanpy", "quarto"]
+        if method == "celltypist":
+            sentence += ", CellTypist label transfer, classifier confidence summaries, and optional marker-based validation"
+            citation_ids.append("celltypist")
+        else:
+            sentence += ", automated label transfer, classifier confidence summaries, and optional marker-based validation"
+        sentence += ", while unresolved clusters were retained as unknown pending manual review"
         parts.append(sentence + inline_citations(citation_ids, citation_map) + ".")
     return " ".join(parts)
 

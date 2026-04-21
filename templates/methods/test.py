@@ -827,6 +827,35 @@ def test_scverse_scrna_integrate_citations_and_short_sentence() -> None:
     assert "[1, 2, 3, 4, 5, 6, 7]" in sentence
 
 
+def test_scverse_scrna_annotate_citations_and_short_sentence() -> None:
+    module = load_run_module()
+    catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
+    entry = catalog["templates"]["scverse_scrna_annotate"]
+
+    citations = module.resolve_catalog_citations(
+        "scverse_scrna_annotate",
+        entry,
+        {"annotation_method": "celltypist", "cluster_key": "leiden"},
+    )
+    assert citations == ["scanpy", "quarto", "celltypist"]
+
+    citation_map = module.citation_number_map(citations)
+    sentence = module.short_downstream_sentence(
+        [
+            {
+                "template": "scverse_scrna_annotate",
+                "params": {"annotation_method": "celltypist", "cluster_key": "leiden"},
+            }
+        ],
+        citation_map,
+    )
+    assert "Cell identities were then reviewed" in sentence
+    assert "CellTypist label transfer" in sentence
+    assert "marker-based validation" in sentence
+    assert "retained as unknown" in sentence
+    assert "[1, 2, 3]" in sentence
+
+
 def main() -> int:
     test_generation_with_runtime_command()
     test_dgea_label_and_software_version_fallback()
@@ -845,6 +874,7 @@ def main() -> int:
     test_recorded_command_block_is_multiline()
     test_scverse_scrna_prep_citations_and_short_sentence()
     test_scverse_scrna_integrate_citations_and_short_sentence()
+    test_scverse_scrna_annotate_citations_and_short_sentence()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     catalog_text = (TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8")
@@ -863,6 +893,7 @@ def main() -> int:
     assert "methylation_array_analysis:" in catalog_text
     assert "scverse_scrna_prep:" in catalog_text
     assert "scverse_scrna_integrate:" in catalog_text
+    assert "scverse_scrna_annotate:" in catalog_text
     assert "minfi:" in catalog_text
     assert "scanpy:" in catalog_text
     assert "umap:" in catalog_text
@@ -873,6 +904,7 @@ def main() -> int:
     assert "bbknn:" in catalog_text
     assert "scanorama:" in catalog_text
     assert "scib:" in catalog_text
+    assert "celltypist:" in catalog_text
     assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
     assert '--metadata-api-url "${METADATA_API_URL:-}"' in run_sh_text
     assert 'run-local = "python3 run.py"' in pixi_text

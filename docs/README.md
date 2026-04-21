@@ -34,6 +34,9 @@ maintenance notes that apply across multiple templates.
 - [scverse_scrna_integrate.md](scverse_scrna_integrate.md): integration
   assumptions, batch-key validation, and evaluation expectations for the scRNA
   integration workspace.
+- [scverse_scrna_annotate.md](scverse_scrna_annotate.md): annotation
+  assumptions, default input preference, and review expectations for the scRNA
+  annotation workspace.
 
 ## Authoring guidance
 

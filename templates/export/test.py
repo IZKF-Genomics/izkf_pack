@@ -76,6 +76,7 @@ def main() -> int:
         dgea_bile_dir = project_dir / "DGEA_Bile_Duct"
         methylation_dir = project_dir / "methylation_array_analysis"
         integrate_dir = project_dir / "scverse_scrna_integrate"
+        annotate_dir = project_dir / "scverse_scrna_annotate"
         ercc_dir = project_dir / "ercc"
         methods_dir = project_dir / "methods"
         (demux_dir / "results" / "output").mkdir(parents=True)
@@ -90,6 +91,8 @@ def main() -> int:
         (methylation_dir / "reports").mkdir(parents=True)
         (integrate_dir / "results" / "tables").mkdir(parents=True)
         (integrate_dir / "reports").mkdir(parents=True)
+        (annotate_dir / "results" / "tables").mkdir(parents=True)
+        (annotate_dir / "reports").mkdir(parents=True)
         (ercc_dir / "results").mkdir(parents=True)
         (methods_dir / "results").mkdir(parents=True)
         (demux_dir / "results" / "output" / "sample.fastq.gz").write_text("fq\n", encoding="utf-8")
@@ -116,6 +119,11 @@ def main() -> int:
         (integrate_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
         (integrate_dir / "results" / "tables" / "integration_metrics.csv").write_text("metric,value\n", encoding="utf-8")
         (integrate_dir / "reports" / "qc.html").write_text("<html></html>\n", encoding="utf-8")
+        (annotate_dir / "results" / "adata.annotated.h5ad").write_text("h5ad\n", encoding="utf-8")
+        (annotate_dir / "results" / "run_info.yaml").write_text("template: scverse_scrna_annotate\n", encoding="utf-8")
+        (annotate_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
+        (annotate_dir / "results" / "tables" / "cluster_annotation_summary.csv").write_text("cluster,label\n", encoding="utf-8")
+        (annotate_dir / "reports" / "annotation.html").write_text("<html></html>\n", encoding="utf-8")
         (ercc_dir / "results" / "ERCC.html").write_text("<html></html>\n", encoding="utf-8")
         (ercc_dir / "results" / "run_info.yaml").write_text("template: ercc\n", encoding="utf-8")
         (ercc_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
@@ -185,6 +193,14 @@ def main() -> int:
                     },
                 },
                 {
+                    "id": "scverse_scrna_annotate",
+                    "path": str(annotate_dir),
+                    "outputs": {
+                        "results_dir": str((annotate_dir / "results").resolve()),
+                        "annotated_h5ad": str((annotate_dir / "results" / "adata.annotated.h5ad").resolve()),
+                    },
+                },
+                {
                     "id": "ercc",
                     "path": str(ercc_dir),
                     "outputs": {
@@ -237,11 +253,11 @@ def main() -> int:
         )
         assert "Dry Run Complete" in dry_run.stdout
         assert "Project templates:" in dry_run.stdout
-        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scverse_scrna_integrate (1), ercc (1), methods (2)" in dry_run.stdout
+        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scverse_scrna_integrate (1), scverse_scrna_annotate (1), ercc (1), methods (2)" in dry_run.stdout
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
-        assert len(spec["export_list"]) == 12
+        assert len(spec["export_list"]) == 14
         assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
         export_srcs = {entry["src"] for entry in spec["export_list"]}
         export_dests = {entry["dest"] for entry in spec["export_list"]}
@@ -251,10 +267,12 @@ def main() -> int:
         assert "2_Processed_data/nfcore_3mrnaseq/nfcore_bile_duct" in export_dests
         assert "2_Processed_data/methylation_array_analysis/results" in export_dests
         assert "2_Processed_data/scverse_scrna_integrate/scverse_scrna_integrate/results" in export_dests
+        assert "2_Processed_data/scverse_scrna_annotate/scverse_scrna_annotate/results" in export_dests
         assert "3_Reports/dgea/DGEA_Liver" in export_dests
         assert "3_Reports/dgea/DGEA_Bile_Duct" in export_dests
         assert "3_Reports/methylation_array_analysis" in export_dests
         assert "3_Reports/scverse_scrna_integrate/scverse_scrna_integrate" in export_dests
+        assert "3_Reports/scverse_scrna_annotate/scverse_scrna_annotate" in export_dests
         assert "3_Reports/ercc/ercc" in export_dests
         assert "3_Reports/methods" in export_dests
         methods_entries = [entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/methods"]
@@ -289,6 +307,20 @@ def main() -> int:
         assert len(integrate_report_entries) == 1
         integrate_report_paths = {link["path"] for link in integrate_report_entries[0].get("report_links", [])}
         assert "qc.html" in integrate_report_paths
+        annotate_entries = [
+            entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/scverse_scrna_annotate/scverse_scrna_annotate/results"
+        ]
+        assert len(annotate_entries) == 1
+        annotate_paths = {link["path"] for link in annotate_entries[0].get("report_links", [])}
+        assert "." in annotate_paths
+        assert "adata.annotated.h5ad" in annotate_paths
+        assert "tables" in annotate_paths
+        annotate_report_entries = [
+            entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/scverse_scrna_annotate/scverse_scrna_annotate"
+        ]
+        assert len(annotate_report_entries) == 1
+        annotate_report_paths = {link["path"] for link in annotate_report_entries[0].get("report_links", [])}
+        assert "annotation.html" in annotate_report_paths
         assert (export_dir / "results" / "metadata_context.yaml").exists()
         assert (export_dir / "results" / "project_methods.md").exists()
 
