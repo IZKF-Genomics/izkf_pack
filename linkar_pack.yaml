@@ -93,6 +93,12 @@ templates:
         function: get_scrna_integrate_input_h5ad
       input_source_template:
         function: get_scrna_integrate_input_source_template
+  scverse_scrna_annotate:
+    params:
+      input_h5ad:
+        function: get_scrna_annotate_input_h5ad
+      input_source_template:
+        function: get_scrna_annotate_input_source_template
   multiqc:
     params:
       input_dir:

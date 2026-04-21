@@ -12,6 +12,7 @@ import yaml
 
 
 TEMPLATE_DIR = Path(__file__).resolve().parent
+FUNCTIONS_DIR = TEMPLATE_DIR.parent.parent / "functions"
 
 
 def load_module(path: Path, name: str):
@@ -23,11 +24,40 @@ def load_module(path: Path, name: str):
     return module
 
 
+def load_function(name: str):
+    return load_module(FUNCTIONS_DIR / f"{name}.py", f"test_{name}").resolve
+
+
 def assert_fails(command: list[str], expected_message: str, *, env: dict[str, str] | None = None) -> None:
     result = subprocess.run(command, text=True, capture_output=True, env=env)
     assert result.returncode != 0
     combined = f"{result.stdout}\n{result.stderr}"
     assert expected_message in combined
+
+
+class FakeProject:
+    def __init__(self, templates: list[dict]) -> None:
+        self.data = {"templates": templates}
+
+
+class FakeTemplate:
+    root = TEMPLATE_DIR
+
+
+class FakeContext:
+    def __init__(self, templates: list[dict]) -> None:
+        self.project = FakeProject(templates)
+        self.template = FakeTemplate()
+        self.resolved_params = {}
+
+    def latest_output(self, key: str, template_id: str | None = None):
+        for entry in reversed(self.project.data["templates"]):
+            if template_id is not None and entry.get("id") != template_id:
+                continue
+            outputs = entry.get("outputs") or {}
+            if key in outputs:
+                return outputs[key]
+        return None
 
 
 def main() -> int:
@@ -225,6 +255,24 @@ PY""",
         check=True,
     )
 
+    upstream_templates = [
+        {
+            "id": "scverse_scrna_prep",
+            "outputs": {
+                "scrna_prep_h5ad": "/tmp/results/adata.prep.h5ad",
+            },
+        },
+        {
+            "id": "scverse_scrna_integrate",
+            "outputs": {
+                "integrated_h5ad": "/tmp/results/adata.integrated.h5ad",
+            },
+        },
+    ]
+    ctx = FakeContext(upstream_templates)
+    assert load_function("get_scrna_annotate_input_h5ad")(ctx) == "/tmp/results/adata.prep.h5ad"
+    assert load_function("get_scrna_annotate_input_source_template")(ctx) == "scverse_scrna_prep"
+
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
     run_py_text = (TEMPLATE_DIR / "run.py").read_text(encoding="utf-8")
@@ -241,6 +289,11 @@ PY""",
     assert "cluster_suggested_label" in qmd_text
     assert "CellTypist" in readme_text
     assert "celltypist_model" in spec_text
+    pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
+    pack_data = yaml.safe_load(pack_text)
+    params = pack_data["templates"]["scverse_scrna_annotate"]["params"]
+    assert params["input_h5ad"]["function"] == "get_scrna_annotate_input_h5ad"
+    assert params["input_source_template"]["function"] == "get_scrna_annotate_input_source_template"
     print("scverse_scrna_annotate template test passed")
     return 0
 

@@ -198,6 +198,18 @@ Source: [`get_scrna_integrate_input_source_template.py`](get_scrna_integrate_inp
 
 Returns the latest upstream single-cell preparation template id, currently `scverse_scrna_prep`, for provenance tracking in `scverse_scrna_integrate`.
 
+### `get_scrna_annotate_input_h5ad`
+
+Source: [`get_scrna_annotate_input_h5ad.py`](get_scrna_annotate_input_h5ad.py)
+
+Returns the preferred upstream single-cell AnnData input for `scverse_scrna_annotate`. The default preference order is `scverse_scrna_prep.scrna_prep_h5ad` first, then `scverse_scrna_integrate.integrated_h5ad` as a fallback.
+
+### `get_scrna_annotate_input_source_template`
+
+Source: [`get_scrna_annotate_input_source_template.py`](get_scrna_annotate_input_source_template.py)
+
+Returns the template id corresponding to the chosen default annotation input, matching the same preference order as `get_scrna_annotate_input_h5ad`.
+
 ### `get_dgea_name`
 
 Source: [`get_dgea_name.py`](get_dgea_name.py)
