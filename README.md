@@ -45,6 +45,7 @@ General pack docs:
 - [docs/template_outputs.md](docs/template_outputs.md): common runtime artifacts across templates
 - [docs/facility_defaults.md](docs/facility_defaults.md): facility-specific assumptions used across templates
 - [docs/scverse_scrna_prep.md](docs/scverse_scrna_prep.md): scRNA workspace notes beyond the template README
+- [docs/scverse_scrna_integrate.md](docs/scverse_scrna_integrate.md): integration-specific assumptions for the scRNA integration workspace
 
 Template-specific READMEs stay inside each template directory and are listed in
 the [Template Catalog](#template-catalog) below.
@@ -332,6 +333,7 @@ If a required parameter cannot be resolved automatically, pass it explicitly wit
 | [`demultiplex`](templates/demultiplex/linkar_template.yaml) | Clone and run the pinned demultiplexing workflow, writing processed outputs under `results/`. | [README](templates/demultiplex/README.md) |
 | [`nfcore_3mrnaseq`](templates/nfcore_3mrnaseq/linkar_template.yaml) | Run the site-specific `nf-core/rnaseq` wrapper for 3' mRNA-seq projects. | [README](templates/nfcore_3mrnaseq/README.md) |
 | [`scverse_scrna_prep`](templates/scverse_scrna_prep/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq preprocessing workspace with Quarto QC reporting. | [README](templates/scverse_scrna_prep/README.md) |
+| [`scverse_scrna_integrate`](templates/scverse_scrna_integrate/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq dataset integration workspace with baseline and integrated QC reporting. | [README](templates/scverse_scrna_integrate/README.md) |
 | [`dgea`](templates/dgea/linkar_template.yaml) | Create and run an editable R/Quarto differential expression workspace. | [README](templates/dgea/README.md) |
 | [`ercc`](templates/ercc/linkar_template.yaml) | Create and run an editable ERCC spike-in QC workspace with Quarto reporting. | [README](templates/ercc/README.md) |
 | [`methylation_array_analysis`](templates/methylation_array_analysis/linkar_template.yaml) | Create and run an editable Illumina methylation array study workspace with preprocessing, batch-aware analysis, and ordered Quarto reports. | [README](templates/methylation_array_analysis/README.md) |
@@ -401,6 +403,7 @@ python3 templates/cellranger_atac/test.py
 python3 templates/methods/test.py
 python3 templates/dgea/test.py
 python3 templates/nfcore_3mrnaseq/test.py
+python3 templates/scverse_scrna_integrate/test.py
 ```
 
 Run discovery tests:

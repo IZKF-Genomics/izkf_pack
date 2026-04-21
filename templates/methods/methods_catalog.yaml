@@ -229,6 +229,74 @@ templates:
       - leiden
       - quarto
 
+  scverse_scrna_integrate:
+    category: downstream_analysis
+    publication_relevance: true
+    label: Single-cell RNA-seq dataset integration
+    summary: Multiple single-cell RNA-seq datasets were integrated in an editable Scanpy/scverse workspace with explicit unintegrated baseline review, batch-aware latent modeling or graph correction, and quantitative integration diagnostics.
+    method_core: Multiple single-cell RNA-seq datasets were integrated in an editable Scanpy/scverse workspace that validates the batch variable, preserves an unintegrated baseline embedding, performs one configured integration backend, rebuilds graph-based embeddings and clustering from the integrated representation, and renders a Quarto QC report with quantitative diagnostics.
+    method_details:
+      - The workspace consumes a prepared AnnData object, checks that the configured batch column contains at least two real categories, and fails early rather than fabricating placeholder metadata.
+      - An unintegrated baseline PCA, nearest-neighbor graph, UMAP embedding, and Leiden clustering are computed before correction so the apparent batch structure can be reviewed directly.
+      - Integration can be performed with scVI, scANVI, Harmony, BBKNN, or Scanorama, with method-specific validation and parameter recording in the runtime metadata.
+      - For scVI and scANVI, the workspace requires raw UMI counts in `adata.layers["counts"]` and rebuilds the downstream graph from the learned latent representation.
+      - For Harmony, BBKNN, and Scanorama, dimensionality reduction and graph reconstruction are performed without dense centering of sparse matrices.
+      - Quantitative diagnostics include neighborhood batch-mixing summaries, graph-connectivity assessment when labels are available, and optional scIB metrics when the package is installed and the required labels are present.
+      - The integrated AnnData object, integration metric tables, and the rendered Quarto report are written as explicit outputs for downstream export and review.
+    important_params:
+      - integration_method
+      - batch_key
+      - label_key_for_metrics
+      - run_scib_metrics
+      - use_hvgs_only
+      - n_top_hvgs
+      - n_pcs
+      - n_neighbors
+      - umap_min_dist
+      - cluster_resolution
+      - scanvi_label_key
+      - scanvi_unlabeled_category
+      - scvi_latent_dim
+      - scvi_max_epochs
+      - scvi_gene_likelihood
+    param_explanations:
+      integration_method: Integration backend used to construct the corrected representation.
+      batch_key: Obs column defining the batches or datasets to integrate.
+      label_key_for_metrics: Optional label column used for biological-conservation diagnostics.
+      run_scib_metrics: Whether optional scIB metrics were attempted in addition to the native diagnostics.
+      use_hvgs_only: Whether integration was restricted to highly variable genes.
+      n_top_hvgs: Number of highly variable genes used when they were recomputed.
+      n_pcs: Number of principal components used for classical integration methods and the unintegrated baseline.
+      n_neighbors: Number of neighbors used for graph construction and batch-mixing summaries.
+      umap_min_dist: UMAP minimum-distance parameter used for baseline and integrated embeddings.
+      cluster_resolution: Leiden resolution used for baseline and integrated clustering.
+      scanvi_label_key: Label column supplied to scANVI when semi-supervised integration was used.
+      scanvi_unlabeled_category: Label value treated as unlabeled by scANVI.
+      scvi_latent_dim: Latent dimensionality used by scVI or scANVI.
+      scvi_max_epochs: Maximum training epochs used by scVI or scANVI.
+      scvi_gene_likelihood: Gene-likelihood family used by scVI or scANVI.
+    param_context:
+      - The batch variable and integration backend determine whether the run behaves like simple correction or full cross-dataset integration.
+      - Label-aware diagnostics are only available when biologically meaningful labels are present in the prepared object.
+    command_hints:
+      - When runtime metadata are sparse, prefer the recorded `integration_method`, `batch_key`, and metrics-table outputs over generic wording.
+      - Cite the specific integration backend used for the recorded run rather than listing all supported methods.
+      - Cite scIB only when `run_scib_metrics` was enabled for the recorded run.
+    tools:
+      - Scanpy
+      - scverse
+      - scVI
+      - scANVI
+      - Harmony
+      - BBKNN
+      - Scanorama
+      - Quarto
+    citations:
+      - scanpy
+      - umap
+      - leiden
+      - quarto
+
   nfcore_3mrnaseq:
     category: analysis
     publication_relevance: true
@@ -371,3 +439,21 @@ references:
   leiden:
     text: "Traag VA, Waltman L, van Eck NJ. From Louvain to Leiden: guaranteeing well-connected communities. Scientific Reports. 2019."
     url: "https://doi.org/10.1038/s41598-019-41695-z"
+  scvi:
+    text: "Lopez R, Regier J, Cole MB, Jordan MI, Yosef N. Deep generative modeling for single-cell transcriptomics. Nature Methods. 2018."
+    url: "https://doi.org/10.1038/s41592-018-0229-2"
+  scanvi:
+    text: "Xu C, Lopez R, Mehlman E, et al. Probabilistic harmonization and annotation of single-cell transcriptomics data with deep generative models. Molecular Systems Biology. 2021."
+    url: "https://doi.org/10.15252/msb.20209620"
+  harmony:
+    text: "Korsunsky I, Millard N, Fan J, et al. Fast, sensitive and accurate integration of single-cell data with Harmony. Nature Methods. 2019."
+    url: "https://doi.org/10.1038/s41592-019-0619-0"
+  bbknn:
+    text: "Polański K, Young MD, Miao Z, et al. BBKNN: fast batch alignment of single cell transcriptomes. Bioinformatics. 2020."
+    url: "https://doi.org/10.1093/bioinformatics/btz625"
+  scanorama:
+    text: "Hie B, Bryson B, Berger B. Efficient integration of heterogeneous single-cell transcriptomes using Scanorama. Nature Biotechnology. 2019."
+    url: "https://doi.org/10.1038/s41587-019-0113-3"
+  scib:
+    text: "Luecken MD, Büttner M, Chaichoompu K, et al. Benchmarking atlas-level data integration in single-cell genomics. Nature Methods. 2022."
+    url: "https://doi.org/10.1038/s41592-021-01336-8"

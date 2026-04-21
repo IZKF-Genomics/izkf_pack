@@ -31,6 +31,9 @@ maintenance notes that apply across multiple templates.
   used across templates.
 - [scverse_scrna_prep.md](scverse_scrna_prep.md): input expectations,
   raw-count behavior, and QC assumptions for the scRNA preprocessing workspace.
+- [scverse_scrna_integrate.md](scverse_scrna_integrate.md): integration
+  assumptions, batch-key validation, and evaluation expectations for the scRNA
+  integration workspace.
 
 ## Authoring guidance
 

@@ -84,7 +84,7 @@ Important outputs include:
 - `results/tables/*.csv`
 - `results/run_info.yaml`
 - `results/software_versions.json`
-- `reports/00_qc.html`
+- `reports/qc.html`
 
 ## Maintenance notes
 
@@ -100,3 +100,4 @@ When editing this template, treat these as high-sensitivity areas:
 
 - [template_outputs.md](template_outputs.md)
 - [software_versions.md](software_versions.md)
+- [scverse_scrna_integrate.md](scverse_scrna_integrate.md)

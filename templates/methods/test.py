@@ -798,6 +798,35 @@ def test_scverse_scrna_prep_citations_and_short_sentence() -> None:
     assert "[1, 2, 3, 4, 5]" in sentence
 
 
+def test_scverse_scrna_integrate_citations_and_short_sentence() -> None:
+    module = load_run_module()
+    catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
+    entry = catalog["templates"]["scverse_scrna_integrate"]
+
+    citations = module.resolve_catalog_citations(
+        "scverse_scrna_integrate",
+        entry,
+        {"integration_method": "scanvi", "run_scib_metrics": True},
+    )
+    assert citations == ["scanpy", "umap", "leiden", "quarto", "scvi", "scanvi", "scib"]
+
+    citation_map = module.citation_number_map(citations)
+    sentence = module.short_downstream_sentence(
+        [
+            {
+                "template": "scverse_scrna_integrate",
+                "params": {"integration_method": "scanvi", "run_scib_metrics": True},
+            }
+        ],
+        citation_map,
+    )
+    assert "Prepared single-cell datasets were additionally integrated" in sentence
+    assert "semi-supervised scANVI latent modeling" in sentence
+    assert "optional scIB benchmarking" in sentence
+    assert "Quarto QC notebook" in sentence
+    assert "[1, 2, 3, 4, 5, 6, 7]" in sentence
+
+
 def main() -> int:
     test_generation_with_runtime_command()
     test_dgea_label_and_software_version_fallback()
@@ -815,6 +844,7 @@ def main() -> int:
     test_collect_run_context_adds_variant_names_for_duplicate_nfcore_runs()
     test_recorded_command_block_is_multiline()
     test_scverse_scrna_prep_citations_and_short_sentence()
+    test_scverse_scrna_integrate_citations_and_short_sentence()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     catalog_text = (TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8")
@@ -832,10 +862,17 @@ def main() -> int:
     assert "nfcore_methylseq:" in catalog_text
     assert "methylation_array_analysis:" in catalog_text
     assert "scverse_scrna_prep:" in catalog_text
+    assert "scverse_scrna_integrate:" in catalog_text
     assert "minfi:" in catalog_text
     assert "scanpy:" in catalog_text
     assert "umap:" in catalog_text
     assert "leiden:" in catalog_text
+    assert "scvi:" in catalog_text
+    assert "scanvi:" in catalog_text
+    assert "harmony:" in catalog_text
+    assert "bbknn:" in catalog_text
+    assert "scanorama:" in catalog_text
+    assert "scib:" in catalog_text
     assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
     assert '--metadata-api-url "${METADATA_API_URL:-}"' in run_sh_text
     assert 'run-local = "python3 run.py"' in pixi_text

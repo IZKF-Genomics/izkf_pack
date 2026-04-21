@@ -630,6 +630,16 @@ def resolve_catalog_citations(template_id: str, catalog_entry: dict[str, Any], p
         doublet_method = normalize_id_value(params.get("doublet_method"))
         if doublet_method == "scrublet":
             citations.append("scrublet")
+    if template_id == "scverse_scrna_integrate":
+        method = normalize_id_value(params.get("integration_method"))
+        if method == "scvi":
+            citations.append("scvi")
+        elif method == "scanvi":
+            citations.extend(["scvi", "scanvi"])
+        elif method in {"harmony", "bbknn", "scanorama"}:
+            citations.append(method)
+        if parse_bool(params.get("run_scib_metrics"), default=False):
+            citations.append("scib")
     return unique_ordered(citations)
 
 
@@ -1602,6 +1612,7 @@ def short_downstream_sentence(runs: list[dict[str, Any]], citation_map: dict[str
     dgea_runs = [run for run in runs if str(run.get("template") or "").strip() == "dgea"]
     ercc_runs = [run for run in runs if str(run.get("template") or "").strip() == "ercc"]
     scrna_runs = [run for run in runs if str(run.get("template") or "").strip() == "scverse_scrna_prep"]
+    integrate_runs = [run for run in runs if str(run.get("template") or "").strip() == "scverse_scrna_integrate"]
     parts: list[str] = []
     if dgea_runs:
         cohort_names = unique_ordered(
@@ -1665,6 +1676,32 @@ def short_downstream_sentence(runs: list[dict[str, Any]], citation_map: dict[str
         if doublet_method == "scrublet":
             sentence += ", with Scrublet-based doublet scoring"
             citation_ids.append("scrublet")
+        sentence += ", and reported in a Quarto QC notebook"
+        parts.append(sentence + inline_citations(citation_ids, citation_map) + ".")
+    if integrate_runs:
+        params = merged_run_params(integrate_runs[0])
+        method = normalize_id_value(params.get("integration_method"))
+        method_label_map = {
+            "scvi": "scVI latent modeling",
+            "scanvi": "semi-supervised scANVI latent modeling",
+            "harmony": "Harmony batch correction",
+            "bbknn": "BBKNN graph correction",
+            "scanorama": "Scanorama integration",
+        }
+        sentence = (
+            "Prepared single-cell datasets were additionally integrated in a Scanpy/scverse workspace "
+            f"using {method_label_map.get(method, 'a configured integration backend')}, followed by neighbor-graph reconstruction, UMAP embedding, Leiden clustering, and quantitative integration diagnostics"
+        )
+        citation_ids = ["scanpy", "umap", "leiden", "quarto"]
+        if method == "scvi":
+            citation_ids.append("scvi")
+        elif method == "scanvi":
+            citation_ids.extend(["scvi", "scanvi"])
+        elif method in {"harmony", "bbknn", "scanorama"}:
+            citation_ids.append(method)
+        if parse_bool(params.get("run_scib_metrics"), default=False):
+            sentence += ", including optional scIB benchmarking"
+            citation_ids.append("scib")
         sentence += ", and reported in a Quarto QC notebook"
         parts.append(sentence + inline_citations(citation_ids, citation_map) + ".")
     return " ".join(parts)
