@@ -9,6 +9,8 @@ The pack is intentionally practical:
 - `discovery/` contains read-only helpers for finding projects, sequencing runs, references, and processed run folders.
 - `linkar_pack.yaml` wires selected templates to default binding functions.
 
+This pack assumes facility-managed shared references and 10x assets are prepared outside the pack itself. Those shared assets are maintained in the companion repository [`genomics-assets`](https://github.com/IZKF-Genomics/genomics-assets).
+
 ## Start Here
 
 If you are new to the pack, the usual path is:

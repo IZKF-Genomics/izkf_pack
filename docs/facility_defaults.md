@@ -45,6 +45,23 @@ Several templates use helper functions or API enrichment to resolve:
 Those values improve defaults, but later reporting should still prefer the
 actual rendered command when the question is “what really ran?”
 
+## Shared reference asset assumptions
+
+Several templates also assume facility-managed shared assets such as:
+
+- `/data/ref_genomes/...`
+- `/data/shared/10xGenomics/refs/...`
+- `/data/shared/10xGenomics/bin/...`
+
+Those assets are maintained in the companion repository
+[`genomics-assets`](https://github.com/IZKF-Genomics/genomics-assets), not in
+`izkf_pack` itself.
+
+That split is intentional:
+
+- `genomics-assets` builds or fetches shared references and binaries
+- `izkf_pack` consumes those shared assets inside rendered Linkar workflows
+
 ## Archive paths
 
 Archive templates in this pack also assume facility destinations such as:

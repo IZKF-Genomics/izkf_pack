@@ -3,6 +3,10 @@
 This template provides an `izkf_pack`-native wrapper around `nf-core/scrnaseq` for
 single-cell RNA-seq runs.
 
+It expects shared reference genomes, STAR indices, and optional Cell Ranger
+references to be maintained by the companion facility repository
+[`genomics-assets`](https://github.com/IZKF-Genomics/genomics-assets).
+
 The first version is intentionally conservative:
 
 - fixed pipeline revision: `4.1.0`
