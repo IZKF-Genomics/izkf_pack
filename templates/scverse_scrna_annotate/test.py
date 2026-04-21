@@ -62,12 +62,12 @@ class FakeContext:
 
 def main() -> int:
     for report_name in [
-        "annotation_overview.qmd",
-        "celltypist.qmd",
-        "scanvi.qmd",
-        "decoupler_review.qmd",
-        "scdeepsort.qmd",
-        "scgpt.qmd",
+        "00_annotation_overview.qmd",
+        "01_celltypist.qmd",
+        "02_scanvi.qmd",
+        "03_decoupler_review.qmd",
+        "04_scdeepsort.qmd",
+        "05_scgpt.qmd",
     ]:
         assert (TEMPLATE_DIR / report_name).exists(), f"Missing report scaffold: {report_name}"
 
@@ -81,7 +81,7 @@ def main() -> int:
         (project_dir / "project.yaml").write_text(yaml.safe_dump({}, sort_keys=False), encoding="utf-8")
 
         params = {
-            "annotation_config": str(TEMPLATE_DIR / "config" / "annotation_config.yaml"),
+            "annotation_config": str(TEMPLATE_DIR / "config" / "00_annotation_config.yaml"),
             "input_h5ad": "/tmp/input.h5ad",
             "input_source_template": "scverse_scrna_prep",
             "annotation_method": "celltypist",
@@ -107,7 +107,7 @@ def main() -> int:
         run_module.validate_params(params)
         flattened = run_module.flatten_annotation_config(
             {
-                "_config_path": str(project_dir / "annotation_config.yaml"),
+                "_config_path": str(project_dir / "00_annotation_config.yaml"),
                 "global": {
                     "input_h5ad": "/tmp/from_yaml.h5ad",
                     "annotation_methods": ["celltypist"],
@@ -125,7 +125,7 @@ def main() -> int:
                 },
             }
         )
-        assert flattened["annotation_config"].endswith("annotation_config.yaml")
+        assert flattened["annotation_config"].endswith("00_annotation_config.yaml")
         assert flattened["input_h5ad"] == "/tmp/from_yaml.h5ad"
         assert flattened["annotation_methods"] == "celltypist"
         assert flattened["celltypist_model"] == "Immune_All_Low.pkl"
@@ -135,7 +135,7 @@ def main() -> int:
             project_name=project_dir.name,
         )
         run_module.write_resolved_annotation_config(
-            TEMPLATE_DIR / "config" / "annotation_config.resolved.yaml",
+            TEMPLATE_DIR / "config" / "00_annotation_config.resolved.yaml",
             params,
         )
         original_project_dir = run_module.PROJECT_DIR
@@ -154,7 +154,7 @@ def main() -> int:
 
         config_text = (TEMPLATE_DIR / "config" / "project.toml").read_text(encoding="utf-8")
         resolved_config = yaml.safe_load(
-            (TEMPLATE_DIR / "config" / "annotation_config.resolved.yaml").read_text(encoding="utf-8")
+            (TEMPLATE_DIR / "config" / "00_annotation_config.resolved.yaml").read_text(encoding="utf-8")
         )
         run_info = yaml.safe_load((results_dir / "run_info.yaml").read_text(encoding="utf-8"))
 
@@ -167,7 +167,7 @@ def main() -> int:
         assert run_info["params"]["project_name"] == "260421_scRNA_Annotation"
         assert run_info["params"]["annotation_method"] == "celltypist"
         assert run_info["params"]["use_gpu"] is False
-        assert run_info["annotation_config"].endswith("annotation_config.yaml")
+        assert run_info["annotation_config"].endswith("00_annotation_config.yaml")
 
         assert_fails(
             [sys.executable, str(TEMPLATE_DIR / "run.py")],
@@ -378,17 +378,23 @@ PY""",
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
     run_py_text = (TEMPLATE_DIR / "run.py").read_text(encoding="utf-8")
-    overview_qmd_text = (TEMPLATE_DIR / "annotation_overview.qmd").read_text(encoding="utf-8")
-    method_qmd_text = (TEMPLATE_DIR / "celltypist.qmd").read_text(encoding="utf-8")
+    overview_qmd_text = (TEMPLATE_DIR / "00_annotation_overview.qmd").read_text(encoding="utf-8")
+    method_qmd_text = (TEMPLATE_DIR / "01_celltypist.qmd").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     spec_text = (TEMPLATE_DIR / "assets" / "software_versions_spec.yaml").read_text(encoding="utf-8")
 
     assert "id: scverse_scrna_annotate" in template_text
-    assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
-    assert "quarto" in run_py_text
-    assert "build_annotation_outputs.py" in run_py_text
-    assert "annotation_overview.qmd" in run_py_text
-    assert "celltypist.qmd" in run_py_text
+    assert 'python3 "${script_dir}/run.py"' in run_sh_text
+    assert 'pixi install' in run_sh_text
+    assert 'pixi run python "${script_dir}/build_annotation_outputs.py"' in run_sh_text
+    assert "00_annotation_overview.qmd" in run_sh_text
+    assert "01_celltypist.qmd" in run_sh_text
+    assert "02_scanvi.qmd" in run_sh_text
+    assert "03_decoupler_review.qmd" in run_sh_text
+    assert "04_scdeepsort.qmd" in run_sh_text
+    assert "05_scgpt.qmd" in run_sh_text
+    assert "project.toml" in run_py_text
+    assert "00_annotation_config.yaml" in run_py_text
     assert 'title: "scRNA Annotation Overview"' in overview_qmd_text
     assert 'title: "scRNA Annotation Method Report: CellTypist"' in method_qmd_text
     assert "method_comparison" in overview_qmd_text

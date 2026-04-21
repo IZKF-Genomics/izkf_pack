@@ -1,9 +1,11 @@
 # User-facing configuration for scverse_scrna_annotate.
-# Copy or edit this file as config/annotation_config.yaml and then run:
+# Copy or edit this file as config/00_annotation_config.yaml and then run:
 #   ./run.sh
 #
 # Environment variables still work and override YAML values when both are set.
 # The runtime converts this YAML file into config/project.toml internally.
+# This file is numbered `00_` on purpose so it sorts first in the workspace and
+# acts as the obvious starting point for users opening the template folder.
 
 global:
   # Path to the input AnnData object.

@@ -11,11 +11,11 @@ implementation.
 
 The user-facing entrypoint is now a commented YAML file:
 
-- `templates/scverse_scrna_annotate/config/annotation_config.yaml`
+- `templates/scverse_scrna_annotate/config/00_annotation_config.yaml`
 
 If it is missing, `run.sh` seeds it from:
 
-- `templates/scverse_scrna_annotate/assets/annotation_config.template.yaml`
+- `templates/scverse_scrna_annotate/assets/00_annotation_config.template.yaml`
 
 The runtime then converts that YAML config into the internal
 `config/project.toml` file consumed by the builder and report code.
@@ -94,26 +94,31 @@ Important outputs include:
 - `results/tables/method_comparison.csv`
 - `results/run_info.yaml`
 - `results/software_versions.json`
-- `reports/annotation_overview.html`
-- `reports/celltypist.html`
+- `reports/00_annotation_overview.html`
+- `reports/01_celltypist.html`
+- `reports/02_scanvi.html`
+- `reports/03_decoupler_review.html`
+- `reports/04_scdeepsort.html`
+- `reports/05_scgpt.html`
 
 Important config files include:
 
-- `config/annotation_config.yaml`
-- `config/annotation_config.resolved.yaml`
+- `config/00_annotation_config.yaml`
+- `config/00_annotation_config.resolved.yaml`
 - `config/project.toml`
 
 Method-specific report scaffolds currently present in the template directory:
 
-- `celltypist.qmd`
-- `scanvi.qmd`
-- `decoupler_review.qmd`
-- `scdeepsort.qmd`
-- `scgpt.qmd`
+- `01_celltypist.qmd`
+- `02_scanvi.qmd`
+- `03_decoupler_review.qmd`
+- `04_scdeepsort.qmd`
+- `05_scgpt.qmd`
 
-At the moment only `celltypist.qmd` is backed by executable runtime logic. The
-other QMD files are reserved so future Python-native backends can slot into the
-same report organization without another directory refactor.
+At the moment only `01_celltypist.qmd` is backed by executable runtime logic.
+The later numbered QMD files are rendered scaffold reports so future
+Python-native backends can slot into the same report organization without
+another directory refactor.
 
 ## Maintenance notes
 

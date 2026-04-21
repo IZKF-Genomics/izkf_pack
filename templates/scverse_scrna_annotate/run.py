@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import shutil
 from pathlib import Path
 
@@ -10,18 +9,14 @@ import yaml
 
 
 TEMPLATE_DIR = Path(__file__).resolve().parent
-PACK_ROOT = Path(os.environ.get("LINKAR_PACK_ROOT", TEMPLATE_DIR.parent.parent)).resolve()
 PROJECT_DIR = Path(os.environ.get("LINKAR_PROJECT_DIR", TEMPLATE_DIR.parent)).resolve()
 RESULTS_DIR = Path(os.environ.get("LINKAR_RESULTS_DIR", TEMPLATE_DIR / "results")).resolve()
-REPORTS_DIR = TEMPLATE_DIR / "reports"
 CONFIG_DIR = TEMPLATE_DIR / "config"
-SOFTWARE_VERSIONS_SPEC = TEMPLATE_DIR / "assets" / "software_versions_spec.yaml"
-USER_CONFIG_TEMPLATE_PATH = TEMPLATE_DIR / "assets" / "annotation_config.template.yaml"
-DEFAULT_USER_CONFIG_PATH = CONFIG_DIR / "annotation_config.yaml"
-RESOLVED_USER_CONFIG_PATH = CONFIG_DIR / "annotation_config.resolved.yaml"
+USER_CONFIG_TEMPLATE_PATH = TEMPLATE_DIR / "assets" / "00_annotation_config.template.yaml"
+DEFAULT_USER_CONFIG_PATH = CONFIG_DIR / "00_annotation_config.yaml"
+RESOLVED_USER_CONFIG_PATH = CONFIG_DIR / "00_annotation_config.resolved.yaml"
 PROJECT_CONFIG_PATH = CONFIG_DIR / "project.toml"
 RUN_INFO_PATH = RESULTS_DIR / "run_info.yaml"
-PIPELINE_SCRIPT = TEMPLATE_DIR / "build_annotation_outputs.py"
 
 
 def env(name: str, default: str = "") -> str:
@@ -211,7 +206,7 @@ def resolved_params() -> dict[str, str]:
 def validate_params(params: dict[str, str]) -> None:
     if not params["input_h5ad"].strip():
         raise SystemExit(
-            "Set INPUT_H5AD or fill global.input_h5ad in config/annotation_config.yaml before running scverse_scrna_annotate."
+            "Set INPUT_H5AD or fill global.input_h5ad in config/00_annotation_config.yaml before running scverse_scrna_annotate."
         )
     method = params["annotation_method"].strip().lower()
     raw_methods = params["annotation_methods"].strip()
@@ -331,55 +326,17 @@ def write_run_info(path: Path, params: dict[str, str], *, project_name: str) -> 
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
-def run_command(cmd: list[str]) -> None:
-    subprocess.run(cmd, cwd=TEMPLATE_DIR, check=True)
-
-
 def main() -> int:
     params = resolved_params()
     validate_params(params)
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
     project_name = PROJECT_DIR.name
     write_resolved_annotation_config(RESOLVED_USER_CONFIG_PATH, params)
     write_project_config(PROJECT_CONFIG_PATH, params, project_name=project_name)
     write_run_info(RUN_INFO_PATH, params, project_name=project_name)
-
-    run_command(["pixi", "install"])
-    run_command(["pixi", "run", "python", str(PIPELINE_SCRIPT)])
-    report_files = ["annotation_overview.qmd"]
-    raw_methods = params["annotation_methods"].strip()
-    selected_methods = [item.strip().lower() for item in raw_methods.split(",") if item.strip()] if raw_methods else [params["annotation_method"].strip().lower()]
-    if "celltypist" in selected_methods:
-        report_files.append("celltypist.qmd")
-    for report_name in report_files:
-        run_command(
-            [
-                "pixi",
-                "run",
-                "quarto",
-                "render",
-                str(TEMPLATE_DIR / report_name),
-                "--to",
-                "html",
-                "--output-dir",
-                str(REPORTS_DIR),
-                "--no-clean",
-            ]
-        )
-    run_command(
-        [
-            "python3",
-            str(PACK_ROOT / "functions" / "software_versions.py"),
-            "--spec",
-            str(SOFTWARE_VERSIONS_SPEC),
-            "--output",
-            str(RESULTS_DIR / "software_versions.json"),
-        ]
-    )
     return 0
 
 

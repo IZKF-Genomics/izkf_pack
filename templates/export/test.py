@@ -123,8 +123,12 @@ def main() -> int:
         (annotate_dir / "results" / "run_info.yaml").write_text("template: scverse_scrna_annotate\n", encoding="utf-8")
         (annotate_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
         (annotate_dir / "results" / "tables" / "cluster_annotation_summary.csv").write_text("cluster,label\n", encoding="utf-8")
-        (annotate_dir / "reports" / "annotation_overview.html").write_text("<html></html>\n", encoding="utf-8")
-        (annotate_dir / "reports" / "celltypist.html").write_text("<html></html>\n", encoding="utf-8")
+        (annotate_dir / "reports" / "00_annotation_overview.html").write_text("<html></html>\n", encoding="utf-8")
+        (annotate_dir / "reports" / "01_celltypist.html").write_text("<html></html>\n", encoding="utf-8")
+        (annotate_dir / "reports" / "02_scanvi.html").write_text("<html></html>\n", encoding="utf-8")
+        (annotate_dir / "reports" / "03_decoupler_review.html").write_text("<html></html>\n", encoding="utf-8")
+        (annotate_dir / "reports" / "04_scdeepsort.html").write_text("<html></html>\n", encoding="utf-8")
+        (annotate_dir / "reports" / "05_scgpt.html").write_text("<html></html>\n", encoding="utf-8")
         (ercc_dir / "results" / "ERCC.html").write_text("<html></html>\n", encoding="utf-8")
         (ercc_dir / "results" / "run_info.yaml").write_text("template: ercc\n", encoding="utf-8")
         (ercc_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
@@ -321,8 +325,12 @@ def main() -> int:
         ]
         assert len(annotate_report_entries) == 1
         annotate_report_paths = {link["path"] for link in annotate_report_entries[0].get("report_links", [])}
-        assert "annotation_overview.html" in annotate_report_paths
-        assert "celltypist.html" in annotate_report_paths
+        assert "00_annotation_overview.html" in annotate_report_paths
+        assert "01_celltypist.html" in annotate_report_paths
+        assert "02_scanvi.html" in annotate_report_paths
+        assert "03_decoupler_review.html" in annotate_report_paths
+        assert "04_scdeepsort.html" in annotate_report_paths
+        assert "05_scgpt.html" in annotate_report_paths
         assert (export_dir / "results" / "metadata_context.yaml").exists()
         assert (export_dir / "results" / "project_methods.md").exists()
 

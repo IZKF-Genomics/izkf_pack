@@ -5,8 +5,8 @@ platforms = ["linux-64"]
 version = "0.1.0"
 
 [tasks]
-render = { cmd = ["bash", "-lc", "python run.py"] }
-clean = { cmd = ["bash", "-lc", "rm -rf results .quarto reports annotation_overview.html celltypist.html"] }
+render = { cmd = ["bash", "run.sh"] }
+clean = { cmd = ["bash", "-lc", "rm -rf results .quarto reports 00_annotation_overview.html 01_celltypist.html 02_scanvi.html 03_decoupler_review.html 04_scdeepsort.html 05_scgpt.html"] }
 
 [dependencies]
 python = ">=3.11,<3.13"

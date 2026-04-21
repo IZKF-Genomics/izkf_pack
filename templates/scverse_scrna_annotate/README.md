@@ -32,27 +32,27 @@ That keeps `run.sh`, `pixi`, and the exported workspace easier to maintain.
 ## Layout
 
 - `run.sh`: user-facing launcher
-- `run.py`: runtime orchestration
-- `assets/annotation_config.template.yaml`: commented user config template
-- `config/annotation_config.yaml`: working copy created automatically on first run
+- `run.py`: prep-only helper that resolves YAML plus env values into runtime config files
+- `assets/00_annotation_config.template.yaml`: commented user config template
+- `config/00_annotation_config.yaml`: working copy created automatically on first run
 - `config/project.toml`: internal runtime config generated from YAML/env values
-- `config/annotation_config.resolved.yaml`: resolved config used for the run
+- `config/00_annotation_config.resolved.yaml`: resolved config used for the run
 - `build_annotation_outputs.py`: shared annotation pipeline executed once
-- `annotation_overview.qmd`: cross-method review report
-- `celltypist.qmd`: CellTypist-specific diagnostic report
-- `scanvi.qmd`: reserved scaffold for a future scANVI report
-- `decoupler_review.qmd`: reserved scaffold for a future decoupler review report
-- `scgpt.qmd`: reserved scaffold for a future scGPT report
-- `scdeepsort.qmd`: reserved scaffold for a future scDeepSort report
+- `00_annotation_overview.qmd`: cross-method review report
+- `01_celltypist.qmd`: CellTypist-specific diagnostic report
+- `02_scanvi.qmd`: reserved scaffold for a future scANVI report
+- `03_decoupler_review.qmd`: reserved scaffold for a future decoupler review report
+- `04_scdeepsort.qmd`: reserved scaffold for a future scDeepSort report
+- `05_scgpt.qmd`: reserved scaffold for a future scGPT report
 - `lib/`: reusable Python helpers
 - `results/`: generated tables, H5AD output, and metadata
 - `reports/`: rendered HTML reports
 
 ## Quick Start
 
-1. Open `config/annotation_config.yaml`.
+1. Open `config/00_annotation_config.yaml`.
    If it does not exist yet, run `./run.sh` once and the template will seed it
-   from `assets/annotation_config.template.yaml`.
+   from `assets/00_annotation_config.template.yaml`.
 2. Fill in at least:
    - `global.input_h5ad`
    - `celltypist.model`
@@ -65,8 +65,8 @@ That keeps `run.sh`, `pixi`, and the exported workspace easier to maintain.
 ```
 
 5. Inspect:
-   - `reports/annotation_overview.html`
-   - `reports/celltypist.html`
+   - `reports/00_annotation_overview.html`
+   - `reports/01_celltypist.html`
    - `results/adata.annotated.h5ad`
 
 Environment variables still work and override YAML values. That makes the
@@ -101,7 +101,7 @@ The user-facing config is organized into three sections:
 The shipped template already includes comment lines for every current key and
 its expected values:
 
-- [assets/annotation_config.template.yaml](assets/annotation_config.template.yaml)
+- [assets/00_annotation_config.template.yaml](assets/00_annotation_config.template.yaml)
 
 Example:
 
@@ -163,22 +163,26 @@ B_cells:
 
 ## Runtime behavior
 
-`./run.sh` does the following:
+`./run.sh` does the following explicitly:
 
-1. seeds `config/annotation_config.yaml` from the commented template if needed
+1. runs `python3 run.py` to seed and resolve the numbered config files
 2. reads YAML settings and environment overrides
-3. writes `config/annotation_config.resolved.yaml`
+3. writes `config/00_annotation_config.resolved.yaml`
 4. writes the internal `config/project.toml`
 5. records `results/run_info.yaml`
 6. installs the Pixi environment if needed
 7. runs `build_annotation_outputs.py` once
-8. renders `annotation_overview.qmd`
-9. renders one sub-report for each selected method
-10. writes `results/software_versions.json`
+8. renders `00_annotation_overview.qmd`
+9. renders `01_celltypist.qmd`
+10. renders `02_scanvi.qmd`
+11. renders `03_decoupler_review.qmd`
+12. renders `04_scdeepsort.qmd`
+13. renders `05_scgpt.qmd`
+14. writes `results/software_versions.json`
 
-At the moment, only `celltypist.qmd` is rendered by the executable runtime.
-The additional method-specific QMD files are committed as structured scaffolds
-for future Python backends so the report organization is already in place.
+Only `01_celltypist.qmd` currently reflects a fully implemented backend. The
+later numbered reports are rendered too, but they are intentionally scaffold
+reports for future Python backends rather than full analyses.
 
 The analysis itself:
 
@@ -202,8 +206,12 @@ The analysis itself:
 - `results/tables/method_comparison.csv`
 - `results/run_info.yaml`
 - `results/software_versions.json`
-- `reports/annotation_overview.html`
-- `reports/celltypist.html`
+- `reports/00_annotation_overview.html`
+- `reports/01_celltypist.html`
+- `reports/02_scanvi.html`
+- `reports/03_decoupler_review.html`
+- `reports/04_scdeepsort.html`
+- `reports/05_scgpt.html`
 
 ## Annotation methods and template fit
 
@@ -220,11 +228,11 @@ Python-native backends are considered in-scope.
 
 Report scaffolds already present in the template:
 
-- `celltypist.qmd`
-- `scanvi.qmd`
-- `decoupler_review.qmd`
-- `scdeepsort.qmd`
-- `scgpt.qmd`
+- `01_celltypist.qmd`
+- `02_scanvi.qmd`
+- `03_decoupler_review.qmd`
+- `04_scdeepsort.qmd`
+- `05_scgpt.qmd`
 
 R-based tools intentionally excluded from this template:
 
@@ -241,7 +249,7 @@ Use this template when:
 - you already completed preprocessing and clustering
 - you want an editable annotation workspace rather than a black-box result
 - you want HTML reports plus an updated `.h5ad`
-- you want to rerun the annotation step by editing a single YAML file
+- you want to rerun the annotation step by editing a single numbered YAML file
 
 Do not use this template as the only source of biological truth when:
 

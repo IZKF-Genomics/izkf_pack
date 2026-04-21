@@ -198,7 +198,14 @@ def main() -> int:
             "celltypist_top_label_summary": "results/methods/celltypist/top_label_summary.csv",
         },
         "adata_file": "results/adata.annotated.h5ad",
-        "report_files": ["annotation_overview.html"] + (["celltypist.html"] if "celltypist" in selected_methods else []),
+        "report_files": [
+            "00_annotation_overview.html",
+            "01_celltypist.html",
+            "02_scanvi.html",
+            "03_decoupler_review.html",
+            "04_scdeepsort.html",
+            "05_scgpt.html",
+        ],
     }
     write_yaml(report_context_file, context)
     return 0

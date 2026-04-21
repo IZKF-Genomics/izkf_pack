@@ -9,8 +9,8 @@ tools:
 params:
   annotation_config:
     type: path
-    default: "config/annotation_config.yaml"
-    description: User-facing YAML config file. If the default path does not exist, the template seeds it from `assets/annotation_config.template.yaml`. Environment variables still override YAML values.
+    default: "config/00_annotation_config.yaml"
+    description: User-facing YAML config file. If the default path does not exist, the template seeds it from `assets/00_annotation_config.template.yaml`. Environment variables still override YAML values.
   input_h5ad:
     type: path
     default: ""
@@ -98,9 +98,9 @@ params:
 outputs:
   results_dir: {}
   annotation_config_file:
-    path: config/annotation_config.yaml
+    path: config/00_annotation_config.yaml
   resolved_annotation_config:
-    path: config/annotation_config.resolved.yaml
+    path: config/00_annotation_config.resolved.yaml
   run_info:
     path: results/run_info.yaml
   software_versions:
