@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -45,6 +46,29 @@ def run_celltypist_annotation(
     use_gpu: bool,
     predicted_label_key: str,
 ):
+    if os.environ.get("LINKAR_TEST_CELLTYPIST_MOCK", "").strip().lower() in {"1", "true", "yes", "on"}:
+        if "train_label" in adata.obs.columns:
+            label_series = normalize_text_series(adata.obs["train_label"], fallback="Unknown")
+        else:
+            label_series = pd.Series(["Unknown"] * adata.n_obs, index=adata.obs_names, dtype="object")
+        categories = sorted(label_series.unique())
+        probabilities = pd.DataFrame(0.0, index=adata.obs_names, columns=categories)
+        for cell_id, label in label_series.items():
+            probabilities.loc[cell_id, label] = 0.95
+            if len(categories) > 1:
+                spill = 0.05 / max(1, len(categories) - 1)
+                for category in categories:
+                    if category != label:
+                        probabilities.loc[cell_id, category] = spill
+        out = pd.DataFrame(
+            {
+                predicted_label_key: label_series.to_numpy(),
+                "predicted_confidence": probabilities.max(axis=1).to_numpy(),
+            },
+            index=adata.obs_names,
+        )
+        return out, probabilities
+
     try:
         import celltypist
     except ImportError as exc:  # pragma: no cover

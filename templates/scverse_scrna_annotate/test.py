@@ -74,6 +74,7 @@ def main() -> int:
             "input_h5ad": "/tmp/input.h5ad",
             "input_source_template": "scverse_scrna_prep",
             "annotation_method": "celltypist",
+            "annotation_methods": "celltypist",
             "celltypist_model": "Immune_All_Low.pkl",
             "celltypist_mode": "best_match",
             "celltypist_p_thres": "0.5",
@@ -116,6 +117,7 @@ def main() -> int:
         run_info = yaml.safe_load((results_dir / "run_info.yaml").read_text(encoding="utf-8"))
 
         assert 'annotation_method = "celltypist"' in config_text
+        assert 'annotation_methods = "celltypist"' in config_text
         assert 'celltypist_model = "Immune_All_Low.pkl"' in config_text
         assert 'cluster_key = "leiden"' in config_text
         assert run_info["params"]["project_name"] == "260421_scRNA_Annotation"
@@ -146,6 +148,7 @@ def main() -> int:
 from pathlib import Path
 import tempfile
 import sys
+import os
 sys.path.insert(0, str(Path("lib").resolve()))
 import numpy as np
 import pandas as pd
@@ -157,6 +160,7 @@ from types import SimpleNamespace
 from annotation_io import load_marker_sets, normalize_text_series, resolve_gene_symbols
 from annotation_methods import apply_cluster_suggestions, prepare_celltypist_adata, run_celltypist_annotation, summarize_cluster_predictions
 from annotation_review import merge_marker_review, score_marker_sets
+import subprocess
 
 rng = np.random.default_rng(0)
 counts = rng.poisson(2.0, size=(24, 6))
@@ -167,6 +171,9 @@ adata.obs["train_label"] = ["T_cells"] * 8 + ["B_cells"] * 8 + ["Myeloid"] * 8
 adata.obs["sample_id"] = ["s1"] * 12 + ["s2"] * 12
 sc.pp.normalize_total(adata, target_sum=1e4)
 sc.pp.log1p(adata)
+sc.tl.pca(adata, n_comps=4, svd_solver="arpack")
+sc.pp.neighbors(adata, n_neighbors=5, n_pcs=4)
+sc.tl.umap(adata, random_state=0)
 
 labels = pd.DataFrame(
     {
@@ -249,6 +256,56 @@ assert normalized.tolist() == ["unknown", "unknown", "unknown", "unknown", "trea
 prepared = prepare_celltypist_adata(adata)
 assert prepared.var_names.tolist() == adata.var_names.tolist()
 assert resolve_gene_symbols(pd.DataFrame(index=adata.var_names), adata.var_names).tolist() == adata.var_names.tolist()
+
+(Path("config")).mkdir(exist_ok=True)
+(Path("results")).mkdir(exist_ok=True)
+Path("config/project.toml").write_text(
+    '''[project]
+name = "test"
+
+[input]
+input_h5ad = "/tmp/input.h5ad"
+input_source_template = "scverse_scrna_prep"
+
+[metadata]
+cluster_key = "cluster"
+batch_key = "batch"
+condition_key = "condition"
+sample_id_key = "sample_id"
+sample_label_key = "sample_display"
+
+[annotation]
+annotation_method = "celltypist"
+annotation_methods = "celltypist"
+celltypist_model = "dummy_model.pkl"
+celltypist_mode = "best_match"
+celltypist_p_thres = 0.5
+use_gpu = false
+majority_vote_min_fraction = 0.3
+confidence_threshold = 0.0
+unknown_label = "Unknown"
+predicted_label_key = "predicted_label"
+final_label_key = "final_label"
+marker_file = ""
+rank_top_markers = 3
+random_seed = 0
+
+[output]
+adata_file = "results/adata.annotated.h5ad"
+cell_annotation_predictions_file = "results/tables/cell_annotation_predictions.csv"
+cluster_annotation_summary_file = "results/tables/cluster_annotation_summary.csv"
+marker_review_summary_file = "results/tables/marker_review_summary.csv"
+annotation_status_summary_file = "results/tables/annotation_status_summary.csv"
+method_comparison_file = "results/tables/method_comparison.csv"
+report_context_file = "results/report_context.yaml"
+''',
+    encoding="utf-8",
+)
+adata.write_h5ad("input.h5ad")
+Path("config/project.toml").write_text(Path("config/project.toml").read_text(encoding="utf-8").replace('/tmp/input.h5ad', str(Path('input.h5ad').resolve())), encoding="utf-8")
+subprocess.run([sys.executable, "build_annotation_outputs.py"], check=True, env={**os.environ, "LINKAR_TEST_CELLTYPIST_MOCK": "1"})
+assert Path("results/tables/method_comparison.csv").exists()
+assert Path("results/report_context.yaml").exists()
 PY""",
         ],
         cwd=TEMPLATE_DIR,
@@ -276,19 +333,23 @@ PY""",
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
     run_py_text = (TEMPLATE_DIR / "run.py").read_text(encoding="utf-8")
-    qmd_text = (TEMPLATE_DIR / "annotation.qmd").read_text(encoding="utf-8")
+    overview_qmd_text = (TEMPLATE_DIR / "annotation_overview.qmd").read_text(encoding="utf-8")
+    method_qmd_text = (TEMPLATE_DIR / "celltypist.qmd").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     spec_text = (TEMPLATE_DIR / "assets" / "software_versions_spec.yaml").read_text(encoding="utf-8")
 
     assert "id: scverse_scrna_annotate" in template_text
     assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
     assert "quarto" in run_py_text
-    assert "annotation.qmd" in run_py_text
-    assert 'title: "scRNA Annotation Review"' in qmd_text
-    assert "run_celltypist_annotation" in qmd_text
-    assert "cluster_suggested_label" in qmd_text
+    assert "build_annotation_outputs.py" in run_py_text
+    assert "annotation_overview.qmd" in run_py_text
+    assert "celltypist.qmd" in run_py_text
+    assert 'title: "scRNA Annotation Overview"' in overview_qmd_text
+    assert 'title: "scRNA Annotation Method Report: CellTypist"' in method_qmd_text
+    assert "method_comparison" in overview_qmd_text
+    assert "probability_matrix" in method_qmd_text
     assert "CellTypist" in readme_text
-    assert "celltypist_model" in spec_text
+    assert "annotation_methods" in spec_text
     pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
     pack_data = yaml.safe_load(pack_text)
     params = pack_data["templates"]["scverse_scrna_annotate"]["params"]

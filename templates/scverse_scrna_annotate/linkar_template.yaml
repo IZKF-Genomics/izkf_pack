@@ -18,7 +18,11 @@ params:
   annotation_method:
     type: str
     default: "celltypist"
-    description: Annotation backend. `celltypist` is currently the supported value.
+    description: Primary annotation backend used for backward compatibility and methods reporting. `celltypist` is currently the supported value.
+  annotation_methods:
+    type: str
+    default: "celltypist"
+    description: Comma-separated list of annotation methods to run and render as sub-reports. Currently supported: `celltypist`.
   celltypist_model:
     type: str
     default: ""
@@ -105,6 +109,8 @@ outputs:
     path: results/tables/marker_review_summary.csv
   annotation_status_summary:
     path: results/tables/annotation_status_summary.csv
+  method_comparison:
+    path: results/tables/method_comparison.csv
   html_reports:
     glob: reports/*.html
   tables:

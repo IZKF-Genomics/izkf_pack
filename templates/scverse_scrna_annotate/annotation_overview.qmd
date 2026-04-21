@@ -1,0 +1,135 @@
+---
+title: "scRNA Annotation Overview"
+date: today
+jupyter: python3
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 3
+    toc-location: left
+    html-math-method: katex
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+    page-layout: full
+    html-table-processing: none
+    theme: lumen
+    fig-width: 10
+    fig-height: 5
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{python}
+from pathlib import Path
+import sys
+
+import pandas as pd
+import plotly.express as px
+import scanpy as sc
+
+LIB_DIR = Path(".").resolve() / "lib"
+if str(LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(LIB_DIR))
+
+from report_utils import format_table, load_report_context, load_table, package_versions_table
+
+ROOT = Path(".").resolve()
+context = load_report_context(ROOT)
+adata = sc.read_h5ad(ROOT / context["adata_file"])
+
+
+def embedding_frame(adata, basis: str, color_keys: list[str]) -> pd.DataFrame:
+    coords = adata.obsm[basis]
+    frame = pd.DataFrame(coords[:, :2], columns=["dim_1", "dim_2"], index=adata.obs_names)
+    keep = [key for key in color_keys if key in adata.obs.columns]
+    return frame.join(adata.obs[keep], how="left")
+
+
+method_comparison = load_table(ROOT, context["tables"]["method_comparison"])
+cluster_summary = load_table(ROOT, context["tables"]["cluster_annotation_summary"])
+status_summary = load_table(ROOT, context["tables"]["annotation_status_summary"])
+```
+
+## Input Review
+
+This overview report compares the selected annotation methods at a high level and summarizes which clusters still need manual review.
+
+```{python}
+overview_df = pd.DataFrame(
+    [
+        {"field": "input_h5ad", "value": context["input_h5ad"]},
+        {"field": "input_source_template", "value": context["input_source_template"]},
+        {"field": "selected_methods", "value": ", ".join(context["selected_methods"])},
+        {"field": "cluster_key", "value": context["cluster_key"]},
+        {"field": "n_cells", "value": int(adata.n_obs)},
+        {"field": "n_genes", "value": int(adata.n_vars)},
+    ]
+)
+format_table(overview_df)
+```
+
+## Method Comparison
+
+```{python}
+format_table(method_comparison)
+```
+
+## Review Status
+
+```{python}
+format_table(status_summary)
+```
+
+```{python}
+format_table(cluster_summary)
+```
+
+## Final Labels
+
+```{python}
+final_plot_df = embedding_frame(
+    adata,
+    "X_umap",
+    [
+        context["final_label_key"],
+        "annotation_status",
+        context["cluster_key"],
+        context["batch_key"],
+        context["condition_key"],
+        "sample_display",
+        context["sample_id_key"],
+    ],
+)
+px.scatter(
+    final_plot_df,
+    x="dim_1",
+    y="dim_2",
+    color=context["final_label_key"],
+    hover_data=[key for key in ["sample_display", context["sample_id_key"], context["cluster_key"], context["batch_key"], context["condition_key"], "annotation_status"] if key in final_plot_df.columns],
+    title=f"UMAP colored by {context['final_label_key']}",
+    template="simple_white",
+).update_layout(height=650)
+```
+
+```{python}
+px.scatter(
+    final_plot_df,
+    x="dim_1",
+    y="dim_2",
+    color="annotation_status",
+    hover_data=[key for key in ["sample_display", context["sample_id_key"], context["cluster_key"], context["final_label_key"]] if key in final_plot_df.columns],
+    title="UMAP colored by annotation review status",
+    template="simple_white",
+).update_layout(height=650)
+```
+
+## Session Info
+
+```{python}
+session_df = package_versions_table(["scanpy", "anndata", "pandas", "numpy", "plotly", "celltypist"])
+format_table(session_df)
+```

@@ -6,6 +6,8 @@ tools:
 params:
   - name: annotation_method
     value_env: ANNOTATION_METHOD
+  - name: annotation_methods
+    value_env: ANNOTATION_METHODS
   - name: celltypist_model
     value_env: CELLTYPIST_MODEL
   - name: cluster_key

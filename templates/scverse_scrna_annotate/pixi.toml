@@ -5,8 +5,8 @@ platforms = ["linux-64"]
 version = "0.1.0"
 
 [tasks]
-render = { cmd = ["quarto", "render", "annotation.qmd", "--to", "html", "--no-clean"] }
-clean = { cmd = ["bash", "-lc", "rm -rf results .quarto reports annotation.html"] }
+render = { cmd = ["bash", "-lc", "python run.py"] }
+clean = { cmd = ["bash", "-lc", "rm -rf results .quarto reports annotation_overview.html celltypist.html"] }
 
 [dependencies]
 python = ">=3.11,<3.13"

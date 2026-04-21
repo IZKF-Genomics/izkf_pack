@@ -18,6 +18,7 @@ NOTEBOOK_PATH = TEMPLATE_DIR / "annotation.qmd"
 SOFTWARE_VERSIONS_SPEC = TEMPLATE_DIR / "assets" / "software_versions_spec.yaml"
 PROJECT_CONFIG_PATH = CONFIG_DIR / "project.toml"
 RUN_INFO_PATH = RESULTS_DIR / "run_info.yaml"
+PIPELINE_SCRIPT = TEMPLATE_DIR / "build_annotation_outputs.py"
 
 
 def env(name: str, default: str = "") -> str:
@@ -38,6 +39,7 @@ def resolved_params() -> dict[str, str]:
         "input_h5ad": env("INPUT_H5AD"),
         "input_source_template": env("INPUT_SOURCE_TEMPLATE"),
         "annotation_method": env("ANNOTATION_METHOD", "celltypist"),
+        "annotation_methods": env("ANNOTATION_METHODS"),
         "celltypist_model": env("CELLTYPIST_MODEL"),
         "celltypist_mode": env("CELLTYPIST_MODE", "best_match"),
         "celltypist_p_thres": env("CELLTYPIST_P_THRES", "0.5"),
@@ -62,7 +64,14 @@ def validate_params(params: dict[str, str]) -> None:
     if not params["input_h5ad"].strip():
         raise SystemExit("Set INPUT_H5AD or rely on a bound upstream scverse single-cell output before running scverse_scrna_annotate.")
     method = params["annotation_method"].strip().lower()
-    if method != "celltypist":
+    raw_methods = params["annotation_methods"].strip()
+    selected_methods = [item.strip().lower() for item in raw_methods.split(",") if item.strip()] if raw_methods else [method]
+    if not selected_methods:
+        selected_methods = [method]
+    unsupported = sorted(set(selected_methods) - {"celltypist"})
+    if unsupported:
+        raise SystemExit("Set ANNOTATION_METHODS to supported values only. Currently implemented: celltypist.")
+    if method not in {"celltypist"}:
         raise SystemExit("Set ANNOTATION_METHOD=celltypist. Additional annotation backends are not implemented yet.")
     if not params["celltypist_model"].strip():
         raise SystemExit("Set CELLTYPIST_MODEL to a relevant built-in model name or a custom model path before running scverse_scrna_annotate.")
@@ -91,6 +100,7 @@ def write_project_config(path: Path, params: dict[str, str], *, project_name: st
         "",
         "[annotation]",
         f"annotation_method = {toml_string(params['annotation_method'])}",
+        f"annotation_methods = {toml_string(params['annotation_methods'])}",
         f"celltypist_model = {toml_string(params['celltypist_model'])}",
         f"celltypist_mode = {toml_string(params['celltypist_mode'])}",
         f"celltypist_p_thres = {params['celltypist_p_thres']}",
@@ -110,6 +120,8 @@ def write_project_config(path: Path, params: dict[str, str], *, project_name: st
         'cluster_annotation_summary_file = "results/tables/cluster_annotation_summary.csv"',
         'marker_review_summary_file = "results/tables/marker_review_summary.csv"',
         'annotation_status_summary_file = "results/tables/annotation_status_summary.csv"',
+        'method_comparison_file = "results/tables/method_comparison.csv"',
+        'report_context_file = "results/report_context.yaml"',
     ]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -145,20 +157,27 @@ def main() -> int:
     write_run_info(RUN_INFO_PATH, params, project_name=project_name)
 
     run_command(["pixi", "install"])
-    run_command(
-        [
-            "pixi",
-            "run",
-            "quarto",
-            "render",
-            str(NOTEBOOK_PATH),
-            "--to",
-            "html",
-            "--output-dir",
-            str(REPORTS_DIR),
-            "--no-clean",
-        ]
-    )
+    run_command(["pixi", "run", "python", str(PIPELINE_SCRIPT)])
+    report_files = ["annotation_overview.qmd"]
+    raw_methods = params["annotation_methods"].strip()
+    selected_methods = [item.strip().lower() for item in raw_methods.split(",") if item.strip()] if raw_methods else [params["annotation_method"].strip().lower()]
+    if "celltypist" in selected_methods:
+        report_files.append("celltypist.qmd")
+    for report_name in report_files:
+        run_command(
+            [
+                "pixi",
+                "run",
+                "quarto",
+                "render",
+                str(TEMPLATE_DIR / report_name),
+                "--to",
+                "html",
+                "--output-dir",
+                str(REPORTS_DIR),
+                "--no-clean",
+            ]
+        )
     run_command(
         [
             "python3",
