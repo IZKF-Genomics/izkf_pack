@@ -544,12 +544,32 @@ params {
         command_block = module.collect_recorded_command_block(run)
 
     assert not any("UMI" in line for line in settings)
+    assert any("Reference genome" in line and "Sus scrofa genome (build 11.1) augmented with ERCC spike-in sequences" in line for line in settings)
     assert any("Annotation version" in line and "115" in line for line in reference_details)
-    assert any("Command genome" in line and "Sscrofa11.1_with_ERCC" in line for line in command_params)
+    assert any(
+        "Command genome" in line and "Sus scrofa genome (build 11.1) augmented with ERCC spike-in sequences" in line
+        for line in command_params
+    )
     assert any("Annotation mode" in line and "Gencode" in line for line in command_params)
     assert not any("UMI" in line for line in command_params)
     assert "nf-core/rnaseq" in command_block
     assert "--genome Sscrofa11.1_with_ERCC" in command_block
+
+
+def test_humanize_ercc_augmented_genome_names() -> None:
+    module = load_run_module()
+    assert (
+        module.format_publication_value("genome", "Sscrofa11.1_with_ERCC")
+        == "Sus scrofa genome (build 11.1) augmented with ERCC spike-in sequences"
+    )
+    assert (
+        module.format_publication_value("genome", "GRCh38_with_ERCC")
+        == "Human genome (GRCh38) augmented with ERCC spike-in sequences"
+    )
+    assert (
+        module.format_publication_value("genome", "GRCm39_with_ERCC")
+        == "Mouse genome (GRCm39) augmented with ERCC spike-in sequences"
+    )
 
 
 def test_inferred_versions_and_reference_urls() -> None:
@@ -761,6 +781,7 @@ def main() -> int:
     test_llm_output_does_not_override_detailed_long_methods()
     test_inline_citation_rendering()
     test_short_technical_terms_are_highlighted()
+    test_humanize_ercc_augmented_genome_names()
     test_run_display_label_ignores_run_directory_suffix()
     test_collect_run_context_adds_variant_names_for_duplicate_nfcore_runs()
     test_recorded_command_block_is_multiline()
