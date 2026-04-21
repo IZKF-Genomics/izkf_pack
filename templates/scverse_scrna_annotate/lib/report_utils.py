@@ -4,6 +4,7 @@ from pathlib import Path
 import importlib.metadata
 
 import pandas as pd
+import plotly.graph_objects as go
 
 
 def load_report_context(root: Path) -> dict:
@@ -75,3 +76,34 @@ def format_table(df: pd.DataFrame, digits: int = 3):
             ]
         )
     )
+
+
+def style_scatter(fig: go.Figure, *, height: int = 650) -> go.Figure:
+    fig.update_traces(marker={"size": 4, "opacity": 0.75}, selector={"mode": "markers"})
+    fig.update_layout(
+        template="simple_white",
+        height=height,
+        legend_title_text="",
+        margin={"l": 20, "r": 20, "t": 60, "b": 20},
+    )
+    return fig
+
+
+def style_bar(fig: go.Figure, *, height: int = 450) -> go.Figure:
+    fig.update_layout(
+        template="simple_white",
+        height=height,
+        legend_title_text="",
+        margin={"l": 20, "r": 20, "t": 60, "b": 20},
+        bargap=0.2,
+    )
+    return fig
+
+
+def style_heatmap(fig: go.Figure, *, height: int = 500) -> go.Figure:
+    fig.update_layout(
+        template="simple_white",
+        height=height,
+        margin={"l": 20, "r": 20, "t": 60, "b": 20},
+    )
+    return fig

@@ -9,8 +9,6 @@ format:
     toc-expand: 3
     toc-location: left
     html-math-method: katex
-    code-fold: true
-    code-tools: true
     embed-resources: true
     page-layout: full
     html-table-processing: none
@@ -27,6 +25,7 @@ execute:
 from pathlib import Path
 import sys
 
+from IPython.display import Markdown, display
 import pandas as pd
 
 LIB_DIR = Path(".").resolve() / "lib"
@@ -39,12 +38,19 @@ ROOT = Path(".").resolve()
 context = load_report_context(ROOT)
 ```
 
-## Status
+## Current Status
 
-This report file is reserved for a future Python-native `decoupler` review
-layer. Unlike classifier backends, `decoupler` is intended here as a
-marker/pathway validation layer rather than a standalone final annotation
-engine.
+```{python}
+display(
+    Markdown(
+        """
+This is a **scaffold report** for a future Python-native **decoupler** review
+layer. In this template, decoupler is planned as a **validation layer** rather
+than a standalone label-transfer engine.
+"""
+    )
+)
+```
 
 ```{python}
 status_df = pd.DataFrame(
@@ -52,10 +58,36 @@ status_df = pd.DataFrame(
         {"field": "method", "value": "decoupler_review"},
         {"field": "implemented_in_runtime", "value": "no"},
         {"field": "intended_role", "value": "marker and pathway-based annotation review"},
-        {"field": "current_selected_methods", "value": ", ".join(context["selected_methods"])},
+        {"field": "selected_in_current_run", "value": "decoupler_review" in context["selected_methods"]},
     ]
 )
 format_table(status_df)
+```
+
+## Why This Layer Matters
+
+```{python}
+fit_df = pd.DataFrame(
+    [
+        {"strength": "marker interpretability", "why_it_matters": "helps explain or challenge classifier-driven labels"},
+        {"strength": "pathway context", "why_it_matters": "adds functional support to ambiguous clusters"},
+        {"strength": "review-oriented output", "why_it_matters": "fits best-practice annotation workflows that separate prediction from confirmation"},
+    ]
+)
+format_table(fit_df)
+```
+
+## Required Future Inputs
+
+```{python}
+config_df = pd.DataFrame(
+    [
+        {"key": "marker_review.marker_file", "meaning": "user-supplied marker set YAML"},
+        {"key": "optional signature resource", "meaning": "external prior-knowledge collection"},
+        {"key": "cluster_key", "meaning": "grouping level for review summaries"},
+    ]
+)
+format_table(config_df)
 ```
 
 ## Planned Review Outputs
@@ -63,26 +95,27 @@ format_table(status_df)
 ```{python}
 planned_df = pd.DataFrame(
     [
-        {"output": "gene-set scores by cluster", "purpose": "compare candidate labels with known signatures"},
-        {"output": "marker agreement summary", "purpose": "confirm or challenge classifier suggestions"},
-        {"output": "pathway activity snapshot", "purpose": "add functional context to ambiguous clusters"},
-        {"output": "disagreement table", "purpose": "highlight clusters needing manual review"},
+        {"planned_section": "marker-score heatmap", "content": "cluster by candidate-label score matrix"},
+        {"planned_section": "agreement summary", "content": "marker evidence versus classifier suggestion"},
+        {"planned_section": "pathway activity view", "content": "functional context for uncertain clusters"},
+        {"planned_section": "conflict table", "content": "clusters needing manual adjudication"},
     ]
 )
 format_table(planned_df)
 ```
 
-## Planned Config Inputs
+## Readiness Checklist
 
 ```{python}
-config_df = pd.DataFrame(
+checklist_df = pd.DataFrame(
     [
-        {"key": "marker_review.marker_file", "meaning": "user-supplied marker set YAML"},
-        {"key": "review resource", "meaning": "optional prior-knowledge resource or signature collection"},
-        {"key": "cluster_key", "meaning": "grouping level for cluster summaries"},
+        {"task": "add decoupler dependency and runtime params", "status": "pending"},
+        {"task": "write score tables into results/", "status": "pending"},
+        {"task": "add cluster-level heatmaps and conflict summaries", "status": "pending"},
+        {"task": "connect review outputs to final annotation workflow", "status": "pending"},
     ]
 )
-format_table(config_df)
+format_table(checklist_df)
 ```
 
 ## Session Info

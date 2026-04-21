@@ -9,8 +9,6 @@ format:
     toc-expand: 3
     toc-location: left
     html-math-method: katex
-    code-fold: true
-    code-tools: true
     embed-resources: true
     page-layout: full
     html-table-processing: none
@@ -27,6 +25,7 @@ execute:
 from pathlib import Path
 import sys
 
+from IPython.display import Markdown, display
 import pandas as pd
 
 LIB_DIR = Path(".").resolve() / "lib"
@@ -39,13 +38,19 @@ ROOT = Path(".").resolve()
 context = load_report_context(ROOT)
 ```
 
-## Status
+## Current Status
 
-This report file is reserved for a future Python-native `scANVI` backend.
-
-The current `scverse_scrna_annotate` runtime does not yet execute `scANVI`, so
-this report is intentionally a scaffold rather than an analysis output. It is
-kept in the template so the report structure is ready when the backend is added.
+```{python}
+display(
+    Markdown(
+        """
+This is a **scaffold report** for a future Python-native **scANVI** backend.
+It is included now to reserve a clean place for the eventual method-specific
+report, but the current runtime does **not** train or evaluate scANVI yet.
+"""
+    )
+)
+```
 
 ```{python}
 status_df = pd.DataFrame(
@@ -53,13 +58,30 @@ status_df = pd.DataFrame(
         {"field": "method", "value": "scanvi"},
         {"field": "implemented_in_runtime", "value": "no"},
         {"field": "intended_role", "value": "reference mapping and semi-supervised annotation"},
-        {"field": "current_selected_methods", "value": ", ".join(context["selected_methods"])},
+        {"field": "selected_in_current_run", "value": "scanvi" in context["selected_methods"]},
     ]
 )
 format_table(status_df)
 ```
 
-## Planned Inputs
+## Why scANVI Matters
+
+`scANVI` is the strongest next Python backend for this template when the user
+has a labeled reference and wants a batch-aware model rather than only a
+lightweight classifier.
+
+```{python}
+fit_df = pd.DataFrame(
+    [
+        {"strength": "reference-aware annotation", "why_it_matters": "supports mapping query cells to labeled atlases"},
+        {"strength": "batch-aware latent modeling", "why_it_matters": "useful when annotation and integration interact"},
+        {"strength": "uncertainty handling", "why_it_matters": "helps avoid forcing weak label assignments"},
+    ]
+)
+format_table(fit_df)
+```
+
+## Required Future Inputs
 
 ```{python}
 planned_df = pd.DataFrame(
@@ -68,23 +90,38 @@ planned_df = pd.DataFrame(
         {"input": "reference_label_key", "purpose": "known cell type labels in the reference"},
         {"input": "counts layer", "purpose": "raw-count input required by scvi-tools models"},
         {"input": "batch_key", "purpose": "batch-aware modeling and mapping"},
+        {"input": "optional GPU", "purpose": "practical acceleration for larger datasets"},
     ]
 )
 format_table(planned_df)
 ```
 
-## Planned Diagnostics
+## Planned Report Contents
 
 ```{python}
 diagnostics_df = pd.DataFrame(
     [
-        {"diagnostic": "latent-space UMAP", "why_it_matters": "review mapped cell identities visually"},
-        {"diagnostic": "prediction confidence", "why_it_matters": "surface uncertain or out-of-reference cells"},
-        {"diagnostic": "cluster-level agreement", "why_it_matters": "compare scANVI labels with other methods"},
-        {"diagnostic": "unknown / unresolved cells", "why_it_matters": "avoid forcing weak assignments"},
+        {"planned_section": "embedding review", "content": "latent-space UMAP colored by predicted and final labels"},
+        {"planned_section": "confidence review", "content": "uncertainty summaries and low-confidence populations"},
+        {"planned_section": "cluster agreement", "content": "comparison against other annotation methods"},
+        {"planned_section": "reference coverage", "content": "cells that map poorly or remain unresolved"},
     ]
 )
 format_table(diagnostics_df)
+```
+
+## Readiness Checklist
+
+```{python}
+checklist_df = pd.DataFrame(
+    [
+        {"task": "add runtime parameters", "status": "pending"},
+        {"task": "require counts-aware input validation", "status": "pending"},
+        {"task": "write scANVI-specific result tables", "status": "pending"},
+        {"task": "add report figures and comparison outputs", "status": "pending"},
+    ]
+)
+format_table(checklist_df)
 ```
 
 ## Session Info

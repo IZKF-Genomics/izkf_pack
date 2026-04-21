@@ -9,8 +9,6 @@ format:
     toc-expand: 3
     toc-location: left
     html-math-method: katex
-    code-fold: true
-    code-tools: true
     embed-resources: true
     page-layout: full
     html-table-processing: none
@@ -27,6 +25,7 @@ execute:
 from pathlib import Path
 import sys
 
+from IPython.display import Markdown, display
 import pandas as pd
 
 LIB_DIR = Path(".").resolve() / "lib"
@@ -39,13 +38,19 @@ ROOT = Path(".").resolve()
 context = load_report_context(ROOT)
 ```
 
-## Status
+## Current Status
 
-This report file is reserved for a future Python-native `scDeepSort` backend.
-
-`scDeepSort` is not yet executed by the template runtime. The report exists as a
-scaffold so the method-specific documentation and diagnostics have a dedicated
-place once the backend is added.
+```{python}
+display(
+    Markdown(
+        """
+This is a **scaffold report** for a future Python-native **scDeepSort**
+backend. It is kept here so the multi-report structure is stable even before
+this backend is operational.
+"""
+    )
+)
+```
 
 ```{python}
 status_df = pd.DataFrame(
@@ -53,38 +58,65 @@ status_df = pd.DataFrame(
         {"field": "method", "value": "scdeepsort"},
         {"field": "implemented_in_runtime", "value": "no"},
         {"field": "intended_role", "value": "pretrained deep-learning annotation in supported species/settings"},
-        {"field": "current_selected_methods", "value": ", ".join(context["selected_methods"])},
+        {"field": "selected_in_current_run", "value": "scdeepsort" in context["selected_methods"]},
     ]
 )
 format_table(status_df)
 ```
 
-## Planned Inputs
+## Why This Backend Is Conditional
+
+```{python}
+fit_df = pd.DataFrame(
+    [
+        {"consideration": "species support", "impact": "only suitable for supported organisms and pretrained settings"},
+        {"consideration": "runtime compatibility", "impact": "older dependency constraints need careful handling"},
+        {"consideration": "model scope", "impact": "tissue/model mismatches can reduce annotation quality quickly"},
+    ]
+)
+format_table(fit_df)
+```
+
+## Required Future Inputs
 
 ```{python}
 planned_df = pd.DataFrame(
     [
         {"input": "species", "purpose": "select the supported organism"},
-        {"input": "supported tissue/model", "purpose": "pick a compatible pretrained model"},
+        {"input": "pretrained tissue/model", "purpose": "pick a compatible model family"},
         {"input": "gene symbol compatibility", "purpose": "align the query matrix to model expectations"},
-        {"input": "runtime environment", "purpose": "manage older dependency constraints explicitly"},
+        {"input": "runtime environment summary", "purpose": "document compatibility-sensitive runs"},
     ]
 )
 format_table(planned_df)
 ```
 
-## Planned Diagnostics
+## Planned Report Contents
 
 ```{python}
 diagnostics_df = pd.DataFrame(
     [
-        {"diagnostic": "predicted label distribution", "why_it_matters": "catch implausible class imbalance"},
-        {"diagnostic": "cluster agreement", "why_it_matters": "review consistency with unsupervised structure"},
-        {"diagnostic": "low-confidence cells", "why_it_matters": "avoid overconfident final labels"},
-        {"diagnostic": "environment summary", "why_it_matters": "document compatibility-sensitive runs"},
+        {"planned_section": "predicted label distribution", "content": "check for implausible class imbalance"},
+        {"planned_section": "cluster agreement", "content": "compare scDeepSort labels to unsupervised clusters"},
+        {"planned_section": "uncertainty summary", "content": "flag cells that should not be auto-accepted"},
+        {"planned_section": "environment summary", "content": "track version-sensitive execution details"},
     ]
 )
 format_table(diagnostics_df)
+```
+
+## Readiness Checklist
+
+```{python}
+checklist_df = pd.DataFrame(
+    [
+        {"task": "pin a maintainable dependency set", "status": "pending"},
+        {"task": "add species/model config handling", "status": "pending"},
+        {"task": "write scDeepSort output tables", "status": "pending"},
+        {"task": "add method-specific review figures", "status": "pending"},
+    ]
+)
+format_table(checklist_df)
 ```
 
 ## Session Info

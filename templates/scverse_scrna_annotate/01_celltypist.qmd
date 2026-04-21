@@ -9,8 +9,6 @@ format:
     toc-expand: 3
     toc-location: left
     html-math-method: katex
-    code-fold: true
-    code-tools: true
     embed-resources: true
     page-layout: full
     html-table-processing: none
@@ -27,6 +25,7 @@ execute:
 from pathlib import Path
 import sys
 
+from IPython.display import Markdown, display
 import pandas as pd
 import plotly.express as px
 import scanpy as sc
@@ -35,7 +34,15 @@ LIB_DIR = Path(".").resolve() / "lib"
 if str(LIB_DIR) not in sys.path:
     sys.path.insert(0, str(LIB_DIR))
 
-from report_utils import format_table, load_report_context, load_table, package_versions_table
+from report_utils import (
+    format_table,
+    load_report_context,
+    load_table,
+    package_versions_table,
+    style_bar,
+    style_heatmap,
+    style_scatter,
+)
 
 ROOT = Path(".").resolve()
 context = load_report_context(ROOT)
@@ -56,9 +63,65 @@ def embedding_frame(adata, basis: str, color_keys: list[str]) -> pd.DataFrame:
 
 predicted_label_key = context["predicted_label_key"]
 cluster_key = context["cluster_key"]
+final_label_key = context["final_label_key"]
+
+label_prevalence = (
+    cell_predictions[predicted_label_key]
+    .astype(str)
+    .value_counts(dropna=False)
+    .rename_axis(predicted_label_key)
+    .reset_index(name="n_cells")
+)
+label_prevalence["fraction_of_cells"] = label_prevalence["n_cells"] / max(1, len(cell_predictions))
+
+lowest_confidence_cells = cell_predictions.sort_values(
+    ["predicted_confidence", cluster_key, predicted_label_key], ascending=[True, True, True]
+).head(20)
+
+cluster_top_label_pivot = pd.DataFrame()
+if not top_label_summary.empty:
+    cluster_top_label_pivot = (
+        top_label_summary.pivot(index="cluster", columns="predicted_label", values="fraction")
+        .fillna(0.0)
+        .sort_index()
+    )
+
+marker_heatmap_df = pd.DataFrame()
+if not marker_summary.empty and {"cluster", "label", "marker_score"} <= set(marker_summary.columns):
+    marker_heatmap_df = marker_summary.pivot(index="cluster", columns="label", values="marker_score").fillna(0.0)
+
+mean_confidence = float(cell_predictions["predicted_confidence"].mean())
+n_unique_labels = int(cell_predictions[predicted_label_key].nunique())
+n_review_needed = int(cluster_summary["annotation_status"].astype(str).str.startswith("review_needed").sum())
+n_marker_conflicts = int(cluster_summary["annotation_status"].astype(str).eq("review_needed_marker_conflict").sum())
 ```
 
-## CellTypist Configuration
+## Executive Summary
+
+```{python}
+display(
+    Markdown(
+        f"""
+This report focuses on the **CellTypist** backend and shows how its per-cell
+predictions roll up into cluster suggestions and final labels.
+
+- **Unique predicted labels:** {n_unique_labels:,}
+- **Mean prediction confidence:** {mean_confidence:.3f}
+- **Clusters needing review:** {n_review_needed:,}
+- **Marker-conflict clusters:** {n_marker_conflicts:,}
+
+Use this page to decide whether the classifier output is coherent enough to
+accept directly, or whether specific clusters need marker-based or manual
+inspection before final labeling.
+"""
+    )
+)
+```
+
+## Configuration
+
+This table records the key parameters that control the CellTypist run so the
+result is easy to audit later.
 
 ```{python}
 config_df = pd.DataFrame(
@@ -67,7 +130,8 @@ config_df = pd.DataFrame(
         {"field": "model", "value": adata.uns.get("annotation_model", "")},
         {"field": "cluster_key", "value": cluster_key},
         {"field": "predicted_label_key", "value": predicted_label_key},
-        {"field": "final_label_key", "value": context["final_label_key"]},
+        {"field": "final_label_key", "value": final_label_key},
+        {"field": "unknown_label", "value": context["unknown_label"]},
     ]
 )
 format_table(config_df)
@@ -75,37 +139,118 @@ format_table(config_df)
 
 ## Cell-Level Predictions
 
+These UMAPs show whether CellTypist predictions follow the major cell-state
+structure and whether low-confidence regions are localized or widespread.
+
 ```{python}
 prediction_plot_df = embedding_frame(
     adata,
     "X_umap",
-    [predicted_label_key, "predicted_confidence", cluster_key, context["batch_key"], context["condition_key"], "sample_display", context["sample_id_key"]],
+    [
+        predicted_label_key,
+        "predicted_confidence",
+        cluster_key,
+        context["batch_key"],
+        context["condition_key"],
+        "sample_display",
+        context["sample_id_key"],
+        "annotation_status",
+    ],
 )
-px.scatter(
+prediction_umap = px.scatter(
     prediction_plot_df,
     x="dim_1",
     y="dim_2",
     color=predicted_label_key,
-    hover_data=[key for key in ["sample_display", context["sample_id_key"], cluster_key, context["batch_key"], context["condition_key"], "predicted_confidence"] if key in prediction_plot_df.columns],
+    hover_data=[
+        key
+        for key in [
+            "sample_display",
+            context["sample_id_key"],
+            cluster_key,
+            context["batch_key"],
+            context["condition_key"],
+            "predicted_confidence",
+        ]
+        if key in prediction_plot_df.columns
+    ],
     title=f"UMAP colored by {predicted_label_key}",
-    template="simple_white",
-).update_layout(height=650)
+)
+style_scatter(prediction_umap)
 ```
 
 ```{python}
-px.scatter(
+confidence_umap = px.scatter(
     prediction_plot_df,
     x="dim_1",
     y="dim_2",
     color="predicted_confidence",
-    hover_data=[key for key in ["sample_display", context["sample_id_key"], cluster_key, predicted_label_key] if key in prediction_plot_df.columns],
+    hover_data=[
+        key
+        for key in ["sample_display", context["sample_id_key"], cluster_key, predicted_label_key]
+        if key in prediction_plot_df.columns
+    ],
     title="UMAP colored by CellTypist confidence",
-    template="simple_white",
     color_continuous_scale="Viridis",
-).update_layout(height=650)
+)
+style_scatter(confidence_umap)
 ```
 
-## Cluster-Level Summary
+## Prediction Confidence
+
+These summaries help distinguish globally strong classifier behavior from cases
+where only a subset of cells or clusters look trustworthy.
+
+```{python}
+confidence_hist = px.histogram(
+    cell_predictions,
+    x="predicted_confidence",
+    nbins=30,
+    title="Distribution of per-cell CellTypist confidence",
+)
+style_bar(confidence_hist, height=420)
+```
+
+```{python}
+confidence_by_status = px.box(
+    cell_predictions,
+    x="annotation_status",
+    y="predicted_confidence",
+    color="annotation_status",
+    points="outliers",
+    title="Prediction confidence by cluster review status",
+)
+style_bar(confidence_by_status, height=450)
+```
+
+```{python}
+format_table(lowest_confidence_cells)
+```
+
+## Predicted Label Distribution
+
+This section shows whether the raw cell-level predictions are balanced and how
+dominant each label is across the dataset.
+
+```{python}
+format_table(label_prevalence)
+```
+
+```{python}
+label_plot = px.bar(
+    label_prevalence,
+    x=predicted_label_key,
+    y="n_cells",
+    color=predicted_label_key,
+    title="Cells per predicted CellTypist label",
+)
+style_bar(label_plot, height=450)
+```
+
+## Cluster-Level Aggregation
+
+These tables and figures explain how cell-level predictions collapse into one
+suggested label per cluster and where the dominant-label assumption is weak.
 
 ```{python}
 format_table(cluster_summary)
@@ -115,21 +260,66 @@ format_table(cluster_summary)
 format_table(top_label_summary)
 ```
 
+```{python}
+if cluster_top_label_pivot.empty:
+    display(Markdown("No top-label heatmap is available because the cluster-level label summary is empty."))
+else:
+    top_label_heatmap = px.imshow(
+        cluster_top_label_pivot,
+        aspect="auto",
+        color_continuous_scale="Blues",
+        title="Top CellTypist label fractions by cluster",
+        labels={"x": "predicted label", "y": "cluster", "color": "fraction"},
+    )
+    style_heatmap(top_label_heatmap, height=max(400, 40 * len(cluster_top_label_pivot)))
+```
+
 ## Marker Review
+
+Marker review is the main cross-check against purely classifier-driven
+annotation. Conflicts here are especially important for clusters that otherwise
+look borderline.
 
 ```{python}
 if marker_summary.empty:
-    print("No marker review was produced because no marker file was supplied or no marker genes overlapped the input feature space.")
+    display(Markdown("No marker review was produced because no marker file was supplied or no marker genes overlapped the input feature space."))
 else:
     format_table(marker_summary)
 ```
 
-## Probability Matrix Snapshot
+```{python}
+if marker_heatmap_df.empty:
+    display(Markdown("No marker-score heatmap is available for this run."))
+else:
+    marker_heatmap = px.imshow(
+        marker_heatmap_df,
+        aspect="auto",
+        color_continuous_scale="Viridis",
+        title="Marker score summary by cluster and candidate label",
+        labels={"x": "marker label", "y": "cluster", "color": "marker score"},
+    )
+    style_heatmap(marker_heatmap, height=max(400, 40 * len(marker_heatmap_df)))
+```
+
+## Probability Snapshot
+
+The full probability matrix is often too wide to inspect directly, so this
+snapshot is intended only as a spot-check for debugging or especially uncertain
+clusters.
 
 ```{python}
 probability_preview = probability_matrix.head(20)
 format_table(probability_preview)
 ```
+
+## Interpretation Guide
+
+- Strong runs usually show compact UMAP regions with coherent predicted labels
+  and confidence distributions concentrated near the high end.
+- If the lowest-confidence cells cluster together, that often marks a boundary
+  region, doublet-like population, or an out-of-reference state.
+- A cluster with a shallow top-label fraction or a marker conflict is a better
+  candidate for manual review than for immediate acceptance.
 
 ## Session Info
 

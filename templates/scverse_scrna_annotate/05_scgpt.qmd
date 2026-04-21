@@ -9,8 +9,6 @@ format:
     toc-expand: 3
     toc-location: left
     html-math-method: katex
-    code-fold: true
-    code-tools: true
     embed-resources: true
     page-layout: full
     html-table-processing: none
@@ -27,6 +25,7 @@ execute:
 from pathlib import Path
 import sys
 
+from IPython.display import Markdown, display
 import pandas as pd
 
 LIB_DIR = Path(".").resolve() / "lib"
@@ -39,13 +38,19 @@ ROOT = Path(".").resolve()
 context = load_report_context(ROOT)
 ```
 
-## Status
+## Current Status
 
-This report file is reserved for a future Python-native `scGPT` backend.
-
-`scGPT` is a research-oriented foundation-model option and is not yet part of
-the executable runtime for this template. The QMD file is kept here so the
-report layout is already organized once that backend is added.
+```{python}
+display(
+    Markdown(
+        """
+This is a **scaffold report** for a future Python-native **scGPT** backend.
+The goal is to keep the report structure ready while treating foundation-model
+annotation as an explicitly advanced, research-oriented option.
+"""
+    )
+)
+```
 
 ```{python}
 status_df = pd.DataFrame(
@@ -53,18 +58,31 @@ status_df = pd.DataFrame(
         {"field": "method", "value": "scgpt"},
         {"field": "implemented_in_runtime", "value": "no"},
         {"field": "intended_role", "value": "foundation-model-based annotation and mapping"},
-        {"field": "current_selected_methods", "value": ", ".join(context["selected_methods"])},
+        {"field": "selected_in_current_run", "value": "scgpt" in context["selected_methods"]},
     ]
 )
 format_table(status_df)
 ```
 
-## Planned Inputs
+## Why This Backend Is Different
+
+```{python}
+fit_df = pd.DataFrame(
+    [
+        {"consideration": "foundation-model workflow", "impact": "more flexible but operationally heavier than standard classifiers"},
+        {"consideration": "checkpoint management", "impact": "requires clear handling of pretrained or fine-tuned weights"},
+        {"consideration": "compute cost", "impact": "GPU availability may strongly affect usability"},
+    ]
+)
+format_table(fit_df)
+```
+
+## Required Future Inputs
 
 ```{python}
 planned_df = pd.DataFrame(
     [
-        {"input": "model checkpoint", "purpose": "pretrained or fine-tuned foundation model weights"},
+        {"input": "model checkpoint", "purpose": "pretrained or fine-tuned weights"},
         {"input": "gene vocabulary mapping", "purpose": "align query genes to model vocabulary"},
         {"input": "fine-tuning controls", "purpose": "decide inference-only vs adaptation"},
         {"input": "GPU availability", "purpose": "practical runtime requirement for larger models"},
@@ -73,18 +91,32 @@ planned_df = pd.DataFrame(
 format_table(planned_df)
 ```
 
-## Planned Diagnostics
+## Planned Report Contents
 
 ```{python}
 diagnostics_df = pd.DataFrame(
     [
-        {"diagnostic": "predicted labels", "why_it_matters": "primary annotation output"},
-        {"diagnostic": "confidence / uncertainty", "why_it_matters": "surface low-certainty assignments"},
-        {"diagnostic": "agreement with other methods", "why_it_matters": "benchmark foundation-model behavior"},
-        {"diagnostic": "runtime and resource summary", "why_it_matters": "track operational cost"},
+        {"planned_section": "predicted label summary", "content": "cell- and cluster-level annotation output"},
+        {"planned_section": "uncertainty review", "content": "confidence or fallback uncertainty summaries"},
+        {"planned_section": "cross-method agreement", "content": "compare scGPT to other backends"},
+        {"planned_section": "runtime summary", "content": "document resource use and checkpoint provenance"},
     ]
 )
 format_table(diagnostics_df)
+```
+
+## Readiness Checklist
+
+```{python}
+checklist_df = pd.DataFrame(
+    [
+        {"task": "define checkpoint/config contract", "status": "pending"},
+        {"task": "add vocabulary alignment checks", "status": "pending"},
+        {"task": "write scGPT result tables", "status": "pending"},
+        {"task": "add method-specific review figures", "status": "pending"},
+    ]
+)
+format_table(checklist_df)
 ```
 
 ## Session Info
