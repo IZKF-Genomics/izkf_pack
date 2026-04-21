@@ -75,8 +75,8 @@ def main() -> int:
         dgea_liver_dir = project_dir / "DGEA_Liver"
         dgea_bile_dir = project_dir / "DGEA_Bile_Duct"
         methylation_dir = project_dir / "methylation_array_analysis"
-        integrate_dir = project_dir / "scverse_scrna_integrate"
-        annotate_dir = project_dir / "scverse_scrna_annotate"
+        integrate_dir = project_dir / "scrna_integrate"
+        annotate_dir = project_dir / "scrna_annotate"
         ercc_dir = project_dir / "ercc"
         methods_dir = project_dir / "methods"
         (demux_dir / "results" / "output").mkdir(parents=True)
@@ -115,12 +115,12 @@ def main() -> int:
         (methylation_dir / "reports" / "02b_own_samples_embeddings.html").write_text("<html></html>\n", encoding="utf-8")
         (methylation_dir / "reports" / "17_ProjectSpecific_Contrast.html").write_text("<html></html>\n", encoding="utf-8")
         (integrate_dir / "results" / "adata.integrated.h5ad").write_text("h5ad\n", encoding="utf-8")
-        (integrate_dir / "results" / "run_info.yaml").write_text("template: scverse_scrna_integrate\n", encoding="utf-8")
+        (integrate_dir / "results" / "run_info.yaml").write_text("template: scrna_integrate\n", encoding="utf-8")
         (integrate_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
         (integrate_dir / "results" / "tables" / "integration_metrics.csv").write_text("metric,value\n", encoding="utf-8")
         (integrate_dir / "reports" / "qc.html").write_text("<html></html>\n", encoding="utf-8")
         (annotate_dir / "results" / "adata.annotated.h5ad").write_text("h5ad\n", encoding="utf-8")
-        (annotate_dir / "results" / "run_info.yaml").write_text("template: scverse_scrna_annotate\n", encoding="utf-8")
+        (annotate_dir / "results" / "run_info.yaml").write_text("template: scrna_annotate\n", encoding="utf-8")
         (annotate_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
         (annotate_dir / "results" / "tables" / "cluster_annotation_summary.csv").write_text("cluster,label\n", encoding="utf-8")
         (annotate_dir / "reports" / "00_annotation_overview.html").write_text("<html></html>\n", encoding="utf-8")
@@ -190,7 +190,7 @@ def main() -> int:
                     },
                 },
                 {
-                    "id": "scverse_scrna_integrate",
+                    "id": "scrna_integrate",
                     "path": str(integrate_dir),
                     "outputs": {
                         "results_dir": str((integrate_dir / "results").resolve()),
@@ -198,7 +198,7 @@ def main() -> int:
                     },
                 },
                 {
-                    "id": "scverse_scrna_annotate",
+                    "id": "scrna_annotate",
                     "path": str(annotate_dir),
                     "outputs": {
                         "results_dir": str((annotate_dir / "results").resolve()),
@@ -258,7 +258,7 @@ def main() -> int:
         )
         assert "Dry Run Complete" in dry_run.stdout
         assert "Project templates:" in dry_run.stdout
-        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scverse_scrna_integrate (1), scverse_scrna_annotate (1), ercc (1), methods (2)" in dry_run.stdout
+        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_integrate (1), scrna_annotate (1), ercc (1), methods (2)" in dry_run.stdout
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
@@ -271,13 +271,13 @@ def main() -> int:
         assert "2_Processed_data/nfcore_3mrnaseq/nfcore_liver" in export_dests
         assert "2_Processed_data/nfcore_3mrnaseq/nfcore_bile_duct" in export_dests
         assert "2_Processed_data/methylation_array_analysis/results" in export_dests
-        assert "2_Processed_data/scverse_scrna_integrate/scverse_scrna_integrate/results" in export_dests
-        assert "2_Processed_data/scverse_scrna_annotate/scverse_scrna_annotate/results" in export_dests
+        assert "2_Processed_data/scrna_integrate/scrna_integrate/results" in export_dests
+        assert "2_Processed_data/scrna_annotate/scrna_annotate/results" in export_dests
         assert "3_Reports/dgea/DGEA_Liver" in export_dests
         assert "3_Reports/dgea/DGEA_Bile_Duct" in export_dests
         assert "3_Reports/methylation_array_analysis" in export_dests
-        assert "3_Reports/scverse_scrna_integrate/scverse_scrna_integrate" in export_dests
-        assert "3_Reports/scverse_scrna_annotate/scverse_scrna_annotate" in export_dests
+        assert "3_Reports/scrna_integrate/scrna_integrate" in export_dests
+        assert "3_Reports/scrna_annotate/scrna_annotate" in export_dests
         assert "3_Reports/ercc/ercc" in export_dests
         assert "3_Reports/methods" in export_dests
         methods_entries = [entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/methods"]
@@ -299,7 +299,7 @@ def main() -> int:
         assert "02b_own_samples_embeddings.html" in methylation_report_paths
         assert "17_ProjectSpecific_Contrast.html" in methylation_report_paths
         integrate_entries = [
-            entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/scverse_scrna_integrate/scverse_scrna_integrate/results"
+            entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/scrna_integrate/scrna_integrate/results"
         ]
         assert len(integrate_entries) == 1
         integrate_paths = {link["path"] for link in integrate_entries[0].get("report_links", [])}
@@ -307,13 +307,13 @@ def main() -> int:
         assert "adata.integrated.h5ad" in integrate_paths
         assert "tables" in integrate_paths
         integrate_report_entries = [
-            entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/scverse_scrna_integrate/scverse_scrna_integrate"
+            entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/scrna_integrate/scrna_integrate"
         ]
         assert len(integrate_report_entries) == 1
         integrate_report_paths = {link["path"] for link in integrate_report_entries[0].get("report_links", [])}
         assert "qc.html" in integrate_report_paths
         annotate_entries = [
-            entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/scverse_scrna_annotate/scverse_scrna_annotate/results"
+            entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/scrna_annotate/scrna_annotate/results"
         ]
         assert len(annotate_entries) == 1
         annotate_paths = {link["path"] for link in annotate_entries[0].get("report_links", [])}
@@ -321,7 +321,7 @@ def main() -> int:
         assert "adata.annotated.h5ad" in annotate_paths
         assert "tables" in annotate_paths
         annotate_report_entries = [
-            entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/scverse_scrna_annotate/scverse_scrna_annotate"
+            entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/scrna_annotate/scrna_annotate"
         ]
         assert len(annotate_report_entries) == 1
         annotate_report_paths = {link["path"] for link in annotate_report_entries[0].get("report_links", [])}

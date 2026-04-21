@@ -626,11 +626,11 @@ def select_catalog_entry(catalog: dict[str, Any], template_id: str) -> dict[str,
 
 def resolve_catalog_citations(template_id: str, catalog_entry: dict[str, Any], params: dict[str, Any]) -> list[str]:
     citations = [str(item).strip() for item in (catalog_entry.get("citations") or []) if str(item).strip()]
-    if template_id == "scverse_scrna_prep":
+    if template_id == "scrna_prep":
         doublet_method = normalize_id_value(params.get("doublet_method"))
         if doublet_method == "scrublet":
             citations.append("scrublet")
-    if template_id == "scverse_scrna_integrate":
+    if template_id == "scrna_integrate":
         method = normalize_id_value(params.get("integration_method"))
         if method == "scvi":
             citations.append("scvi")
@@ -640,7 +640,7 @@ def resolve_catalog_citations(template_id: str, catalog_entry: dict[str, Any], p
             citations.append(method)
         if parse_bool(params.get("run_scib_metrics"), default=False):
             citations.append("scib")
-    if template_id == "scverse_scrna_annotate":
+    if template_id == "scrna_annotate":
         method = normalize_id_value(params.get("annotation_method"))
         if method == "celltypist":
             citations.append("celltypist")
@@ -1615,9 +1615,9 @@ def short_nfcore_sentence(runs: list[dict[str, Any]], citation_map: dict[str, in
 def short_downstream_sentence(runs: list[dict[str, Any]], citation_map: dict[str, int]) -> str:
     dgea_runs = [run for run in runs if str(run.get("template") or "").strip() == "dgea"]
     ercc_runs = [run for run in runs if str(run.get("template") or "").strip() == "ercc"]
-    scrna_runs = [run for run in runs if str(run.get("template") or "").strip() == "scverse_scrna_prep"]
-    integrate_runs = [run for run in runs if str(run.get("template") or "").strip() == "scverse_scrna_integrate"]
-    annotate_runs = [run for run in runs if str(run.get("template") or "").strip() == "scverse_scrna_annotate"]
+    scrna_runs = [run for run in runs if str(run.get("template") or "").strip() == "scrna_prep"]
+    integrate_runs = [run for run in runs if str(run.get("template") or "").strip() == "scrna_integrate"]
+    annotate_runs = [run for run in runs if str(run.get("template") or "").strip() == "scrna_annotate"]
     parts: list[str] = []
     if dgea_runs:
         cohort_names = unique_ordered(

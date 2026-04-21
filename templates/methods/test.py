@@ -769,13 +769,13 @@ def test_recorded_command_block_is_multiline() -> None:
     assert "--extra_star_align_args='--alignIntronMax 1000000 --alignIntronMin 20 --alignMatesGapMax 1000000 --alignSJoverhangMin 8 --outFilterMismatchNmax 999 --outFilterMultimapNmax 20 --outFilterType BySJout --outFilterMismatchNoverLmax 0.1 --clip3pAdapterSeq AAAAAAAA'" in block
 
 
-def test_scverse_scrna_prep_citations_and_short_sentence() -> None:
+def test_scrna_prep_citations_and_short_sentence() -> None:
     module = load_run_module()
     catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
-    entry = catalog["templates"]["scverse_scrna_prep"]
+    entry = catalog["templates"]["scrna_prep"]
 
     citations = module.resolve_catalog_citations(
-        "scverse_scrna_prep",
+        "scrna_prep",
         entry,
         {"doublet_method": "scrublet"},
     )
@@ -785,7 +785,7 @@ def test_scverse_scrna_prep_citations_and_short_sentence() -> None:
     sentence = module.short_downstream_sentence(
         [
             {
-                "template": "scverse_scrna_prep",
+                "template": "scrna_prep",
                 "params": {"doublet_method": "scrublet"},
             }
         ],
@@ -798,13 +798,13 @@ def test_scverse_scrna_prep_citations_and_short_sentence() -> None:
     assert "[1, 2, 3, 4, 5]" in sentence
 
 
-def test_scverse_scrna_integrate_citations_and_short_sentence() -> None:
+def test_scrna_integrate_citations_and_short_sentence() -> None:
     module = load_run_module()
     catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
-    entry = catalog["templates"]["scverse_scrna_integrate"]
+    entry = catalog["templates"]["scrna_integrate"]
 
     citations = module.resolve_catalog_citations(
-        "scverse_scrna_integrate",
+        "scrna_integrate",
         entry,
         {"integration_method": "scanvi", "run_scib_metrics": True},
     )
@@ -814,7 +814,7 @@ def test_scverse_scrna_integrate_citations_and_short_sentence() -> None:
     sentence = module.short_downstream_sentence(
         [
             {
-                "template": "scverse_scrna_integrate",
+                "template": "scrna_integrate",
                 "params": {"integration_method": "scanvi", "run_scib_metrics": True},
             }
         ],
@@ -827,13 +827,13 @@ def test_scverse_scrna_integrate_citations_and_short_sentence() -> None:
     assert "[1, 2, 3, 4, 5, 6, 7]" in sentence
 
 
-def test_scverse_scrna_annotate_citations_and_short_sentence() -> None:
+def test_scrna_annotate_citations_and_short_sentence() -> None:
     module = load_run_module()
     catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
-    entry = catalog["templates"]["scverse_scrna_annotate"]
+    entry = catalog["templates"]["scrna_annotate"]
 
     citations = module.resolve_catalog_citations(
-        "scverse_scrna_annotate",
+        "scrna_annotate",
         entry,
         {"annotation_method": "celltypist", "cluster_key": "leiden"},
     )
@@ -843,7 +843,7 @@ def test_scverse_scrna_annotate_citations_and_short_sentence() -> None:
     sentence = module.short_downstream_sentence(
         [
             {
-                "template": "scverse_scrna_annotate",
+                "template": "scrna_annotate",
                 "params": {"annotation_method": "celltypist", "cluster_key": "leiden"},
             }
         ],
@@ -872,9 +872,9 @@ def main() -> int:
     test_run_display_label_ignores_run_directory_suffix()
     test_collect_run_context_adds_variant_names_for_duplicate_nfcore_runs()
     test_recorded_command_block_is_multiline()
-    test_scverse_scrna_prep_citations_and_short_sentence()
-    test_scverse_scrna_integrate_citations_and_short_sentence()
-    test_scverse_scrna_annotate_citations_and_short_sentence()
+    test_scrna_prep_citations_and_short_sentence()
+    test_scrna_integrate_citations_and_short_sentence()
+    test_scrna_annotate_citations_and_short_sentence()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     catalog_text = (TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8")
@@ -891,9 +891,9 @@ def main() -> int:
     assert "results/methods_short.html" in readme_text
     assert "nfcore_methylseq:" in catalog_text
     assert "methylation_array_analysis:" in catalog_text
-    assert "scverse_scrna_prep:" in catalog_text
-    assert "scverse_scrna_integrate:" in catalog_text
-    assert "scverse_scrna_annotate:" in catalog_text
+    assert "scrna_prep:" in catalog_text
+    assert "scrna_integrate:" in catalog_text
+    assert "scrna_annotate:" in catalog_text
     assert "minfi:" in catalog_text
     assert "scanpy:" in catalog_text
     assert "umap:" in catalog_text

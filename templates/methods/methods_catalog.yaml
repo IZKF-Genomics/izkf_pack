@@ -162,7 +162,7 @@ templates:
       - missmethyl
       - quarto
 
-  scverse_scrna_prep:
+  scrna_prep:
     category: downstream_analysis
     publication_relevance: true
     label: Single-cell RNA-seq preprocessing and quality control
@@ -229,7 +229,7 @@ templates:
       - leiden
       - quarto
 
-  scverse_scrna_integrate:
+  scrna_integrate:
     category: downstream_analysis
     publication_relevance: true
     label: Single-cell RNA-seq dataset integration
@@ -297,7 +297,7 @@ templates:
       - leiden
       - quarto
 
-  scverse_scrna_annotate:
+  scrna_annotate:
     category: downstream_analysis
     publication_relevance: true
     label: Single-cell RNA-seq cell type annotation
