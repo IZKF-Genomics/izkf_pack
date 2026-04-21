@@ -1,4 +1,4 @@
-# scverse_scrna_integrate
+# scrna_integrate
 
 This template creates an editable `scverse` / `scanpy` single-cell RNA-seq integration workspace and renders a Quarto report that compares the unintegrated baseline with the integrated result.
 
@@ -49,7 +49,7 @@ Important parameters:
 
 At least `input_h5ad` and a real `batch_key` must be available before execution. If the configured batch column is missing or contains only one real category, the run fails instead of fabricating placeholder batches.
 
-With the default pack binding, `input_h5ad` and `input_source_template` can resolve automatically from the latest recorded `scverse_scrna_prep` run.
+With the default pack binding, `input_h5ad` and `input_source_template` can resolve automatically from the latest recorded `scrna_prep` run.
 
 ## Runtime Behavior
 
@@ -93,6 +93,6 @@ Best-practice constraints baked into the template:
 ## Test Command
 
 ```bash
-cd templates/scverse_scrna_integrate
+cd templates/scrna_integrate
 python3 test.py
 ```

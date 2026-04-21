@@ -1,6 +1,6 @@
-# scverse_scrna_annotate
+# scrna_annotate
 
-`scverse_scrna_annotate` creates an editable Python-only `scverse` / `scanpy`
+`scrna_annotate` creates an editable Python-only `scverse` / `scanpy`
 workspace for scRNA-seq cell annotation review. It currently implements
 `CellTypist` as the production backend, keeps marker review optional, and
 renders one shared overview report plus method-specific sub-reports.
@@ -84,9 +84,9 @@ At minimum the run needs:
 
 Recommended upstream source:
 
-- prefer `scverse_scrna_prep` output when possible, because classifier-based
+- prefer `scrna_prep` output when possible, because classifier-based
   annotation benefits from the full gene feature space
-- use `scverse_scrna_integrate` output only when you intentionally want to
+- use `scrna_integrate` output only when you intentionally want to
   annotate an integrated object and the feature representation is still suitable
   for the classifier
 
@@ -108,7 +108,7 @@ Example:
 ```yaml
 global:
   input_h5ad: /abs/path/to/adata.prep.h5ad
-  input_source_template: scverse_scrna_prep
+  input_source_template: scrna_prep
   annotation_method: celltypist
   annotation_methods:
     - celltypist
@@ -260,6 +260,6 @@ Do not use this template as the only source of biological truth when:
 ## Test command
 
 ```bash
-cd templates/scverse_scrna_annotate
+cd templates/scrna_annotate
 python3 test.py
 ```

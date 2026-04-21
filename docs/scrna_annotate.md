@@ -1,6 +1,6 @@
-# scverse_scrna_annotate workspace notes
+# scrna_annotate workspace notes
 
-The [`scverse_scrna_annotate`](../templates/scverse_scrna_annotate/README.md)
+The [`scrna_annotate`](../templates/scrna_annotate/README.md)
 template creates an editable Scanpy-based workspace for cell type annotation
 review after preprocessing or integration.
 
@@ -11,11 +11,11 @@ implementation.
 
 The user-facing entrypoint is now a commented YAML file:
 
-- `templates/scverse_scrna_annotate/config/00_annotation_config.yaml`
+- `templates/scrna_annotate/config/00_annotation_config.yaml`
 
 If it is missing, `run.sh` seeds it from:
 
-- `templates/scverse_scrna_annotate/assets/00_annotation_config.template.yaml`
+- `templates/scrna_annotate/assets/00_annotation_config.template.yaml`
 
 The runtime then converts that YAML config into the internal
 `config/project.toml` file consumed by the builder and report code.
@@ -39,15 +39,15 @@ this workspace to keep the runtime simpler and more maintainable.
 
 Although the template can read either a prep-stage or integrate-stage AnnData
 object, the default pack binding prefers the latest
-[`scverse_scrna_prep`](../templates/scverse_scrna_prep/README.md) output.
+[`scrna_prep`](../templates/scrna_prep/README.md) output.
 
 This is intentional for v0.1 because the CellTypist workflow benefits from a
 broader feature space than an HVG-only integration object may provide.
 
 Current behavior:
 
-- prefer `scverse_scrna_prep.scrna_prep_h5ad`
-- fall back to `scverse_scrna_integrate.integrated_h5ad` only when no prep
+- prefer `scrna_prep.scrna_prep_h5ad`
+- fall back to `scrna_integrate.integrated_h5ad` only when no prep
   output is available
 
 ## Automated labels are not treated as final truth
@@ -132,6 +132,6 @@ When editing this template, treat these as high-sensitivity areas:
 
 ## Related docs
 
-- [scverse_scrna_prep.md](scverse_scrna_prep.md)
-- [scverse_scrna_integrate.md](scverse_scrna_integrate.md)
+- [scrna_prep.md](scrna_prep.md)
+- [scrna_integrate.md](scrna_integrate.md)
 - [template_outputs.md](template_outputs.md)

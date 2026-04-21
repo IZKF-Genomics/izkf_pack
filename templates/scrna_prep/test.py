@@ -61,7 +61,7 @@ class FakeContext:
 
 
 def main() -> int:
-    run_module = load_module(TEMPLATE_DIR / "run.py", "test_scverse_scrna_prep_run")
+    run_module = load_module(TEMPLATE_DIR / "run.py", "test_scrna_prep_run")
     with tempfile.TemporaryDirectory(prefix="linkar-scverse-scrna-prep-test-") as tmp:
         project_dir = Path(tmp) / "260417_scRNA_Project"
         results_dir = Path(tmp) / "results"
@@ -235,7 +235,7 @@ PY""",
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     spec_text = (TEMPLATE_DIR / "assets" / "software_versions_spec.yaml").read_text(encoding="utf-8")
 
-    assert "id: scverse_scrna_prep" in template_text
+    assert "id: scrna_prep" in template_text
     assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
     assert "quarto" in run_py_text
     assert "assets/samples.csv" in run_py_text
@@ -255,10 +255,10 @@ PY""",
     assert "author:" not in qmd_text
     pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
     pack_data = yaml.safe_load(pack_text)
-    params = pack_data["templates"]["scverse_scrna_prep"]["params"]
+    params = pack_data["templates"]["scrna_prep"]["params"]
     assert params["input_h5ad"]["function"] == "get_scrna_prep_input_h5ad"
     assert params["organism"]["function"] == "get_scrna_prep_organism"
-    print("scverse_scrna_prep template test passed")
+    print("scrna_prep template test passed")
     return 0
 
 

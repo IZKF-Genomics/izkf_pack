@@ -1,4 +1,4 @@
-id: scverse_scrna_annotate
+id: scrna_annotate
 version: 0.1.0
 description: Editable scverse/Scanpy single-cell RNA-seq annotation workspace with CellTypist-based label transfer, marker review, and Quarto reporting.
 tools:
@@ -14,7 +14,7 @@ params:
   input_h5ad:
     type: path
     default: ""
-    description: Optional prepared `.h5ad` input. The default pack binding prefers the latest `scverse_scrna_prep` output because classifier-based annotation benefits from the full feature space.
+    description: Optional prepared `.h5ad` input. The default pack binding prefers the latest `scrna_prep` output because classifier-based annotation benefits from the full feature space.
   input_source_template:
     type: str
     default: ""

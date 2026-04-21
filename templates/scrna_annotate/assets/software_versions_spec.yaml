@@ -17,4 +17,4 @@ params:
 
 static:
   - name: workflow
-    version: scverse_scrna_annotate
+    version: scrna_annotate

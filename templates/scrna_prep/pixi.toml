@@ -1,5 +1,5 @@
 [workspace]
-name = "scverse_scrna_prep"
+name = "scrna_prep"
 channels = ["conda-forge", "bioconda"]
 platforms = ["linux-64"]
 version = "0.1.0"

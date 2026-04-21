@@ -67,7 +67,7 @@ def resolved_params() -> dict[str, str]:
 
 def validate_params(params: dict[str, str]) -> None:
     if not params["input_h5ad"].strip() and not params["input_matrix"].strip():
-        raise SystemExit("Set either INPUT_H5AD or INPUT_MATRIX before running scverse_scrna_prep.")
+        raise SystemExit("Set either INPUT_H5AD or INPUT_MATRIX before running scrna_prep.")
     if not params["organism"].strip():
         raise SystemExit("Set ORGANISM to a supported value such as human, mouse, hsapiens, or mmusculus.")
 

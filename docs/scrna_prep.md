@@ -1,6 +1,6 @@
-# scverse_scrna_prep workspace notes
+# scrna_prep workspace notes
 
-The [`scverse_scrna_prep`](../templates/scverse_scrna_prep/README.md) template
+The [`scrna_prep`](../templates/scrna_prep/README.md) template
 creates an editable Scanpy-based preprocessing workspace for single-cell RNA-seq
 data.
 
@@ -100,4 +100,4 @@ When editing this template, treat these as high-sensitivity areas:
 
 - [template_outputs.md](template_outputs.md)
 - [software_versions.md](software_versions.md)
-- [scverse_scrna_integrate.md](scverse_scrna_integrate.md)
+- [scrna_integrate.md](scrna_integrate.md)

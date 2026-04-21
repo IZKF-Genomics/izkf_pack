@@ -1,4 +1,4 @@
-# User-facing configuration for scverse_scrna_annotate.
+# User-facing configuration for scrna_annotate.
 # Copy or edit this file as config/00_annotation_config.yaml and then run:
 #   ./run.sh
 #
@@ -9,12 +9,12 @@
 
 global:
   # Path to the input AnnData object.
-  # Recommended: the latest scverse_scrna_prep output unless you intentionally
+  # Recommended: the latest scrna_prep output unless you intentionally
   # want to annotate an integration-stage object.
   input_h5ad: ""
 
   # Optional provenance label used in reports and metadata.
-  # Examples: scverse_scrna_prep, scverse_scrna_integrate
+  # Examples: scrna_prep, scrna_integrate
   input_source_template: ""
 
   # Primary backend used for methods text and backward compatibility.

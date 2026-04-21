@@ -1,4 +1,4 @@
-id: scverse_scrna_prep
+id: scrna_prep
 version: 0.1.0
 description: Editable scverse/Scanpy single-cell RNA-seq preprocessing workspace with Quarto QC reporting.
 tools:

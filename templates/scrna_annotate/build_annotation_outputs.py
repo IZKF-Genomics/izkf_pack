@@ -72,7 +72,7 @@ def main() -> int:
     adata.obs[sample_id_key] = resolve_optional_obs_column(adata, sample_id_key, fallback="unknown")
     adata.obs["sample_display"] = resolve_sample_display(adata, sample_id_key, sample_label_key)
     if "X_umap" not in adata.obsm:
-        raise RuntimeError("The input object does not contain X_umap. Run scverse_scrna_prep or provide an object with a UMAP embedding before annotation review.")
+        raise RuntimeError("The input object does not contain X_umap. Run scrna_prep or provide an object with a UMAP embedding before annotation review.")
 
     out_adata = ROOT / str(cfg["output"]["adata_file"])
     cell_prediction_file = ROOT / str(cfg["output"]["cell_annotation_predictions_file"])

@@ -71,7 +71,7 @@ def main() -> int:
     ]:
         assert (TEMPLATE_DIR / report_name).exists(), f"Missing report scaffold: {report_name}"
 
-    run_module = load_module(TEMPLATE_DIR / "run.py", "test_scverse_scrna_annotate_run")
+    run_module = load_module(TEMPLATE_DIR / "run.py", "test_scrna_annotate_run")
     with tempfile.TemporaryDirectory(prefix="linkar-scverse-scrna-annotate-test-") as tmp:
         project_dir = Path(tmp) / "260421_scRNA_Annotation"
         results_dir = Path(tmp) / "results"
@@ -83,7 +83,7 @@ def main() -> int:
         params = {
             "annotation_config": str(TEMPLATE_DIR / "config" / "00_annotation_config.yaml"),
             "input_h5ad": "/tmp/input.h5ad",
-            "input_source_template": "scverse_scrna_prep",
+            "input_source_template": "scrna_prep",
             "annotation_method": "celltypist",
             "annotation_methods": "celltypist",
             "celltypist_model": "Immune_All_Low.pkl",
@@ -310,7 +310,7 @@ name = "test"
 
 [input]
 input_h5ad = "/tmp/input.h5ad"
-input_source_template = "scverse_scrna_prep"
+input_source_template = "scrna_prep"
 
 [metadata]
 cluster_key = "cluster"
@@ -359,13 +359,13 @@ PY""",
 
     upstream_templates = [
         {
-            "id": "scverse_scrna_prep",
+            "id": "scrna_prep",
             "outputs": {
                 "scrna_prep_h5ad": "/tmp/results/adata.prep.h5ad",
             },
         },
         {
-            "id": "scverse_scrna_integrate",
+            "id": "scrna_integrate",
             "outputs": {
                 "integrated_h5ad": "/tmp/results/adata.integrated.h5ad",
             },
@@ -373,7 +373,7 @@ PY""",
     ]
     ctx = FakeContext(upstream_templates)
     assert load_function("get_scrna_annotate_input_h5ad")(ctx) == "/tmp/results/adata.prep.h5ad"
-    assert load_function("get_scrna_annotate_input_source_template")(ctx) == "scverse_scrna_prep"
+    assert load_function("get_scrna_annotate_input_source_template")(ctx) == "scrna_prep"
 
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
@@ -383,7 +383,7 @@ PY""",
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     spec_text = (TEMPLATE_DIR / "assets" / "software_versions_spec.yaml").read_text(encoding="utf-8")
 
-    assert "id: scverse_scrna_annotate" in template_text
+    assert "id: scrna_annotate" in template_text
     assert 'python3 "${script_dir}/run.py"' in run_sh_text
     assert 'pixi install' in run_sh_text
     assert 'pixi run python "${script_dir}/build_annotation_outputs.py"' in run_sh_text
@@ -403,10 +403,10 @@ PY""",
     assert "annotation_methods" in spec_text
     pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
     pack_data = yaml.safe_load(pack_text)
-    params = pack_data["templates"]["scverse_scrna_annotate"]["params"]
+    params = pack_data["templates"]["scrna_annotate"]["params"]
     assert params["input_h5ad"]["function"] == "get_scrna_annotate_input_h5ad"
     assert params["input_source_template"]["function"] == "get_scrna_annotate_input_source_template"
-    print("scverse_scrna_annotate template test passed")
+    print("scrna_annotate template test passed")
     return 0
 
 

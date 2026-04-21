@@ -1,4 +1,4 @@
-# scverse_scrna_prep
+# scrna_prep
 
 This template creates an editable `scverse` / `scanpy` preprocessing workspace for single-cell RNA-seq data and renders a Quarto QC report.
 
@@ -96,6 +96,6 @@ QC gene annotation expects gene symbols for mitochondrial / ribosomal / hemoglob
 ## Test command
 
 ```bash
-cd templates/scverse_scrna_prep
+cd templates/scrna_prep
 python3 test.py
 ```

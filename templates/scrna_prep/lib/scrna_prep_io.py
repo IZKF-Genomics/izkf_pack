@@ -9,7 +9,7 @@ from scipy import sparse
 
 RAW_H5AD_ERROR = (
     "H5AD input must provide raw counts for preprocessing. Supply a raw-count object or "
-    "store raw counts in `adata.layers['counts']` before running scverse_scrna_prep."
+    "store raw counts in `adata.layers['counts']` before running scrna_prep."
 )
 TEXT_MISSING_VALUES = {"", "nan", "none", "na", "n/a", "<na>"}
 GENE_SYMBOL_COLUMNS = (

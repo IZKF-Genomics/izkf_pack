@@ -5,8 +5,8 @@ from pathlib import Path
 
 
 PREFERRED_TEMPLATE_OUTPUTS = (
-    ("scverse_scrna_prep", "scrna_prep_h5ad"),
-    ("scverse_scrna_integrate", "integrated_h5ad"),
+    ("scrna_prep", "scrna_prep_h5ad"),
+    ("scrna_integrate", "integrated_h5ad"),
 )
 
 

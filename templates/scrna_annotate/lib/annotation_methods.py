@@ -72,7 +72,7 @@ def run_celltypist_annotation(
     try:
         import celltypist
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("celltypist is required for scverse_scrna_annotate.") from exc
+        raise RuntimeError("celltypist is required for scrna_annotate.") from exc
 
     prepared = prepare_celltypist_adata(adata)
     predictions = celltypist.annotate(

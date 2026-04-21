@@ -1,4 +1,4 @@
-id: scverse_scrna_integrate
+id: scrna_integrate
 version: 0.1.0
 description: Editable scverse/Scanpy single-cell RNA-seq integration workspace with baseline and integrated QC reporting.
 tools:
@@ -10,7 +10,7 @@ params:
   input_h5ad:
     type: path
     default: ""
-    description: Optional prep-stage `.h5ad` input. When empty, the latest `scverse_scrna_prep` output is used when available.
+    description: Optional prep-stage `.h5ad` input. When empty, the latest `scrna_prep` output is used when available.
   input_source_template:
     type: str
     default: ""

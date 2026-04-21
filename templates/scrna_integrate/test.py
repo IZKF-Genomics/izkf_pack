@@ -61,7 +61,7 @@ class FakeContext:
 
 
 def main() -> int:
-    run_module = load_module(TEMPLATE_DIR / "run.py", "test_scverse_scrna_integrate_run")
+    run_module = load_module(TEMPLATE_DIR / "run.py", "test_scrna_integrate_run")
     with tempfile.TemporaryDirectory(prefix="linkar-scverse-scrna-integrate-test-") as tmp:
         project_dir = Path(tmp) / "260421_scRNA_Integration"
         results_dir = Path(tmp) / "results"
@@ -72,7 +72,7 @@ def main() -> int:
 
         params = {
             "input_h5ad": "/tmp/input.h5ad",
-            "input_source_template": "scverse_scrna_prep",
+            "input_source_template": "scrna_prep",
             "integration_method": "scvi",
             "batch_key": "batch",
             "condition_key": "condition",
@@ -199,7 +199,7 @@ PY""",
 
     upstream_templates = [
         {
-            "id": "scverse_scrna_prep",
+            "id": "scrna_prep",
             "outputs": {
                 "scrna_prep_h5ad": "/tmp/results/adata.prep.h5ad",
                 "integrated_h5ad": "/tmp/results/adata.integrated.h5ad",
@@ -210,7 +210,7 @@ PY""",
     ]
     ctx = FakeContext(upstream_templates)
     assert load_function("get_scrna_integrate_input_h5ad")(ctx) == "/tmp/results/adata.prep.h5ad"
-    assert load_function("get_scrna_integrate_input_source_template")(ctx) == "scverse_scrna_prep"
+    assert load_function("get_scrna_integrate_input_source_template")(ctx) == "scrna_prep"
 
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
@@ -219,7 +219,7 @@ PY""",
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     spec_text = (TEMPLATE_DIR / "assets" / "software_versions_spec.yaml").read_text(encoding="utf-8")
 
-    assert "id: scverse_scrna_integrate" in template_text
+    assert "id: scrna_integrate" in template_text
     assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
     assert "quarto" in run_py_text
     assert "qc.qmd" in run_py_text
@@ -229,10 +229,10 @@ PY""",
     assert "integration_method" in spec_text
     pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
     pack_data = yaml.safe_load(pack_text)
-    params = pack_data["templates"]["scverse_scrna_integrate"]["params"]
+    params = pack_data["templates"]["scrna_integrate"]["params"]
     assert params["input_h5ad"]["function"] == "get_scrna_integrate_input_h5ad"
     assert params["input_source_template"]["function"] == "get_scrna_integrate_input_source_template"
-    print("scverse_scrna_integrate template test passed")
+    print("scrna_integrate template test passed")
     return 0
 
 

@@ -1,6 +1,6 @@
-# scverse_scrna_integrate workspace notes
+# scrna_integrate workspace notes
 
-The [`scverse_scrna_integrate`](../templates/scverse_scrna_integrate/README.md)
+The [`scrna_integrate`](../templates/scrna_integrate/README.md)
 template creates an editable Scanpy-based workspace for integrating multiple
 single-cell RNA-seq datasets after preprocessing.
 
@@ -10,13 +10,13 @@ reproducible integration runs.
 ## Expected input stage
 
 The template is designed to consume the prepared AnnData output from
-[`scverse_scrna_prep`](../templates/scverse_scrna_prep/README.md), not a raw
+[`scrna_prep`](../templates/scrna_prep/README.md), not a raw
 matrix export from primary processing.
 
 With the default pack binding:
 
-- `input_h5ad` resolves from `scverse_scrna_prep.scrna_prep_h5ad`
-- `input_source_template` resolves from the latest `scverse_scrna_prep` run
+- `input_h5ad` resolves from `scrna_prep.scrna_prep_h5ad`
+- `input_source_template` resolves from the latest `scrna_prep` run
 
 ## Batch metadata are required
 
@@ -90,6 +90,6 @@ When editing this template, treat these as high-sensitivity areas:
 
 ## Related docs
 
-- [scverse_scrna_prep.md](scverse_scrna_prep.md)
+- [scrna_prep.md](scrna_prep.md)
 - [template_outputs.md](template_outputs.md)
 - [software_versions.md](software_versions.md)

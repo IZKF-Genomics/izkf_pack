@@ -68,7 +68,7 @@ def resolved_params() -> dict[str, str]:
 
 def validate_params(params: dict[str, str]) -> None:
     if not params["input_h5ad"].strip():
-        raise SystemExit("Set INPUT_H5AD or rely on a bound upstream scverse_scrna_prep output before running scverse_scrna_integrate.")
+        raise SystemExit("Set INPUT_H5AD or rely on a bound upstream scrna_prep output before running scrna_integrate.")
     if not params["batch_key"].strip():
         raise SystemExit("Set BATCH_KEY to the obs column that defines the integration batch.")
     method = params["integration_method"].strip().lower()

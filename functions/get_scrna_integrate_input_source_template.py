@@ -4,7 +4,7 @@ import importlib.util
 from pathlib import Path
 
 
-UPSTREAM_TEMPLATE_IDS = ("scverse_scrna_prep",)
+UPSTREAM_TEMPLATE_IDS = ("scrna_prep",)
 
 
 def _load_common():

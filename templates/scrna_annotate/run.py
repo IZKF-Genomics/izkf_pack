@@ -206,7 +206,7 @@ def resolved_params() -> dict[str, str]:
 def validate_params(params: dict[str, str]) -> None:
     if not params["input_h5ad"].strip():
         raise SystemExit(
-            "Set INPUT_H5AD or fill global.input_h5ad in config/00_annotation_config.yaml before running scverse_scrna_annotate."
+            "Set INPUT_H5AD or fill global.input_h5ad in config/00_annotation_config.yaml before running scrna_annotate."
         )
     method = params["annotation_method"].strip().lower()
     raw_methods = params["annotation_methods"].strip()
@@ -224,7 +224,7 @@ def validate_params(params: dict[str, str]) -> None:
         )
     if not params["celltypist_model"].strip():
         raise SystemExit(
-            "Set CELLTYPIST_MODEL or celltypist.model to a relevant built-in model name or a custom model path before running scverse_scrna_annotate."
+            "Set CELLTYPIST_MODEL or celltypist.model to a relevant built-in model name or a custom model path before running scrna_annotate."
         )
     if not params["cluster_key"].strip():
         raise SystemExit("Set CLUSTER_KEY or global.cluster_key to the obs column that defines the review clusters.")
