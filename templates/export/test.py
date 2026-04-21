@@ -123,7 +123,8 @@ def main() -> int:
         (annotate_dir / "results" / "run_info.yaml").write_text("template: scverse_scrna_annotate\n", encoding="utf-8")
         (annotate_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
         (annotate_dir / "results" / "tables" / "cluster_annotation_summary.csv").write_text("cluster,label\n", encoding="utf-8")
-        (annotate_dir / "reports" / "annotation.html").write_text("<html></html>\n", encoding="utf-8")
+        (annotate_dir / "reports" / "annotation_overview.html").write_text("<html></html>\n", encoding="utf-8")
+        (annotate_dir / "reports" / "celltypist.html").write_text("<html></html>\n", encoding="utf-8")
         (ercc_dir / "results" / "ERCC.html").write_text("<html></html>\n", encoding="utf-8")
         (ercc_dir / "results" / "run_info.yaml").write_text("template: ercc\n", encoding="utf-8")
         (ercc_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
@@ -320,7 +321,8 @@ def main() -> int:
         ]
         assert len(annotate_report_entries) == 1
         annotate_report_paths = {link["path"] for link in annotate_report_entries[0].get("report_links", [])}
-        assert "annotation.html" in annotate_report_paths
+        assert "annotation_overview.html" in annotate_report_paths
+        assert "celltypist.html" in annotate_report_paths
         assert (export_dir / "results" / "metadata_context.yaml").exists()
         assert (export_dir / "results" / "project_methods.md").exists()
 

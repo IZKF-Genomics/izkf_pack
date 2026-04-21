@@ -63,9 +63,11 @@ Important outputs include:
 - `results/tables/cluster_annotation_summary.csv`
 - `results/tables/marker_review_summary.csv`
 - `results/tables/annotation_status_summary.csv`
+- `results/tables/method_comparison.csv`
 - `results/run_info.yaml`
 - `results/software_versions.json`
-- `reports/annotation.html`
+- `reports/annotation_overview.html`
+- `reports/celltypist.html`
 
 ## Maintenance notes
 
