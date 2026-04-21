@@ -137,16 +137,6 @@ mappings:
         link_name: "00 scRNA preprocessing QC"
 
   - template_id: ercc
-    src_project_key: "templates[id=ercc].outputs.results_dir"
-    src: "{template_root}/results"
-    dest: "2_Processed_data/ercc/{template_basename}/results"
-    report_links:
-      - path: "."
-        section: processed/Folder
-        description: "Processed ERCC spike-in QC outputs, including runtime metadata and rendered report assets."
-        link_name: "{template_basename} results"
-
-  - template_id: ercc
     src: "{template_root}/results"
     dest: "3_Reports/ercc/{template_basename}"
     report_links:
@@ -154,15 +144,6 @@ mappings:
         section: reports/ERCC
         description: "Primary ERCC spike-in QC report."
         link_name: "{template_basename} ERCC spike-in QC"
-
-  - template_id: dgea
-    src: "{template_root}/results"
-    dest: "2_Processed_data/dgea/{template_basename}/results"
-    report_links:
-      - path: "."
-        section: processed/Folder
-        description: "Processed DGEA outputs, including result tables, report inputs, and runtime metadata."
-        link_name: "{template_basename} results"
     
   - template_id: dgea
     src: "{template_root}/results"
