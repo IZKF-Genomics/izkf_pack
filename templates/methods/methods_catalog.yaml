@@ -166,14 +166,15 @@ templates:
     category: downstream_analysis
     publication_relevance: true
     label: Single-cell RNA-seq preprocessing and quality control
-    summary: Single-cell RNA-seq data were prepared in an editable Scanpy/scverse workspace with quality control, dimensionality reduction, clustering, and Quarto reporting.
-    method_core: Single-cell RNA-seq data were processed in an editable Scanpy/scverse preprocessing workspace that imports matrix or H5AD inputs, computes quality-control metrics, applies configurable filtering, performs graph-based embedding and clustering, and renders a Quarto QC report.
+    summary: Single-cell RNA-seq data were prepared in an editable Scanpy/scverse workspace with sample-aware quality control, dimensionality reduction, clustering, and Quarto reporting.
+    method_core: Single-cell RNA-seq data were processed in an editable Scanpy/scverse preprocessing workspace that imports matrix or H5AD inputs, computes cell-level quality-control metrics, applies configurable filtering, performs graph-based embedding and clustering, and renders a Quarto QC report.
     method_details:
       - Input data can be imported from H5AD objects, 10x Genomics HDF5 or MTX outputs, Parse Biosciences matrices, ScaleBio or STARsolo-style matrices, or Cell Ranger per-sample outputs.
       - Cell-level quality-control metrics include library size, detected genes, and organism-aware mitochondrial, ribosomal, and hemoglobin transcript fractions.
       - Filtering can be applied through fixed thresholds or per-sample median absolute deviation rules, allowing sample-aware exclusion of low-quality outlier cells.
       - When enabled, doublet scoring is performed with Scrublet and predicted doublets can be retained for review or removed from the filtered analysis object.
       - The retained object is normalized, highly variable genes are identified, and principal component analysis, nearest-neighbor graph construction, UMAP embedding, and Leiden clustering are performed within the same Scanpy workflow.
+      - Quality-control summaries, clustering diagnostics, and interactive embedding views are rendered in the Quarto report alongside the prepared AnnData object.
       - Resolution benchmarking can be used to review clustering structure across multiple Leiden resolutions.
     important_params:
       - input_format
@@ -215,6 +216,7 @@ templates:
       - QC thresholds, doublet handling, and graph parameters influence the retained cell set and exploratory structure.
     command_hints:
       - When runtime metadata are sparse, use the catalog description plus recorded software versions.
+      - Cite Scrublet only when doublet detection was enabled for the recorded run.
     tools:
       - Scanpy
       - scverse
@@ -223,7 +225,8 @@ templates:
       - Quarto
     citations:
       - scanpy
-      - scrublet
+      - umap
+      - leiden
       - quarto
 
   nfcore_3mrnaseq:
@@ -362,3 +365,9 @@ references:
   scrublet:
     text: "Wolock SL, Lopez R, Klein AM. Scrublet: computational identification of cell doublets in single-cell transcriptomic data. Cell Systems. 2019."
     url: "https://doi.org/10.1016/j.cels.2018.11.005"
+  umap:
+    text: "McInnes L, Healy J, Melville J. UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction. arXiv. 2018."
+    url: "https://arxiv.org/abs/1802.03426"
+  leiden:
+    text: "Traag VA, Waltman L, van Eck NJ. From Louvain to Leiden: guaranteeing well-connected communities. Scientific Reports. 2019."
+    url: "https://doi.org/10.1038/s41598-019-41695-z"

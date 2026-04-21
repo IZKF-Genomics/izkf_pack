@@ -769,6 +769,35 @@ def test_recorded_command_block_is_multiline() -> None:
     assert "--extra_star_align_args='--alignIntronMax 1000000 --alignIntronMin 20 --alignMatesGapMax 1000000 --alignSJoverhangMin 8 --outFilterMismatchNmax 999 --outFilterMultimapNmax 20 --outFilterType BySJout --outFilterMismatchNoverLmax 0.1 --clip3pAdapterSeq AAAAAAAA'" in block
 
 
+def test_scverse_scrna_prep_citations_and_short_sentence() -> None:
+    module = load_run_module()
+    catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
+    entry = catalog["templates"]["scverse_scrna_prep"]
+
+    citations = module.resolve_catalog_citations(
+        "scverse_scrna_prep",
+        entry,
+        {"doublet_method": "scrublet"},
+    )
+    assert citations == ["scanpy", "umap", "leiden", "quarto", "scrublet"]
+
+    citation_map = module.citation_number_map(citations)
+    sentence = module.short_downstream_sentence(
+        [
+            {
+                "template": "scverse_scrna_prep",
+                "params": {"doublet_method": "scrublet"},
+            }
+        ],
+        citation_map,
+    )
+    assert "Single-cell RNA-seq preprocessing and quality control" in sentence
+    assert "UMAP embedding" in sentence
+    assert "Leiden clustering" in sentence
+    assert "Scrublet-based doublet scoring" in sentence
+    assert "[1, 2, 3, 4, 5]" in sentence
+
+
 def main() -> int:
     test_generation_with_runtime_command()
     test_dgea_label_and_software_version_fallback()
@@ -785,6 +814,7 @@ def main() -> int:
     test_run_display_label_ignores_run_directory_suffix()
     test_collect_run_context_adds_variant_names_for_duplicate_nfcore_runs()
     test_recorded_command_block_is_multiline()
+    test_scverse_scrna_prep_citations_and_short_sentence()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     catalog_text = (TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8")
@@ -804,6 +834,8 @@ def main() -> int:
     assert "scverse_scrna_prep:" in catalog_text
     assert "minfi:" in catalog_text
     assert "scanpy:" in catalog_text
+    assert "umap:" in catalog_text
+    assert "leiden:" in catalog_text
     assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
     assert '--metadata-api-url "${METADATA_API_URL:-}"' in run_sh_text
     assert 'run-local = "python3 run.py"' in pixi_text
