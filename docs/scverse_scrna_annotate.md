@@ -7,6 +7,34 @@ review after preprocessing or integration.
 This document records the pack-specific assumptions behind the first
 implementation.
 
+## Config model
+
+The user-facing entrypoint is now a commented YAML file:
+
+- `templates/scverse_scrna_annotate/config/annotation_config.yaml`
+
+If it is missing, `run.sh` seeds it from:
+
+- `templates/scverse_scrna_annotate/assets/annotation_config.template.yaml`
+
+The runtime then converts that YAML config into the internal
+`config/project.toml` file consumed by the builder and report code.
+
+Environment variables still override YAML values when both are present.
+
+## Python-only scope
+
+This template is intentionally Python-only. Current and planned in-scope
+backends are:
+
+- `CellTypist`
+- future `scANVI`
+- future `decoupler` review
+- future `scGPT`
+
+R-centered tools such as `scmap` and `scPred` are intentionally excluded from
+this workspace to keep the runtime simpler and more maintainable.
+
 ## Default input preference
 
 Although the template can read either a prep-stage or integrate-stage AnnData
@@ -68,6 +96,12 @@ Important outputs include:
 - `results/software_versions.json`
 - `reports/annotation_overview.html`
 - `reports/celltypist.html`
+
+Important config files include:
+
+- `config/annotation_config.yaml`
+- `config/annotation_config.resolved.yaml`
+- `config/project.toml`
 
 ## Maintenance notes
 

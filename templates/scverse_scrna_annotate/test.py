@@ -71,6 +71,7 @@ def main() -> int:
         (project_dir / "project.yaml").write_text(yaml.safe_dump({}, sort_keys=False), encoding="utf-8")
 
         params = {
+            "annotation_config": str(TEMPLATE_DIR / "config" / "annotation_config.yaml"),
             "input_h5ad": "/tmp/input.h5ad",
             "input_source_template": "scverse_scrna_prep",
             "annotation_method": "celltypist",
@@ -94,10 +95,38 @@ def main() -> int:
             "random_seed": "0",
         }
         run_module.validate_params(params)
+        flattened = run_module.flatten_annotation_config(
+            {
+                "_config_path": str(project_dir / "annotation_config.yaml"),
+                "global": {
+                    "input_h5ad": "/tmp/from_yaml.h5ad",
+                    "annotation_methods": ["celltypist"],
+                    "cluster_key": "leiden",
+                    "unknown_label": "Unknown",
+                },
+                "celltypist": {
+                    "model": "Immune_All_Low.pkl",
+                    "mode": "best_match",
+                    "p_thres": 0.5,
+                    "use_gpu": False,
+                },
+                "marker_review": {
+                    "marker_file": "",
+                },
+            }
+        )
+        assert flattened["annotation_config"].endswith("annotation_config.yaml")
+        assert flattened["input_h5ad"] == "/tmp/from_yaml.h5ad"
+        assert flattened["annotation_methods"] == "celltypist"
+        assert flattened["celltypist_model"] == "Immune_All_Low.pkl"
         run_module.write_project_config(
             TEMPLATE_DIR / "config" / "project.toml",
             params,
             project_name=project_dir.name,
+        )
+        run_module.write_resolved_annotation_config(
+            TEMPLATE_DIR / "config" / "annotation_config.resolved.yaml",
+            params,
         )
         original_project_dir = run_module.PROJECT_DIR
         original_results_dir = run_module.RESULTS_DIR
@@ -114,15 +143,21 @@ def main() -> int:
             run_module.RESULTS_DIR = original_results_dir
 
         config_text = (TEMPLATE_DIR / "config" / "project.toml").read_text(encoding="utf-8")
+        resolved_config = yaml.safe_load(
+            (TEMPLATE_DIR / "config" / "annotation_config.resolved.yaml").read_text(encoding="utf-8")
+        )
         run_info = yaml.safe_load((results_dir / "run_info.yaml").read_text(encoding="utf-8"))
 
         assert 'annotation_method = "celltypist"' in config_text
         assert 'annotation_methods = "celltypist"' in config_text
         assert 'celltypist_model = "Immune_All_Low.pkl"' in config_text
         assert 'cluster_key = "leiden"' in config_text
+        assert resolved_config["global"]["annotation_methods"] == ["celltypist"]
+        assert resolved_config["celltypist"]["model"] == "Immune_All_Low.pkl"
         assert run_info["params"]["project_name"] == "260421_scRNA_Annotation"
         assert run_info["params"]["annotation_method"] == "celltypist"
         assert run_info["params"]["use_gpu"] is False
+        assert run_info["annotation_config"].endswith("annotation_config.yaml")
 
         assert_fails(
             [sys.executable, str(TEMPLATE_DIR / "run.py")],

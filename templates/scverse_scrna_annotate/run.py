@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import shutil
 from pathlib import Path
 
 import yaml
@@ -14,8 +15,10 @@ PROJECT_DIR = Path(os.environ.get("LINKAR_PROJECT_DIR", TEMPLATE_DIR.parent)).re
 RESULTS_DIR = Path(os.environ.get("LINKAR_RESULTS_DIR", TEMPLATE_DIR / "results")).resolve()
 REPORTS_DIR = TEMPLATE_DIR / "reports"
 CONFIG_DIR = TEMPLATE_DIR / "config"
-NOTEBOOK_PATH = TEMPLATE_DIR / "annotation.qmd"
 SOFTWARE_VERSIONS_SPEC = TEMPLATE_DIR / "assets" / "software_versions_spec.yaml"
+USER_CONFIG_TEMPLATE_PATH = TEMPLATE_DIR / "assets" / "annotation_config.template.yaml"
+DEFAULT_USER_CONFIG_PATH = CONFIG_DIR / "annotation_config.yaml"
+RESOLVED_USER_CONFIG_PATH = CONFIG_DIR / "annotation_config.resolved.yaml"
 PROJECT_CONFIG_PATH = CONFIG_DIR / "project.toml"
 RUN_INFO_PATH = RESULTS_DIR / "run_info.yaml"
 PIPELINE_SCRIPT = TEMPLATE_DIR / "build_annotation_outputs.py"
@@ -34,35 +37,182 @@ def toml_string(value: str) -> str:
     return f'"{escaped}"'
 
 
-def resolved_params() -> dict[str, str]:
+def default_params() -> dict[str, str]:
     return {
+        "annotation_config": str(DEFAULT_USER_CONFIG_PATH),
+        "input_h5ad": "",
+        "input_source_template": "",
+        "annotation_method": "celltypist",
+        "annotation_methods": "celltypist",
+        "celltypist_model": "",
+        "celltypist_mode": "best_match",
+        "celltypist_p_thres": "0.5",
+        "use_gpu": "false",
+        "cluster_key": "leiden",
+        "batch_key": "batch",
+        "condition_key": "condition",
+        "sample_id_key": "sample_id",
+        "sample_label_key": "sample_display",
+        "majority_vote_min_fraction": "0.6",
+        "confidence_threshold": "0.5",
+        "unknown_label": "Unknown",
+        "predicted_label_key": "predicted_label",
+        "final_label_key": "final_label",
+        "marker_file": "",
+        "rank_top_markers": "5",
+        "random_seed": "0",
+    }
+
+
+def env_params() -> dict[str, str]:
+    return {
+        "annotation_config": env("ANNOTATION_CONFIG"),
         "input_h5ad": env("INPUT_H5AD"),
         "input_source_template": env("INPUT_SOURCE_TEMPLATE"),
-        "annotation_method": env("ANNOTATION_METHOD", "celltypist"),
+        "annotation_method": env("ANNOTATION_METHOD"),
         "annotation_methods": env("ANNOTATION_METHODS"),
         "celltypist_model": env("CELLTYPIST_MODEL"),
-        "celltypist_mode": env("CELLTYPIST_MODE", "best_match"),
-        "celltypist_p_thres": env("CELLTYPIST_P_THRES", "0.5"),
-        "use_gpu": env("USE_GPU", "false"),
-        "cluster_key": env("CLUSTER_KEY", "leiden"),
-        "batch_key": env("BATCH_KEY", "batch"),
-        "condition_key": env("CONDITION_KEY", "condition"),
-        "sample_id_key": env("SAMPLE_ID_KEY", "sample_id"),
-        "sample_label_key": env("SAMPLE_LABEL_KEY", "sample_display"),
-        "majority_vote_min_fraction": env("MAJORITY_VOTE_MIN_FRACTION", "0.6"),
-        "confidence_threshold": env("CONFIDENCE_THRESHOLD", "0.5"),
-        "unknown_label": env("UNKNOWN_LABEL", "Unknown"),
-        "predicted_label_key": env("PREDICTED_LABEL_KEY", "predicted_label"),
-        "final_label_key": env("FINAL_LABEL_KEY", "final_label"),
+        "celltypist_mode": env("CELLTYPIST_MODE"),
+        "celltypist_p_thres": env("CELLTYPIST_P_THRES"),
+        "use_gpu": env("USE_GPU"),
+        "cluster_key": env("CLUSTER_KEY"),
+        "batch_key": env("BATCH_KEY"),
+        "condition_key": env("CONDITION_KEY"),
+        "sample_id_key": env("SAMPLE_ID_KEY"),
+        "sample_label_key": env("SAMPLE_LABEL_KEY"),
+        "majority_vote_min_fraction": env("MAJORITY_VOTE_MIN_FRACTION"),
+        "confidence_threshold": env("CONFIDENCE_THRESHOLD"),
+        "unknown_label": env("UNKNOWN_LABEL"),
+        "predicted_label_key": env("PREDICTED_LABEL_KEY"),
+        "final_label_key": env("FINAL_LABEL_KEY"),
         "marker_file": env("MARKER_FILE"),
-        "rank_top_markers": env("RANK_TOP_MARKERS", "5"),
-        "random_seed": env("RANDOM_SEED", "0"),
+        "rank_top_markers": env("RANK_TOP_MARKERS"),
+        "random_seed": env("RANDOM_SEED"),
     }
+
+
+def normalize_annotation_methods(value: object) -> str:
+    if isinstance(value, list):
+        return ",".join(str(item).strip() for item in value if str(item).strip())
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def normalize_bool_string(value: object) -> str:
+    return "true" if parse_bool(str(value)) else "false"
+
+
+def read_annotation_config(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(payload, dict):
+        raise SystemExit(f"Annotation config must be a YAML mapping: {path}")
+    return payload
+
+
+def flatten_annotation_config(payload: dict[str, object]) -> dict[str, str]:
+    global_cfg = payload.get("global") if isinstance(payload.get("global"), dict) else {}
+    celltypist_cfg = payload.get("celltypist") if isinstance(payload.get("celltypist"), dict) else {}
+    marker_cfg = payload.get("marker_review") if isinstance(payload.get("marker_review"), dict) else {}
+
+    annotation_methods = normalize_annotation_methods(
+        global_cfg.get("annotation_methods", payload.get("annotation_methods", ""))
+    )
+    annotation_method = str(
+        global_cfg.get(
+            "annotation_method",
+            payload.get("annotation_method", annotation_methods.split(",")[0] if annotation_methods else ""),
+        )
+    ).strip()
+
+    flat: dict[str, str] = {
+        "annotation_config": str(payload.get("_config_path", "")),
+        "input_h5ad": str(global_cfg.get("input_h5ad", payload.get("input_h5ad", ""))).strip(),
+        "input_source_template": str(
+            global_cfg.get("input_source_template", payload.get("input_source_template", ""))
+        ).strip(),
+        "annotation_method": annotation_method,
+        "annotation_methods": annotation_methods,
+        "celltypist_model": str(celltypist_cfg.get("model", payload.get("celltypist_model", ""))).strip(),
+        "celltypist_mode": str(celltypist_cfg.get("mode", payload.get("celltypist_mode", ""))).strip(),
+        "celltypist_p_thres": str(celltypist_cfg.get("p_thres", payload.get("celltypist_p_thres", ""))).strip(),
+        "use_gpu": normalize_bool_string(celltypist_cfg.get("use_gpu", payload.get("use_gpu", False))),
+        "cluster_key": str(global_cfg.get("cluster_key", payload.get("cluster_key", ""))).strip(),
+        "batch_key": str(global_cfg.get("batch_key", payload.get("batch_key", ""))).strip(),
+        "condition_key": str(global_cfg.get("condition_key", payload.get("condition_key", ""))).strip(),
+        "sample_id_key": str(global_cfg.get("sample_id_key", payload.get("sample_id_key", ""))).strip(),
+        "sample_label_key": str(global_cfg.get("sample_label_key", payload.get("sample_label_key", ""))).strip(),
+        "majority_vote_min_fraction": str(
+            global_cfg.get("majority_vote_min_fraction", payload.get("majority_vote_min_fraction", ""))
+        ).strip(),
+        "confidence_threshold": str(
+            global_cfg.get("confidence_threshold", payload.get("confidence_threshold", ""))
+        ).strip(),
+        "unknown_label": str(global_cfg.get("unknown_label", payload.get("unknown_label", ""))).strip(),
+        "predicted_label_key": str(
+            global_cfg.get("predicted_label_key", payload.get("predicted_label_key", ""))
+        ).strip(),
+        "final_label_key": str(global_cfg.get("final_label_key", payload.get("final_label_key", ""))).strip(),
+        "marker_file": str(marker_cfg.get("marker_file", payload.get("marker_file", ""))).strip(),
+        "rank_top_markers": str(global_cfg.get("rank_top_markers", payload.get("rank_top_markers", ""))).strip(),
+        "random_seed": str(global_cfg.get("random_seed", payload.get("random_seed", ""))).strip(),
+    }
+    return flat
+
+
+def resolve_annotation_config_path() -> Path:
+    raw = env("ANNOTATION_CONFIG").strip()
+    if raw:
+        return Path(raw).expanduser().resolve()
+    return DEFAULT_USER_CONFIG_PATH.resolve()
+
+
+def ensure_default_annotation_config(path: Path) -> None:
+    if path != DEFAULT_USER_CONFIG_PATH.resolve():
+        return
+    if path.exists():
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(USER_CONFIG_TEMPLATE_PATH, path)
+
+
+def merge_params(base: dict[str, str], updates: dict[str, str]) -> dict[str, str]:
+    merged = dict(base)
+    for key, value in updates.items():
+        if value is None:
+            continue
+        text = str(value)
+        if text == "":
+            continue
+        merged[key] = text
+    return merged
+
+
+def resolved_params() -> dict[str, str]:
+    params = default_params()
+    config_path = resolve_annotation_config_path()
+    ensure_default_annotation_config(config_path)
+    config_payload = read_annotation_config(config_path)
+    if config_payload:
+        config_payload["_config_path"] = str(config_path)
+        params = merge_params(params, flatten_annotation_config(config_payload))
+    params = merge_params(params, env_params())
+    if not params["annotation_config"].strip():
+        params["annotation_config"] = str(config_path)
+    if not params["annotation_methods"].strip():
+        params["annotation_methods"] = params["annotation_method"].strip() or "celltypist"
+    if not params["annotation_method"].strip():
+        params["annotation_method"] = params["annotation_methods"].split(",")[0].strip() or "celltypist"
+    return params
 
 
 def validate_params(params: dict[str, str]) -> None:
     if not params["input_h5ad"].strip():
-        raise SystemExit("Set INPUT_H5AD or rely on a bound upstream scverse single-cell output before running scverse_scrna_annotate.")
+        raise SystemExit(
+            "Set INPUT_H5AD or fill global.input_h5ad in config/annotation_config.yaml before running scverse_scrna_annotate."
+        )
     method = params["annotation_method"].strip().lower()
     raw_methods = params["annotation_methods"].strip()
     selected_methods = [item.strip().lower() for item in raw_methods.split(",") if item.strip()] if raw_methods else [method]
@@ -70,16 +220,55 @@ def validate_params(params: dict[str, str]) -> None:
         selected_methods = [method]
     unsupported = sorted(set(selected_methods) - {"celltypist"})
     if unsupported:
-        raise SystemExit("Set ANNOTATION_METHODS to supported values only. Currently implemented: celltypist.")
+        raise SystemExit(
+            "Set ANNOTATION_METHODS or global.annotation_methods to supported values only. Currently implemented: celltypist."
+        )
     if method not in {"celltypist"}:
-        raise SystemExit("Set ANNOTATION_METHOD=celltypist. Additional annotation backends are not implemented yet.")
+        raise SystemExit(
+            "Set ANNOTATION_METHOD or global.annotation_method to celltypist. Additional annotation backends are not implemented yet."
+        )
     if not params["celltypist_model"].strip():
-        raise SystemExit("Set CELLTYPIST_MODEL to a relevant built-in model name or a custom model path before running scverse_scrna_annotate.")
+        raise SystemExit(
+            "Set CELLTYPIST_MODEL or celltypist.model to a relevant built-in model name or a custom model path before running scverse_scrna_annotate."
+        )
     if not params["cluster_key"].strip():
-        raise SystemExit("Set CLUSTER_KEY to the obs column that defines the review clusters.")
+        raise SystemExit("Set CLUSTER_KEY or global.cluster_key to the obs column that defines the review clusters.")
     mode = params["celltypist_mode"].strip().lower().replace(" ", "_")
     if mode not in {"best_match", "prob_match"}:
-        raise SystemExit("Set CELLTYPIST_MODE to either best_match or prob_match.")
+        raise SystemExit("Set CELLTYPIST_MODE or celltypist.mode to either best_match or prob_match.")
+
+
+def write_resolved_annotation_config(path: Path, params: dict[str, str]) -> None:
+    payload = {
+        "global": {
+            "input_h5ad": params["input_h5ad"],
+            "input_source_template": params["input_source_template"],
+            "annotation_method": params["annotation_method"],
+            "annotation_methods": [item.strip() for item in params["annotation_methods"].split(",") if item.strip()],
+            "cluster_key": params["cluster_key"],
+            "batch_key": params["batch_key"],
+            "condition_key": params["condition_key"],
+            "sample_id_key": params["sample_id_key"],
+            "sample_label_key": params["sample_label_key"],
+            "majority_vote_min_fraction": float(params["majority_vote_min_fraction"]),
+            "confidence_threshold": float(params["confidence_threshold"]),
+            "unknown_label": params["unknown_label"],
+            "predicted_label_key": params["predicted_label_key"],
+            "final_label_key": params["final_label_key"],
+            "rank_top_markers": int(params["rank_top_markers"]),
+            "random_seed": int(params["random_seed"]),
+        },
+        "celltypist": {
+            "model": params["celltypist_model"],
+            "mode": params["celltypist_mode"],
+            "p_thres": float(params["celltypist_p_thres"]),
+            "use_gpu": parse_bool(params["use_gpu"]),
+        },
+        "marker_review": {
+            "marker_file": params["marker_file"],
+        },
+    }
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
 def write_project_config(path: Path, params: dict[str, str], *, project_name: str) -> None:
@@ -132,6 +321,8 @@ def write_run_info(path: Path, params: dict[str, str], *, project_name: str) -> 
         "workspace_dir": str(TEMPLATE_DIR),
         "project_dir": str(PROJECT_DIR),
         "results_dir": str(RESULTS_DIR),
+        "annotation_config": params["annotation_config"],
+        "resolved_annotation_config": str(RESOLVED_USER_CONFIG_PATH),
         "params": {
             "project_name": project_name,
             **{key: (parse_bool(value) if key in bool_keys else value) for key, value in params.items()},
@@ -153,6 +344,7 @@ def main() -> int:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
     project_name = PROJECT_DIR.name
+    write_resolved_annotation_config(RESOLVED_USER_CONFIG_PATH, params)
     write_project_config(PROJECT_CONFIG_PATH, params, project_name=project_name)
     write_run_info(RUN_INFO_PATH, params, project_name=project_name)
 
