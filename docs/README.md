@@ -3,6 +3,10 @@
 This folder is for pack-specific documentation that is broader than a single
 template README and more stable than issue threads or commit history.
 
+The root [README.md](../README.md) should stay the main navigation page and
+quick-start guide for the repository. This `docs/` folder is the deeper layer
+for pack-wide behavior, conventions, and design notes.
+
 Template-local usage should stay in `templates/*/README.md`. This `docs/`
 folder is a better place for cross-cutting conventions, design decisions, and
 maintenance notes that apply across multiple templates.

@@ -9,6 +9,31 @@ The pack is intentionally practical:
 - `discovery/` contains read-only helpers for finding projects, sequencing runs, references, and processed run folders.
 - `linkar_pack.yaml` wires selected templates to default binding functions.
 
+## How To Read This Repository
+
+Use the documentation in three layers:
+
+- This page: quick setup, common workflows, and the main navigation for the pack.
+- `templates/*/README.md`: template-specific usage, parameters, and outputs.
+- [`docs/`](docs/README.md): pack-wide conventions and design notes that span multiple templates.
+
+Start here if you want to run the pack. Use the docs folder if you want to
+understand why the pack is structured the way it is.
+
+## Documentation Map
+
+General pack docs:
+
+- [docs/README.md](docs/README.md): index of pack-wide guides
+- [docs/software_versions.md](docs/software_versions.md): how template specs become generated `software_versions.json`
+- [docs/methods.md](docs/methods.md): how long/short methods outputs are built
+- [docs/export.md](docs/export.md): export mapping behavior and `export_job_spec.json`
+- [docs/nfcore_templates.md](docs/nfcore_templates.md): shared nf-core launcher and provenance patterns
+- [docs/project_history_and_archive.md](docs/project_history_and_archive.md): visible workspaces, `.linkar/runs`, prune, and archive behavior
+- [docs/template_outputs.md](docs/template_outputs.md): common runtime artifacts across templates
+- [docs/facility_defaults.md](docs/facility_defaults.md): facility-specific assumptions used across templates
+- [docs/scverse_scrna_prep.md](docs/scverse_scrna_prep.md): scRNA workspace notes beyond the template README
+
 Template authors and AI agents should also read [TEMPLATE_AUTHORING_FOR_AGENTS.md](TEMPLATE_AUTHORING_FOR_AGENTS.md) before adding a new template. For the general Linkar-side guidance on `run.command`, `run.sh`, `run.py`, and runtime metadata patterns, see the Linkar tutorial `python-entry-and-runtime-metadata.md` in the Linkar docs site.
 
 ## Install
@@ -329,8 +354,6 @@ The default binding in [`linkar_pack.yaml`](linkar_pack.yaml) uses Python functi
 | [`software_versions`](functions/software_versions.py) | Write standardized `software_versions.json` files for methods generation. | [functions README](functions/README.md#software_versions) |
 
 Internal helper modules are documented in the functions README but are not intended to be called directly from `linkar_pack.yaml`.
-
-Pack-level design notes that span multiple templates live in [docs/](docs/README.md). The first entry is [software_versions.md](docs/software_versions.md).
 
 ## Discovery Helpers
 
