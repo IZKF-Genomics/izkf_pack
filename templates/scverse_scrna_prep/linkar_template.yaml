@@ -55,10 +55,6 @@ params:
     type: str
     default: "sample_id"
     description: Preferred sample identifier column.
-  authors:
-    type: str
-    default: ""
-    description: Optional comma-separated author names shown in the generated report metadata.
   doublet_method:
     type: str
     default: "none"

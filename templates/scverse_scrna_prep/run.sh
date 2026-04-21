@@ -25,7 +25,6 @@ python3 "${script_dir}/build_scrna_prep_inputs.py" \
   --batch-key "${BATCH_KEY:-batch}" \
   --condition-key "${CONDITION_KEY:-condition}" \
   --sample-id-key "${SAMPLE_ID_KEY:-sample_id}" \
-  --authors "${AUTHORS:-}" \
   --doublet-method "${DOUBLET_METHOD:-none}" \
   --filter-predicted-doublets "${FILTER_PREDICTED_DOUBLETS:-false}" \
   --qc-mode "${QC_MODE:-fixed}" \

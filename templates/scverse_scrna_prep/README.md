@@ -21,7 +21,6 @@ Important parameters:
 - `batch_key`
 - `condition_key`
 - `sample_id_key`
-- `authors`
 - `doublet_method`
 - `filter_predicted_doublets`
 - `qc_mode`
@@ -38,7 +37,7 @@ Important parameters:
 - `leiden_resolution`
 - `resolution_grid`
 
-At least one of `input_h5ad` or `input_matrix` must be set before execution.
+At least one of `input_h5ad` or `input_matrix` must be set before execution, and `organism` must be provided for QC gene annotation.
 
 ## Runtime behavior
 
@@ -60,6 +59,8 @@ The notebook supports:
 - fixed-threshold QC and per-sample MAD-based QC
 - optional Scrublet-based doublet scoring
 - PCA, neighbors, UMAP, Leiden clustering, and resolution benchmarking
+
+For `.h5ad` input, the workspace expects raw counts. If the object stores normalized values in `X`, provide raw counts in `adata.layers["counts"]` before running the template.
 
 ## Outputs
 

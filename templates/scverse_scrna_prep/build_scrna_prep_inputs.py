@@ -24,7 +24,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-key", default="batch")
     parser.add_argument("--condition-key", default="condition")
     parser.add_argument("--sample-id-key", default="sample_id")
-    parser.add_argument("--authors", default="")
     parser.add_argument("--doublet-method", default="none")
     parser.add_argument("--filter-predicted-doublets", default="false")
     parser.add_argument("--qc-mode", default="fixed")
@@ -52,32 +51,17 @@ def parse_bool(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def derive_authors(explicit_authors: str, project_dir: Path) -> str:
-    if explicit_authors.strip():
-        return explicit_authors.strip()
-    project_file = project_dir / "project.yaml"
-    if not project_file.exists():
-        return ""
-    try:
-        data = yaml.safe_load(project_file.read_text(encoding="utf-8")) or {}
-    except Exception:
-        return ""
-    author = data.get("author") or {}
-    if isinstance(author, dict):
-        name = str(author.get("name") or "").strip()
-        if name:
-            return name
-        organization = str(author.get("organization") or "").strip()
-        if organization:
-            return organization
-    return ""
+def validate_args(args: argparse.Namespace) -> None:
+    if not args.input_h5ad.strip() and not args.input_matrix.strip():
+        raise SystemExit("Set either --input-h5ad or --input-matrix before running scverse_scrna_prep.")
+    if not args.organism.strip():
+        raise SystemExit("Set --organism to a supported value such as human, mouse, hsapiens, or mmusculus.")
 
 
-def write_project_config(path: Path, args: argparse.Namespace, *, project_name: str, authors: str, sample_metadata: str) -> None:
+def write_project_config(path: Path, args: argparse.Namespace, *, project_name: str, sample_metadata: str) -> None:
     lines = [
         "[project]",
         f"name = {toml_string(project_name)}",
-        f"authors = {toml_string(authors)}",
         "",
         "[input]",
         f"input_h5ad = {toml_string(args.input_h5ad)}",
@@ -124,14 +108,13 @@ def write_project_config(path: Path, args: argparse.Namespace, *, project_name: 
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def write_run_info(path: Path, args: argparse.Namespace, *, workspace_dir: Path, project_dir: Path, results_dir: Path, project_name: str, authors: str, sample_metadata: str) -> None:
+def write_run_info(path: Path, args: argparse.Namespace, *, workspace_dir: Path, project_dir: Path, results_dir: Path, project_name: str, sample_metadata: str) -> None:
     payload = {
         "workspace_dir": str(workspace_dir),
         "project_dir": str(project_dir),
         "results_dir": str(results_dir),
         "params": {
             "project_name": project_name,
-            "authors": authors,
             "input_h5ad": args.input_h5ad,
             "input_matrix": args.input_matrix,
             "input_source_template": args.input_source_template,
@@ -166,6 +149,7 @@ def write_run_info(path: Path, args: argparse.Namespace, *, workspace_dir: Path,
 
 def main() -> int:
     args = parse_args()
+    validate_args(args)
     workspace_dir = Path(args.workspace_dir).resolve()
     project_dir = Path(args.project_dir).resolve()
     results_dir = Path(args.results_dir).resolve()
@@ -174,14 +158,12 @@ def main() -> int:
     (workspace_dir / "config").mkdir(parents=True, exist_ok=True)
 
     project_name = project_dir.name
-    authors = derive_authors(args.authors, project_dir)
     sample_metadata = args.sample_metadata.strip() or "config/samples.csv"
 
     write_project_config(
         workspace_dir / "config" / "project.toml",
         args,
         project_name=project_name,
-        authors=authors,
         sample_metadata=sample_metadata,
     )
     write_run_info(
@@ -191,7 +173,6 @@ def main() -> int:
         project_dir=project_dir,
         results_dir=results_dir,
         project_name=project_name,
-        authors=authors,
         sample_metadata=sample_metadata,
     )
     return 0

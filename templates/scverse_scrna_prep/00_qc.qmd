@@ -1,6 +1,5 @@
 ---
 title: "00 scRNA Preprocessing QC"
-author: ""
 date: today
 jupyter: python3
 format:
@@ -42,9 +41,10 @@ import plotly.graph_objects as go
 import scanpy as sc
 from IPython.display import Markdown, display
 from plotly.subplots import make_subplots
-from scipy import sparse
 from scipy.stats import median_abs_deviation
 from sklearn.metrics import davies_bouldin_score
+
+from scrna_prep_io import ensure_preprocessing_counts_matrix, sparse_copy
 
 ROOT = Path(".").resolve()
 CONFIG_PATH = ROOT / "config" / "project.toml"
@@ -150,10 +150,6 @@ def read_optional_metadata(path: Path) -> pd.DataFrame | None:
         return None
     df = pd.read_csv(path)
     return None if df.empty else df
-
-
-def sparse_copy(x):
-    return x.copy() if sparse.issparse(x) else np.array(x, copy=True)
 
 
 def parse_optional_float(value) -> float | None:
@@ -829,7 +825,7 @@ sample_metadata_path = resolve_path(ROOT, str(cfg["input"]["sample_metadata"]))
 organism = str(cfg["metadata"]["organism"]).strip().lower()
 if not organism:
     raise RuntimeError(
-        "config metadata.organism is empty; set --param organism or render in a project with an upstream params.organism or params.genome value"
+        "config metadata.organism is empty; set --param organism to a supported value such as human, mouse, hsapiens, or mmusculus"
     )
 sample_id_key = str(cfg["metadata"]["sample_id_key"]).strip() or "sample_id"
 batch_key = str(cfg["metadata"]["batch_key"]).strip() or "batch"
@@ -845,9 +841,7 @@ tables_dir.mkdir(parents=True, exist_ok=True)
 sc.settings.verbosity = 0
 adata.obs_names_make_unique()
 adata.var_names_make_unique()
-
-if "counts" not in adata.layers:
-    adata.layers["counts"] = sparse_copy(adata.X)
+adata = ensure_preprocessing_counts_matrix(adata, input_format=resolved_input_format)
 
 adata.obs[sample_id_key] = infer_sample_id(adata.obs, sample_id_key)
 adata.obs["sample_id"] = adata.obs[sample_id_key].astype(str)
