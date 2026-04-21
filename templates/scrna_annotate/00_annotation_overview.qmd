@@ -1,0 +1,365 @@
+---
+title: "scRNA Annotation Overview"
+date: today
+jupyter: python3
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 3
+    toc-location: left
+    html-math-method: katex
+    embed-resources: true
+    page-layout: full
+    html-table-processing: none
+    theme: lumen
+    fig-width: 10
+    fig-height: 5
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{python}
+from pathlib import Path
+import sys
+
+from IPython.display import Markdown, display
+import pandas as pd
+import plotly.express as px
+import scanpy as sc
+
+LIB_DIR = Path(".").resolve() / "lib"
+if str(LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(LIB_DIR))
+
+from report_utils import (
+    format_table,
+    load_report_context,
+    load_table,
+    package_versions_table,
+    style_bar,
+    style_scatter,
+)
+
+ROOT = Path(".").resolve()
+context = load_report_context(ROOT)
+adata = sc.read_h5ad(ROOT / context["adata_file"])
+
+
+def embedding_frame(adata, basis: str, color_keys: list[str]) -> pd.DataFrame:
+    coords = adata.obsm[basis]
+    frame = pd.DataFrame(coords[:, :2], columns=["dim_1", "dim_2"], index=adata.obs_names)
+    keep = [key for key in color_keys if key in adata.obs.columns]
+    return frame.join(adata.obs[keep], how="left")
+
+
+def optional_composition_table(obs: pd.DataFrame, *, group_key: str, label_key: str) -> pd.DataFrame:
+    if group_key not in obs.columns or label_key not in obs.columns:
+        return pd.DataFrame()
+    if obs[group_key].astype(str).eq("unknown").all():
+        return pd.DataFrame()
+    out = (
+        obs.groupby([group_key, label_key], dropna=False)
+        .size()
+        .rename("n_cells")
+        .reset_index()
+        .sort_values(["n_cells", group_key, label_key], ascending=[False, True, True])
+    )
+    return out
+
+
+method_comparison = load_table(ROOT, context["tables"]["method_comparison"])
+cluster_summary = load_table(ROOT, context["tables"]["cluster_annotation_summary"])
+status_summary = load_table(ROOT, context["tables"]["annotation_status_summary"])
+cell_predictions = load_table(ROOT, context["tables"]["cell_annotation_predictions"])
+predicted_label_key = context["predicted_label_key"]
+final_label_key = context["final_label_key"]
+cluster_key = context["cluster_key"]
+batch_key = context["batch_key"]
+condition_key = context["condition_key"]
+sample_id_key = context["sample_id_key"]
+
+label_counts = (
+    adata.obs[final_label_key]
+    .astype(str)
+    .value_counts(dropna=False)
+    .rename_axis(final_label_key)
+    .reset_index(name="n_cells")
+)
+label_counts["fraction_of_cells"] = label_counts["n_cells"] / max(1, adata.n_obs)
+
+cluster_review_table = cluster_summary.sort_values(
+    ["annotation_status", "n_cells", "top_label_fraction"],
+    ascending=[True, False, False],
+).reset_index(drop=True)
+
+batch_composition = optional_composition_table(adata.obs, group_key=batch_key, label_key=final_label_key)
+condition_composition = optional_composition_table(adata.obs, group_key=condition_key, label_key=final_label_key)
+
+n_clusters = int(cluster_summary["cluster"].nunique())
+n_review_needed = int(cluster_summary["annotation_status"].astype(str).str.startswith("review_needed").sum())
+n_accepted = int((cluster_summary["annotation_status"] == "accepted").sum())
+n_unknown_cells = int(adata.obs[final_label_key].astype(str).eq(context["unknown_label"]).sum())
+unknown_fraction = n_unknown_cells / max(1, adata.n_obs)
+mean_confidence = float(cell_predictions["predicted_confidence"].mean())
+```
+
+## Executive Summary
+
+```{python}
+display(
+    Markdown(
+        f"""
+This report summarizes the current annotation state for **{adata.n_obs:,} cells**
+across **{n_clusters:,} clusters**.
+
+- **Accepted clusters:** {n_accepted:,}
+- **Clusters still needing review:** {n_review_needed:,}
+- **Cells currently labeled `{context["unknown_label"]}`:** {n_unknown_cells:,} ({unknown_fraction:.1%})
+- **Mean prediction confidence:** {mean_confidence:.3f}
+
+Use this page to answer three questions quickly:
+1. How much of the dataset is already assignable?
+2. Which clusters still need manual review?
+3. Do the final labels look biologically and technically coherent on the UMAP?
+"""
+    )
+)
+```
+
+## Annotation Principles
+
+This overview follows the general guidance from the single-cell best-practices
+annotation chapter: use automated annotation as a starting point, prefer
+well-matched references, and always confirm uncertain calls with cluster context
+and marker evidence instead of trusting a classifier blindly.
+
+```{python}
+principles_df = pd.DataFrame(
+    [
+        {"principle": "Reference similarity matters", "why_it_matters": "annotation quality depends strongly on organ, assay, and reference match"},
+        {"principle": "Uncertainty should stay visible", "why_it_matters": "low-confidence cells and clusters should remain reviewable rather than forced"},
+        {"principle": "Cluster context helps", "why_it_matters": "single-cell predictions are easier to validate when viewed against cluster structure"},
+        {"principle": "Marker review remains important", "why_it_matters": "biological plausibility still needs manual confirmation"},
+    ]
+)
+format_table(principles_df)
+```
+
+## Input And Run Context
+
+This section records the source object and the basic dimensions of the run so
+the downstream review remains interpretable and reproducible.
+
+```{python}
+overview_df = pd.DataFrame(
+    [
+        {"field": "input_h5ad", "value": context["input_h5ad"]},
+        {"field": "input_source_template", "value": context["input_source_template"]},
+        {"field": "selected_methods", "value": ", ".join(context["selected_methods"])},
+        {"field": "cluster_key", "value": cluster_key},
+        {"field": "final_label_key", "value": final_label_key},
+        {"field": "n_cells", "value": int(adata.n_obs)},
+        {"field": "n_genes", "value": int(adata.n_vars)},
+    ]
+)
+format_table(overview_df)
+```
+
+## Review Status Summary
+
+These tables and figures show how much of the dataset is already accepted and
+where the remaining manual review effort is concentrated.
+
+```{python}
+format_table(status_summary)
+```
+
+```{python}
+status_plot = px.bar(
+    status_summary,
+    x="annotation_status",
+    y="n_clusters",
+    color="annotation_status",
+    title="Clusters by annotation review status",
+)
+style_bar(status_plot, height=420)
+```
+
+```{python}
+format_table(cluster_review_table)
+```
+
+## Final Label Distribution
+
+This section answers whether the current final labels look plausible at the
+dataset level before drilling into individual methods.
+
+```{python}
+format_table(label_counts)
+```
+
+```{python}
+label_plot = px.bar(
+    label_counts,
+    x=final_label_key,
+    y="n_cells",
+    color=final_label_key,
+    title="Cells per final label",
+)
+style_bar(label_plot, height=450)
+```
+
+## Method Comparison
+
+Only implemented methods contribute real quantitative rows here. As more
+annotation backends are added, this table becomes the high-level comparison
+surface for confidence and review burden.
+
+```{python}
+format_table(method_comparison)
+```
+
+## Embedding Review
+
+These UMAPs are the fastest way to check whether final labels and review status
+follow biological structure rather than looking random or batch-driven.
+
+```{python}
+final_plot_df = embedding_frame(
+    adata,
+    "X_umap",
+    [
+        final_label_key,
+        "annotation_status",
+        cluster_key,
+        batch_key,
+        condition_key,
+        "sample_display",
+        sample_id_key,
+    ],
+)
+final_label_plot = px.scatter(
+    final_plot_df,
+    x="dim_1",
+    y="dim_2",
+    color=final_label_key,
+    hover_data=[
+        key
+        for key in [
+            "sample_display",
+            sample_id_key,
+            cluster_key,
+            batch_key,
+            condition_key,
+            "annotation_status",
+        ]
+        if key in final_plot_df.columns
+    ],
+    title=f"UMAP colored by {final_label_key}",
+)
+style_scatter(final_label_plot)
+```
+
+```{python}
+status_plot_umap = px.scatter(
+    final_plot_df,
+    x="dim_1",
+    y="dim_2",
+    color="annotation_status",
+    hover_data=[
+        key
+        for key in ["sample_display", sample_id_key, cluster_key, final_label_key]
+        if key in final_plot_df.columns
+    ],
+    title="UMAP colored by annotation review status",
+)
+style_scatter(status_plot_umap)
+```
+
+## Technical Composition Checks
+
+These summaries help catch label assignments that are dominated by one batch or
+condition when that would be unexpected biologically.
+
+```{python}
+if batch_composition.empty:
+    display(Markdown("No informative batch composition table is shown because the configured batch column is missing or only contains `unknown`."))
+else:
+    format_table(batch_composition.head(30))
+```
+
+```{python}
+if batch_composition.empty:
+    display(Markdown("No batch composition figure was generated."))
+else:
+    batch_plot = px.bar(
+        batch_composition,
+        x=batch_key,
+        y="n_cells",
+        color=final_label_key,
+        title=f"Final-label composition by {batch_key}",
+    )
+    style_bar(batch_plot, height=450)
+```
+
+```{python}
+if condition_composition.empty:
+    display(Markdown("No informative condition composition table is shown because the configured condition column is missing or only contains `unknown`."))
+else:
+    format_table(condition_composition.head(30))
+```
+
+```{python}
+if condition_composition.empty:
+    display(Markdown("No condition composition figure was generated."))
+else:
+    condition_plot = px.bar(
+        condition_composition,
+        x=condition_key,
+        y="n_cells",
+        color=final_label_key,
+        title=f"Final-label composition by {condition_key}",
+    )
+    style_bar(condition_plot, height=450)
+```
+
+## Interpretation Guide
+
+- A strong report usually has most cells assigned to biologically plausible
+  labels with only a minority of clusters left in review.
+- Review-needed clusters deserve extra attention when their top-label fraction
+  is low, their confidence is modest, or the marker layer disagrees later in the
+  method-specific report.
+- Strong batch domination inside a single final label is not automatically bad,
+  but it is a prompt to check whether the assignment reflects biology or
+  technical structure.
+
+## References Consulted
+
+```{python}
+references_df = pd.DataFrame(
+    [
+        {
+            "resource": "Single-cell best practices: annotation",
+            "role": "overall report framing and annotation-review principles",
+            "link": "https://www.sc-best-practices.org/cellular_structure/annotation.html",
+        },
+        {
+            "resource": "CellTypist paper and documentation",
+            "role": "current implemented method behavior and review expectations",
+            "link": "https://pubmed.ncbi.nlm.nih.gov/35549406/",
+        },
+    ]
+)
+format_table(references_df)
+```
+
+## Session Info
+
+```{python}
+session_df = package_versions_table(["scanpy", "anndata", "pandas", "numpy", "plotly", "celltypist"])
+format_table(session_df)
+```

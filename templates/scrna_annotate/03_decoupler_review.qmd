@@ -1,0 +1,166 @@
+---
+title: "scRNA Annotation Review Report: decoupler"
+date: today
+jupyter: python3
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 3
+    toc-location: left
+    html-math-method: katex
+    embed-resources: true
+    page-layout: full
+    html-table-processing: none
+    theme: lumen
+    fig-width: 10
+    fig-height: 5
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{python}
+from pathlib import Path
+import sys
+
+from IPython.display import Markdown, display
+import pandas as pd
+
+LIB_DIR = Path(".").resolve() / "lib"
+if str(LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(LIB_DIR))
+
+from report_utils import format_table, load_report_context, package_versions_table
+
+ROOT = Path(".").resolve()
+context = load_report_context(ROOT)
+```
+
+## Current Status
+
+```{python}
+display(
+    Markdown(
+        """
+This is a **scaffold report** for a future Python-native **decoupler** review
+layer. In this template, decoupler is planned as a **validation layer** rather
+than a standalone label-transfer engine.
+"""
+    )
+)
+```
+
+```{python}
+status_df = pd.DataFrame(
+    [
+        {"field": "method", "value": "decoupler_review"},
+        {"field": "implemented_in_runtime", "value": "no"},
+        {"field": "intended_role", "value": "marker and pathway-based annotation review"},
+        {"field": "selected_in_current_run", "value": "decoupler_review" in context["selected_methods"]},
+    ]
+)
+format_table(status_df)
+```
+
+## Why This Layer Matters
+
+```{python}
+fit_df = pd.DataFrame(
+    [
+        {"strength": "marker interpretability", "why_it_matters": "helps explain or challenge classifier-driven labels"},
+        {"strength": "pathway context", "why_it_matters": "adds functional support to ambiguous clusters"},
+        {"strength": "review-oriented output", "why_it_matters": "fits best-practice annotation workflows that separate prediction from confirmation"},
+    ]
+)
+format_table(fit_df)
+```
+
+## Paper And Documentation Takeaways
+
+The decoupleR / decoupler documentation and paper frame the method family as an
+activity-inference toolkit rather than a direct single-label classifier. For
+this template, that supports using decoupler as a review layer that strengthens
+or questions a proposed annotation, especially through marker- or pathway-level
+evidence.
+
+```{python}
+takeaways_df = pd.DataFrame(
+    [
+        {"takeaway": "activity inference rather than direct labeling", "implication": "best treated as validation, not as the only annotation source"},
+        {"takeaway": "supports prior knowledge resources", "implication": "useful when curated marker or pathway sets exist"},
+        {"takeaway": "cluster-level summaries are natural", "implication": "fits review of ambiguous clusters after classifier output"},
+        {"takeaway": "interpretability is a strength", "implication": "good for explaining why a label does or does not fit"},
+    ]
+)
+format_table(takeaways_df)
+```
+
+## Required Future Inputs
+
+```{python}
+config_df = pd.DataFrame(
+    [
+        {"key": "marker_review.marker_file", "meaning": "user-supplied marker set YAML"},
+        {"key": "optional signature resource", "meaning": "external prior-knowledge collection"},
+        {"key": "cluster_key", "meaning": "grouping level for review summaries"},
+    ]
+)
+format_table(config_df)
+```
+
+## Planned Review Outputs
+
+```{python}
+planned_df = pd.DataFrame(
+    [
+        {"planned_section": "marker-score heatmap", "content": "cluster by candidate-label score matrix"},
+        {"planned_section": "agreement summary", "content": "marker evidence versus classifier suggestion"},
+        {"planned_section": "pathway activity view", "content": "functional context for uncertain clusters"},
+        {"planned_section": "conflict table", "content": "clusters needing manual adjudication"},
+    ]
+)
+format_table(planned_df)
+```
+
+## Readiness Checklist
+
+```{python}
+checklist_df = pd.DataFrame(
+    [
+        {"task": "add decoupler dependency and runtime params", "status": "pending"},
+        {"task": "write score tables into results/", "status": "pending"},
+        {"task": "add cluster-level heatmaps and conflict summaries", "status": "pending"},
+        {"task": "connect review outputs to final annotation workflow", "status": "pending"},
+    ]
+)
+format_table(checklist_df)
+```
+
+## References Consulted
+
+```{python}
+references_df = pd.DataFrame(
+    [
+        {
+            "resource": "decoupler single-cell documentation",
+            "role": "single-cell usage patterns and resource access",
+            "link": "https://decoupler.readthedocs.io/en/stable/notebooks/scell/rna_sc.html",
+        },
+        {
+            "resource": "decoupleR paper",
+            "role": "method framing and prior-knowledge inference context",
+            "link": "https://academic.oup.com/bioinformaticsadvances/article/2/1/vbac016/6544613",
+        },
+    ]
+)
+format_table(references_df)
+```
+
+## Session Info
+
+```{python}
+session_df = package_versions_table(["scanpy", "anndata", "pandas", "numpy", "plotly", "decoupler"])
+format_table(session_df)
+```

@@ -162,18 +162,19 @@ templates:
       - missmethyl
       - quarto
 
-  scverse_scrna_prep:
+  scrna_prep:
     category: downstream_analysis
     publication_relevance: true
     label: Single-cell RNA-seq preprocessing and quality control
-    summary: Single-cell RNA-seq data were prepared in an editable Scanpy/scverse workspace with quality control, dimensionality reduction, clustering, and Quarto reporting.
-    method_core: Single-cell RNA-seq data were processed in an editable Scanpy/scverse preprocessing workspace that imports matrix or H5AD inputs, computes quality-control metrics, applies configurable filtering, performs graph-based embedding and clustering, and renders a Quarto QC report.
+    summary: Single-cell RNA-seq data were prepared in an editable Scanpy/scverse workspace with sample-aware quality control, dimensionality reduction, clustering, and Quarto reporting.
+    method_core: Single-cell RNA-seq data were processed in an editable Scanpy/scverse preprocessing workspace that imports matrix or H5AD inputs, computes cell-level quality-control metrics, applies configurable filtering, performs graph-based embedding and clustering, and renders a Quarto QC report.
     method_details:
       - Input data can be imported from H5AD objects, 10x Genomics HDF5 or MTX outputs, Parse Biosciences matrices, ScaleBio or STARsolo-style matrices, or Cell Ranger per-sample outputs.
       - Cell-level quality-control metrics include library size, detected genes, and organism-aware mitochondrial, ribosomal, and hemoglobin transcript fractions.
       - Filtering can be applied through fixed thresholds or per-sample median absolute deviation rules, allowing sample-aware exclusion of low-quality outlier cells.
       - When enabled, doublet scoring is performed with Scrublet and predicted doublets can be retained for review or removed from the filtered analysis object.
       - The retained object is normalized, highly variable genes are identified, and principal component analysis, nearest-neighbor graph construction, UMAP embedding, and Leiden clustering are performed within the same Scanpy workflow.
+      - Quality-control summaries, clustering diagnostics, and interactive embedding views are rendered in the Quarto report alongside the prepared AnnData object.
       - Resolution benchmarking can be used to review clustering structure across multiple Leiden resolutions.
     important_params:
       - input_format
@@ -215,6 +216,7 @@ templates:
       - QC thresholds, doublet handling, and graph parameters influence the retained cell set and exploratory structure.
     command_hints:
       - When runtime metadata are sparse, use the catalog description plus recorded software versions.
+      - Cite Scrublet only when doublet detection was enabled for the recorded run.
     tools:
       - Scanpy
       - scverse
@@ -223,7 +225,128 @@ templates:
       - Quarto
     citations:
       - scanpy
-      - scrublet
+      - umap
+      - leiden
+      - quarto
+
+  scrna_integrate:
+    category: downstream_analysis
+    publication_relevance: true
+    label: Single-cell RNA-seq dataset integration
+    summary: Multiple single-cell RNA-seq datasets were integrated in an editable Scanpy/scverse workspace with explicit unintegrated baseline review, batch-aware latent modeling or graph correction, and quantitative integration diagnostics.
+    method_core: Multiple single-cell RNA-seq datasets were integrated in an editable Scanpy/scverse workspace that validates the batch variable, preserves an unintegrated baseline embedding, performs one configured integration backend, rebuilds graph-based embeddings and clustering from the integrated representation, and renders a Quarto QC report with quantitative diagnostics.
+    method_details:
+      - The workspace consumes a prepared AnnData object, checks that the configured batch column contains at least two real categories, and fails early rather than fabricating placeholder metadata.
+      - An unintegrated baseline PCA, nearest-neighbor graph, UMAP embedding, and Leiden clustering are computed before correction so the apparent batch structure can be reviewed directly.
+      - Integration can be performed with scVI, scANVI, Harmony, BBKNN, or Scanorama, with method-specific validation and parameter recording in the runtime metadata.
+      - For scVI and scANVI, the workspace requires raw UMI counts in `adata.layers["counts"]` and rebuilds the downstream graph from the learned latent representation.
+      - For Harmony, BBKNN, and Scanorama, dimensionality reduction and graph reconstruction are performed without dense centering of sparse matrices.
+      - Quantitative diagnostics include neighborhood batch-mixing summaries, graph-connectivity assessment when labels are available, and optional scIB metrics when the package is installed and the required labels are present.
+      - The integrated AnnData object, integration metric tables, and the rendered Quarto report are written as explicit outputs for downstream export and review.
+    important_params:
+      - integration_method
+      - batch_key
+      - label_key_for_metrics
+      - run_scib_metrics
+      - use_hvgs_only
+      - n_top_hvgs
+      - n_pcs
+      - n_neighbors
+      - umap_min_dist
+      - cluster_resolution
+      - scanvi_label_key
+      - scanvi_unlabeled_category
+      - scvi_latent_dim
+      - scvi_max_epochs
+      - scvi_gene_likelihood
+    param_explanations:
+      integration_method: Integration backend used to construct the corrected representation.
+      batch_key: Obs column defining the batches or datasets to integrate.
+      label_key_for_metrics: Optional label column used for biological-conservation diagnostics.
+      run_scib_metrics: Whether optional scIB metrics were attempted in addition to the native diagnostics.
+      use_hvgs_only: Whether integration was restricted to highly variable genes.
+      n_top_hvgs: Number of highly variable genes used when they were recomputed.
+      n_pcs: Number of principal components used for classical integration methods and the unintegrated baseline.
+      n_neighbors: Number of neighbors used for graph construction and batch-mixing summaries.
+      umap_min_dist: UMAP minimum-distance parameter used for baseline and integrated embeddings.
+      cluster_resolution: Leiden resolution used for baseline and integrated clustering.
+      scanvi_label_key: Label column supplied to scANVI when semi-supervised integration was used.
+      scanvi_unlabeled_category: Label value treated as unlabeled by scANVI.
+      scvi_latent_dim: Latent dimensionality used by scVI or scANVI.
+      scvi_max_epochs: Maximum training epochs used by scVI or scANVI.
+      scvi_gene_likelihood: Gene-likelihood family used by scVI or scANVI.
+    param_context:
+      - The batch variable and integration backend determine whether the run behaves like simple correction or full cross-dataset integration.
+      - Label-aware diagnostics are only available when biologically meaningful labels are present in the prepared object.
+    command_hints:
+      - When runtime metadata are sparse, prefer the recorded `integration_method`, `batch_key`, and metrics-table outputs over generic wording.
+      - Cite the specific integration backend used for the recorded run rather than listing all supported methods.
+      - Cite scIB only when `run_scib_metrics` was enabled for the recorded run.
+    tools:
+      - Scanpy
+      - scverse
+      - scVI
+      - scANVI
+      - Harmony
+      - BBKNN
+      - Scanorama
+      - Quarto
+    citations:
+      - scanpy
+      - umap
+      - leiden
+      - quarto
+
+  scrna_annotate:
+    category: downstream_analysis
+    publication_relevance: true
+    label: Single-cell RNA-seq cell type annotation
+    summary: Single-cell RNA-seq profiles were annotated in an editable Scanpy/scverse workspace using CellTypist label transfer, cluster-level review, and optional marker-based validation.
+    method_core: Single-cell RNA-seq profiles were annotated in an editable Scanpy/scverse workspace that applies CellTypist-based label transfer, summarizes predictions by cluster, optionally scores user-provided marker sets for review, and records a conservative final label column for unresolved clusters.
+    method_details:
+      - The workspace consumes a prepared or integrated AnnData object together with an existing clustering result and preserves the distinction between per-cell predicted labels, cluster-level suggested labels, and final accepted labels.
+      - CellTypist predictions are generated from a log-normalized expression view of the data using a user-specified built-in or custom reference model.
+      - Prediction confidence is recorded for each cell and is aggregated at the cluster level together with the dominant predicted label fraction.
+      - Cluster-level labels are only accepted automatically when the dominant prediction frequency and the mean confidence exceed the configured review thresholds; otherwise the cluster remains unresolved for manual inspection.
+      - Optional marker sets can be supplied to score candidate labels across clusters as an additional review layer rather than as a silent override of the classifier output.
+      - The annotated AnnData object, cluster review tables, and Quarto report are written as explicit outputs for downstream interpretation and export.
+    important_params:
+      - annotation_method
+      - celltypist_model
+      - celltypist_mode
+      - celltypist_p_thres
+      - cluster_key
+      - majority_vote_min_fraction
+      - confidence_threshold
+      - unknown_label
+      - predicted_label_key
+      - final_label_key
+      - marker_file
+    param_explanations:
+      annotation_method: Annotation backend used to generate the initial cell identity predictions.
+      celltypist_model: Built-in or custom CellTypist reference model used for label transfer.
+      celltypist_mode: CellTypist prediction mode controlling whether best-match or probability-threshold labeling was used.
+      celltypist_p_thres: Probability threshold used when CellTypist probability-matching mode was selected.
+      cluster_key: Cluster column used for annotation review and cluster-level label consolidation.
+      majority_vote_min_fraction: Minimum fraction of cells within a cluster required before the dominant predicted label is accepted automatically.
+      confidence_threshold: Minimum mean classifier confidence required before a cluster-level label is accepted automatically.
+      unknown_label: Label used for unresolved or review-required cells.
+      predicted_label_key: Observation column containing the raw classifier predictions.
+      final_label_key: Observation column containing the final accepted annotation after review rules.
+      marker_file: Optional marker-set file used for marker-based review summaries.
+    param_context:
+      - Automated annotation quality depends strongly on how well the reference model matches the query data and how informative the upstream clustering is.
+      - Marker-based review is intended as a validation layer rather than as a substitute for a relevant reference model.
+    command_hints:
+      - When runtime metadata are sparse, prefer the recorded CellTypist model name, cluster key, and review-threshold parameters over generic annotation wording.
+      - Cite CellTypist when annotation_method was `celltypist`.
+    tools:
+      - Scanpy
+      - scverse
+      - CellTypist
+      - Quarto
+    citations:
+      - scanpy
       - quarto
 
   nfcore_3mrnaseq:
@@ -362,3 +485,30 @@ references:
   scrublet:
     text: "Wolock SL, Lopez R, Klein AM. Scrublet: computational identification of cell doublets in single-cell transcriptomic data. Cell Systems. 2019."
     url: "https://doi.org/10.1016/j.cels.2018.11.005"
+  umap:
+    text: "McInnes L, Healy J, Melville J. UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction. arXiv. 2018."
+    url: "https://arxiv.org/abs/1802.03426"
+  leiden:
+    text: "Traag VA, Waltman L, van Eck NJ. From Louvain to Leiden: guaranteeing well-connected communities. Scientific Reports. 2019."
+    url: "https://doi.org/10.1038/s41598-019-41695-z"
+  scvi:
+    text: "Lopez R, Regier J, Cole MB, Jordan MI, Yosef N. Deep generative modeling for single-cell transcriptomics. Nature Methods. 2018."
+    url: "https://doi.org/10.1038/s41592-018-0229-2"
+  scanvi:
+    text: "Xu C, Lopez R, Mehlman E, et al. Probabilistic harmonization and annotation of single-cell transcriptomics data with deep generative models. Molecular Systems Biology. 2021."
+    url: "https://doi.org/10.15252/msb.20209620"
+  harmony:
+    text: "Korsunsky I, Millard N, Fan J, et al. Fast, sensitive and accurate integration of single-cell data with Harmony. Nature Methods. 2019."
+    url: "https://doi.org/10.1038/s41592-019-0619-0"
+  bbknn:
+    text: "Polański K, Young MD, Miao Z, et al. BBKNN: fast batch alignment of single cell transcriptomes. Bioinformatics. 2020."
+    url: "https://doi.org/10.1093/bioinformatics/btz625"
+  scanorama:
+    text: "Hie B, Bryson B, Berger B. Efficient integration of heterogeneous single-cell transcriptomes using Scanorama. Nature Biotechnology. 2019."
+    url: "https://doi.org/10.1038/s41587-019-0113-3"
+  scib:
+    text: "Luecken MD, Büttner M, Chaichoompu K, et al. Benchmarking atlas-level data integration in single-cell genomics. Nature Methods. 2022."
+    url: "https://doi.org/10.1038/s41592-021-01336-8"
+  celltypist:
+    text: "Dominguez Conde C, Xu C, Jarvis LB, et al. Cross-tissue immune cell analysis reveals tissue-specific features in humans. Science. 2022."
+    url: "https://pubmed.ncbi.nlm.nih.gov/35549406/"

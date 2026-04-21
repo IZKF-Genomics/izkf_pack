@@ -160,13 +160,13 @@ Returns the upstream template id as the application label for DGEA reports.
 
 Source: [`get_scrna_prep_input_h5ad.py`](get_scrna_prep_input_h5ad.py)
 
-Returns the latest upstream `nfcore_scrnaseq.selected_matrix_h5ad` output so `scverse_scrna_prep` can reuse the preferred single-cell matrix automatically.
+Returns the latest upstream `nfcore_scrnaseq.selected_matrix_h5ad` output so `scrna_prep` can reuse the preferred single-cell matrix automatically.
 
 ### `get_scrna_prep_input_source_template`
 
 Source: [`get_scrna_prep_input_source_template.py`](get_scrna_prep_input_source_template.py)
 
-Returns the latest upstream single-cell template id, currently `nfcore_scrnaseq`, for provenance tracking in `scverse_scrna_prep`.
+Returns the latest upstream single-cell template id, currently `nfcore_scrnaseq`, for provenance tracking in `scrna_prep`.
 
 ### `get_scrna_prep_ambient_correction_applied`
 
@@ -184,7 +184,31 @@ Returns the inferred ambient RNA correction method name, such as `cellbender`, `
 
 Source: [`get_scrna_prep_organism.py`](get_scrna_prep_organism.py)
 
-Maps the latest upstream `nfcore_scrnaseq` genome or organism value to the organism label expected by `scverse_scrna_prep`.
+Maps the latest upstream `nfcore_scrnaseq` genome or organism value to the organism label expected by `scrna_prep`.
+
+### `get_scrna_integrate_input_h5ad`
+
+Source: [`get_scrna_integrate_input_h5ad.py`](get_scrna_integrate_input_h5ad.py)
+
+Returns the latest upstream `scrna_prep.scrna_prep_h5ad` output so `scrna_integrate` can reuse the prepared AnnData object automatically. For backward compatibility it also falls back to the matching `adata.prep.h5ad` entry inside `h5ad_outputs`.
+
+### `get_scrna_integrate_input_source_template`
+
+Source: [`get_scrna_integrate_input_source_template.py`](get_scrna_integrate_input_source_template.py)
+
+Returns the latest upstream single-cell preparation template id, currently `scrna_prep`, for provenance tracking in `scrna_integrate`.
+
+### `get_scrna_annotate_input_h5ad`
+
+Source: [`get_scrna_annotate_input_h5ad.py`](get_scrna_annotate_input_h5ad.py)
+
+Returns the preferred upstream single-cell AnnData input for `scrna_annotate`. The default preference order is `scrna_prep.scrna_prep_h5ad` first, then `scrna_integrate.integrated_h5ad` as a fallback.
+
+### `get_scrna_annotate_input_source_template`
+
+Source: [`get_scrna_annotate_input_source_template.py`](get_scrna_annotate_input_source_template.py)
+
+Returns the template id corresponding to the chosen default annotation input, matching the same preference order as `get_scrna_annotate_input_h5ad`.
 
 ### `get_dgea_name`
 

@@ -1,12 +1,12 @@
 [workspace]
-name = "scverse_scrna_prep"
+name = "scrna_integrate"
 channels = ["conda-forge", "bioconda"]
 platforms = ["linux-64"]
 version = "0.1.0"
 
 [tasks]
-render = { cmd = ["quarto", "render", "00_qc.qmd", "--to", "html", "--no-clean"] }
-clean = { cmd = ["bash", "-lc", "rm -rf results .quarto 00_qc.html"] }
+render = { cmd = ["quarto", "render", "qc.qmd", "--to", "html", "--no-clean"] }
+clean = { cmd = ["bash", "-lc", "rm -rf results .quarto reports qc.html"] }
 
 [dependencies]
 python = ">=3.11,<3.13"
@@ -24,5 +24,10 @@ plotly = ">=6.0,<7"
 python-igraph = ">=0.11,<1"
 leidenalg = ">=0.10,<1"
 scikit-learn = ">=1.6,<2"
-scrublet = ">=0.2.3,<1"
+harmonypy = ">=0.0.10,<1"
+bbknn = ">=1.6,<2"
+scanorama = ">=1.7,<2"
 python-tzdata = ">=2024.1"
+
+[pypi-dependencies]
+scvi-tools = ">=1.2,<2"

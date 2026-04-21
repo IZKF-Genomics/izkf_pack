@@ -1,0 +1,167 @@
+---
+title: "scRNA Annotation Method Report: scGPT"
+date: today
+jupyter: python3
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 3
+    toc-location: left
+    html-math-method: katex
+    embed-resources: true
+    page-layout: full
+    html-table-processing: none
+    theme: lumen
+    fig-width: 10
+    fig-height: 5
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{python}
+from pathlib import Path
+import sys
+
+from IPython.display import Markdown, display
+import pandas as pd
+
+LIB_DIR = Path(".").resolve() / "lib"
+if str(LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(LIB_DIR))
+
+from report_utils import format_table, load_report_context, package_versions_table
+
+ROOT = Path(".").resolve()
+context = load_report_context(ROOT)
+```
+
+## Current Status
+
+```{python}
+display(
+    Markdown(
+        """
+This is a **scaffold report** for a future Python-native **scGPT** backend.
+The goal is to keep the report structure ready while treating foundation-model
+annotation as an explicitly advanced, research-oriented option.
+"""
+    )
+)
+```
+
+```{python}
+status_df = pd.DataFrame(
+    [
+        {"field": "method", "value": "scgpt"},
+        {"field": "implemented_in_runtime", "value": "no"},
+        {"field": "intended_role", "value": "foundation-model-based annotation and mapping"},
+        {"field": "selected_in_current_run", "value": "scgpt" in context["selected_methods"]},
+    ]
+)
+format_table(status_df)
+```
+
+## Why This Backend Is Different
+
+```{python}
+fit_df = pd.DataFrame(
+    [
+        {"consideration": "foundation-model workflow", "impact": "more flexible but operationally heavier than standard classifiers"},
+        {"consideration": "checkpoint management", "impact": "requires clear handling of pretrained or fine-tuned weights"},
+        {"consideration": "compute cost", "impact": "GPU availability may strongly affect usability"},
+    ]
+)
+format_table(fit_df)
+```
+
+## Paper And Documentation Takeaways
+
+The scGPT paper frames the method as a foundation-model approach for
+single-cell multi-omic analysis, not just a narrow annotation utility. That
+gives it interesting long-term potential, but also means the reporting and
+runtime contract need to be clearer about checkpoint provenance, vocabulary
+alignment, and compute cost than they would be for a simpler classifier.
+
+```{python}
+takeaways_df = pd.DataFrame(
+    [
+        {"takeaway": "foundation-model orientation", "implication": "annotation is only one possible downstream use case"},
+        {"takeaway": "large pretrained checkpoints", "implication": "checkpoint provenance should be visible in reports"},
+        {"takeaway": "gene vocabulary alignment", "implication": "input validation will need to be stricter than for CellTypist"},
+        {"takeaway": "higher operational cost", "implication": "GPU and runtime summaries matter for reproducibility"},
+    ]
+)
+format_table(takeaways_df)
+```
+
+## Required Future Inputs
+
+```{python}
+planned_df = pd.DataFrame(
+    [
+        {"input": "model checkpoint", "purpose": "pretrained or fine-tuned weights"},
+        {"input": "gene vocabulary mapping", "purpose": "align query genes to model vocabulary"},
+        {"input": "fine-tuning controls", "purpose": "decide inference-only vs adaptation"},
+        {"input": "GPU availability", "purpose": "practical runtime requirement for larger models"},
+    ]
+)
+format_table(planned_df)
+```
+
+## Planned Report Contents
+
+```{python}
+diagnostics_df = pd.DataFrame(
+    [
+        {"planned_section": "predicted label summary", "content": "cell- and cluster-level annotation output"},
+        {"planned_section": "uncertainty review", "content": "confidence or fallback uncertainty summaries"},
+        {"planned_section": "cross-method agreement", "content": "compare scGPT to other backends"},
+        {"planned_section": "runtime summary", "content": "document resource use and checkpoint provenance"},
+    ]
+)
+format_table(diagnostics_df)
+```
+
+## Readiness Checklist
+
+```{python}
+checklist_df = pd.DataFrame(
+    [
+        {"task": "define checkpoint/config contract", "status": "pending"},
+        {"task": "add vocabulary alignment checks", "status": "pending"},
+        {"task": "write scGPT result tables", "status": "pending"},
+        {"task": "add method-specific review figures", "status": "pending"},
+    ]
+)
+format_table(checklist_df)
+```
+
+## References Consulted
+
+```{python}
+references_df = pd.DataFrame(
+    [
+        {
+            "resource": "scGPT paper",
+            "role": "method framing and foundation-model scope",
+            "link": "https://www.nature.com/articles/s41592-024-02201-0",
+        },
+        {
+            "resource": "scGPT documentation",
+            "role": "package-level usage and implementation context",
+            "link": "https://scgpt.readthedocs.io/",
+        },
+    ]
+)
+format_table(references_df)
+```
+
+## Session Info
+
+```{python}
+session_df = package_versions_table(["scanpy", "anndata", "pandas", "numpy", "plotly", "scgpt"])
+format_table(session_df)
+```

@@ -22,7 +22,7 @@ is a visible workspace that can be rerun and edited directly. Examples include:
 - `methods`
 - `nfcore_3mrnaseq`
 - `nfcore_methylseq`
-- `scverse_scrna_prep`
+- `scrna_prep`
 
 When possible, rerunning should overwrite the visible workspace outputs instead
 of forcing users to inspect hidden historical bundles.

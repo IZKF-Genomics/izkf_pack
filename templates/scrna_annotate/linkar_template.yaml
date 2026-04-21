@@ -1,0 +1,128 @@
+id: scrna_annotate
+version: 0.1.0
+description: Editable scverse/Scanpy single-cell RNA-seq annotation workspace with CellTypist-based label transfer, marker review, and Quarto reporting.
+tools:
+  required:
+    - pixi
+    - python3
+    - quarto
+params:
+  annotation_config:
+    type: path
+    default: "config/00_annotation_config.yaml"
+    description: User-facing YAML config file. If the default path does not exist, the template seeds it from `assets/00_annotation_config.template.yaml`. Environment variables still override YAML values.
+  input_h5ad:
+    type: path
+    default: ""
+    description: Optional prepared `.h5ad` input. The default pack binding prefers the latest `scrna_prep` output because classifier-based annotation benefits from the full feature space.
+  input_source_template:
+    type: str
+    default: ""
+    description: Optional provenance label recording which upstream template produced the chosen input.
+  annotation_method:
+    type: str
+    default: "celltypist"
+    description: Primary annotation backend used for backward compatibility and methods reporting. `celltypist` is currently the supported value.
+  annotation_methods:
+    type: str
+    default: "celltypist"
+    description: "Comma-separated list of annotation methods to run and render as sub-reports. Currently supported: `celltypist`."
+  celltypist_model:
+    type: str
+    default: ""
+    description: Required CellTypist model name or path. No global default is applied because annotation quality depends strongly on reference relevance.
+  celltypist_mode:
+    type: str
+    default: "best_match"
+    description: CellTypist prediction mode. Supported values are `best_match` and `prob_match`.
+  celltypist_p_thres:
+    type: str
+    default: "0.5"
+    description: CellTypist probability threshold used when `celltypist_mode=prob_match`.
+  use_gpu:
+    type: bool
+    default: false
+    description: Request GPU support for CellTypist where available.
+  cluster_key:
+    type: str
+    default: "leiden"
+    description: Cluster column used for cluster-level annotation review and majority summaries.
+  batch_key:
+    type: str
+    default: "batch"
+    description: Optional batch column used in review plots and summary tables when available.
+  condition_key:
+    type: str
+    default: "condition"
+    description: Optional condition column used in review plots and summary tables when available.
+  sample_id_key:
+    type: str
+    default: "sample_id"
+    description: Optional sample identifier column used in hover labels and tables.
+  sample_label_key:
+    type: str
+    default: "sample_display"
+    description: Optional sample display column used in hover labels and tables.
+  majority_vote_min_fraction:
+    type: str
+    default: "0.6"
+    description: Minimum within-cluster label fraction required before a cluster-level suggested label is accepted automatically.
+  confidence_threshold:
+    type: str
+    default: "0.5"
+    description: Minimum mean CellTypist confidence required before a cluster-level suggested label is accepted automatically.
+  unknown_label:
+    type: str
+    default: "Unknown"
+    description: Label used for unresolved cells or clusters that still require manual review.
+  predicted_label_key:
+    type: str
+    default: "predicted_label"
+    description: Observation column name used for cell-level predicted labels.
+  final_label_key:
+    type: str
+    default: "final_label"
+    description: Observation column name used for final cluster-level labels after automated review rules.
+  marker_file:
+    type: path
+    default: ""
+    description: Optional YAML file mapping candidate labels to marker genes for review summaries.
+  rank_top_markers:
+    type: int
+    default: 5
+    description: Number of top CellTypist labels to retain per cluster in the review summary table.
+  random_seed:
+    type: int
+    default: 0
+    description: Random seed used for reproducible helper steps.
+outputs:
+  results_dir: {}
+  annotation_config_file:
+    path: config/00_annotation_config.yaml
+  resolved_annotation_config:
+    path: config/00_annotation_config.resolved.yaml
+  run_info:
+    path: results/run_info.yaml
+  software_versions:
+    path: results/software_versions.json
+  config_file:
+    path: config/project.toml
+  annotated_h5ad:
+    path: results/adata.annotated.h5ad
+  cell_annotation_predictions:
+    path: results/tables/cell_annotation_predictions.csv
+  cluster_annotation_summary:
+    path: results/tables/cluster_annotation_summary.csv
+  marker_review_summary:
+    path: results/tables/marker_review_summary.csv
+  annotation_status_summary:
+    path: results/tables/annotation_status_summary.csv
+  method_comparison:
+    path: results/tables/method_comparison.csv
+  html_reports:
+    glob: reports/*.html
+  tables:
+    glob: results/tables/*.csv
+run:
+  mode: render
+  entry: run.sh

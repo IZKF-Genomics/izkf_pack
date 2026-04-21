@@ -1,0 +1,457 @@
+---
+title: "scRNA Integration QC"
+date: today
+jupyter: python3
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 3
+    toc-location: left
+    html-math-method: katex
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+    page-layout: full
+    html-table-processing: none
+    theme: lumen
+    fig-width: 10
+    fig-height: 5
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{python}
+from pathlib import Path
+import importlib.metadata
+import platform
+import tomllib
+
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import scanpy as sc
+
+LIB_DIR = Path(".").resolve() / "lib"
+import sys
+if str(LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(LIB_DIR))
+
+from integration_io import (
+    ensure_counts_layer,
+    load_adata,
+    normalize_text_series,
+    require_obs_column,
+    resolve_optional_obs_column,
+    resolve_sample_display,
+)
+from integration_methods import (
+    ALLOWED_METHODS,
+    ensure_hvg_subset,
+    run_baseline_embedding,
+    run_classical_integration,
+    run_scvi_integration,
+)
+from integration_metrics import compare_baseline_and_integrated
+
+ROOT = Path(".").resolve()
+CONFIG_PATH = ROOT / "config" / "project.toml"
+
+
+def load_config(path: Path) -> dict:
+    with path.open("rb") as fh:
+        return tomllib.load(fh)
+
+
+def ensure_parent(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def write_table(path: Path, df: pd.DataFrame) -> None:
+    ensure_parent(path)
+    df.to_csv(path, index=False)
+
+
+def write_h5ad(path: Path, adata) -> None:
+    ensure_parent(path)
+    adata.write_h5ad(path)
+
+
+def package_versions_table(packages: list[str]) -> pd.DataFrame:
+    rows = []
+    for package in packages:
+        try:
+            version = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            version = "not installed"
+        rows.append({"package": package, "version": version})
+    return pd.DataFrame(rows)
+
+
+def format_table(df: pd.DataFrame, digits: int = 3):
+    out = df.copy()
+
+    def _fmt_text(value):
+        if pd.isna(value):
+            return ""
+        return str(value)
+
+    def _fmt_int(value):
+        if pd.isna(value):
+            return ""
+        return f"{int(round(float(value))):,}"
+
+    def _fmt_float(value):
+        if pd.isna(value):
+            return ""
+        return f"{float(value):,.{digits}f}"
+
+    formatters = {}
+    for col in out.columns:
+        series = out[col]
+        lower = str(col).lower()
+        if pd.api.types.is_integer_dtype(series):
+            formatters[col] = _fmt_int
+        elif pd.api.types.is_float_dtype(series):
+            if "fraction" in lower or "score" in lower or "entropy" in lower:
+                formatters[col] = _fmt_float
+            elif lower.startswith("n_") or lower.endswith("_count") or lower.endswith("_counts"):
+                formatters[col] = _fmt_int
+            else:
+                formatters[col] = _fmt_float
+        else:
+            formatters[col] = _fmt_text
+
+    return (
+        out.style
+        .hide(axis="index")
+        .format(formatters)
+        .set_table_attributes('style="width:100%; min-width:100%; table-layout:auto; margin:0;"')
+        .set_properties(**{"white-space": "normal"})
+        .set_table_styles(
+            [
+                {"selector": "th", "props": [("text-align", "left"), ("font-weight", "600")]},
+                {"selector": "td", "props": [("padding", "0.25rem 0.5rem")]},
+                {"selector": "table", "props": [("font-size", "0.95rem"), ("width", "100%")]},
+            ]
+        )
+    )
+
+
+def embedding_frame(adata, basis: str, color_keys: list[str]) -> pd.DataFrame:
+    coords = adata.obsm[basis]
+    frame = pd.DataFrame(coords[:, :2], columns=["dim_1", "dim_2"], index=adata.obs_names)
+    keep = [key for key in color_keys if key in adata.obs.columns]
+    return frame.join(adata.obs[keep], how="left")
+
+
+cfg = load_config(CONFIG_PATH)
+cfg
+```
+
+## Input Review
+
+Best-practice guidance recommends inspecting the unintegrated object before applying any batch correction so that the magnitude and possible sources of batch effects are visible.
+
+```{python}
+adata, input_path = load_adata(str(cfg["input"]["input_h5ad"]))
+integration_method = str(cfg["integration"]["integration_method"]).strip().lower()
+if integration_method not in ALLOWED_METHODS:
+    raise RuntimeError("integration_method must be one of: " + ", ".join(sorted(ALLOWED_METHODS)))
+
+batch_key = str(cfg["metadata"]["batch_key"]).strip() or "batch"
+condition_key = str(cfg["metadata"]["condition_key"]).strip() or "condition"
+sample_id_key = str(cfg["metadata"]["sample_id_key"]).strip() or "sample_id"
+sample_label_key = str(cfg["metadata"]["sample_label_key"]).strip() or "sample_display"
+label_key_for_metrics = str(cfg["metadata"]["label_key_for_metrics"]).strip()
+
+require_obs_column(adata, batch_key, allow_single_category=False)
+adata.obs[sample_id_key] = resolve_optional_obs_column(adata, sample_id_key, fallback="unknown")
+adata.obs[condition_key] = resolve_optional_obs_column(adata, condition_key, fallback="unknown")
+adata.obs["sample_display"] = resolve_sample_display(adata, sample_id_key, sample_label_key)
+if label_key_for_metrics:
+    adata.obs[label_key_for_metrics] = resolve_optional_obs_column(adata, label_key_for_metrics, fallback="")
+
+working = ensure_hvg_subset(
+    adata,
+    use_hvgs_only=bool(cfg["integration"]["use_hvgs_only"]),
+    n_top_hvgs=int(cfg["integration"]["n_top_hvgs"]),
+)
+
+baseline = run_baseline_embedding(
+    working,
+    n_pcs=int(cfg["integration"]["n_pcs"]),
+    n_neighbors=int(cfg["integration"]["n_neighbors"]),
+    umap_min_dist=float(cfg["integration"]["umap_min_dist"]),
+    cluster_resolution=float(cfg["integration"]["cluster_resolution"]),
+    random_state=int(cfg["integration"]["random_seed"]),
+)
+
+out_adata = ROOT / str(cfg["output"]["adata_file"])
+integration_summary_file = ROOT / str(cfg["output"]["integration_summary_file"])
+integration_metrics_file = ROOT / str(cfg["output"]["integration_metrics_file"])
+batch_mixing_summary_file = ROOT / str(cfg["output"]["batch_mixing_summary_file"])
+cluster_counts_file = ROOT / str(cfg["output"]["cluster_counts_file"])
+tables_dir = ROOT / "results" / "tables"
+tables_dir.mkdir(parents=True, exist_ok=True)
+
+overview_df = pd.DataFrame(
+    [
+        {"field": "input_h5ad", "value": str(input_path)},
+        {"field": "integration_method", "value": integration_method},
+        {"field": "batch_key", "value": batch_key},
+        {"field": "label_key_for_metrics", "value": label_key_for_metrics},
+        {"field": "n_cells", "value": int(working.n_obs)},
+        {"field": "n_genes", "value": int(working.n_vars)},
+        {"field": "n_batches", "value": int(working.obs[batch_key].nunique())},
+    ]
+)
+format_table(overview_df)
+```
+
+## Unintegrated Baseline
+
+These figures are the pre-correction baseline. If batches already overlap well here, integration may be unnecessary and could remove meaningful biological variation.
+
+```{python}
+baseline_plot_df = embedding_frame(baseline, "X_umap", ["baseline_leiden", batch_key, condition_key, "sample_display", sample_id_key] + ([label_key_for_metrics] if label_key_for_metrics else []))
+px.scatter(
+    baseline_plot_df,
+    x="dim_1",
+    y="dim_2",
+    color=batch_key,
+    hover_data=[key for key in ["sample_display", sample_id_key, condition_key, "baseline_leiden", label_key_for_metrics] if key in baseline_plot_df.columns],
+    title=f"Unintegrated baseline UMAP by {batch_key}",
+    template="simple_white",
+).update_layout(height=650)
+```
+
+```{python}
+px.scatter(
+    baseline_plot_df,
+    x="dim_1",
+    y="dim_2",
+    color="baseline_leiden",
+    hover_data=[key for key in ["sample_display", sample_id_key, batch_key, condition_key, label_key_for_metrics] if key in baseline_plot_df.columns],
+    title="Unintegrated baseline UMAP by baseline Leiden cluster",
+    template="simple_white",
+).update_layout(height=650)
+```
+
+## Integration
+
+The integration run uses the selected method on the validated batch variable. Methods that require raw counts fail if `layers["counts"]` is not present.
+
+```{python}
+method_notes = []
+if integration_method in {"scvi", "scanvi"}:
+    counts_layer = ensure_counts_layer(working, method=integration_method)
+    integrated = run_scvi_integration(
+        working,
+        method=integration_method,
+        batch_key=batch_key,
+        counts_layer=counts_layer,
+        scanvi_label_key=str(cfg["integration"]["scanvi_label_key"]).strip(),
+        scanvi_unlabeled_category=str(cfg["integration"]["scanvi_unlabeled_category"]).strip() or "Unknown",
+        scvi_latent_dim=int(cfg["integration"]["scvi_latent_dim"]),
+        scvi_max_epochs=int(cfg["integration"]["scvi_max_epochs"]),
+        scvi_gene_likelihood=str(cfg["integration"]["scvi_gene_likelihood"]).strip() or "zinb",
+        scvi_accelerator=str(cfg["integration"]["scvi_accelerator"]).strip() or "auto",
+        scvi_devices=int(cfg["integration"]["scvi_devices"]),
+        n_neighbors=int(cfg["integration"]["n_neighbors"]),
+        umap_min_dist=float(cfg["integration"]["umap_min_dist"]),
+        cluster_resolution=float(cfg["integration"]["cluster_resolution"]),
+        random_state=int(cfg["integration"]["random_seed"]),
+    )
+else:
+    integrated = run_classical_integration(
+        working,
+        method=integration_method,
+        batch_key=batch_key,
+        n_pcs=int(cfg["integration"]["n_pcs"]),
+        n_neighbors=int(cfg["integration"]["n_neighbors"]),
+        umap_min_dist=float(cfg["integration"]["umap_min_dist"]),
+        cluster_resolution=float(cfg["integration"]["cluster_resolution"]),
+        random_state=int(cfg["integration"]["random_seed"]),
+        harmony_theta=float(cfg["integration"]["harmony_theta"]),
+        harmony_lambda=float(cfg["integration"]["harmony_lambda"]),
+        harmony_max_iter=int(cfg["integration"]["harmony_max_iter"]),
+        bbknn_neighbors_within_batch=int(cfg["integration"]["bbknn_neighbors_within_batch"]),
+        bbknn_trim=int(cfg["integration"]["bbknn_trim"]),
+    )
+    if integration_method == "bbknn" and integrated.n_obs > 100000 and int(cfg["integration"]["bbknn_neighbors_within_batch"]) < 25:
+        method_notes.append("For BBKNN, the single-cell best-practices guide suggests considering 25 neighbors per batch for datasets above 100,000 cells.")
+
+integrated.uns["integration_method"] = integration_method
+integrated.uns["input_source_template"] = str(cfg["input"]["input_source_template"])
+integrated.uns["integration_params"] = {
+    "batch_key": batch_key,
+    "condition_key": condition_key,
+    "sample_id_key": sample_id_key,
+    "sample_label_key": sample_label_key,
+    "label_key_for_metrics": label_key_for_metrics or None,
+    "use_hvgs_only": bool(cfg["integration"]["use_hvgs_only"]),
+    "n_top_hvgs": int(cfg["integration"]["n_top_hvgs"]),
+    "n_pcs": integrated.uns.get("integration_n_pcs"),
+    "n_neighbors": int(cfg["integration"]["n_neighbors"]),
+    "umap_min_dist": float(cfg["integration"]["umap_min_dist"]),
+    "cluster_resolution": float(cfg["integration"]["cluster_resolution"]),
+}
+
+cluster_counts = (
+    integrated.obs.groupby("leiden", dropna=False)
+    .size()
+    .rename("n_cells")
+    .reset_index()
+    .sort_values("n_cells", ascending=False)
+)
+
+batch_mixing_summary = (
+    integrated.obs.groupby(batch_key, dropna=False)
+    .agg(
+        n_cells=(batch_key, "size"),
+        n_clusters=("leiden", "nunique"),
+    )
+    .reset_index()
+)
+batch_mixing_summary["fraction_of_cells"] = batch_mixing_summary["n_cells"] / integrated.n_obs
+
+metrics_df = compare_baseline_and_integrated(
+    baseline,
+    integrated,
+    batch_key=batch_key,
+    label_key=label_key_for_metrics,
+    baseline_rep="X_pca",
+    integrated_rep=str(integrated.uns["integration_embedding_key"]),
+    n_neighbors=int(cfg["integration"]["n_neighbors"]),
+    run_scib_metrics=bool(cfg["integration"]["run_scib_metrics"]),
+)
+
+integration_summary = pd.DataFrame(
+    [
+        {"field": "project_name", "value": cfg["project"]["name"]},
+        {"field": "input_h5ad", "value": str(input_path)},
+        {"field": "input_source_template", "value": str(cfg["input"]["input_source_template"])},
+        {"field": "integration_method", "value": integration_method},
+        {"field": "integration_embedding_key", "value": str(integrated.uns["integration_embedding_key"])},
+        {"field": "batch_key", "value": batch_key},
+        {"field": "label_key_for_metrics", "value": label_key_for_metrics},
+        {"field": "n_cells", "value": int(integrated.n_obs)},
+        {"field": "n_genes", "value": int(integrated.n_vars)},
+        {"field": "n_batches", "value": int(integrated.obs[batch_key].nunique())},
+        {"field": "n_clusters", "value": int(integrated.obs["leiden"].nunique())},
+        {"field": "method_note", "value": " ".join(method_notes)},
+        {"field": "output_h5ad", "value": str(out_adata)},
+    ]
+)
+
+write_table(integration_summary_file, integration_summary)
+write_table(integration_metrics_file, metrics_df)
+write_table(batch_mixing_summary_file, batch_mixing_summary)
+write_table(cluster_counts_file, cluster_counts)
+write_h5ad(out_adata, integrated)
+
+session_info_df = pd.concat(
+    [
+        pd.DataFrame(
+            [
+                {"package": "python", "version": platform.python_version()},
+                {"package": "platform", "version": platform.platform()},
+            ]
+        ),
+        package_versions_table(
+            [
+                "scanpy",
+                "anndata",
+                "numpy",
+                "pandas",
+                "scipy",
+                "plotly",
+                "scikit-learn",
+                "igraph",
+                "leidenalg",
+                "bbknn",
+                "harmonypy",
+                "scanorama",
+                "scvi-tools",
+                "torch",
+                "quarto",
+            ]
+        ),
+    ],
+    ignore_index=True,
+)
+write_table(tables_dir / "session_info.csv", session_info_df)
+
+integration_summary
+```
+
+## Integration Metrics
+
+These metrics compare the unintegrated baseline and the integrated result. Batch-mixing metrics should improve after integration, while label-conservation metrics should remain plausible when a label column is available.
+
+```{python}
+format_table(metrics_df)
+```
+
+## Batch Mixing Summary
+
+```{python}
+format_table(batch_mixing_summary)
+```
+
+## Cluster Counts
+
+```{python}
+format_table(cluster_counts)
+```
+
+## Integrated UMAP
+
+```{python}
+integrated_plot_df = embedding_frame(integrated, "X_umap", ["leiden", batch_key, condition_key, "sample_display", sample_id_key] + ([label_key_for_metrics] if label_key_for_metrics else []))
+px.scatter(
+    integrated_plot_df,
+    x="dim_1",
+    y="dim_2",
+    color=batch_key,
+    hover_data=[key for key in ["sample_display", sample_id_key, condition_key, "leiden", label_key_for_metrics] if key in integrated_plot_df.columns],
+    title=f"Integrated UMAP by {batch_key}",
+    template="simple_white",
+).update_layout(height=650)
+```
+
+```{python}
+px.scatter(
+    integrated_plot_df,
+    x="dim_1",
+    y="dim_2",
+    color="leiden",
+    hover_data=[key for key in ["sample_display", sample_id_key, batch_key, condition_key, label_key_for_metrics] if key in integrated_plot_df.columns],
+    title="Integrated UMAP by Leiden cluster",
+    template="simple_white",
+).update_layout(height=650)
+```
+
+```{python}
+if condition_key in integrated_plot_df.columns and normalize_text_series(integrated_plot_df[condition_key], fallback="").replace("", np.nan).dropna().nunique() >= 2:
+    px.scatter(
+        integrated_plot_df,
+        x="dim_1",
+        y="dim_2",
+        color=condition_key,
+        hover_data=[key for key in ["sample_display", sample_id_key, batch_key, "leiden", label_key_for_metrics] if key in integrated_plot_df.columns],
+        title=f"Integrated UMAP by {condition_key}",
+        template="simple_white",
+    ).update_layout(height=650)
+else:
+    print(f"No condition-level integrated UMAP shown because '{condition_key}' is not defined with at least two non-missing values.")
+```
+
+## Session Info
+
+```{python}
+format_table(session_info_df)
+```

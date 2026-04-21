@@ -1,5 +1,5 @@
 ---
-title: "00 scRNA Preprocessing QC"
+title: "scRNA Preprocessing QC"
 date: today
 jupyter: python3
 format:
@@ -29,7 +29,6 @@ import importlib.metadata
 import json
 import math
 import platform
-import re
 import sys
 import tomllib
 
@@ -44,7 +43,17 @@ from plotly.subplots import make_subplots
 from scipy.stats import median_abs_deviation
 from sklearn.metrics import davies_bouldin_score
 
-from scrna_prep_io import ensure_preprocessing_counts_matrix, sparse_copy
+LIB_DIR = Path(".").resolve() / "lib"
+if str(LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(LIB_DIR))
+
+from scrna_prep_io import (
+    ensure_preprocessing_counts_matrix,
+    looks_like_gene_ids,
+    normalize_text_series,
+    resolve_qc_feature_names,
+    sparse_copy,
+)
 
 ROOT = Path(".").resolve()
 CONFIG_PATH = ROOT / "config" / "project.toml"
@@ -163,21 +172,19 @@ def infer_sample_id(obs: pd.DataFrame, preferred_key: str) -> pd.Series:
     candidates = [preferred_key, "sample_id", "sample", "orig.ident", "library_id", "batch"]
     for key in candidates:
         if key in obs.columns:
-            vals = obs[key].astype(str).fillna("unknown")
-            if vals.nunique() > 0:
-                return vals
+            vals = normalize_text_series(obs[key], fallback="")
+            if (vals != "").any():
+                return vals.where(vals != "", "unknown")
     return pd.Series(["sample1"] * obs.shape[0], index=obs.index, dtype="object")
 
 
 def display_sample_label(obs: pd.DataFrame) -> pd.Series:
     if "sample_label" in obs.columns:
-        labels = obs["sample_label"].astype("object")
-        labels = labels.where(labels.notna(), "")
-        labels = labels.astype(str).str.strip()
-        fallback = obs["sample_id"].astype(str)
+        labels = normalize_text_series(obs["sample_label"], fallback="")
+        fallback = normalize_text_series(obs["sample_id"], fallback="unknown")
         labels = labels.where(labels != "", fallback)
         return labels
-    return obs["sample_id"].astype(str)
+    return normalize_text_series(obs["sample_id"], fallback="unknown")
 
 
 def annotate_qc_genes(adata, organism: str) -> None:
@@ -187,19 +194,29 @@ def annotate_qc_genes(adata, organism: str) -> None:
             "metadata.organism is missing or unsupported. Set --param organism or ensure an upstream template wrote params.organism or params.genome in project.yaml."
         )
     pats = QC_PATTERNS[org]
-    var_names = pd.Index(adata.var_names.astype(str))
-    adata.var["mt"] = var_names.str.startswith(pats["mt"])
-    adata.var["ribo"] = var_names.str.startswith(pats["ribo"])
-    adata.var["hb"] = var_names.str.match(pats["hb_regex"], case=False)
+    feature_names = resolve_qc_feature_names(adata.var, adata.var_names)
+    feature_names_upper = feature_names.str.upper()
+    adata.var["qc_feature_name"] = feature_names.astype(str)
+    adata.var["mt"] = feature_names_upper.str.startswith(tuple(prefix.upper() for prefix in pats["mt"]))
+    adata.var["ribo"] = feature_names_upper.str.startswith(tuple(prefix.upper() for prefix in pats["ribo"]))
+    adata.var["hb"] = feature_names.str.match(pats["hb_regex"], case=False)
+    if not (adata.var["mt"].any() or adata.var["ribo"].any() or adata.var["hb"].any()) and looks_like_gene_ids(feature_names):
+        raise RuntimeError(
+            "QC gene annotation requires gene symbols, but the input appears to expose feature IDs only. "
+            "Set input.var_names=gene_symbols or provide a recognized gene symbol column in adata.var."
+        )
 
 
 def apply_sample_metadata(adata, metadata_df: pd.DataFrame, sample_id_key: str) -> None:
     if "sample_id" not in metadata_df.columns:
         raise RuntimeError("sample metadata must contain a sample_id column")
 
-    adata.obs[sample_id_key] = adata.obs[sample_id_key].astype(str)
+    adata.obs[sample_id_key] = normalize_text_series(adata.obs[sample_id_key], fallback="unknown")
     meta = metadata_df.copy()
-    meta["sample_id"] = meta["sample_id"].astype(str)
+    meta["sample_id"] = normalize_text_series(meta["sample_id"], fallback="")
+    meta = meta[meta["sample_id"] != ""].copy()
+    if meta.empty:
+        raise RuntimeError("sample metadata must contain at least one non-empty sample_id value")
     joined = adata.obs.merge(meta, how="left", left_on=sample_id_key, right_on="sample_id", suffixes=("", "_meta"))
     joined.index = adata.obs.index
 
@@ -854,7 +871,7 @@ adata.obs["sample_display"] = display_sample_label(adata.obs)
 for key in (batch_key, condition_key):
     if key not in adata.obs.columns:
         adata.obs[key] = "unknown"
-    adata.obs[key] = adata.obs[key].astype(str).fillna("unknown")
+    adata.obs[key] = normalize_text_series(adata.obs[key], fallback="unknown")
 
 ```
 
@@ -993,10 +1010,9 @@ resolution_grid = parse_resolution_grid(str(cfg["analysis"].get("resolution_grid
 sc.pp.normalize_total(filtered, target_sum=float(cfg["analysis"]["target_sum"]))
 sc.pp.log1p(filtered)
 sc.pp.highly_variable_genes(filtered, n_top_genes=int(cfg["analysis"]["n_top_hvgs"]), flavor="seurat")
-sc.pp.scale(filtered, max_value=10)
 max_pcs = min(filtered.n_obs - 1, filtered.n_vars - 1, int(cfg["analysis"]["n_pcs"]))
 n_neighbors = min(int(cfg["analysis"]["n_neighbors"]), filtered.n_obs - 1)
-sc.tl.pca(filtered, svd_solver="arpack")
+sc.tl.pca(filtered, n_comps=max_pcs, svd_solver="arpack", mask_var="highly_variable")
 sc.pp.neighbors(filtered, n_neighbors=n_neighbors, n_pcs=max_pcs)
 sc.tl.umap(filtered)
 sc.tl.leiden(filtered, resolution=resolved_leiden_resolution)
@@ -1328,12 +1344,12 @@ session_info_df = pd.concat(
 )
 write_table(tables_dir / "session_info.csv", session_info_df)
 
-condition_series = long_qc_df[condition_key].astype(str).str.strip()
+condition_series = normalize_text_series(long_qc_df[condition_key], fallback="")
 condition_defined_values = sorted(
     {
         value
         for value in condition_series
-        if value and value.lower() not in {"unknown", "nan", "none", "na", "n/a"}
+        if value and value.lower() not in {"unknown"}
     }
 )
 condition_available = len(condition_defined_values) >= 2

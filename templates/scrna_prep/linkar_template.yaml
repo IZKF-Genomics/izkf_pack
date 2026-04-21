@@ -1,4 +1,4 @@
-id: scverse_scrna_prep
+id: scrna_prep
 version: 0.1.0
 description: Editable scverse/Scanpy single-cell RNA-seq preprocessing workspace with Quarto QC reporting.
 tools:
@@ -34,7 +34,7 @@ params:
   var_names:
     type: str
     default: "gene_symbols"
-    description: Feature naming choice for matrix-style inputs. Supported values are `gene_symbols` and `gene_ids`.
+    description: Feature naming choice for matrix-style inputs. Supported values are `gene_symbols` and `gene_ids`. QC gene annotation still requires gene symbols, either as feature names or in a recognized `adata.var` column.
   sample_metadata:
     type: path
     default: ""
@@ -124,7 +124,9 @@ outputs:
   config_file:
     path: config/project.toml
   sample_metadata_template:
-    path: config/samples.csv
+    path: assets/samples.csv
+  scrna_prep_h5ad:
+    path: results/adata.prep.h5ad
   html_reports:
     glob: reports/*.html
   h5ad_outputs:

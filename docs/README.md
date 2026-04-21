@@ -29,8 +29,14 @@ maintenance notes that apply across multiple templates.
   how downstream templates use them.
 - [facility_defaults.md](facility_defaults.md): facility-specific assumptions
   used across templates.
-- [scverse_scrna_prep.md](scverse_scrna_prep.md): input expectations,
+- [scrna_prep.md](scrna_prep.md): input expectations,
   raw-count behavior, and QC assumptions for the scRNA preprocessing workspace.
+- [scrna_integrate.md](scrna_integrate.md): integration
+  assumptions, batch-key validation, and evaluation expectations for the scRNA
+  integration workspace.
+- [scrna_annotate.md](scrna_annotate.md): annotation
+  assumptions, default input preference, and review expectations for the scRNA
+  annotation workspace.
 
 ## Authoring guidance
 

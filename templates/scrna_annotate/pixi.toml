@@ -1,0 +1,31 @@
+[workspace]
+name = "scrna_annotate"
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+render = { cmd = ["bash", "run.sh"] }
+clean = { cmd = ["bash", "-lc", "rm -rf results .quarto reports 00_annotation_overview.html 01_celltypist.html 02_scanvi.html 03_decoupler_review.html 04_scdeepsort.html 05_scgpt.html"] }
+
+[dependencies]
+python = ">=3.11,<3.13"
+quarto = ">=1.6,<2"
+jupyter = ">=1.1,<2"
+ipykernel = ">=6.29,<7"
+scanpy = ">=1.10,<2"
+anndata = ">=0.12,<1"
+numpy = ">=2.0,<3"
+pandas = ">=2.2,<3"
+scipy = ">=1.14,<2"
+matplotlib = ">=3.9,<4"
+seaborn = ">=0.13,<1"
+plotly = ">=6.0,<7"
+scikit-learn = ">=1.6,<2"
+python-igraph = ">=0.11,<1"
+leidenalg = ">=0.10,<1"
+pyyaml = ">=6.0,<7"
+python-tzdata = ">=2024.1"
+
+[pypi-dependencies]
+celltypist = ">=1.7,<2"

@@ -624,6 +624,29 @@ def select_catalog_entry(catalog: dict[str, Any], template_id: str) -> dict[str,
     return entry if isinstance(entry, dict) else {}
 
 
+def resolve_catalog_citations(template_id: str, catalog_entry: dict[str, Any], params: dict[str, Any]) -> list[str]:
+    citations = [str(item).strip() for item in (catalog_entry.get("citations") or []) if str(item).strip()]
+    if template_id == "scrna_prep":
+        doublet_method = normalize_id_value(params.get("doublet_method"))
+        if doublet_method == "scrublet":
+            citations.append("scrublet")
+    if template_id == "scrna_integrate":
+        method = normalize_id_value(params.get("integration_method"))
+        if method == "scvi":
+            citations.append("scvi")
+        elif method == "scanvi":
+            citations.extend(["scvi", "scanvi"])
+        elif method in {"harmony", "bbknn", "scanorama"}:
+            citations.append(method)
+        if parse_bool(params.get("run_scib_metrics"), default=False):
+            citations.append("scib")
+    if template_id == "scrna_annotate":
+        method = normalize_id_value(params.get("annotation_method"))
+        if method == "celltypist":
+            citations.append("celltypist")
+    return unique_ordered(citations)
+
+
 def collect_run_context(
     project_dir: Path,
     project_data: dict[str, Any],
@@ -655,7 +678,7 @@ def collect_run_context(
             important_params = None
         params_compact = compact_mapping(params, keys=important_params)
         run_dir = resolve_run_dir(project_dir, entry)
-        citations = catalog_entry.get("citations") if isinstance(catalog_entry.get("citations"), list) else []
+        citations = resolve_catalog_citations(template_id, catalog_entry, params)
         citation_ids.extend(str(item) for item in citations if str(item).strip())
         runtime_command = load_runtime_command(project_dir, run_dir, outputs)
         label = run_display_label(entry, catalog_entry, run_dir)
@@ -1592,6 +1615,9 @@ def short_nfcore_sentence(runs: list[dict[str, Any]], citation_map: dict[str, in
 def short_downstream_sentence(runs: list[dict[str, Any]], citation_map: dict[str, int]) -> str:
     dgea_runs = [run for run in runs if str(run.get("template") or "").strip() == "dgea"]
     ercc_runs = [run for run in runs if str(run.get("template") or "").strip() == "ercc"]
+    scrna_runs = [run for run in runs if str(run.get("template") or "").strip() == "scrna_prep"]
+    integrate_runs = [run for run in runs if str(run.get("template") or "").strip() == "scrna_integrate"]
+    annotate_runs = [run for run in runs if str(run.get("template") or "").strip() == "scrna_annotate"]
     parts: list[str] = []
     if dgea_runs:
         cohort_names = unique_ordered(
@@ -1644,6 +1670,61 @@ def short_downstream_sentence(runs: list[dict[str, Any]], citation_map: dict[str
             + inline_citations(["ercc_spikein", "salmon", "quarto"], citation_map)
             + "."
         )
+    if scrna_runs:
+        params = merged_run_params(scrna_runs[0])
+        sentence = (
+            "Single-cell RNA-seq preprocessing and quality control were carried out in a Scanpy/scverse workspace "
+            "with cell-level QC, highly variable gene selection, principal component analysis, UMAP embedding, and Leiden clustering"
+        )
+        doublet_method = normalize_id_value(params.get("doublet_method"))
+        citation_ids = ["scanpy", "umap", "leiden", "quarto"]
+        if doublet_method == "scrublet":
+            sentence += ", with Scrublet-based doublet scoring"
+            citation_ids.append("scrublet")
+        sentence += ", and reported in a Quarto QC notebook"
+        parts.append(sentence + inline_citations(citation_ids, citation_map) + ".")
+    if integrate_runs:
+        params = merged_run_params(integrate_runs[0])
+        method = normalize_id_value(params.get("integration_method"))
+        method_label_map = {
+            "scvi": "scVI latent modeling",
+            "scanvi": "semi-supervised scANVI latent modeling",
+            "harmony": "Harmony batch correction",
+            "bbknn": "BBKNN graph correction",
+            "scanorama": "Scanorama integration",
+        }
+        sentence = (
+            "Prepared single-cell datasets were additionally integrated in a Scanpy/scverse workspace "
+            f"using {method_label_map.get(method, 'a configured integration backend')}, followed by neighbor-graph reconstruction, UMAP embedding, Leiden clustering, and quantitative integration diagnostics"
+        )
+        citation_ids = ["scanpy", "umap", "leiden", "quarto"]
+        if method == "scvi":
+            citation_ids.append("scvi")
+        elif method == "scanvi":
+            citation_ids.extend(["scvi", "scanvi"])
+        elif method in {"harmony", "bbknn", "scanorama"}:
+            citation_ids.append(method)
+        if parse_bool(params.get("run_scib_metrics"), default=False):
+            sentence += ", including optional scIB benchmarking"
+            citation_ids.append("scib")
+        sentence += ", and reported in a Quarto QC notebook"
+        parts.append(sentence + inline_citations(citation_ids, citation_map) + ".")
+    if annotate_runs:
+        params = merged_run_params(annotate_runs[0])
+        method = normalize_id_value(params.get("annotation_method"))
+        cluster_key = normalize_id_value(params.get("cluster_key")) or "leiden"
+        sentence = (
+            "Cell identities were then reviewed in a Scanpy/scverse annotation workspace "
+            f"using cluster-level summaries keyed on {cluster_key}"
+        )
+        citation_ids = ["scanpy", "quarto"]
+        if method == "celltypist":
+            sentence += ", CellTypist label transfer, classifier confidence summaries, and optional marker-based validation"
+            citation_ids.append("celltypist")
+        else:
+            sentence += ", automated label transfer, classifier confidence summaries, and optional marker-based validation"
+        sentence += ", while unresolved clusters were retained as unknown pending manual review"
+        parts.append(sentence + inline_citations(citation_ids, citation_map) + ".")
     return " ".join(parts)
 
 

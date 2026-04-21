@@ -6,7 +6,7 @@
 - runtime JSON outputs generated in each rendered or executed workspace
 
 This is why files such as
-`templates/scverse_scrna_prep/software_versions_spec.yaml` and
+`templates/scrna_prep/software_versions_spec.yaml` and
 `templates/nfcore_methylseq/software_versions_spec.yaml` should stay in the
 repository even though `software_versions.json` is generated at runtime.
 
