@@ -7,7 +7,7 @@ engine for the current status of a known export `job_id`.
 
 ```bash
 linkar run export_status \
-  --pack /home/ckuo/github/izkf_pack \
+  --pack /path/to/izkf_pack \
   --job-id job-123
 ```
 
@@ -15,7 +15,7 @@ Optional API override:
 
 ```bash
 linkar run export_status \
-  --pack /home/ckuo/github/izkf_pack \
+  --pack /path/to/izkf_pack \
   --job-id job-123 \
   --export-engine-api-url http://genomics.rwth-aachen.de:9500/export
 ```

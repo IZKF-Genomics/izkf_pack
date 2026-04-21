@@ -10,7 +10,7 @@ format:
       toc_collapsed: true
     toc_depth: 3
     number_sections: false
-    embed-resources: true
+    embed-resources: false
     theme: lumen
 bibliography: references.bib
 params:

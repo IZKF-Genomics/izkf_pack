@@ -11,7 +11,7 @@ format:
     html-math-method: katex
     code-fold: true
     code-tools: true
-    embed-resources: true
+    embed-resources: false
     page-layout: full
     html-table-processing: none
     theme: lumen

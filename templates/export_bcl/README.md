@@ -27,6 +27,6 @@ Use `--dry-run true` to generate the redacted export spec without submitting any
 ## Test command
 
 ```bash
-cd /home/ckuo/github/izkf_pack/templates/export_bcl
+cd templates/export_bcl
 python3 test.py
 ```

@@ -6,7 +6,6 @@ import os
 import re
 import shlex
 import subprocess
-import sys
 from pathlib import Path
 
 
@@ -25,6 +24,10 @@ def require_env(name: str) -> str:
 
 def optional_env(name: str, default: str = "") -> str:
     return os.environ.get(name, default).strip()
+
+
+def env_flag(name: str) -> bool:
+    return optional_env(name).lower() in {"1", "true", "yes", "on"}
 
 
 def project_title() -> str:
@@ -117,6 +120,7 @@ def build_nextflow_command(
     genome: str,
     multiqc_title: str,
     rrbs: bool,
+    resume: bool,
 ) -> list[str]:
     command = [
         "pixi",
@@ -141,6 +145,8 @@ def build_nextflow_command(
     ]
     if rrbs:
         command.append("--rrbs")
+    if resume:
+        command.append("-resume")
     return command
 
 
@@ -151,6 +157,7 @@ def write_runtime_command(
     genome: str,
     rrbs: bool,
     project_name: str,
+    resume: bool,
     max_cpus: str,
     max_memory: str,
     nextflow_config: Path,
@@ -167,6 +174,7 @@ def write_runtime_command(
             "genome": genome,
             "rrbs": rrbs,
             "project_name": project_name,
+            "resume": resume,
             "max_cpus": max_cpus,
             "max_memory": max_memory,
         },
@@ -199,11 +207,12 @@ def main() -> int:
     samplesheet = str(Path(require_env("SAMPLESHEET")).resolve())
     rrbs = optional_env("RRBS", "true").lower() == "true"
     title = project_title()
+    resume = env_flag("LINKAR_NEXTFLOW_RESUME")
     max_cpus = optional_env("MAX_CPUS")
     max_memory = optional_env("MAX_MEMORY")
 
     print(
-        f"[info] {PIPELINE_NAME} profile={EXECUTION_PROFILE} genome={genome} rrbs={str(rrbs).lower()}",
+        f"[info] {PIPELINE_NAME} profile={EXECUTION_PROFILE} genome={genome} rrbs={str(rrbs).lower()} resume={str(resume).lower()}",
         flush=True,
     )
 
@@ -228,6 +237,7 @@ def main() -> int:
         genome=genome,
         multiqc_title=title,
         rrbs=rrbs,
+        resume=resume,
     )
     write_runtime_command(
         results_dir / "runtime_command.json",
@@ -235,6 +245,7 @@ def main() -> int:
         genome=genome,
         rrbs=rrbs,
         project_name=title,
+        resume=resume,
         max_cpus=max_cpus,
         max_memory=max_memory,
         nextflow_config=runtime_nextflow_config,

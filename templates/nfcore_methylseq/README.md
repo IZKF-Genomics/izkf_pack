@@ -46,9 +46,9 @@ Nextflow command line.
 
 ## Runtime behavior
 
-The template keeps a thin [run.sh](/home/ckuo/github/izkf_pack/templates/nfcore_methylseq/run.sh:1)
+The template keeps a thin [run.sh](run.sh)
 wrapper for direct execution, but the actual runtime logic lives in
-[run.py](/home/ckuo/github/izkf_pack/templates/nfcore_methylseq/run.py:1).
+[run.py](run.py).
 
 `run.py`:
 
@@ -61,7 +61,7 @@ wrapper for direct execution, but the actual runtime logic lives in
 - writes a generated runtime `nextflow.config` and applies CPU / memory caps through `-c`
 - runs the fixed `nf-core/methylseq` invocation
 
-The template [nextflow.config](/home/ckuo/github/izkf_pack/templates/nfcore_methylseq/nextflow.config:1)
+The template [nextflow.config](nextflow.config)
 also reuses shared FASTA references under `/data/ref_genomes`. Commented `bismark_index` paths are
 included as placeholders for future centralized Bismark indices, and `fasta_index` is likewise
 kept commented until shared `.fai` files are available.
@@ -71,7 +71,7 @@ kept commented until shared `.fai` files are available.
 Direct local test:
 
 ```bash
-cd /home/ckuo/github/izkf_pack/templates/nfcore_methylseq
+cd templates/nfcore_methylseq
 pixi run run-local
 pixi run test
 ```
@@ -79,6 +79,6 @@ pixi run test
 Through Linkar:
 
 ```bash
-cd /home/ckuo/github/linkar
-pixi run linkar test nfcore_methylseq --pack /home/ckuo/github/izkf_pack
+cd /path/to/linkar
+pixi run linkar test nfcore_methylseq --pack /path/to/izkf_pack
 ```

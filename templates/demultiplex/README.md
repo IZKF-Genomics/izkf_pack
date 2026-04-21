@@ -51,7 +51,7 @@ Those belonged to the older wrapper, not the current upstream `main` CLI.
 
 ## Runtime behavior
 
-The template keeps the execution logic in a standalone [run.sh](/home/ckuo/github/izkf_pack/templates/demultiplex/run.sh:1):
+The template keeps the execution logic in a standalone [run.sh](run.sh):
 
 ```bash
 git clone --depth 1 https://github.com/MoSafi2/demultiplexing_prefect ./demultiplexing_prefect
@@ -73,7 +73,7 @@ When you run with `--binding default`, `samplesheet` resolves in this order:
 
 1. explicit `--samplesheet`
 2. facility API lookup using `GF_API_NAME` and `GF_API_PASS`
-3. bundled template fallback [samplesheet.csv](/home/ckuo/github/izkf_pack/templates/demultiplex/samplesheet.csv) if the API lookup is unavailable or returns no record
+3. bundled template fallback [samplesheet.csv](samplesheet.csv) if the API lookup is unavailable or returns no record
 
 That fallback file is only a generic placeholder. It is useful as a last-resort file default, but
 it may not be correct for a real sequencing run.
@@ -83,13 +83,13 @@ it may not be correct for a real sequencing run.
 Direct local test:
 
 ```bash
-cd /home/ckuo/github/izkf_pack/templates/demultiplex
+cd templates/demultiplex
 python test.py
 ```
 
 Through Linkar:
 
 ```bash
-cd /home/ckuo/github/linkar
-pixi run linkar test demultiplex --pack /home/ckuo/github/izkf_pack
+cd /path/to/linkar
+pixi run linkar test demultiplex --pack /path/to/izkf_pack
 ```

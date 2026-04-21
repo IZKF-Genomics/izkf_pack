@@ -1,5 +1,5 @@
 id: nfcore_3mrnaseq
-version: 0.1.0
+version: 0.1.1
 description: Facility-specific nf-core/rnaseq wrapper for 3' mRNA-seq runs.
 tools:
   required:
@@ -22,15 +22,11 @@ params:
   umi:
     type: str
     default: ""
-    description: Optional UMI kit description. The known Takara QuantSeq phrase enables the nf-core UMI flags.
+    description: Optional UMI description. The facility default UMI metadata label enables the nf-core UMI flags. CLI shorthand values true, yes, on, and 1 resolve to the facility default UMI setting.
   spikein:
     type: str
     default: ""
-    description: Optional spike-in description. Values containing ERCC append _with_ERCC to the selected genome.
-  project_name:
-    type: str
-    default: ""
-    description: Project name used for --multiqc_title. The default binding resolves this from the active Linkar project.
+    description: Optional spike-in description. Values containing ERCC append _with_ERCC to the selected genome. CLI shorthand values true, yes, on, and 1 resolve to the facility default ERCC spike-in.
   max_cpus:
     type: int
     required: false
@@ -55,4 +51,8 @@ outputs:
     path: runtime_command.json
 run:
   mode: render
-  entry: run.sh
+  command: |
+    python3 ./run.py --run-script ./run.sh
+render:
+  command: |
+    python3 ./run.py --render-only --run-script ./run.sh

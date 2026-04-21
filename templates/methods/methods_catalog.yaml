@@ -6,8 +6,9 @@ templates:
     summary: Single-cell ATAC-seq libraries were processed with Cell Ranger ATAC and optionally aggregated across samples.
     method_core: Single-cell ATAC-seq libraries were processed with Cell Ranger ATAC using the configured reference package and local resource settings, with optional aggregation across libraries when requested.
     method_details:
-      - Count-level processing should be described as per-sample Cell Ranger ATAC analysis of compatible FASTQ inputs.
-      - If aggregation is recorded, describe it as a project-level aggregation step that combines successful per-sample outputs.
+      - Per-sample Cell Ranger ATAC analysis was performed from demultiplexed FASTQ files using the configured reference package for barcode processing, alignment, and peak-associated counting.
+      - Count outputs were generated separately for each library rather than as a pooled multi-sample analysis.
+      - If aggregation is recorded, it represents a downstream combination of successful per-sample outputs.
     important_params:
       - reference
       - run_aggr
@@ -15,11 +16,11 @@ templates:
       reference: Cell Ranger ATAC reference package used for alignment and quantification.
       run_aggr: Whether aggregated multi-library analysis was attempted after per-sample counting.
     param_context:
-      - If run_aggr is true, the final methods text should distinguish per-sample count runs from downstream aggregation.
-      - The reference parameter materially affects genome interpretation and should be considered part of the scientific context.
+      - The reference package defines the genomic context.
+      - Aggregation should be distinguished from the primary per-sample count runs.
     command_hints:
-      - Use runtime_command to recover whether only count was run or whether aggr was also invoked.
-      - Prefer software_versions and runtime_command over generic tool assumptions when reporting the Cell Ranger ATAC version.
+      - Use runtime_command to determine whether aggregation was run.
+      - Use software_versions or runtime_command to report the Cell Ranger ATAC version.
     tools:
       - Cell Ranger ATAC
     citations:
@@ -32,8 +33,9 @@ templates:
     summary: Sequencing output was demultiplexed into sample-specific sequencing files and quality-control reports.
     method_core: Raw sequencing output was demultiplexed into sample-specific FASTQ files using a facility-managed demultiplexing pipeline based on Illumina BCL conversion, followed by aggregate quality-control reporting.
     method_details:
-      - This preprocessing step establishes the sample-specific sequencing files used by downstream analytical templates.
-      - When contamination or secondary QC modules are present, describe them as post-demultiplexing QC and screening rather than as primary biological analysis.
+      - Base calls were converted into sample-specific FASTQ files according to the sequencing run sample sheet, establishing the sequencing inputs used for downstream analysis.
+      - Per-sample FASTQ quality metrics were reviewed after demultiplexing, and aggregate quality-control summaries were compiled across the sequencing run.
+      - Optional contamination or secondary screening modules represent post-demultiplexing technical quality control.
     important_params:
       - samplesheet
       - qc_tool
@@ -43,16 +45,16 @@ templates:
       qc_tool: Quality-control tools selected for FASTQ summarization.
       contamination_tool: Optional contamination-screening tools applied after demultiplexing.
     param_context:
-      - qc_tool and contamination_tool materially affect which post-demultiplex QC outputs exist and should be considered when describing FASTQ quality review.
-      - The methods text should focus on demultiplexing and QC behavior rather than instrument-local file paths or hardware allocation.
+      - qc_tool and contamination_tool determine which technical QC outputs are produced.
     command_hints:
-      - Use runtime_command and software_versions to recover the actual demultiplexing and QC tool combination instead of assuming defaults.
-      - When the runtime command indicates only a subset of optional QC modules was enabled, the methods text should mention only those modules.
+      - Use runtime_command and software_versions to recover the demultiplexing and QC tool combination.
+      - Mention only optional QC modules that were actually enabled.
     tools:
       - BCL Convert
       - MultiQC
     citations:
       - bcl_convert
+      - falco
       - multiqc
 
   dgea:
@@ -62,8 +64,11 @@ templates:
     summary: Differential gene expression analysis was prepared in an editable reporting workspace using project-level count and sample metadata.
     method_core: Differential expression analysis and reporting were prepared in an editable analysis workspace built around project-level quantification outputs, sample metadata, and templated downstream statistical reporting.
     method_details:
-      - This template should be described as downstream statistical analysis rather than primary read processing.
-      - If the run captures a Quarto- or notebook-based workspace, mention that the analysis environment remained editable for project-specific refinement.
+      - This stage represents downstream statistical analysis rather than primary read processing.
+      - Sample metadata were used to define biological groups and comparisons for downstream modeling and reporting.
+      - Count or quantification summaries from upstream RNA-seq processing were organized for contrast definition, statistical testing, and reporting.
+      - Differential expression modeling is DESeq2-based when that tool is listed among the recorded software or citations.
+      - When functional interpretation is enabled in the reporting workspace, Gene Ontology enrichment and ranked-list GSEA are performed with clusterProfiler.
     important_params:
       - samplesheet
       - organism
@@ -77,18 +82,150 @@ templates:
       application: Analysis application label used to choose downstream reporting defaults.
       name: Human-readable report or project name used in generated outputs.
     param_context:
-      - samplesheet, organism, and application jointly define the downstream analytical context for the generated reporting workspace.
-      - application and organism influence how the reporting workspace is configured and should be retained for LLM reasoning even if not explicitly printed in final prose.
+      - samplesheet, organism, and application define the downstream analytical context.
     command_hints:
-      - When runtime metadata are sparse, prefer the catalog description plus software_versions to explain this downstream analysis stage.
-      - This template often represents a project-editable workspace rather than a single immutable command-line analysis.
+      - When runtime metadata are sparse, use the catalog description plus software_versions.
+      - Describe this template as a downstream workspace rather than a single fixed command.
     tools:
       - R
       - Quarto
       - DESeq2
+      - clusterProfiler
     citations:
       - deseq2
+      - clusterprofiler
       - quarto
+
+  ercc:
+    category: quality_control
+    publication_relevance: true
+    label: ERCC spike-in quality control
+    summary: ERCC spike-in behavior was reviewed in a dedicated reporting workspace using Salmon quantification outputs and sample metadata.
+    method_core: ERCC spike-in performance was assessed in a dedicated quality-control workspace built from sample-level Salmon quantification outputs and accompanying sample metadata, with Quarto-rendered reporting of spike-in dynamic range and detection behavior across samples.
+    method_details:
+      - This stage represents assay quality control rather than primary biological analysis.
+      - ERCC abundance estimates derived from the recorded Salmon quantification outputs were reviewed across libraries to assess spike-in detection behavior, dynamic range, and consistency.
+      - When paired with 3' mRNA-seq processing, this report represents a downstream technical assessment of spike-in performance.
+    important_params:
+      - salmon_dir
+      - samplesheet
+      - authors
+    param_explanations:
+      salmon_dir: Quantification directory used as the source of ERCC abundance estimates.
+      samplesheet: Sample metadata table used to associate quantification outputs with biological sample labels.
+      authors: Recorded report authorship metadata for the generated QC workspace.
+    param_context:
+      - salmon_dir and samplesheet define the quantification outputs and sample identities included in the report.
+    command_hints:
+      - When runtime metadata are sparse, use the catalog description plus software_versions.
+    tools:
+      - Salmon
+      - R
+      - Quarto
+    citations:
+      - salmon
+      - quarto
+      - ercc_spikein
+
+  methylation_array_analysis:
+    category: downstream_analysis
+    publication_relevance: true
+    label: Methylation array analysis
+    summary: Illumina methylation array data were assembled into an editable study workspace with preprocessing, quality control, differential methylation analysis, and Quarto reporting.
+    method_core: Illumina methylation array data were analyzed in an editable R/Quarto study workspace that stages IDAT-based preprocessing, cohort curation, dimensionality reduction, differential methylation modeling, and report generation across one or more user-defined comparisons.
+    method_details:
+      - Raw Red and Green IDAT pairs were resolved from the registered datasets and validated before preprocessing to ensure that each included sample had complete array input files.
+      - Signal import, detection p-value calculation, normalization, and extraction of beta values and M values were performed through minfi-based array preprocessing.
+      - Normalization can include Noob, quantile normalization, SWAN, or functional normalization.
+      - Probe-level filtering can incorporate detection performance, chromosome-based exclusions, and optional SNP or cross-reactive probe removal before downstream modeling.
+      - When multiple datasets or batches are combined, probe matrices are merged on the shared feature space and can be batch-adjusted before downstream modeling.
+      - Differential methylation testing is limma-based at the probe level, with optional region-level DMR calling through DMRcate and enrichment analysis through missMethyl.
+    important_params:
+      - authors
+    param_explanations:
+      authors: Optional author list shown in reports for the rendered study workspace.
+    param_context:
+      - Most analysis settings are defined in the rendered workspace configuration rather than as top-level parameters.
+    command_hints:
+      - When runtime metadata are sparse, use the catalog description plus recorded software versions.
+      - Describe this template as an editable study workspace.
+    tools:
+      - minfi
+      - limma
+      - DMRcate
+      - missMethyl
+      - Quarto
+    citations:
+      - minfi
+      - limma
+      - dmrcate
+      - missmethyl
+      - quarto
+
+  scverse_scrna_prep:
+    category: downstream_analysis
+    publication_relevance: true
+    label: Single-cell RNA-seq preprocessing and quality control
+    summary: Single-cell RNA-seq data were prepared in an editable Scanpy/scverse workspace with quality control, dimensionality reduction, clustering, and Quarto reporting.
+    method_core: Single-cell RNA-seq data were processed in an editable Scanpy/scverse preprocessing workspace that imports matrix or H5AD inputs, computes quality-control metrics, applies configurable filtering, performs graph-based embedding and clustering, and renders a Quarto QC report.
+    method_details:
+      - Input data can be imported from H5AD objects, 10x Genomics HDF5 or MTX outputs, Parse Biosciences matrices, ScaleBio or STARsolo-style matrices, or Cell Ranger per-sample outputs.
+      - Cell-level quality-control metrics include library size, detected genes, and organism-aware mitochondrial, ribosomal, and hemoglobin transcript fractions.
+      - Filtering can be applied through fixed thresholds or per-sample median absolute deviation rules, allowing sample-aware exclusion of low-quality outlier cells.
+      - When enabled, doublet scoring is performed with Scrublet and predicted doublets can be retained for review or removed from the filtered analysis object.
+      - The retained object is normalized, highly variable genes are identified, and principal component analysis, nearest-neighbor graph construction, UMAP embedding, and Leiden clustering are performed within the same Scanpy workflow.
+      - Resolution benchmarking can be used to review clustering structure across multiple Leiden resolutions.
+    important_params:
+      - input_format
+      - organism
+      - doublet_method
+      - filter_predicted_doublets
+      - qc_mode
+      - qc_nmads
+      - min_genes
+      - min_cells
+      - min_counts
+      - max_pct_counts_mt
+      - max_pct_counts_ribo
+      - max_pct_counts_hb
+      - n_top_hvgs
+      - n_pcs
+      - n_neighbors
+      - leiden_resolution
+      - resolution_grid
+    param_explanations:
+      input_format: Input format used to interpret the upstream single-cell expression matrix or H5AD object.
+      organism: Organism label used to define mitochondrial, ribosomal, and hemoglobin gene-pattern QC rules.
+      doublet_method: Doublet detection method applied during QC.
+      filter_predicted_doublets: Whether predicted doublets were removed from the filtered analysis object.
+      qc_mode: Strategy used for cell-level QC thresholding.
+      qc_nmads: Number of MADs used for outlier-based filtering when MAD mode is selected.
+      min_genes: Minimum genes detected per cell.
+      min_cells: Minimum cells expressing a gene.
+      min_counts: Minimum counts per cell.
+      max_pct_counts_mt: Maximum mitochondrial transcript fraction allowed during filtering.
+      max_pct_counts_ribo: Optional maximum ribosomal transcript fraction allowed during filtering.
+      max_pct_counts_hb: Optional maximum hemoglobin transcript fraction allowed during filtering.
+      n_top_hvgs: Number of highly variable genes used for downstream dimensionality reduction.
+      n_pcs: Number of principal components used for graph construction and embedding.
+      n_neighbors: Number of neighbors used to build the cell-cell graph.
+      leiden_resolution: Final Leiden clustering resolution when specified explicitly.
+      resolution_grid: Set of Leiden resolutions benchmarked during clustering diagnostics.
+    param_context:
+      - QC thresholds, doublet handling, and graph parameters influence the retained cell set and exploratory structure.
+    command_hints:
+      - When runtime metadata are sparse, use the catalog description plus recorded software versions.
+    tools:
+      - Scanpy
+      - scverse
+      - Scrublet
+      - Python
+      - Quarto
+    citations:
+      - scanpy
+      - scrublet
+      - quarto
+
   nfcore_3mrnaseq:
     category: analysis
     publication_relevance: true
@@ -96,9 +233,13 @@ templates:
     summary: Transcriptome sequencing data were processed with the nf-core/rnaseq workflow using the configured genome and quantification settings.
     method_core: 3' mRNA-seq libraries were processed with the nf-core/rnaseq workflow under a facility-specific configuration using Nextflow and containerized execution, with alignment, quantification, and QC coordinated under a pinned workflow revision.
     method_details:
-      - The methods text should emphasize that this is a facility-specific wrapper around nf-core/rnaseq for 3' mRNA-seq.
-      - When ERCC spike-ins are present, the effective genome context should mention the spike-in-augmented reference rather than only the original genome label.
-      - When UMI handling is enabled, the final methods text should reflect UMI-aware extraction rather than describing a generic RNA-seq workflow.
+      - The workflow represents a facility-specific 3' mRNA-seq implementation of nf-core/rnaseq executed through Nextflow in a reproducible containerized environment.
+      - Within the workflow, reads were processed with STAR for alignment and Salmon for transcript quantification under the recorded nf-core/rnaseq revision.
+      - Gene-level summaries and workflow quality-control outputs were generated within the same nf-core/rnaseq execution context.
+      - For 3' mRNA-seq libraries, transcript quantification settings reflect assay-appropriate handling rather than generic full-length RNA-seq assumptions.
+      - When ERCC spike-ins are present, the effective reference includes the spike-in-augmented genome rather than only the original genome label.
+      - When UMI handling is enabled, the workflow includes UMI-aware extraction rather than generic RNA-seq processing alone.
+      - Sample-specific FASTQ structure is inherited from upstream demultiplexing outputs and translated into the nf-core/rnaseq input table used for this analysis.
     important_params:
       - genome
       - samplesheet
@@ -110,13 +251,10 @@ templates:
       umi: UMI kit description used to enable or disable UMI-aware extraction.
       spikein: Spike-in description that may alter the effective reference choice.
     param_context:
-      - genome, spikein, and umi jointly shape the biological interpretation of the processing workflow and should be considered together.
-      - samplesheet is operationally important and should influence LLM reasoning about sample structure even if it is not quoted verbatim in manuscript prose.
-      - Hardware resource limits and report-labeling parameters should generally not dominate the scientific narrative.
+      - genome, spikein, and umi jointly shape the biological interpretation of the workflow.
     command_hints:
-      - Use runtime_command to recover the actual nf-core/rnaseq revision, execution profile, and UMI-specific flags.
-      - Use runtime metadata to distinguish the requested genome from the effective genome after ERCC augmentation.
-      - Prefer runtime_command and software_versions over generic template summaries when the command captures richer tool context.
+      - Use runtime_command to recover the workflow revision, execution profile, and UMI-specific flags.
+      - Distinguish the requested genome from the effective genome after ERCC augmentation.
     tools:
       - Nextflow
       - nf-core/rnaseq
@@ -136,9 +274,10 @@ templates:
     summary: RRBS sequencing data were processed with the nf-core/methylseq workflow using a facility-specific configuration and project-specific genome selection.
     method_core: RRBS libraries were processed with nf-core/methylseq under a pinned workflow revision using Nextflow and containerized execution, with facility-managed reference configuration and project-specific genome selection.
     method_details:
-      - RRBS should be named explicitly because it is the default protocol mode for this template.
-      - When runtime metadata are available, use the recorded command and generated Nextflow config to recover the actual execution context rather than inferring defaults.
-      - If shared FASTA-based references were used to generate downstream indices at runtime, the text should reflect that facility reference handling without overclaiming prebuilt indices.
+      - RRBS is the default protocol mode for this template.
+      - The workflow represents a reproducible Nextflow execution of nf-core/methylseq under a pinned pipeline revision.
+      - Demultiplexed FASTQ files are translated into the nf-core/methylseq input table, while the selected genome is passed explicitly through the recorded runtime configuration.
+      - RRBS-aware methylation analysis should be described within the nf-core/methylseq execution context.
     important_params:
       - genome
       - rrbs
@@ -146,11 +285,9 @@ templates:
       genome: Selected facility genome identifier used to choose the reference FASTA.
       rrbs: RRBS mode flag for nf-core/methylseq.
     param_context:
-      - genome and rrbs are the most important run-specific scientific settings for this template and should be considered explicitly by the LLM.
-      - Report-labeling and hardware resource settings are secondary provenance context and should not dominate the scientific description.
+      - genome and rrbs are the main run-specific scientific settings.
     command_hints:
-      - Use the runtime command to recover the exact nf-core/methylseq revision, execution profile, and whether RRBS mode was enabled.
-      - Prefer runtime_command and software_versions over generic template summaries when reporting tool and workflow versions.
+      - Use runtime_command to recover the workflow revision, execution profile, and RRBS mode.
     tools:
       - Nextflow
       - nf-core/methylseq
@@ -165,6 +302,9 @@ references:
   bcl_convert:
     text: "Illumina. BCL Convert software documentation."
     url: "https://support-docs.illumina.com/SW/BCL_Convert/Content/SW/BCLConvert/BCLConvert.htm"
+  falco:
+    text: "de Sena Brandine G and Smith AD. Falco: high-speed FastQC emulation for quality control of sequencing data. F1000Research 2021, 8:1874."
+    url: "https://doi.org/10.12688/f1000research.21142.2"
   multiqc:
     text: "Ewels P, Magnusson M, Lundin S, Kaller M. MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics. 2016."
     url: "https://doi.org/10.1093/bioinformatics/btw354"
@@ -198,3 +338,27 @@ references:
   quarto:
     text: "Quarto open-source scientific and technical publishing system."
     url: "https://quarto.org/"
+  clusterprofiler:
+    text: "Wu T, Wang E, Hu Y, et al. clusterProfiler 4.0: A universal enrichment tool for interpreting omics data. The Innovation. 2021."
+    url: "https://doi.org/10.1016/j.xinn.2021.100141"
+  ercc_spikein:
+    text: "Jiang L, Schlesinger F, Davis CA, et al. Synthetic spike-in standards for RNA-seq experiments. Genome Research. 2011."
+    url: "https://doi.org/10.1101/gr.121095.111"
+  minfi:
+    text: "Aryee MJ, Jaffe AE, Corrada-Bravo H, et al. Minfi: a flexible and comprehensive Bioconductor package for the analysis of Infinium DNA methylation microarrays. Bioinformatics. 2014."
+    url: "https://doi.org/10.1093/bioinformatics/btu049"
+  limma:
+    text: "Ritchie ME, Phipson B, Wu D, et al. limma powers differential expression analyses for RNA-sequencing and microarray studies. Nucleic Acids Research. 2015."
+    url: "https://doi.org/10.1093/nar/gkv007"
+  dmrcate:
+    text: "Peters TJ, Buckley MJ, Statham AL, et al. De novo identification of differentially methylated regions in the human genome. Epigenetics & Chromatin. 2015."
+    url: "https://doi.org/10.1186/1756-8935-8-6"
+  missmethyl:
+    text: "Phipson B, Maksimovic J, Oshlack A. missMethyl: an R package for analyzing data from Illumina's HumanMethylation450 platform. Bioinformatics. 2016."
+    url: "https://doi.org/10.1093/bioinformatics/btv560"
+  scanpy:
+    text: "Wolf FA, Angerer P, Theis FJ. Scanpy: large-scale single-cell gene expression data analysis. Genome Biology. 2018."
+    url: "https://doi.org/10.1186/s13059-017-1382-0"
+  scrublet:
+    text: "Wolock SL, Lopez R, Klein AM. Scrublet: computational identification of cell doublets in single-cell transcriptomic data. Cell Systems. 2019."
+    url: "https://doi.org/10.1016/j.cels.2018.11.005"

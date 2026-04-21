@@ -10,7 +10,7 @@ format:
       toc_collapsed: true
     toc_depth: 3
     number_sections: false
-    embed-resources: true
+    embed-resources: false
     theme: lumen
 bibliography: references.bib
 params:
@@ -22,7 +22,7 @@ params:
   top_n_100: 100
   top_n_10: 10
   top_n_single: 20
-  single_comparison_file: "DGEA_Generation2_vs_WT_stat.csv"
+  single_comparison_file: null
   gsea_min_log10_padj: 7
 ---
 
@@ -40,7 +40,7 @@ library(tibble)
 library(RColorBrewer)
 
 padj_threshold <- params$padj_threshold
-norm_counts_file <- "DGEA_All_samples_norm_counts.csv"
+norm_counts_file <- "DGEA_all_samples_norm_counts.csv"
 
 if (!file.exists(norm_counts_file)) {
   stop("Missing normalized counts file: ", norm_counts_file, call. = FALSE)
@@ -52,6 +52,18 @@ if (nzchar(params$stat_files_exclude_regex)) {
 }
 if (length(stat_files) == 0) {
   stop("No DGEA stat files found with pattern: ", params$stat_files_pattern, call. = FALSE)
+}
+
+single_comparison_file <- params$single_comparison_file
+if (is.null(single_comparison_file) || identical(single_comparison_file, "")) {
+  single_comparison_file <- stat_files[[1]]
+}
+if (!single_comparison_file %in% stat_files) {
+  warning(
+    "single_comparison_file not found in stat files: ", single_comparison_file,
+    ". Skipping the single-comparison section."
+  )
+  single_comparison_file <- NULL
 }
 
 norm_count <- fread(norm_counts_file)
@@ -171,17 +183,18 @@ generate_heatmap(
 # Top DE genes in a single comparison
 
 ```{r top-single, echo=FALSE, results="asis", warning=FALSE, message=FALSE, dpi=600, fig.width=6, fig.height=4}
-if (!params$single_comparison_file %in% stat_files) {
-  stop("single_comparison_file not found in stat files: ", params$single_comparison_file)
+if (is.null(single_comparison_file)) {
+  cat("No valid single comparison file configured. Set params$single_comparison_file to highlight one comparison.")
+} else {
+  filtered_genes <- filter_genes(stat_files, top_n = params$top_n_single)
+  target_genes <- filtered_genes[[single_comparison_file]]
+  generate_heatmap(
+    target_genes,
+    fontsize_row = 4,
+    main = paste0("Top ", params$top_n_single, " DE genes in ", single_comparison_file),
+    show_rownames = TRUE
+  )
 }
-filtered_genes <- filter_genes(stat_files, top_n = params$top_n_single)
-target_genes <- filtered_genes[[params$single_comparison_file]]
-generate_heatmap(
-  target_genes,
-  fontsize_row = 4,
-  main = paste0("Top ", params$top_n_single, " DE genes in ", params$single_comparison_file),
-  show_rownames = TRUE
-)
 ```
 
 # GSEA

@@ -9,7 +9,42 @@ The pack is intentionally practical:
 - `discovery/` contains read-only helpers for finding projects, sequencing runs, references, and processed run folders.
 - `linkar_pack.yaml` wires selected templates to default binding functions.
 
-Template authors and AI agents should also read [TEMPLATE_AUTHORING_FOR_AGENTS.md](/home/ckuo/github/izkf_pack/TEMPLATE_AUTHORING_FOR_AGENTS.md:1) before adding a new template. For the general Linkar-side guidance on `run.command`, `run.sh`, `run.py`, and runtime metadata patterns, see the Linkar website tutorial at [python-entry-and-runtime-metadata.md](/home/ckuo/github/linkar/website/src/content/tutorials/python-entry-and-runtime-metadata.md:1).
+## Start Here
+
+If you are new to the pack, the usual path is:
+
+1. install the pack
+2. configure your user defaults
+3. run one of the common workflows below
+4. open the relevant template README for template-specific details
+5. use the docs folder when you want pack-wide design notes
+
+## How To Read This Repository
+
+Use the documentation in three layers:
+
+- This page: quick setup, common workflows, and the main navigation for the pack.
+- `templates/*/README.md`: template-specific usage, parameters, and outputs.
+- [`docs/`](docs/README.md): pack-wide conventions and design notes that span multiple templates.
+
+Start here if you want to run the pack. Use the docs folder if you want to
+understand why the pack is structured the way it is.
+
+## Deeper Docs
+
+General pack docs:
+
+- [docs/README.md](docs/README.md): index of pack-wide guides
+- [docs/software_versions.md](docs/software_versions.md): how template specs become generated `software_versions.json`
+- [docs/methods.md](docs/methods.md): how long/short methods outputs are built
+- [docs/export.md](docs/export.md): export mapping behavior and `export_job_spec.json`
+- [docs/nfcore_templates.md](docs/nfcore_templates.md): shared nf-core launcher and provenance patterns
+- [docs/project_history_and_archive.md](docs/project_history_and_archive.md): visible workspaces, `.linkar/runs`, prune, and archive behavior
+- [docs/template_outputs.md](docs/template_outputs.md): common runtime artifacts across templates
+- [docs/facility_defaults.md](docs/facility_defaults.md): facility-specific assumptions used across templates
+- [docs/scverse_scrna_prep.md](docs/scverse_scrna_prep.md): scRNA workspace notes beyond the template README
+
+Template authors and AI agents should also read [TEMPLATE_AUTHORING_FOR_AGENTS.md](TEMPLATE_AUTHORING_FOR_AGENTS.md) before adding a new template. For the general Linkar-side guidance on `run.command`, `run.sh`, `run.py`, and runtime metadata patterns, see the Linkar tutorial `python-entry-and-runtime-metadata.md` in the Linkar docs site.
 
 ## Install
 
@@ -55,37 +90,19 @@ linkar project init \
   --author-email "another.user@example.org"
 ```
 
-## Create A Project
+## Common Workflows
 
-Create a new project directory:
-
-```bash
-cd /data/projects/
-linkar project init --name example_project
-cd example_project
-linkar project view
-```
-
-Create a project and adopt an existing Linkar run:
-
-```bash
-cd /data/projects/
-linkar project init \
-  --name example_project \
-  --adopt /data/processed_runs/example_run
-```
-
-## Run Demultiplexing
+### Run Demultiplexing
 
 Use this when starting from a raw sequencing run folder.
 
 Inspect first, then execute manually:
 
 ```bash
-cd /data/processed_runs/
+cd /path/to/processed_runs/
 
 linkar render demultiplex \
-  --bcl-dir /data/raw_runs/example_run \
+  --bcl-dir /path/to/raw_runs/example_run \
   --agendo-id EXAMPLE_REQUEST_ID
 
 cd example_run
@@ -97,10 +114,10 @@ linkar collect example_run
 One-shot execution:
 
 ```bash
-cd /data/processed_runs/
+cd /path/to/processed_runs/
 
 linkar run demultiplex \
-  --bcl-dir /data/raw_runs/example_run \
+  --bcl-dir /path/to/raw_runs/example_run \
   --agendo-id EXAMPLE_REQUEST_ID \
   --verbose
 ```
@@ -111,23 +128,21 @@ Export an ad hoc demultiplexing run:
 
 ```bash
 linkar run export_demux \
-  --run-dir /data/processed_runs/example_run \
+  --run-dir /path/to/processed_runs/example_run \
   --project-name example_fastq_export \
   --verbose
 ```
 
-## Run Analysis
-
-### 3' mRNA-seq
+### Run nf-core RNA-seq Processing for 3' mRNA-seq
 
 After finishing demultiplexing, create a project and adopt the processed run:
 
 ```bash
-cd /data/projects/
+cd /path/to/projects/
 
 linkar project init \
   --name example_3mrnaseq_project \
-  --adopt /data/processed_runs/example_run
+  --adopt /path/to/processed_runs/example_run
 
 cd example_3mrnaseq_project
 linkar project view
@@ -155,12 +170,51 @@ cd ..
 linkar collect nfcore_3mrnaseq
 ```
 
+If there are multiple batches in the project and you want to run separate nf-core processing runs, you can do:
+
+```bash
+linkar render nfcore_3mrnaseq \
+  --agendo-id EXAMPLE_REQUEST_ID \
+  --umi true \
+  --spikein true \
+  --outdir nfcore_tissue1 \
+  --genome Sscrofa11.1
+```
+
+Don't forget to manually adjust the generated `samplesheet.csv` which by default includes all samples. Then render the template again for another batch with different parameters:
+
+```bash
+linkar render nfcore_3mrnaseq \
+  --agendo-id EXAMPLE_REQUEST_ID \
+  --outdir nfcore_tissue2 \
+  --genome Sscrofa11.1
+```
+
+### Run Differential Gene Expression Analysis
+
 Run the editable DGEA workspace after RNA-seq quantification outputs are recorded:
 
 ```bash
-linkar run dgea \
-  --outdir ./dgea \
-  --verbose
+linkar run dgea
+```
+
+If there are multiple nf-core runs in the project and you want to use a specific upstream result set:
+
+```bash
+linkar render dgea \
+  --salmon-dir nfcore_tissue1/results/star_salmon/ \
+  --organism sscrofa \
+  --application 3mrnaseq \
+  --outdir DGEA_Tissue1 \
+  --samplesheet nfcore_tissue1/samplesheet.csv
+```
+
+### Run ERCC spike-in QC report
+
+Run the ERCC spike-in QC report when the same RNA-seq quantification outputs are available:
+
+```bash
+linkar run ercc
 ```
 
 ### RRBS methylation-seq
@@ -169,9 +223,7 @@ Run the RRBS-first `nf-core/methylseq` wrapper after demultiplex outputs are rec
 
 ```bash
 linkar run nfcore_methylseq \
-  --agendo-id EXAMPLE_REQUEST_ID \
-  --outdir ./nfcore_methylseq \
-  --verbose
+  --agendo-id EXAMPLE_REQUEST_ID
 ```
 
 The default binding can generate the methylseq samplesheet from demultiplexed FASTQ names, resolve `genome`, and set the MultiQC title from the project name.
@@ -182,24 +234,13 @@ Run Cell Ranger ATAC after a compatible FASTQ directory is recorded or passed ex
 
 ```bash
 linkar run cellranger_atac \
-  --fastq-dir /data/processed_runs/example_run/results/output/example_project \
-  --reference /data/references/example_cellranger_atac_reference \
-  --outdir ./cellranger_atac \
-  --verbose
+  --fastq-dir /path/to/processed_runs/example_run/results/output/example_project \
+  --reference /path/to/references/example_cellranger_atac_reference
 ```
 
-## Generate Methods
+### Generate Methods
 
-Use this after one or more analysis runs have been adopted into `project.yaml`.
-
-```bash
-linkar run methods \
-  --outdir ./methods \
-  --use-llm false \
-  --verbose
-```
-
-Optional LLM polishing uses an OpenAI-compatible API. Keep secrets in the environment, not in `project.yaml`:
+Use this after one or more analysis runs have been adopted into `project.yaml`. The template now attempts LLM polishing by default and falls back to deterministic drafts if the API settings are missing. Keep secrets in the environment, not in `project.yaml`:
 
 ```bash
 export LINKAR_LLM_API_KEY="..."
@@ -208,11 +249,12 @@ export LINKAR_LLM_MODEL="example-model"
 
 linkar run methods \
   --outdir ./methods \
-  --use-llm true \
-  --verbose
+  --refresh
 ```
 
-## Export
+This keeps the visible methods workspace in `./methods` and overwrites `methods/results/` on reruns instead of leaving the user to inspect historical `.linkar/runs/...` snapshots.
+
+### Export
 
 Use this after the project contains the runs and reports you want to publish.
 
@@ -228,9 +270,7 @@ bash run.sh
 One-shot export:
 
 ```bash
-linkar run export \
-  --outdir ./export \
-  --verbose
+linkar run export
 ```
 
 Check an export job:
@@ -280,13 +320,16 @@ linkar config author show
 
 If a required parameter cannot be resolved automatically, pass it explicitly with its template option, for example `--samplesheet`, `--genome`, `--fastq-dir`, or `--reference`.
 
-## Templates
+## Template Catalog
 
 | Template | Purpose | Details |
 | --- | --- | --- |
 | [`demultiplex`](templates/demultiplex/linkar_template.yaml) | Clone and run the pinned demultiplexing workflow, writing processed outputs under `results/`. | [README](templates/demultiplex/README.md) |
 | [`nfcore_3mrnaseq`](templates/nfcore_3mrnaseq/linkar_template.yaml) | Run the site-specific `nf-core/rnaseq` wrapper for 3' mRNA-seq projects. | [README](templates/nfcore_3mrnaseq/README.md) |
+| [`scverse_scrna_prep`](templates/scverse_scrna_prep/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq preprocessing workspace with Quarto QC reporting. | [README](templates/scverse_scrna_prep/README.md) |
 | [`dgea`](templates/dgea/linkar_template.yaml) | Create and run an editable R/Quarto differential expression workspace. | [README](templates/dgea/README.md) |
+| [`ercc`](templates/ercc/linkar_template.yaml) | Create and run an editable ERCC spike-in QC workspace with Quarto reporting. | [README](templates/ercc/README.md) |
+| [`methylation_array_analysis`](templates/methylation_array_analysis/linkar_template.yaml) | Create and run an editable Illumina methylation array study workspace with preprocessing, batch-aware analysis, and ordered Quarto reports. | [README](templates/methylation_array_analysis/README.md) |
 | [`cellranger_atac`](templates/cellranger_atac/linkar_template.yaml) | Discover ATAC samples, run `cellranger-atac count`, and optionally aggregate libraries. | [README](templates/cellranger_atac/README.md) |
 | [`methods`](templates/methods/linkar_template.yaml) | Generate long and short project methods drafts from Linkar project history. | [README](templates/methods/README.md) |
 | [`export`](templates/export/linkar_template.yaml) | Build and submit a project export bundle from recorded project outputs. | [README](templates/export/README.md) |
@@ -298,7 +341,9 @@ If a required parameter cannot be resolved automatically, pass it explicitly wit
 | [`archive_fastq`](templates/archive_fastq/linkar_template.yaml) | Archive processed sequencing run folders with a manifest log and optional cleanup. | [README](templates/archive_fastq/README.md) |
 | [`archive_projects`](templates/archive_projects/linkar_template.yaml) | Archive project folders with a manifest log and optional cleanup. | [README](templates/archive_projects/README.md) |
 
-## Binding Functions
+## Functions and Discovery
+
+### Binding Functions
 
 The default binding in [`linkar_pack.yaml`](linkar_pack.yaml) uses Python functions from [`functions/`](functions/README.md). These functions are small by design: each returns one parameter value for one Linkar render/run context.
 
@@ -324,7 +369,7 @@ The default binding in [`linkar_pack.yaml`](linkar_pack.yaml) uses Python functi
 
 Internal helper modules are documented in the functions README but are not intended to be called directly from `linkar_pack.yaml`.
 
-## Discovery Helpers
+### Discovery Helpers
 
 The `discovery/` modules are read-only helpers for agents and automation layers. They do not execute templates. They help answer questions such as:
 
@@ -338,7 +383,7 @@ Example:
 from discovery.projects import list_projects
 from discovery.references import recommended_references
 
-projects = list_projects("/data/projects")
+projects = list_projects("/path/to/projects")
 references = recommended_references(organism="example_organism", workflow="example_workflow")
 ```
 

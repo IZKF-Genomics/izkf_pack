@@ -1,0 +1,138 @@
+id: scverse_scrna_prep
+version: 0.1.0
+description: Editable scverse/Scanpy single-cell RNA-seq preprocessing workspace with Quarto QC reporting.
+tools:
+  required:
+    - pixi
+    - python3
+    - quarto
+params:
+  input_h5ad:
+    type: path
+    default: ""
+    description: Optional upstream `.h5ad` input. When both `input_h5ad` and `input_matrix` are empty, the run stops with a clear error.
+  input_matrix:
+    type: path
+    default: ""
+    description: Optional direct input path for H5AD, Cell Ranger `.h5`, 10x matrix directories, ParseBio outputs, ScaleBio outputs, or Cell Ranger `per_sample_outs`.
+  input_source_template:
+    type: str
+    default: ""
+    description: Optional provenance label recording which upstream template produced the chosen input.
+  ambient_correction_applied:
+    type: bool
+    default: false
+    description: Optional provenance flag indicating whether ambient RNA correction was already applied upstream.
+  ambient_correction_method:
+    type: str
+    default: "none"
+    description: Optional provenance label describing upstream ambient RNA correction.
+  input_format:
+    type: str
+    default: "auto"
+    description: Input format override. Supported values are `auto`, `h5ad`, `10x_h5`, `10x_mtx`, `parsebio`, `scalebio`, and `cellranger_per_sample_outs`.
+  var_names:
+    type: str
+    default: "gene_symbols"
+    description: Feature naming choice for matrix-style inputs. Supported values are `gene_symbols` and `gene_ids`.
+  sample_metadata:
+    type: path
+    default: ""
+    description: Optional sample metadata CSV with a `sample_id` column. When omitted, the workspace uses `config/samples.csv`.
+  organism:
+    type: str
+    default: ""
+    description: Organism label for QC gene-prefix logic such as `human`, `mouse`, `hsapiens`, or `mmusculus`.
+  batch_key:
+    type: str
+    default: "batch"
+    description: Preferred batch column in `adata.obs` or the sample metadata CSV.
+  condition_key:
+    type: str
+    default: "condition"
+    description: Preferred condition column in `adata.obs` or the sample metadata CSV.
+  sample_id_key:
+    type: str
+    default: "sample_id"
+    description: Preferred sample identifier column.
+  doublet_method:
+    type: str
+    default: "none"
+    description: Doublet scoring method. Supported values are `none` and `scrublet`.
+  filter_predicted_doublets:
+    type: bool
+    default: false
+    description: When `doublet_method=scrublet`, remove predicted doublets from the filtered object.
+  qc_mode:
+    type: str
+    default: "fixed"
+    description: QC decision mode. Supported values are `fixed` and `mad_per_sample`.
+  qc_nmads:
+    type: str
+    default: "3.0"
+    description: Number of MADs used for outlier detection when `qc_mode=mad_per_sample`.
+  min_genes:
+    type: int
+    default: 200
+    description: Minimum genes detected per cell.
+  min_cells:
+    type: int
+    default: 3
+    description: Minimum cells expressing a gene.
+  min_counts:
+    type: int
+    default: 500
+    description: Minimum UMI counts per cell.
+  max_pct_counts_mt:
+    type: str
+    default: "20.0"
+    description: Maximum mitochondrial percentage for QC pass filtering.
+  max_pct_counts_ribo:
+    type: str
+    default: ""
+    description: Optional maximum ribosomal percentage for QC pass filtering. Leave empty to disable.
+  max_pct_counts_hb:
+    type: str
+    default: ""
+    description: Optional maximum hemoglobin percentage for QC pass filtering. Leave empty to disable.
+  n_top_hvgs:
+    type: int
+    default: 3000
+    description: Number of highly variable genes to flag.
+  n_pcs:
+    type: int
+    default: 30
+    description: Number of principal components for neighbors and UMAP.
+  n_neighbors:
+    type: int
+    default: 15
+    description: Number of neighbors for graph construction.
+  leiden_resolution:
+    type: str
+    default: ""
+    description: Optional Leiden resolution override. When omitted, the notebook chooses a heuristic value after QC.
+  resolution_grid:
+    type: str
+    default: "0.2,0.4,0.6,0.8,1.0,1.2"
+    description: Comma-separated Leiden resolutions to benchmark in the clustering diagnostics section.
+outputs:
+  results_dir: {}
+  run_info:
+    path: results/run_info.yaml
+  software_versions:
+    path: results/software_versions.json
+  config_file:
+    path: config/project.toml
+  sample_metadata_template:
+    path: config/samples.csv
+  html_reports:
+    glob: reports/*.html
+  h5ad_outputs:
+    glob: results/*.h5ad
+  tables:
+    glob: results/tables/*.csv
+  metadata_json:
+    glob: results/*.json
+run:
+  mode: render
+  entry: run.sh

@@ -17,8 +17,6 @@ templates:
         function: get_agendo_umi
       spikein:
         function: get_agendo_spikein
-      project_name:
-        function: get_project_name
       max_cpus:
         function: get_host_max_cpus
       max_memory:
@@ -53,6 +51,18 @@ templates:
         function: get_dgea_application
       name:
         function: get_dgea_name
+      authors:
+        function: get_dgea_authors
+  ercc:
+    params:
+      salmon_dir:
+        function: get_dgea_salmon_dir
+      samplesheet:
+        function: get_dgea_samplesheet
+      authors:
+        function: get_dgea_authors
+  methylation_array_analysis:
+    params:
       authors:
         function: get_dgea_authors
   multiqc:

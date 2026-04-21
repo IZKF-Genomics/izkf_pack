@@ -5,6 +5,7 @@ import argparse
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -108,6 +109,8 @@ def test_generation_with_runtime_command() -> None:
                 str(results_dir),
                 "--project-dir",
                 str(project_dir),
+                "--use-llm",
+                "false",
             ],
             check=True,
             capture_output=True,
@@ -116,16 +119,36 @@ def test_generation_with_runtime_command() -> None:
         assert "methods_long.md" in completed.stdout
         long_text = (results_dir / "methods_long.md").read_text(encoding="utf-8")
         short_text = (results_dir / "methods_short.md").read_text(encoding="utf-8")
+        long_html = (results_dir / "methods_long.html").read_text(encoding="utf-8")
+        short_html = (results_dir / "methods_short.html").read_text(encoding="utf-8")
         refs = (results_dir / "methods_references.md").read_text(encoding="utf-8")
         context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
         prompt = (results_dir / "methods_prompt.md").read_text(encoding="utf-8")
         response = json.loads((results_dir / "methods_response.json").read_text(encoding="utf-8"))
 
         assert "Single-cell ATAC-seq processing" in long_text
-        assert "cellranger-atac count --id sample_a" in long_text
         assert "example_reference" in long_text
-        assert "cellranger-atac 2.2.0" in long_text
-        assert "1 recorded workflow" in short_text
+        assert "Cell Ranger ATAC" in long_text
+        assert "2.2.0" in long_text
+        assert "### Computational Approach" not in long_text
+        assert "### Relevant Settings" in long_text
+        assert "### Software" in long_text
+        assert "### References" in long_text
+        assert "cellranger-atac count --id sample_a" not in long_text
+        assert "Linkar" not in long_text
+        assert "recorded project author" not in long_text.lower()
+        assert "Project-level sequencing metadata were recovered" not in long_text
+        assert "publication-relevant workflow step" not in short_text
+        assert "References" in short_text
+        assert short_text.strip().splitlines()[0].endswith(".")
+        assert "\n\n" in short_text
+        assert "\n1. " in short_text
+        assert "<!DOCTYPE html>" in long_html
+        assert "<h1>Methods</h1>" in long_html
+        assert 'class="sidebar"' in long_html
+        assert "<article>" in long_html
+        assert "<!DOCTYPE html>" in short_html
+        assert "References" in short_html
         assert "Cell Ranger ATAC" in refs
         assert "runtime_command" in prompt
         assert context["runs"][0]["template"] == "cellranger_atac"
@@ -134,6 +157,206 @@ def test_generation_with_runtime_command() -> None:
         assert context["runs"][0]["catalog"]["method_core"]
         assert context["runs"][0]["interpreted_params"][0]["name"] == "reference"
         assert response["used_llm"] is False
+
+
+def test_dgea_label_and_software_version_fallback() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        project_dir = root / "project"
+        results_dir = root / "results"
+        run_dir = project_dir / "DGEA_Liver"
+        (run_dir / ".linkar").mkdir(parents=True)
+        (run_dir / ".linkar" / "runtime.json").write_text(
+            json.dumps({"success": True, "returncode": 0}),
+            encoding="utf-8",
+        )
+        results_source = run_dir / "results"
+        results_source.mkdir()
+        (results_source / "software_versions.json").write_text(
+            json.dumps({"software": [{"name": "quarto", "version": "1.6.0", "source": "command"}]}),
+            encoding="utf-8",
+        )
+        project_dir.mkdir(exist_ok=True)
+        (project_dir / "project.yaml").write_text(
+            yaml.safe_dump(
+                {
+                    "id": "example_project_002",
+                    "author": {"name": "Example User", "organization": "Example Org"},
+                    "templates": [
+                        {
+                            "id": "dgea",
+                            "template_version": "0.1.2",
+                            "instance_id": "dgea_001",
+                            "path": "DGEA_Liver",
+                            "params": {
+                                "samplesheet": "/tmp/samplesheet.csv",
+                                "organism": "sscrofa",
+                                "application": "3mrnaseq",
+                                "name": "Liver",
+                            },
+                            "outputs": {},
+                        }
+                    ],
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+
+        subprocess.run(
+            [
+                "python3",
+                str(TEMPLATE_DIR / "run.py"),
+                "--results-dir",
+                str(results_dir),
+                "--project-dir",
+                str(project_dir),
+                "--use-llm",
+                "false",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        long_text = (results_dir / "methods_long.md").read_text(encoding="utf-8")
+        context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
+        assert "Differential gene expression analysis: Liver" in long_text
+        assert "### Computational Approach" not in long_text
+        assert "### Relevant Settings" in long_text
+        assert "### Software" in long_text
+        assert "### References" in long_text
+        assert "Quarto" in long_text
+        assert "Linkar" not in long_text
+        assert context["runs"][0]["label"] == "Differential gene expression analysis: Liver"
+        assert context["runs"][0]["software_versions"][0]["name"] == "quarto"
+        assert context["runs"][0]["run_dir"].endswith("DGEA_Liver")
+
+
+def test_ercc_catalog_entry_shapes_methods_text() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        project_dir = root / "project"
+        results_dir = root / "results"
+        run_dir = project_dir / "ercc"
+        (run_dir / ".linkar").mkdir(parents=True)
+        (run_dir / ".linkar" / "runtime.json").write_text(
+            json.dumps({"success": True, "returncode": 0}),
+            encoding="utf-8",
+        )
+        results_source = run_dir / "results"
+        results_source.mkdir()
+        (results_source / "software_versions.json").write_text(
+            json.dumps(
+                {
+                    "software": [
+                        {"name": "pixi", "version": "pixi 0.64.0", "source": "command"},
+                        {"name": "quarto", "version": "1.6.0", "source": "command"},
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        project_dir.mkdir(exist_ok=True)
+        (project_dir / "project.yaml").write_text(
+            yaml.safe_dump(
+                {
+                    "id": "example_project_003",
+                    "author": {"name": "Example User", "organization": "Example Org"},
+                    "templates": [
+                        {
+                            "id": "ercc",
+                            "template_version": "0.1.0",
+                            "instance_id": "ercc_001",
+                            "path": "ercc",
+                            "params": {
+                                "salmon_dir": "/tmp/star_salmon",
+                                "samplesheet": "/tmp/samplesheet.csv",
+                                "authors": "Example User",
+                            },
+                            "outputs": {
+                                "results_dir": str(results_source),
+                            },
+                        }
+                    ],
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+
+        subprocess.run(
+            [
+                "python3",
+                str(TEMPLATE_DIR / "run.py"),
+                "--results-dir",
+                str(results_dir),
+                "--project-dir",
+                str(project_dir),
+                "--use-llm",
+                "false",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        long_text = (results_dir / "methods_long.md").read_text(encoding="utf-8")
+        refs = (results_dir / "methods_references.md").read_text(encoding="utf-8")
+        context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
+        assert "ERCC spike-in quality control" in long_text
+        assert "Salmon quantification results" in long_text
+        assert "### Computational Approach" not in long_text
+        assert "### References" in long_text
+        assert "Example User" not in long_text
+        assert "Linkar" not in long_text
+        assert "Synthetic spike-in standards for RNA-seq experiments" in refs
+        assert context["runs"][0]["label"] == "ERCC spike-in quality control"
+        assert context["runs"][0]["catalog"]["method_core"]
+
+
+def test_run_sh_resolves_project_dir_from_linkar_runtime_copy() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        project_dir = root / "project"
+        results_dir = root / "results"
+        runtime_dir = project_dir / ".linkar" / "runs" / "methods_001"
+        runtime_dir.mkdir(parents=True)
+        project_dir.mkdir(exist_ok=True)
+
+        (project_dir / "project.yaml").write_text(
+            yaml.safe_dump(
+                {
+                    "id": "example_project_004",
+                    "author": {"name": "Example User", "organization": "Example Org"},
+                    "templates": [],
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+
+        shutil.copy2(TEMPLATE_DIR / "run.py", runtime_dir / "run.py")
+        shutil.copy2(TEMPLATE_DIR / "run.sh", runtime_dir / "run.sh")
+        shutil.copy2(TEMPLATE_DIR / "methods_catalog.yaml", runtime_dir / "methods_catalog.yaml")
+        (runtime_dir / "run.sh").chmod(0o755)
+
+        env = os.environ.copy()
+        env["LINKAR_RESULTS_DIR"] = str(results_dir)
+        env["PROJECT_DIR"] = str(root)
+        env["USE_LLM"] = "false"
+        completed = subprocess.run(
+            [str(runtime_dir / "run.sh")],
+            check=True,
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=root,
+        )
+
+        assert "methods_context.yaml" in completed.stdout
+        context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
+        assert context["project"]["path"] == str(project_dir.resolve())
 
 
 def test_llm_config_resolution() -> None:
@@ -158,17 +381,19 @@ def test_llm_config_resolution() -> None:
             project_dir=str(project_dir),
             style="publication",
             use_llm="true",
-            llm_config="",
+            llm_config=str(project_dir),
             llm_base_url="",
             llm_model="",
             llm_temperature=0.2,
         )
         env_before = {
             "ALT_OPENAI_KEY": os.environ.get("ALT_OPENAI_KEY"),
+            "LINKAR_LLM_API_KEY": os.environ.get("LINKAR_LLM_API_KEY"),
             "LINKAR_LLM_BASE_URL": os.environ.get("LINKAR_LLM_BASE_URL"),
             "LINKAR_LLM_MODEL": os.environ.get("LINKAR_LLM_MODEL"),
         }
         os.environ["ALT_OPENAI_KEY"] = "test-secret"
+        os.environ.pop("LINKAR_LLM_API_KEY", None)
         os.environ["LINKAR_LLM_BASE_URL"] = "https://env.example.org/v1"
         os.environ["LINKAR_LLM_MODEL"] = "env-model"
         try:
@@ -186,9 +411,322 @@ def test_llm_config_resolution() -> None:
         assert settings["api_key_source"] == "ALT_OPENAI_KEY"
 
 
+def test_project_api_metadata_resolution_and_rendering() -> None:
+    module = load_run_module()
+    sample_payload = [
+        {
+            "ProjectOutput": {
+                "agendo_application": "3mRNAseq",
+                "application": "3mRNAseq",
+                "umi": "UMI Second Strand SynthesisModule for QuantSeq FWD",
+                "spike_in": "ERCC RNA Spike-in Mix",
+                "library_kit": "QuantSeq 3' mRNA-Seq Library Prep Kit v2 FWD for Illumina",
+                "index_kit": "Lexogen UDI 12 nt Unique Dual Indexing Set A1 Cat.#198.96",
+                "sequencer": "NextSeq",
+                "sequencing_kit": "NextSeq 500/550 High Output v2.5 kit (75 cycles)",
+                "read_type": "single-end",
+                "cycles_read1": 76,
+                "cycles_index1": 8,
+                "cycles_index2": 8,
+                "run_date": "2026-04-16T00:00:00",
+                "flow_cell": "HWJHLBGYX",
+                "agendo_id": 5437,
+                "phix_percentage": 20,
+                "sample_number": 32,
+                "project": "Seq-00286",
+            },
+            "RunMetadataDB": {
+                "instrument": "NB501289",
+            },
+            "PredictionConfidence": 1,
+        }
+    ]
+    original = module.load_cached_combined_project_metadata
+    module.load_cached_combined_project_metadata = lambda agendo_id, base_url: sample_payload
+    try:
+        metadata = module.resolve_project_api_metadata(
+            {
+                "templates": [
+                    {
+                        "id": "nfcore_3mrnaseq",
+                        "params": {"agendo_id": "5437"},
+                    }
+                ]
+            },
+            "https://example.org/api",
+        )
+        context = {
+            "project_api": metadata,
+            "runs": [],
+        }
+        long_text = module.deterministic_long_methods(context, {"references": {}})
+    finally:
+        module.load_cached_combined_project_metadata = original
+
+    assert metadata["fetched"] is True
+    assert metadata["project_metadata"]["agendo_id"] == "5437"
+    assert metadata["project_metadata"]["library_kit"].startswith("QuantSeq 3' mRNA-Seq")
+    assert metadata["project_metadata"]["flow_cell"] == "HWJHLBGYX"
+    assert metadata["project_metadata"]["sequencer"] == "NextSeq"
+    assert "## Project Assay Metadata" in long_text
+    assert "Library kit" in long_text
+    assert "Read configuration" in long_text
+    assert "single-end; R1 76/I1 8/I2 8" in long_text
+    assert "libraries were prepared using" in long_text
+
+
+def test_nfcore_reference_and_command_details_ignore_project_umi() -> None:
+    module = load_run_module()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        config_path = root / "nextflow.config"
+        config_path.write_text(
+            """
+params {
+    genomes {
+        'Sscrofa11.1' {
+            fasta = '/data/ref_genomes/Sscrofa11.1/src/Sus_scrofa.Sscrofa11.1.dna.toplevel.fa'
+            gtf   = '/data/ref_genomes/Sscrofa11.1/src/Sus_scrofa.Sscrofa11.1.115.gtf'
+        }
+        'Sscrofa11.1_with_ERCC' {
+            fasta = '/data/ref_genomes/Sscrofa11.1_with_ERCC/src/Sscrofa11.1_with_ERCC.fa'
+            gtf   = '/data/ref_genomes/Sscrofa11.1_with_ERCC/src/Sscrofa11.1_with_ERCC.gtf'
+        }
+    }
+}
+""".strip()
+            + "\n",
+            encoding="utf-8",
+        )
+        run = {
+            "template": "nfcore_3mrnaseq",
+            "params": {"genome": "Sscrofa11.1", "spikein": "ERCC RNA Spike-in Mix"},
+            "runtime_command": {
+                "pipeline_version": "3.22.2",
+                "command": [
+                    "pixi",
+                    "run",
+                    "nextflow",
+                    "run",
+                    "nf-core/rnaseq",
+                    "-r",
+                    "3.22.2",
+                    "-profile",
+                    "docker",
+                    "--genome",
+                    "Sscrofa11.1_with_ERCC",
+                    "--gencode",
+                    "--featurecounts_group_type",
+                    "gene_type",
+                    "--extra_salmon_quant_args=--noLengthCorrection",
+                ],
+                "command_pretty": "pixi run nextflow run nf-core/rnaseq -r 3.22.2 -profile docker --genome Sscrofa11.1_with_ERCC --gencode --featurecounts_group_type gene_type --extra_salmon_quant_args=--noLengthCorrection",
+                "params": {
+                    "effective_genome": "Sscrofa11.1_with_ERCC",
+                    "genome": "Sscrofa11.1",
+                    "spikein": "ERCC RNA Spike-in Mix",
+                    "umi": "--spike-in",
+                },
+                "artifacts": {"nextflow_config": str(config_path)},
+            },
+        }
+        context = {
+            "project_api": {
+                "project_metadata": {
+                    "umi": "UMI Second Strand SynthesisModule for QuantSeq FWD",
+                }
+            }
+        }
+
+        settings = module.collect_setting_bullets(run, context)
+        reference_details = module.collect_reference_detail_bullets(run)
+        command_params = module.collect_command_parameter_bullets(run, context)
+        command_block = module.collect_recorded_command_block(run)
+
+    assert not any("UMI" in line for line in settings)
+    assert any("Annotation version" in line and "115" in line for line in reference_details)
+    assert any("Command genome" in line and "Sscrofa11.1_with_ERCC" in line for line in command_params)
+    assert any("Annotation mode" in line and "Gencode" in line for line in command_params)
+    assert not any("UMI" in line for line in command_params)
+    assert "nf-core/rnaseq" in command_block
+    assert "--genome Sscrofa11.1_with_ERCC" in command_block
+
+
+def test_inferred_versions_and_reference_urls() -> None:
+    module = load_run_module()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        nfcore_dir = root / "nfcore_run"
+        dgea_dir = root / "DGEA_Test"
+        (nfcore_dir / "work" / "a" / "b").mkdir(parents=True)
+        (dgea_dir / "results").mkdir(parents=True)
+        (nfcore_dir / "work" / "a" / "b" / "versions.yml").write_text(
+            '"NFCORE_RNASEQ:RNASEQ:QUANTIFY_STAR_SALMON:SALMON_QUANT":\n'
+            "    salmon: 1.10.3\n"
+            '"NFCORE_RNASEQ:PREPARE_GENOME:STAR_GENOMEGENERATE":\n'
+            "    star: 2.7.11b\n",
+            encoding="utf-8",
+        )
+        (dgea_dir / "pixi.lock").write_text(
+            "\n".join(
+                [
+                    "bioconductor-deseq2-1.46.0-r44he5774e6_1.tar.bz2",
+                    "bioconductor-clusterprofiler-4.14.0-r44hdfd78af_0.tar.bz2",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        inferred_nfcore = module.infer_additional_versions(nfcore_dir)
+        inferred_dgea = module.infer_additional_versions(dgea_dir)
+        citation_ids = ["star", "salmon", "deseq2"]
+        catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
+        numbered = module.numbered_references_markdown(citation_ids, catalog)
+        replaced = module.replace_references_section("Example text\n\nReferences\n1. old ref\n", numbered)
+        context = {
+            "runs": [
+                {
+                    "template": "nfcore_3mrnaseq",
+                    "software_versions": inferred_nfcore,
+                },
+                {
+                    "template": "dgea",
+                    "software_versions": [
+                        {"name": "R", "version": "Rscript (R) version 4.4.3 (2025-02-28)"},
+                        *inferred_dgea,
+                    ],
+                },
+            ]
+        }
+        preserved = module.preserve_important_versions(
+            "Short draft mentioning STAR 2.7.11b and Salmon 1.10.3 and DESeq2 1.46.0.\n\nReferences\n1. x\n",
+            "Short draft mentioning STAR 2.7.11b and Salmon 1.10.3 and DESeq2 1.46.0 and R 4.4.3.\n\nReferences\n1. y\n",
+            context,
+        )
+
+    assert any(item["name"] == "star" and item["version"] == "2.7.11b" for item in inferred_nfcore)
+    assert any(item["name"] == "salmon" and item["version"] == "1.10.3" for item in inferred_nfcore)
+    assert any(item["name"] == "DESeq2" and item["version"] == "1.46.0" for item in inferred_dgea)
+    assert any(item["name"] == "clusterProfiler" and item["version"] == "4.14.0" for item in inferred_dgea)
+    assert "https://doi.org/10.1093/bioinformatics/bts635" in numbered
+    assert "https://doi.org/10.1038/nmeth.4197" in numbered
+    assert "https://doi.org/10.1186/s13059-014-0550-8" in numbered
+    assert "old ref" not in replaced
+    assert "References" in replaced
+    assert "R 4.4.3" in preserved
+
+
+def test_llm_output_does_not_override_detailed_long_methods() -> None:
+    deterministic = "# Methods\n\n## Step A\n\n### Recorded Command\n```bash\nrun-a\n```\n"
+    parsed = {
+        "methods_long": "# Methods\n\n## Step A\nSimplified summary only.\n",
+        "methods_short": "Short polished text.\n\nReferences\n1. Ref\n",
+    }
+    effective_long = deterministic
+    effective_short = str(parsed.get("methods_short") or "")
+
+    assert effective_long == deterministic
+    assert "### Recorded Command" in effective_long
+    assert effective_short.startswith("Short polished text")
+
+
+def test_inline_citation_rendering() -> None:
+    module = load_run_module()
+    rendered = module.render_inline_html("Example text [1, 2] with `code`.")
+    assert 'class="citation-ref"' in rendered
+    assert ">1<" in rendered
+    assert ">2<" in rendered
+    assert "<code>code</code>" in rendered
+
+
+def test_short_technical_terms_are_highlighted() -> None:
+    module = load_run_module()
+    context = {
+        "project_api": {
+            "project_metadata": {
+                "application": "3mRNAseq",
+                "library_kit": "QuantSeq 3' mRNA-Seq Library Prep Kit v2 FWD for Illumina",
+                "index_kit": "Lexogen UDI 12 nt Unique Dual Indexing Set A1 Cat.#198.96",
+                "umi": "UMI Second Strand SynthesisModule for QuantSeq FWD",
+                "spike_in": "ERCC RNA Spike-in Mix",
+                "sequencing_kit": "NextSeq 500/550 High Output v2.5 kit (75 cycles)",
+            }
+        }
+    }
+    text = (
+        "Libraries were prepared using QuantSeq 3' mRNA-Seq Library Prep Kit v2 FWD for Illumina "
+        "with Lexogen UDI 12 nt Unique Dual Indexing Set A1 Cat.#198.96 and "
+        "UMI Second Strand SynthesisModule for QuantSeq FWD; ERCC RNA Spike-in Mix was used. "
+        "Sequencing used the NextSeq 500/550 High Output v2.5 kit (75 cycles).\n\n"
+        "References\n1. Example"
+    )
+    rendered = module.emphasize_short_technical_terms(text, context)
+    assert "`QuantSeq 3' mRNA-Seq Library Prep Kit v2 FWD for Illumina`" in rendered
+    assert "`Lexogen UDI 12 nt Unique Dual Indexing Set A1 Cat.#198.96`" in rendered
+    assert "`UMI Second Strand SynthesisModule for QuantSeq FWD`" in rendered
+    assert "`ERCC RNA Spike-in Mix`" in rendered
+    assert "`NextSeq 500/550 High Output v2.5 kit (75 cycles)`" in rendered
+    assert "References\n1. Example" in rendered
+
+
+def test_run_display_label_ignores_run_directory_suffix() -> None:
+    module = load_run_module()
+    label = module.run_display_label(
+        {"id": "demultiplex", "params": {}},
+        {"label": "Demultiplexing and sequencing quality control"},
+        Path("/tmp/260416_NB501289_0993_AHWJHLBGYX"),
+    )
+    assert label == "Demultiplexing and sequencing quality control"
+
+
+def test_recorded_command_block_is_multiline() -> None:
+    module = load_run_module()
+    block = module.collect_recorded_command_block(
+        {
+            "template": "nfcore_3mrnaseq",
+            "runtime_command": {
+                "command": [
+                    "pixi",
+                    "run",
+                    "nextflow",
+                    "run",
+                    "nf-core/rnaseq",
+                    "-r",
+                    "3.22.2",
+                    "-profile",
+                    "docker",
+                    "--genome",
+                    "Sscrofa11.1_with_ERCC",
+                    "--featurecounts_group_type",
+                    "gene_type",
+                    "--extra_salmon_quant_args=--noLengthCorrection",
+                    "--extra_star_align_args=--alignIntronMax 1000000 --alignIntronMin 20 --alignMatesGapMax 1000000 --alignSJoverhangMin 8 --outFilterMismatchNmax 999 --outFilterMultimapNmax 20 --outFilterType BySJout --outFilterMismatchNoverLmax 0.1 --clip3pAdapterSeq AAAAAAAA",
+                ]
+            },
+        }
+    )
+    assert "pixi run nextflow run nf-core/rnaseq \\\n" in block
+    assert "-r 3.22.2" in block
+    assert "--genome Sscrofa11.1_with_ERCC" in block
+    assert "--extra_salmon_quant_args=--noLengthCorrection" in block
+    assert "--extra_star_align_args='--alignIntronMax 1000000 --alignIntronMin 20 --alignMatesGapMax 1000000 --alignSJoverhangMin 8 --outFilterMismatchNmax 999 --outFilterMultimapNmax 20 --outFilterType BySJout --outFilterMismatchNoverLmax 0.1 --clip3pAdapterSeq AAAAAAAA'" in block
+
+
 def main() -> int:
     test_generation_with_runtime_command()
+    test_dgea_label_and_software_version_fallback()
+    test_ercc_catalog_entry_shapes_methods_text()
+    test_run_sh_resolves_project_dir_from_linkar_runtime_copy()
     test_llm_config_resolution()
+    test_project_api_metadata_resolution_and_rendering()
+    test_nfcore_reference_and_command_details_ignore_project_umi()
+    test_inferred_versions_and_reference_urls()
+    test_llm_output_does_not_override_detailed_long_methods()
+    test_inline_citation_rendering()
+    test_short_technical_terms_are_highlighted()
+    test_run_display_label_ignores_run_directory_suffix()
+    test_recorded_command_block_is_multiline()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     catalog_text = (TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8")
@@ -197,13 +735,24 @@ def main() -> int:
     run_py_text = (TEMPLATE_DIR / "run.py").read_text(encoding="utf-8")
     assert "entry: run.sh" in template_text
     assert "llm_config:" in template_text
+    assert "metadata_api_url:" in template_text
+    assert "methods_long_html:" in template_text
+    assert "methods_short_html:" in template_text
     assert "runtime_command.json" in readme_text
+    assert "results/methods_long.html" in readme_text
+    assert "results/methods_short.html" in readme_text
     assert "nfcore_methylseq:" in catalog_text
+    assert "methylation_array_analysis:" in catalog_text
+    assert "scverse_scrna_prep:" in catalog_text
+    assert "minfi:" in catalog_text
+    assert "scanpy:" in catalog_text
     assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
+    assert '--metadata-api-url "${METADATA_API_URL:-}"' in run_sh_text
     assert 'run-local = "python3 run.py"' in pixi_text
     assert 'test = "python3 test.py"' in pixi_text
     assert "resolve_llm_settings" in run_py_text
     assert "load_runtime_command" in run_py_text
+    assert "resolve_project_api_metadata" in run_py_text
     print("methods template test passed")
     return 0
 

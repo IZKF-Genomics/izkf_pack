@@ -1,0 +1,188 @@
+---
+title: "Analysis on ERCC spike in"
+author: "PROJECT_AUTHORS"
+date: "Last compiled on `r format(Sys.time(), '%d %B, %Y')`"
+format:
+  html:
+    df-print: paged
+    toc: true
+    toc-depth: 3
+    number-sections: false
+    theme: lumen
+bibliography: references.bib
+---
+
+```{r, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+source("ercc_inputs.R")
+
+required_packages <- c(
+  "data.table",
+  "dplyr",
+  "DT",
+  "ggplot2",
+  "ggpubr",
+  "pheatmap",
+  "tidyr",
+  "heatmaply",
+  "plotly",
+  "htmltools"
+)
+missing_packages <- required_packages[
+  !vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)
+]
+if (length(missing_packages) > 0) {
+  stop(
+    "Missing required R packages in the ERCC Pixi environment: ",
+    paste(missing_packages, collapse = ", "),
+    call. = FALSE
+  )
+}
+
+library(data.table)
+library(dplyr)
+library(DT)
+library(ggplot2)
+library(ggpubr)
+library(pheatmap)
+library(tidyr)
+library(heatmaply)
+library(plotly)
+
+options(warn = -1)
+
+if (!nzchar(salmon_dir) || !dir.exists(salmon_dir)) {
+  stop("salmon_dir does not exist: ", salmon_dir, call. = FALSE)
+}
+if (!file.exists(salmon_tpm_path)) {
+  stop("Expected Salmon TPM table not found: ", salmon_tpm_path, call. = FALSE)
+}
+if (!nzchar(samplesheet_path) || !file.exists(samplesheet_path)) {
+  stop("samplesheet does not exist: ", samplesheet_path, call. = FALSE)
+}
+
+corr_figure <- function(ct, xlab, ylab) {
+  yrange <- abs(max(c(ct[[xlab]], ct[[ylab]])) - min(c(ct[[xlab]], ct[[ylab]])))
+  statcor_y <- max(c(ct[[xlab]], ct[[ylab]]))
+  statregline_y <- max(c(ct[[xlab]], ct[[ylab]])) - 0.05 * yrange
+  fig <- ggplot(ct, aes(.data[[xlab]], .data[[ylab]])) +
+    geom_point(size = 1, color = "royalblue", alpha = 0.2) +
+    theme_bw() +
+    ggtitle(paste(xlab, "vs", ylab)) +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    geom_smooth(method = "lm", color = "gray", alpha = 0.1) +
+    xlab(xlab) +
+    ylab(ylab) +
+    stat_cor(label.y = statcor_y) +
+    stat_regline_equation(label.y = statregline_y)
+  fig
+}
+
+ercc_groups <- read.csv("thermofisher_LSG_manuals_cms_095046.txt", sep = "\t")
+ct <- fread(salmon_tpm_path)
+ERCC_ct <- ct[startsWith(as.character(ct$gene_id), "ERCC"), ]
+if (nrow(ERCC_ct) == 0) {
+  stop("No ERCC rows found in Salmon TPM table: ", salmon_tpm_path, call. = FALSE)
+}
+ERCC_ct$gene_id <- gsub("_gene", "", as.character(ERCC_ct$gene_id))
+colnames(ERCC_ct) <- unlist(lapply(colnames(ERCC_ct), function(x) gsub("^X0", "", x)))
+```
+
+Variation in RNA expression data can be attributed to a variety of factors. In the Genomics Facility we committed to minimizing unwanted biases in quantitative RNA expression analysis. At the same time, we engaged a common set of external RNA controls ERCC to control and evaluate the variability in RNA sequencing. The controls consist of a set of unlabeled, polyadenylated transcripts (92 transcripts, 250 to 2,000 nt in length) designed to be added to an RNA analysis experiment after sample isolation, in order to measure against defined performance criteria. For more details about the ERCC controls applied, please refer to [the documentation from the manufacture](https://www.thermofisher.com/order/catalog/product/4456739).
+
+```{r, echo=FALSE, results="asis", warning=FALSE, message=FALSE, dpi=600, fig.width=1.5, fig.height=1}
+FC_tab <- merge(ERCC_ct, ercc_groups, by.x = "gene_id", by.y = "ERCC.ID")
+
+plot_scatter_spikein <- function(FC_tab, whichmix, sample) {
+  if (whichmix == "mix1") {
+    mixcol <- "concentration.in.Mix.1..attomoles.ul."
+  } else {
+    mixcol <- "concentration.in.Mix.2..attomoles.ul."
+  }
+
+  sel_sample <- match(sample, colnames(FC_tab))
+  sel_mix <- match(mixcol, colnames(FC_tab))
+  sel_subgroupID <- match("subgroup", colnames(FC_tab))
+  data <- FC_tab %>% dplyr::select(1, sel_subgroupID, sel_sample, sel_mix)
+  data[, c(3)] <- log2(data[, c(3)] + 1)
+  data <- as.data.frame(data)
+  colnames(data) <- c("gene_id", "subgroup", "norm_readcount", "concentration")
+  data$concentration <- log2(data$concentration)
+
+  fit <- lm(norm_readcount ~ concentration, data = data)
+  data$fit <- fitted(fit)
+  r2 <- round(summary(fit)$adj.r.squared, digits = 3)
+  slope <- round(summary(fit)$coefficients[2, 1], digits = 3)
+  anno <- paste0("Slope = ", as.character(slope), "\\n", "R^2 = ", as.character(r2))
+  fig <- plot_ly(data = data, x = ~concentration, y = ~norm_readcount, mode = "markers") %>%
+    add_markers(y = ~norm_readcount, color = ~subgroup, colors = "Set1", text = ~gene_id) %>%
+    add_trace(x = ~concentration, y = ~fit, mode = "lines", name = "Regression", color = "orange") %>%
+    add_annotations(x = 10, y = 1, text = anno, showarrow = FALSE) %>%
+    layout(
+      title = paste(sample, whichmix),
+      xaxis = list(zeroline = FALSE, title = paste("Concentration in", whichmix, "(log2pM)")),
+      yaxis = list(zeroline = FALSE, title = "TPM (log2)")
+    )
+  fig
+}
+```
+
+```{r, echo=FALSE, results="asis", warning=FALSE, message=FALSE}
+samples <- read.csv(samplesheet_path, stringsAsFactors = FALSE)
+if (!"sample" %in% names(samples)) {
+  stop("samplesheet must contain a 'sample' column: ", samplesheet_path, call. = FALSE)
+}
+samples$sample <- as.character(samples$sample)
+missing_samples <- setdiff(samples$sample, colnames(ERCC_ct))
+if (length(missing_samples) > 0) {
+  stop(
+    "Samplesheet sample names are missing from salmon.merged.gene_tpm.tsv: ",
+    paste(missing_samples, collapse = ", "),
+    call. = FALSE
+  )
+}
+```
+
+## Dynamic range and lower limit of detection {.panel-tabset}
+
+```{r, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+for (sample in samples$sample) {
+  fig <- plot_scatter_spikein(FC_tab, whichmix = "mix1", sample = sample)
+  cat("\n\n### ", sample, "\n\n", sep = "")
+  cat(htmltools::renderTags(as.widget(fig))$html)
+  cat("\n\n")
+}
+```
+
+## Heatmap
+
+Heatmap for the overall spike-in ERCC expression detected in RNA sequencing.
+
+```{r, echo=FALSE, results="asis", warning=FALSE, message=FALSE, dpi=600, fig.width=1.5, fig.height=2}
+heatmap_t <- ERCC_ct[, c(-1, -2)]
+rownames(heatmap_t) <- ERCC_ct$gene_id
+heatmap_t <- log10(heatmap_t + 1)
+
+heatmaply(
+  heatmap_t,
+  main = "Normalized read counts of spike-in",
+  method = "plotly",
+  labRow = ERCC_ct$gene_id,
+  xlab = "Samples",
+  ylab = "Spike-in",
+  showticklabels = c(TRUE, FALSE),
+  show_dendrogram = c(FALSE, TRUE),
+  key.title = "Scaled\\nexpression\\nin log10 scale",
+  label_names = c("Gene", "Sample", "Expression")
+)
+```
+
+# References
+
+::: {#refs}
+:::
+
+# R session information
+
+```{r, echo=FALSE, results='markup', warning=FALSE, message=TRUE}
+sessionInfo()
+```

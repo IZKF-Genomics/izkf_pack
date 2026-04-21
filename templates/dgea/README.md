@@ -4,12 +4,14 @@ This template provides a clean DGEA workspace for Linkar projects.
 
 It keeps the analyst-facing workflow in R/Quarto:
 
-- editable [DGEA_constructor.R](/home/ckuo/github/izkf_pack/templates/dgea/DGEA_constructor.R)
+- editable [DGEA_constructor.R](DGEA_constructor.R)
 - bundled Quarto reports
-- bundled [pixi.toml](/home/ckuo/github/izkf_pack/templates/dgea/pixi.toml) and [pixi.lock](/home/ckuo/github/izkf_pack/templates/dgea/pixi.lock)
-- bundled Positron settings in [.vscode/settings.json](/home/ckuo/github/izkf_pack/templates/dgea/.vscode/settings.json)
+- bundled [pixi.toml](pixi.toml) and [pixi.lock](pixi.lock)
+- bundled Positron settings in [.vscode/settings.json](.vscode/settings.json)
 
-Instead of BPM Jinja rendering, Linkar now writes a small `dgea_inputs.R` file through [build_dgea_inputs.py](/home/ckuo/github/izkf_pack/templates/dgea/build_dgea_inputs.py). The constructor stays editable and programmable.
+The template only requires `pixi` on the host. `quarto` and `Rscript` are provided by the template-local Pixi environment.
+
+Instead of BPM Jinja rendering, Linkar now writes a small `dgea_inputs.R` file through [build_dgea_inputs.py](build_dgea_inputs.py). The constructor stays editable and programmable.
 
 ## Runtime model
 
@@ -20,7 +22,7 @@ Instead of BPM Jinja rendering, Linkar now writes a small `dgea_inputs.R` file t
 
 `linkar run dgea`:
 
-- runs the standalone [run.sh](/home/ckuo/github/izkf_pack/templates/dgea/run.sh:1)
+- runs the standalone [run.sh](run.sh)
 - writes `dgea_inputs.R`
 - installs the Pixi environment
 - runs `install_bioc_data.sh`
@@ -40,7 +42,7 @@ With `--binding default`, the pack resolves:
 
 ## Editing
 
-The main control surface is [DGEA_constructor.R](/home/ckuo/github/izkf_pack/templates/dgea/DGEA_constructor.R).
+The main control surface is [DGEA_constructor.R](DGEA_constructor.R).
 
 The rendered constructor:
 
@@ -59,6 +61,6 @@ That keeps the workflow flexible for:
 ## Test commands
 
 ```bash
-cd /home/ckuo/github/izkf_pack/templates/dgea
+cd templates/dgea
 python3 test.py
 ```

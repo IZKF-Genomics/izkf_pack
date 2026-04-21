@@ -1,0 +1,36 @@
+.cell-output-display img,
+.cell-output-display iframe,
+.cell-output-display .html-widget,
+.cell-output-display .plotly,
+.cell-output-display .plotly.html-widget,
+.cell-output-display .html-widget-static-bound {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto;
+  box-sizing: border-box;
+}
+
+.cell-output-display .js-plotly-plot,
+.cell-output-display .plot-container,
+.cell-output-display .svg-container {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+.cell-output-display .js-plotly-plot .modebar,
+.cell-output-display .js-plotly-plot .modebar-group,
+.cell-output-display .js-plotly-plot .modebar-btn,
+.cell-output-display .js-plotly-plot .modebar-btn svg {
+  width: auto !important;
+  max-width: none !important;
+  height: auto !important;
+}
+
+.cell-output-display {
+  overflow-x: auto;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
