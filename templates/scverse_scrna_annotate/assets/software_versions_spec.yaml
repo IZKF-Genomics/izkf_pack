@@ -1,0 +1,18 @@
+tools:
+  - python3
+  - pixi
+  - quarto
+
+params:
+  - name: annotation_method
+    value_env: ANNOTATION_METHOD
+  - name: celltypist_model
+    value_env: CELLTYPIST_MODEL
+  - name: cluster_key
+    value_env: CLUSTER_KEY
+  - name: marker_file
+    value_env: MARKER_FILE
+
+static:
+  - name: workflow
+    version: scverse_scrna_annotate

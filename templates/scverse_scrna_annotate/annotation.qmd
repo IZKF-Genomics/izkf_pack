@@ -1,0 +1,363 @@
+---
+title: "scRNA Annotation Review"
+date: today
+jupyter: python3
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 3
+    toc-location: left
+    html-math-method: katex
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+    page-layout: full
+    html-table-processing: none
+    theme: lumen
+    fig-width: 10
+    fig-height: 5
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{python}
+from pathlib import Path
+import importlib.metadata
+import tomllib
+
+import numpy as np
+import pandas as pd
+import plotly.express as px
+
+LIB_DIR = Path(".").resolve() / "lib"
+import sys
+if str(LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(LIB_DIR))
+
+from annotation_io import (
+    load_adata,
+    load_marker_sets,
+    normalize_text_series,
+    require_obs_column,
+    resolve_optional_obs_column,
+    resolve_sample_display,
+)
+from annotation_methods import (
+    apply_cluster_suggestions,
+    run_celltypist_annotation,
+    summarize_cluster_predictions,
+)
+from annotation_review import merge_marker_review, score_marker_sets
+
+ROOT = Path(".").resolve()
+CONFIG_PATH = ROOT / "config" / "project.toml"
+
+
+def load_config(path: Path) -> dict:
+    with path.open("rb") as fh:
+        return tomllib.load(fh)
+
+
+def ensure_parent(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def write_table(path: Path, df: pd.DataFrame) -> None:
+    ensure_parent(path)
+    df.to_csv(path, index=False)
+
+
+def write_h5ad(path: Path, adata) -> None:
+    ensure_parent(path)
+    adata.write_h5ad(path)
+
+
+def package_versions_table(packages: list[str]) -> pd.DataFrame:
+    rows = []
+    for package in packages:
+        try:
+            version = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            version = "not installed"
+        rows.append({"package": package, "version": version})
+    return pd.DataFrame(rows)
+
+
+def format_table(df: pd.DataFrame, digits: int = 3):
+    out = df.copy()
+
+    def _fmt_text(value):
+        if pd.isna(value):
+            return ""
+        return str(value)
+
+    def _fmt_int(value):
+        if pd.isna(value):
+            return ""
+        return f"{int(round(float(value))):,}"
+
+    def _fmt_float(value):
+        if pd.isna(value):
+            return ""
+        return f"{float(value):,.{digits}f}"
+
+    formatters = {}
+    for col in out.columns:
+        series = out[col]
+        lower = str(col).lower()
+        if pd.api.types.is_integer_dtype(series):
+            formatters[col] = _fmt_int
+        elif pd.api.types.is_float_dtype(series):
+            if "fraction" in lower or "score" in lower or "confidence" in lower:
+                formatters[col] = _fmt_float
+            else:
+                formatters[col] = _fmt_float
+        else:
+            formatters[col] = _fmt_text
+
+    return (
+        out.style
+        .hide(axis="index")
+        .format(formatters)
+        .set_table_attributes('style="width:100%; min-width:100%; table-layout:auto; margin:0;"')
+        .set_properties(**{"white-space": "normal"})
+        .set_table_styles(
+            [
+                {"selector": "th", "props": [("text-align", "left"), ("font-weight", "600")]},
+                {"selector": "td", "props": [("padding", "0.25rem 0.5rem")]},
+                {"selector": "table", "props": [("font-size", "0.95rem"), ("width", "100%")]},
+            ]
+        )
+    )
+
+
+def embedding_frame(adata, basis: str, color_keys: list[str]) -> pd.DataFrame:
+    coords = adata.obsm[basis]
+    frame = pd.DataFrame(coords[:, :2], columns=["dim_1", "dim_2"], index=adata.obs_names)
+    keep = [key for key in color_keys if key in adata.obs.columns]
+    return frame.join(adata.obs[keep], how="left")
+
+
+cfg = load_config(CONFIG_PATH)
+cfg
+```
+
+## Input Review
+
+Best-practice guidance treats automated annotation as a starting point rather than a final conclusion, so this report keeps the model prediction, cluster-level suggestion, and final label state separate.
+
+```{python}
+adata, input_path = load_adata(str(cfg["input"]["input_h5ad"]))
+annotation_method = str(cfg["annotation"]["annotation_method"]).strip().lower()
+if annotation_method != "celltypist":
+    raise RuntimeError("annotation_method must be 'celltypist'.")
+
+cluster_key = str(cfg["metadata"]["cluster_key"]).strip() or "leiden"
+batch_key = str(cfg["metadata"]["batch_key"]).strip() or "batch"
+condition_key = str(cfg["metadata"]["condition_key"]).strip() or "condition"
+sample_id_key = str(cfg["metadata"]["sample_id_key"]).strip() or "sample_id"
+sample_label_key = str(cfg["metadata"]["sample_label_key"]).strip() or "sample_display"
+predicted_label_key = str(cfg["annotation"]["predicted_label_key"]).strip() or "predicted_label"
+final_label_key = str(cfg["annotation"]["final_label_key"]).strip() or "final_label"
+unknown_label = str(cfg["annotation"]["unknown_label"]).strip() or "Unknown"
+
+require_obs_column(adata, cluster_key, allow_single_category=True)
+adata.obs[batch_key] = resolve_optional_obs_column(adata, batch_key, fallback="unknown")
+adata.obs[condition_key] = resolve_optional_obs_column(adata, condition_key, fallback="unknown")
+adata.obs[sample_id_key] = resolve_optional_obs_column(adata, sample_id_key, fallback="unknown")
+adata.obs["sample_display"] = resolve_sample_display(adata, sample_id_key, sample_label_key)
+
+if "X_umap" not in adata.obsm:
+    raise RuntimeError("The input object does not contain X_umap. Run scverse_scrna_prep or provide an object with a UMAP embedding before annotation review.")
+
+out_adata = ROOT / str(cfg["output"]["adata_file"])
+cell_prediction_file = ROOT / str(cfg["output"]["cell_annotation_predictions_file"])
+cluster_summary_file = ROOT / str(cfg["output"]["cluster_annotation_summary_file"])
+marker_summary_file = ROOT / str(cfg["output"]["marker_review_summary_file"])
+annotation_status_file = ROOT / str(cfg["output"]["annotation_status_summary_file"])
+
+overview_df = pd.DataFrame(
+    [
+        {"field": "input_h5ad", "value": str(input_path)},
+        {"field": "input_source_template", "value": str(cfg["input"]["input_source_template"])},
+        {"field": "annotation_method", "value": annotation_method},
+        {"field": "celltypist_model", "value": str(cfg["annotation"]["celltypist_model"])},
+        {"field": "cluster_key", "value": cluster_key},
+        {"field": "n_cells", "value": int(adata.n_obs)},
+        {"field": "n_genes", "value": int(adata.n_vars)},
+    ]
+)
+format_table(overview_df)
+```
+
+## Cell-Level Predictions
+
+```{python}
+prediction_df, probability_matrix = run_celltypist_annotation(
+    adata,
+    model=str(cfg["annotation"]["celltypist_model"]).strip(),
+    mode=str(cfg["annotation"]["celltypist_mode"]).strip() or "best_match",
+    p_thres=float(cfg["annotation"]["celltypist_p_thres"]),
+    use_gpu=bool(cfg["annotation"]["use_gpu"]),
+    predicted_label_key=predicted_label_key,
+)
+
+adata.obs[predicted_label_key] = prediction_df[predicted_label_key]
+adata.obs["predicted_confidence"] = prediction_df["predicted_confidence"]
+```
+
+```{python}
+prediction_plot_df = embedding_frame(
+    adata,
+    "X_umap",
+    [predicted_label_key, "predicted_confidence", cluster_key, batch_key, condition_key, "sample_display", sample_id_key],
+)
+px.scatter(
+    prediction_plot_df,
+    x="dim_1",
+    y="dim_2",
+    color=predicted_label_key,
+    hover_data=[key for key in ["sample_display", sample_id_key, cluster_key, batch_key, condition_key, "predicted_confidence"] if key in prediction_plot_df.columns],
+    title=f"UMAP colored by {predicted_label_key}",
+    template="simple_white",
+).update_layout(height=650)
+```
+
+```{python}
+px.scatter(
+    prediction_plot_df,
+    x="dim_1",
+    y="dim_2",
+    color="predicted_confidence",
+    hover_data=[key for key in ["sample_display", sample_id_key, cluster_key, predicted_label_key] if key in prediction_plot_df.columns],
+    title="UMAP colored by CellTypist confidence",
+    template="simple_white",
+    color_continuous_scale="Viridis",
+).update_layout(height=650)
+```
+
+## Cluster-Level Review
+
+The cluster summary does not treat automated labels as ground truth. A cluster is only auto-accepted when the dominant predicted label is sufficiently frequent and sufficiently confident.
+
+```{python}
+cluster_summary, top_label_summary = summarize_cluster_predictions(
+    adata.obs[[cluster_key, predicted_label_key, "predicted_confidence"]].copy(),
+    cluster_key=cluster_key,
+    predicted_label_key=predicted_label_key,
+    confidence_key="predicted_confidence",
+    min_fraction=float(cfg["annotation"]["majority_vote_min_fraction"]),
+    confidence_threshold=float(cfg["annotation"]["confidence_threshold"]),
+    unknown_label=unknown_label,
+    top_n=int(cfg["annotation"]["rank_top_markers"]),
+)
+
+marker_sets = load_marker_sets(str(cfg["annotation"]["marker_file"]))
+marker_summary, marker_long_scores = score_marker_sets(adata, marker_sets, cluster_key=cluster_key)
+cluster_summary = merge_marker_review(cluster_summary, marker_summary)
+
+annotated_obs = apply_cluster_suggestions(
+    adata.obs[[cluster_key, predicted_label_key, "predicted_confidence", batch_key, condition_key, sample_id_key, "sample_display"]].copy(),
+    cluster_summary,
+    cluster_key=cluster_key,
+    final_label_key=final_label_key,
+    unknown_label=unknown_label,
+)
+
+for col in annotated_obs.columns:
+    adata.obs[col] = annotated_obs[col].to_numpy()
+
+status_summary = (
+    cluster_summary["annotation_status"]
+    .value_counts(dropna=False)
+    .rename_axis("annotation_status")
+    .reset_index(name="n_clusters")
+)
+
+cell_predictions = adata.obs[
+    [
+        sample_id_key,
+        cluster_key,
+        predicted_label_key,
+        "predicted_confidence",
+        "cluster_suggested_label",
+        "annotation_status",
+        final_label_key,
+    ]
+].reset_index(names="cell_id")
+
+write_table(cell_prediction_file, cell_predictions)
+write_table(cluster_summary_file, cluster_summary)
+write_table(marker_summary_file, marker_long_scores if not marker_long_scores.empty else marker_summary)
+write_table(annotation_status_file, status_summary)
+```
+
+```{python}
+format_table(cluster_summary)
+```
+
+```{python}
+format_table(top_label_summary)
+```
+
+## Marker Review
+
+```{python}
+if marker_long_scores.empty:
+    print("No marker review was produced because no marker file was supplied or no marker genes overlapped the input feature space.")
+else:
+    marker_heatmap = marker_long_scores.pivot(index="cluster", columns="label", values="marker_score").fillna(0)
+    format_table(marker_heatmap.reset_index())
+```
+
+## Final Labels
+
+```{python}
+final_plot_df = embedding_frame(
+    adata,
+    "X_umap",
+    [final_label_key, "annotation_status", cluster_key, batch_key, condition_key, "sample_display", sample_id_key],
+)
+px.scatter(
+    final_plot_df,
+    x="dim_1",
+    y="dim_2",
+    color=final_label_key,
+    hover_data=[key for key in ["sample_display", sample_id_key, cluster_key, batch_key, condition_key, "annotation_status"] if key in final_plot_df.columns],
+    title=f"UMAP colored by {final_label_key}",
+    template="simple_white",
+).update_layout(height=650)
+```
+
+```{python}
+px.scatter(
+    final_plot_df,
+    x="dim_1",
+    y="dim_2",
+    color="annotation_status",
+    hover_data=[key for key in ["sample_display", sample_id_key, cluster_key, final_label_key] if key in final_plot_df.columns],
+    title="UMAP colored by annotation review status",
+    template="simple_white",
+).update_layout(height=650)
+```
+
+## Session Info
+
+```{python}
+adata.uns["annotation_method"] = annotation_method
+adata.uns["annotation_model"] = str(cfg["annotation"]["celltypist_model"]).strip()
+adata.uns["input_h5ad"] = str(input_path)
+adata.uns["input_source_template"] = str(cfg["input"]["input_source_template"])
+adata.uns["cluster_key"] = cluster_key
+adata.uns["predicted_label_key"] = predicted_label_key
+adata.uns["final_label_key"] = final_label_key
+adata.uns["annotation_unknown_label"] = unknown_label
+
+write_h5ad(out_adata, adata)
+
+session_df = package_versions_table(["scanpy", "anndata", "pandas", "numpy", "plotly", "celltypist", "python"])
+format_table(session_df)
+```
