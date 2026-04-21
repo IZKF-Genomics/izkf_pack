@@ -81,6 +81,25 @@ fit_df = pd.DataFrame(
 format_table(fit_df)
 ```
 
+## Paper And Documentation Takeaways
+
+The scvi-tools documentation positions scANVI as a semi-supervised extension of
+scVI for label transfer and reference mapping. In practice, that means this
+backend is most compelling when the project has a meaningful labeled reference
+and wants batch-aware latent modeling rather than only a lightweight classifier.
+
+```{python}
+takeaways_df = pd.DataFrame(
+    [
+        {"takeaway": "semi-supervised setup", "implication": "requires clear treatment of labeled versus unknown cells"},
+        {"takeaway": "counts-aware modeling", "implication": "raw-count assumptions must be enforced in runtime validation"},
+        {"takeaway": "reference mapping focus", "implication": "best when a curated labeled atlas is already available"},
+        {"takeaway": "batch-aware latent space", "implication": "useful when annotation and integration are tightly linked"},
+    ]
+)
+format_table(takeaways_df)
+```
+
 ## Required Future Inputs
 
 ```{python}
@@ -122,6 +141,26 @@ checklist_df = pd.DataFrame(
     ]
 )
 format_table(checklist_df)
+```
+
+## References Consulted
+
+```{python}
+references_df = pd.DataFrame(
+    [
+        {
+            "resource": "scANVI documentation",
+            "role": "current recommended usage pattern",
+            "link": "https://scvi-tools.readthedocs.io/en/latest/user_guide/models/scanvi.html",
+        },
+        {
+            "resource": "scvi-tools documentation",
+            "role": "framework-level requirements and positioning",
+            "link": "https://docs.scvi-tools.org/en/latest/index.html",
+        },
+    ]
+)
+format_table(references_df)
 ```
 
 ## Session Info

@@ -129,6 +129,25 @@ Use this page to answer three questions quickly:
 )
 ```
 
+## Annotation Principles
+
+This overview follows the general guidance from the single-cell best-practices
+annotation chapter: use automated annotation as a starting point, prefer
+well-matched references, and always confirm uncertain calls with cluster context
+and marker evidence instead of trusting a classifier blindly.
+
+```{python}
+principles_df = pd.DataFrame(
+    [
+        {"principle": "Reference similarity matters", "why_it_matters": "annotation quality depends strongly on organ, assay, and reference match"},
+        {"principle": "Uncertainty should stay visible", "why_it_matters": "low-confidence cells and clusters should remain reviewable rather than forced"},
+        {"principle": "Cluster context helps", "why_it_matters": "single-cell predictions are easier to validate when viewed against cluster structure"},
+        {"principle": "Marker review remains important", "why_it_matters": "biological plausibility still needs manual confirmation"},
+    ]
+)
+format_table(principles_df)
+```
+
 ## Input And Run Context
 
 This section records the source object and the basic dimensions of the run so
@@ -317,6 +336,26 @@ else:
 - Strong batch domination inside a single final label is not automatically bad,
   but it is a prompt to check whether the assignment reflects biology or
   technical structure.
+
+## References Consulted
+
+```{python}
+references_df = pd.DataFrame(
+    [
+        {
+            "resource": "Single-cell best practices: annotation",
+            "role": "overall report framing and annotation-review principles",
+            "link": "https://www.sc-best-practices.org/cellular_structure/annotation.html",
+        },
+        {
+            "resource": "CellTypist paper and documentation",
+            "role": "current implemented method behavior and review expectations",
+            "link": "https://pubmed.ncbi.nlm.nih.gov/35549406/",
+        },
+    ]
+)
+format_table(references_df)
+```
 
 ## Session Info
 

@@ -77,6 +77,26 @@ fit_df = pd.DataFrame(
 format_table(fit_df)
 ```
 
+## Paper And Documentation Takeaways
+
+The decoupleR / decoupler documentation and paper frame the method family as an
+activity-inference toolkit rather than a direct single-label classifier. For
+this template, that supports using decoupler as a review layer that strengthens
+or questions a proposed annotation, especially through marker- or pathway-level
+evidence.
+
+```{python}
+takeaways_df = pd.DataFrame(
+    [
+        {"takeaway": "activity inference rather than direct labeling", "implication": "best treated as validation, not as the only annotation source"},
+        {"takeaway": "supports prior knowledge resources", "implication": "useful when curated marker or pathway sets exist"},
+        {"takeaway": "cluster-level summaries are natural", "implication": "fits review of ambiguous clusters after classifier output"},
+        {"takeaway": "interpretability is a strength", "implication": "good for explaining why a label does or does not fit"},
+    ]
+)
+format_table(takeaways_df)
+```
+
 ## Required Future Inputs
 
 ```{python}
@@ -116,6 +136,26 @@ checklist_df = pd.DataFrame(
     ]
 )
 format_table(checklist_df)
+```
+
+## References Consulted
+
+```{python}
+references_df = pd.DataFrame(
+    [
+        {
+            "resource": "decoupler single-cell documentation",
+            "role": "single-cell usage patterns and resource access",
+            "link": "https://decoupler.readthedocs.io/en/stable/notebooks/scell/rna_sc.html",
+        },
+        {
+            "resource": "decoupleR paper",
+            "role": "method framing and prior-knowledge inference context",
+            "link": "https://academic.oup.com/bioinformaticsadvances/article/2/1/vbac016/6544613",
+        },
+    ]
+)
+format_table(references_df)
 ```
 
 ## Session Info

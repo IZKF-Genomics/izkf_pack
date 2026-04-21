@@ -118,6 +118,26 @@ inspection before final labeling.
 )
 ```
 
+## Method Background
+
+CellTypist is a logistic-regression-based annotation framework designed around
+reference models and fast deployment. The CellTypist paper emphasizes reference
+quality, curated label hierarchies, and practical cross-dataset annotation,
+while the documentation highlights model choice and optional majority-voting
+refinement as important user decisions.
+
+```{python}
+background_df = pd.DataFrame(
+    [
+        {"point": "Core idea", "detail": "reference-based cell type annotation with pretrained or custom models"},
+        {"point": "Strength", "detail": "fast and practical for routine annotation when a relevant reference exists"},
+        {"point": "Main dependency", "detail": "model choice and reference similarity strongly affect output quality"},
+        {"point": "Review implication", "detail": "predictions should still be checked against cluster structure and markers"},
+    ]
+)
+format_table(background_df)
+```
+
 ## Configuration
 
 This table records the key parameters that control the CellTypist run so the
@@ -320,6 +340,45 @@ format_table(probability_preview)
   region, doublet-like population, or an out-of-reference state.
 - A cluster with a shallow top-label fraction or a marker conflict is a better
   candidate for manual review than for immediate acceptance.
+
+## When CellTypist Fits Best
+
+```{python}
+fit_df = pd.DataFrame(
+    [
+        {"scenario": "well-matched tissue reference available", "fit": "strong"},
+        {"scenario": "routine facility-style scRNA annotation", "fit": "strong"},
+        {"scenario": "novel biology or poorly matched reference", "fit": "caution"},
+        {"scenario": "need batch-aware reference mapping with latent modeling", "fit": "consider scANVI instead"},
+    ]
+)
+format_table(fit_df)
+```
+
+## References Consulted
+
+```{python}
+references_df = pd.DataFrame(
+    [
+        {
+            "resource": "CellTypist paper",
+            "role": "method framing and practical positioning",
+            "link": "https://pubmed.ncbi.nlm.nih.gov/35549406/",
+        },
+        {
+            "resource": "CellTypist documentation",
+            "role": "current package behavior and model usage",
+            "link": "https://celltypist.readthedocs.io/",
+        },
+        {
+            "resource": "Single-cell best practices: annotation",
+            "role": "review-oriented annotation guidance",
+            "link": "https://www.sc-best-practices.org/cellular_structure/annotation.html",
+        },
+    ]
+)
+format_table(references_df)
+```
 
 ## Session Info
 

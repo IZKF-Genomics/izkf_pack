@@ -26,7 +26,7 @@ params:
   annotation_methods:
     type: str
     default: "celltypist"
-    description: Comma-separated list of annotation methods to run and render as sub-reports. Currently supported: `celltypist`.
+    description: "Comma-separated list of annotation methods to run and render as sub-reports. Currently supported: `celltypist`."
   celltypist_model:
     type: str
     default: ""

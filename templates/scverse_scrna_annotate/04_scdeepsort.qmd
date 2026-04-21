@@ -77,6 +77,26 @@ fit_df = pd.DataFrame(
 format_table(fit_df)
 ```
 
+## Paper And Documentation Takeaways
+
+The scDeepSort paper presents a pretrained graph-based deep-learning annotation
+approach benchmarked against multiple annotation tools on external human and
+mouse datasets. The current documentation also makes the environment constraints
+very explicit, which is a major practical consideration for whether this
+backend belongs in a production template.
+
+```{python}
+takeaways_df = pd.DataFrame(
+    [
+        {"takeaway": "pretrained annotation focus", "implication": "attractive when the supported model scope matches the dataset well"},
+        {"takeaway": "benchmark-driven positioning", "implication": "worth testing comparatively rather than trusting by default"},
+        {"takeaway": "narrower runtime compatibility", "implication": "dependency handling is a first-class design issue here"},
+        {"takeaway": "species and model coverage matter", "implication": "mismatch risk should be visible in the report"},
+    ]
+)
+format_table(takeaways_df)
+```
+
 ## Required Future Inputs
 
 ```{python}
@@ -117,6 +137,26 @@ checklist_df = pd.DataFrame(
     ]
 )
 format_table(checklist_df)
+```
+
+## References Consulted
+
+```{python}
+references_df = pd.DataFrame(
+    [
+        {
+            "resource": "scDeepSort paper",
+            "role": "benchmark framing and intended method scope",
+            "link": "https://pubmed.ncbi.nlm.nih.gov/34500471/",
+        },
+        {
+            "resource": "scDeepSort documentation",
+            "role": "runtime and installation constraints",
+            "link": "https://scdeepsort.readthedocs.io/en/master/get_started.html",
+        },
+    ]
+)
+format_table(references_df)
 ```
 
 ## Session Info

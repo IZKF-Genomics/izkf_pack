@@ -77,6 +77,26 @@ fit_df = pd.DataFrame(
 format_table(fit_df)
 ```
 
+## Paper And Documentation Takeaways
+
+The scGPT paper frames the method as a foundation-model approach for
+single-cell multi-omic analysis, not just a narrow annotation utility. That
+gives it interesting long-term potential, but also means the reporting and
+runtime contract need to be clearer about checkpoint provenance, vocabulary
+alignment, and compute cost than they would be for a simpler classifier.
+
+```{python}
+takeaways_df = pd.DataFrame(
+    [
+        {"takeaway": "foundation-model orientation", "implication": "annotation is only one possible downstream use case"},
+        {"takeaway": "large pretrained checkpoints", "implication": "checkpoint provenance should be visible in reports"},
+        {"takeaway": "gene vocabulary alignment", "implication": "input validation will need to be stricter than for CellTypist"},
+        {"takeaway": "higher operational cost", "implication": "GPU and runtime summaries matter for reproducibility"},
+    ]
+)
+format_table(takeaways_df)
+```
+
 ## Required Future Inputs
 
 ```{python}
@@ -117,6 +137,26 @@ checklist_df = pd.DataFrame(
     ]
 )
 format_table(checklist_df)
+```
+
+## References Consulted
+
+```{python}
+references_df = pd.DataFrame(
+    [
+        {
+            "resource": "scGPT paper",
+            "role": "method framing and foundation-model scope",
+            "link": "https://www.nature.com/articles/s41592-024-02201-0",
+        },
+        {
+            "resource": "scGPT documentation",
+            "role": "package-level usage and implementation context",
+            "link": "https://scgpt.readthedocs.io/",
+        },
+    ]
+)
+format_table(references_df)
 ```
 
 ## Session Info
