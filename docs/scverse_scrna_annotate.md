@@ -103,6 +103,18 @@ Important config files include:
 - `config/annotation_config.resolved.yaml`
 - `config/project.toml`
 
+Method-specific report scaffolds currently present in the template directory:
+
+- `celltypist.qmd`
+- `scanvi.qmd`
+- `decoupler_review.qmd`
+- `scdeepsort.qmd`
+- `scgpt.qmd`
+
+At the moment only `celltypist.qmd` is backed by executable runtime logic. The
+other QMD files are reserved so future Python-native backends can slot into the
+same report organization without another directory refactor.
+
 ## Maintenance notes
 
 When editing this template, treat these as high-sensitivity areas:

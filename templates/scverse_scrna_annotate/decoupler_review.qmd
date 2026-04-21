@@ -1,0 +1,93 @@
+---
+title: "scRNA Annotation Review Report: decoupler"
+date: today
+jupyter: python3
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 3
+    toc-location: left
+    html-math-method: katex
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+    page-layout: full
+    html-table-processing: none
+    theme: lumen
+    fig-width: 10
+    fig-height: 5
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{python}
+from pathlib import Path
+import sys
+
+import pandas as pd
+
+LIB_DIR = Path(".").resolve() / "lib"
+if str(LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(LIB_DIR))
+
+from report_utils import format_table, load_report_context, package_versions_table
+
+ROOT = Path(".").resolve()
+context = load_report_context(ROOT)
+```
+
+## Status
+
+This report file is reserved for a future Python-native `decoupler` review
+layer. Unlike classifier backends, `decoupler` is intended here as a
+marker/pathway validation layer rather than a standalone final annotation
+engine.
+
+```{python}
+status_df = pd.DataFrame(
+    [
+        {"field": "method", "value": "decoupler_review"},
+        {"field": "implemented_in_runtime", "value": "no"},
+        {"field": "intended_role", "value": "marker and pathway-based annotation review"},
+        {"field": "current_selected_methods", "value": ", ".join(context["selected_methods"])},
+    ]
+)
+format_table(status_df)
+```
+
+## Planned Review Outputs
+
+```{python}
+planned_df = pd.DataFrame(
+    [
+        {"output": "gene-set scores by cluster", "purpose": "compare candidate labels with known signatures"},
+        {"output": "marker agreement summary", "purpose": "confirm or challenge classifier suggestions"},
+        {"output": "pathway activity snapshot", "purpose": "add functional context to ambiguous clusters"},
+        {"output": "disagreement table", "purpose": "highlight clusters needing manual review"},
+    ]
+)
+format_table(planned_df)
+```
+
+## Planned Config Inputs
+
+```{python}
+config_df = pd.DataFrame(
+    [
+        {"key": "marker_review.marker_file", "meaning": "user-supplied marker set YAML"},
+        {"key": "review resource", "meaning": "optional prior-knowledge resource or signature collection"},
+        {"key": "cluster_key", "meaning": "grouping level for cluster summaries"},
+    ]
+)
+format_table(config_df)
+```
+
+## Session Info
+
+```{python}
+session_df = package_versions_table(["scanpy", "anndata", "pandas", "numpy", "plotly", "decoupler"])
+format_table(session_df)
+```

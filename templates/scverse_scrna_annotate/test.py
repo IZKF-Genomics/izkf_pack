@@ -61,6 +61,16 @@ class FakeContext:
 
 
 def main() -> int:
+    for report_name in [
+        "annotation_overview.qmd",
+        "celltypist.qmd",
+        "scanvi.qmd",
+        "decoupler_review.qmd",
+        "scdeepsort.qmd",
+        "scgpt.qmd",
+    ]:
+        assert (TEMPLATE_DIR / report_name).exists(), f"Missing report scaffold: {report_name}"
+
     run_module = load_module(TEMPLATE_DIR / "run.py", "test_scverse_scrna_annotate_run")
     with tempfile.TemporaryDirectory(prefix="linkar-scverse-scrna-annotate-test-") as tmp:
         project_dir = Path(tmp) / "260421_scRNA_Annotation"

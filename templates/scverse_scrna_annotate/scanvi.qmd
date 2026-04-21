@@ -1,0 +1,95 @@
+---
+title: "scRNA Annotation Method Report: scANVI"
+date: today
+jupyter: python3
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 3
+    toc-location: left
+    html-math-method: katex
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+    page-layout: full
+    html-table-processing: none
+    theme: lumen
+    fig-width: 10
+    fig-height: 5
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{python}
+from pathlib import Path
+import sys
+
+import pandas as pd
+
+LIB_DIR = Path(".").resolve() / "lib"
+if str(LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(LIB_DIR))
+
+from report_utils import format_table, load_report_context, package_versions_table
+
+ROOT = Path(".").resolve()
+context = load_report_context(ROOT)
+```
+
+## Status
+
+This report file is reserved for a future Python-native `scANVI` backend.
+
+The current `scverse_scrna_annotate` runtime does not yet execute `scANVI`, so
+this report is intentionally a scaffold rather than an analysis output. It is
+kept in the template so the report structure is ready when the backend is added.
+
+```{python}
+status_df = pd.DataFrame(
+    [
+        {"field": "method", "value": "scanvi"},
+        {"field": "implemented_in_runtime", "value": "no"},
+        {"field": "intended_role", "value": "reference mapping and semi-supervised annotation"},
+        {"field": "current_selected_methods", "value": ", ".join(context["selected_methods"])},
+    ]
+)
+format_table(status_df)
+```
+
+## Planned Inputs
+
+```{python}
+planned_df = pd.DataFrame(
+    [
+        {"input": "reference_h5ad", "purpose": "labeled reference atlas"},
+        {"input": "reference_label_key", "purpose": "known cell type labels in the reference"},
+        {"input": "counts layer", "purpose": "raw-count input required by scvi-tools models"},
+        {"input": "batch_key", "purpose": "batch-aware modeling and mapping"},
+    ]
+)
+format_table(planned_df)
+```
+
+## Planned Diagnostics
+
+```{python}
+diagnostics_df = pd.DataFrame(
+    [
+        {"diagnostic": "latent-space UMAP", "why_it_matters": "review mapped cell identities visually"},
+        {"diagnostic": "prediction confidence", "why_it_matters": "surface uncertain or out-of-reference cells"},
+        {"diagnostic": "cluster-level agreement", "why_it_matters": "compare scANVI labels with other methods"},
+        {"diagnostic": "unknown / unresolved cells", "why_it_matters": "avoid forcing weak assignments"},
+    ]
+)
+format_table(diagnostics_df)
+```
+
+## Session Info
+
+```{python}
+session_df = package_versions_table(["scanpy", "anndata", "pandas", "numpy", "plotly", "scvi-tools"])
+format_table(session_df)
+```

@@ -1,0 +1,95 @@
+---
+title: "scRNA Annotation Method Report: scGPT"
+date: today
+jupyter: python3
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 3
+    toc-location: left
+    html-math-method: katex
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+    page-layout: full
+    html-table-processing: none
+    theme: lumen
+    fig-width: 10
+    fig-height: 5
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{python}
+from pathlib import Path
+import sys
+
+import pandas as pd
+
+LIB_DIR = Path(".").resolve() / "lib"
+if str(LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(LIB_DIR))
+
+from report_utils import format_table, load_report_context, package_versions_table
+
+ROOT = Path(".").resolve()
+context = load_report_context(ROOT)
+```
+
+## Status
+
+This report file is reserved for a future Python-native `scGPT` backend.
+
+`scGPT` is a research-oriented foundation-model option and is not yet part of
+the executable runtime for this template. The QMD file is kept here so the
+report layout is already organized once that backend is added.
+
+```{python}
+status_df = pd.DataFrame(
+    [
+        {"field": "method", "value": "scgpt"},
+        {"field": "implemented_in_runtime", "value": "no"},
+        {"field": "intended_role", "value": "foundation-model-based annotation and mapping"},
+        {"field": "current_selected_methods", "value": ", ".join(context["selected_methods"])},
+    ]
+)
+format_table(status_df)
+```
+
+## Planned Inputs
+
+```{python}
+planned_df = pd.DataFrame(
+    [
+        {"input": "model checkpoint", "purpose": "pretrained or fine-tuned foundation model weights"},
+        {"input": "gene vocabulary mapping", "purpose": "align query genes to model vocabulary"},
+        {"input": "fine-tuning controls", "purpose": "decide inference-only vs adaptation"},
+        {"input": "GPU availability", "purpose": "practical runtime requirement for larger models"},
+    ]
+)
+format_table(planned_df)
+```
+
+## Planned Diagnostics
+
+```{python}
+diagnostics_df = pd.DataFrame(
+    [
+        {"diagnostic": "predicted labels", "why_it_matters": "primary annotation output"},
+        {"diagnostic": "confidence / uncertainty", "why_it_matters": "surface low-certainty assignments"},
+        {"diagnostic": "agreement with other methods", "why_it_matters": "benchmark foundation-model behavior"},
+        {"diagnostic": "runtime and resource summary", "why_it_matters": "track operational cost"},
+    ]
+)
+format_table(diagnostics_df)
+```
+
+## Session Info
+
+```{python}
+session_df = package_versions_table(["scanpy", "anndata", "pandas", "numpy", "plotly", "scgpt"])
+format_table(session_df)
+```

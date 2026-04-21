@@ -1,0 +1,95 @@
+---
+title: "scRNA Annotation Method Report: scDeepSort"
+date: today
+jupyter: python3
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 3
+    toc-location: left
+    html-math-method: katex
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+    page-layout: full
+    html-table-processing: none
+    theme: lumen
+    fig-width: 10
+    fig-height: 5
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{python}
+from pathlib import Path
+import sys
+
+import pandas as pd
+
+LIB_DIR = Path(".").resolve() / "lib"
+if str(LIB_DIR) not in sys.path:
+    sys.path.insert(0, str(LIB_DIR))
+
+from report_utils import format_table, load_report_context, package_versions_table
+
+ROOT = Path(".").resolve()
+context = load_report_context(ROOT)
+```
+
+## Status
+
+This report file is reserved for a future Python-native `scDeepSort` backend.
+
+`scDeepSort` is not yet executed by the template runtime. The report exists as a
+scaffold so the method-specific documentation and diagnostics have a dedicated
+place once the backend is added.
+
+```{python}
+status_df = pd.DataFrame(
+    [
+        {"field": "method", "value": "scdeepsort"},
+        {"field": "implemented_in_runtime", "value": "no"},
+        {"field": "intended_role", "value": "pretrained deep-learning annotation in supported species/settings"},
+        {"field": "current_selected_methods", "value": ", ".join(context["selected_methods"])},
+    ]
+)
+format_table(status_df)
+```
+
+## Planned Inputs
+
+```{python}
+planned_df = pd.DataFrame(
+    [
+        {"input": "species", "purpose": "select the supported organism"},
+        {"input": "supported tissue/model", "purpose": "pick a compatible pretrained model"},
+        {"input": "gene symbol compatibility", "purpose": "align the query matrix to model expectations"},
+        {"input": "runtime environment", "purpose": "manage older dependency constraints explicitly"},
+    ]
+)
+format_table(planned_df)
+```
+
+## Planned Diagnostics
+
+```{python}
+diagnostics_df = pd.DataFrame(
+    [
+        {"diagnostic": "predicted label distribution", "why_it_matters": "catch implausible class imbalance"},
+        {"diagnostic": "cluster agreement", "why_it_matters": "review consistency with unsupervised structure"},
+        {"diagnostic": "low-confidence cells", "why_it_matters": "avoid overconfident final labels"},
+        {"diagnostic": "environment summary", "why_it_matters": "document compatibility-sensitive runs"},
+    ]
+)
+format_table(diagnostics_df)
+```
+
+## Session Info
+
+```{python}
+session_df = package_versions_table(["scanpy", "anndata", "pandas", "numpy", "plotly", "scdeepsort"])
+format_table(session_df)
+```

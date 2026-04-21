@@ -40,6 +40,10 @@ That keeps `run.sh`, `pixi`, and the exported workspace easier to maintain.
 - `build_annotation_outputs.py`: shared annotation pipeline executed once
 - `annotation_overview.qmd`: cross-method review report
 - `celltypist.qmd`: CellTypist-specific diagnostic report
+- `scanvi.qmd`: reserved scaffold for a future scANVI report
+- `decoupler_review.qmd`: reserved scaffold for a future decoupler review report
+- `scgpt.qmd`: reserved scaffold for a future scGPT report
+- `scdeepsort.qmd`: reserved scaffold for a future scDeepSort report
 - `lib/`: reusable Python helpers
 - `results/`: generated tables, H5AD output, and metadata
 - `reports/`: rendered HTML reports
@@ -172,6 +176,10 @@ B_cells:
 9. renders one sub-report for each selected method
 10. writes `results/software_versions.json`
 
+At the moment, only `celltypist.qmd` is rendered by the executable runtime.
+The additional method-specific QMD files are committed as structured scaffolds
+for future Python backends so the report organization is already in place.
+
 The analysis itself:
 
 - loads the input AnnData object
@@ -209,6 +217,14 @@ Python-native backends are considered in-scope.
 | decoupler | Python | Marker/pathway activity review | Future review layer, not standalone final annotation | Planned | Better for validation than for single-label assignment | [Docs](https://decoupler.readthedocs.io/en/stable/notebooks/scell/rna_sc.html), [Paper](https://academic.oup.com/bioinformaticsadvances/article/2/1/vbac016/6544613) |
 | scDeepSort | Python | Pretrained human/mouse annotation in supported settings | Possible experimental backend | Not implemented | Older Python/runtime constraints make maintenance harder | [Docs](https://scdeepsort.readthedocs.io/en/master/installation.html), [Paper](https://academic.oup.com/nar/article/49/21/e122/6368052) |
 | scGPT | Python | Research-oriented foundation-model annotation and mapping | Possible experimental backend | Not implemented | High compute and operational complexity | [Docs](https://scgpt.readthedocs.io/), [Paper](https://www.nature.com/articles/s41592-024-02201-0) |
+
+Report scaffolds already present in the template:
+
+- `celltypist.qmd`
+- `scanvi.qmd`
+- `decoupler_review.qmd`
+- `scdeepsort.qmd`
+- `scgpt.qmd`
 
 R-based tools intentionally excluded from this template:
 
