@@ -168,21 +168,19 @@ def infer_sample_id(obs: pd.DataFrame, preferred_key: str) -> pd.Series:
     candidates = [preferred_key, "sample_id", "sample", "orig.ident", "library_id", "batch"]
     for key in candidates:
         if key in obs.columns:
-            vals = obs[key].astype(str).fillna("unknown")
-            if vals.nunique() > 0:
-                return vals
+            vals = normalize_text_series(obs[key], fallback="")
+            if (vals != "").any():
+                return vals.where(vals != "", "unknown")
     return pd.Series(["sample1"] * obs.shape[0], index=obs.index, dtype="object")
 
 
 def display_sample_label(obs: pd.DataFrame) -> pd.Series:
     if "sample_label" in obs.columns:
-        labels = obs["sample_label"].astype("object")
-        labels = labels.where(labels.notna(), "")
-        labels = labels.astype(str).str.strip()
-        fallback = obs["sample_id"].astype(str)
+        labels = normalize_text_series(obs["sample_label"], fallback="")
+        fallback = normalize_text_series(obs["sample_id"], fallback="unknown")
         labels = labels.where(labels != "", fallback)
         return labels
-    return obs["sample_id"].astype(str)
+    return normalize_text_series(obs["sample_id"], fallback="unknown")
 
 
 def annotate_qc_genes(adata, organism: str) -> None:
@@ -209,9 +207,12 @@ def apply_sample_metadata(adata, metadata_df: pd.DataFrame, sample_id_key: str) 
     if "sample_id" not in metadata_df.columns:
         raise RuntimeError("sample metadata must contain a sample_id column")
 
-    adata.obs[sample_id_key] = adata.obs[sample_id_key].astype(str)
+    adata.obs[sample_id_key] = normalize_text_series(adata.obs[sample_id_key], fallback="unknown")
     meta = metadata_df.copy()
-    meta["sample_id"] = meta["sample_id"].astype(str)
+    meta["sample_id"] = normalize_text_series(meta["sample_id"], fallback="")
+    meta = meta[meta["sample_id"] != ""].copy()
+    if meta.empty:
+        raise RuntimeError("sample metadata must contain at least one non-empty sample_id value")
     joined = adata.obs.merge(meta, how="left", left_on=sample_id_key, right_on="sample_id", suffixes=("", "_meta"))
     joined.index = adata.obs.index
 
@@ -866,7 +867,7 @@ adata.obs["sample_display"] = display_sample_label(adata.obs)
 for key in (batch_key, condition_key):
     if key not in adata.obs.columns:
         adata.obs[key] = "unknown"
-    adata.obs[key] = adata.obs[key].astype(str).fillna("unknown")
+    adata.obs[key] = normalize_text_series(adata.obs[key], fallback="unknown")
 
 ```
 
@@ -1339,12 +1340,12 @@ session_info_df = pd.concat(
 )
 write_table(tables_dir / "session_info.csv", session_info_df)
 
-condition_series = long_qc_df[condition_key].astype(str).str.strip()
+condition_series = normalize_text_series(long_qc_df[condition_key], fallback="")
 condition_defined_values = sorted(
     {
         value
         for value in condition_series
-        if value and value.lower() not in {"unknown", "nan", "none", "na", "n/a"}
+        if value and value.lower() not in {"unknown"}
     }
 )
 condition_available = len(condition_defined_values) >= 2
