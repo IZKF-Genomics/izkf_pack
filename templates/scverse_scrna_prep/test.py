@@ -165,12 +165,22 @@ assert np.array_equal(np.asarray(layered.X), np.asarray(layered.layers["counts"]
 
 sparse_counts = ad.AnnData(X=__import__("scipy").sparse.csr_matrix(np.random.poisson(1.0, size=(30, 12))))
 import scanpy as sc
+import pandas as pd
+from scrna_prep_io import looks_like_gene_ids, resolve_qc_feature_names
 sc.pp.normalize_total(sparse_counts, target_sum=1e4)
 sc.pp.log1p(sparse_counts)
 sc.pp.highly_variable_genes(sparse_counts, n_top_genes=5, flavor="seurat")
 sc.tl.pca(sparse_counts, n_comps=4, svd_solver="arpack", mask_var="highly_variable")
 assert __import__("scipy").sparse.issparse(sparse_counts.X)
 assert sparse_counts.obsm["X_pca"].shape == (30, 4)
+
+var = pd.DataFrame(
+    {"gene_symbols": ["MT-CO1", "RPS18", "HBZ"]},
+    index=["ENSG00000198888", "ENSG00000140988", "ENSG00000206172"],
+)
+resolved = resolve_qc_feature_names(var, var.index)
+assert resolved.tolist() == ["MT-CO1", "RPS18", "HBZ"]
+assert looks_like_gene_ids(pd.Index(var.index))
 PY""",
         ],
         cwd=TEMPLATE_DIR,
@@ -208,6 +218,8 @@ PY""",
     assert "doublet_method" in spec_text
     assert 'mask_var="highly_variable"' in qmd_text
     assert "sc.pp.scale(filtered" not in qmd_text
+    assert "resolve_qc_feature_names" in qmd_text
+    assert "QC gene annotation still requires gene symbols" in template_text
     assert "authors:" not in template_text
     assert "--authors" not in run_sh_text
     assert "author:" not in qmd_text

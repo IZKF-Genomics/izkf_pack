@@ -69,6 +69,8 @@ The notebook supports:
 
 For `.h5ad` input, the workspace expects raw counts. If the object stores normalized values in `X`, provide raw counts in `adata.layers["counts"]` before running the template.
 
+QC gene annotation expects gene symbols for mitochondrial / ribosomal / hemoglobin labeling. When using `var_names=gene_ids`, keep gene symbols available in a recognized `adata.var` column such as `gene_symbols` or `gene_name`.
+
 ## Outputs
 
 - `results/adata.prep.h5ad`

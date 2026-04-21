@@ -34,7 +34,7 @@ params:
   var_names:
     type: str
     default: "gene_symbols"
-    description: Feature naming choice for matrix-style inputs. Supported values are `gene_symbols` and `gene_ids`.
+    description: Feature naming choice for matrix-style inputs. Supported values are `gene_symbols` and `gene_ids`. QC gene annotation still requires gene symbols, either as feature names or in a recognized `adata.var` column.
   sample_metadata:
     type: path
     default: ""

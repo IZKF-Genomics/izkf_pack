@@ -29,7 +29,6 @@ import importlib.metadata
 import json
 import math
 import platform
-import re
 import sys
 import tomllib
 
@@ -44,7 +43,13 @@ from plotly.subplots import make_subplots
 from scipy.stats import median_abs_deviation
 from sklearn.metrics import davies_bouldin_score
 
-from scrna_prep_io import ensure_preprocessing_counts_matrix, sparse_copy
+from scrna_prep_io import (
+    ensure_preprocessing_counts_matrix,
+    looks_like_gene_ids,
+    normalize_text_series,
+    resolve_qc_feature_names,
+    sparse_copy,
+)
 
 ROOT = Path(".").resolve()
 CONFIG_PATH = ROOT / "config" / "project.toml"
@@ -187,10 +192,17 @@ def annotate_qc_genes(adata, organism: str) -> None:
             "metadata.organism is missing or unsupported. Set --param organism or ensure an upstream template wrote params.organism or params.genome in project.yaml."
         )
     pats = QC_PATTERNS[org]
-    var_names = pd.Index(adata.var_names.astype(str))
-    adata.var["mt"] = var_names.str.startswith(pats["mt"])
-    adata.var["ribo"] = var_names.str.startswith(pats["ribo"])
-    adata.var["hb"] = var_names.str.match(pats["hb_regex"], case=False)
+    feature_names = resolve_qc_feature_names(adata.var, adata.var_names)
+    feature_names_upper = feature_names.str.upper()
+    adata.var["qc_feature_name"] = feature_names.astype(str)
+    adata.var["mt"] = feature_names_upper.str.startswith(tuple(prefix.upper() for prefix in pats["mt"]))
+    adata.var["ribo"] = feature_names_upper.str.startswith(tuple(prefix.upper() for prefix in pats["ribo"]))
+    adata.var["hb"] = feature_names.str.match(pats["hb_regex"], case=False)
+    if not (adata.var["mt"].any() or adata.var["ribo"].any() or adata.var["hb"].any()) and looks_like_gene_ids(feature_names):
+        raise RuntimeError(
+            "QC gene annotation requires gene symbols, but the input appears to expose feature IDs only. "
+            "Set input.var_names=gene_symbols or provide a recognized gene symbol column in adata.var."
+        )
 
 
 def apply_sample_metadata(adata, metadata_df: pd.DataFrame, sample_id_key: str) -> None:
