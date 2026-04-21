@@ -330,6 +330,8 @@ The default binding in [`linkar_pack.yaml`](linkar_pack.yaml) uses Python functi
 
 Internal helper modules are documented in the functions README but are not intended to be called directly from `linkar_pack.yaml`.
 
+Pack-level design notes that span multiple templates live in [docs/](docs/README.md). The first entry is [software_versions.md](docs/software_versions.md).
+
 ## Discovery Helpers
 
 The `discovery/` modules are read-only helpers for agents and automation layers. They do not execute templates. They help answer questions such as:
