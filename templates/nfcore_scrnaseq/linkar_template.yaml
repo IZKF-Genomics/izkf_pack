@@ -1,0 +1,80 @@
+id: nfcore_scrnaseq
+version: 0.1.0
+description: Facility-focused nf-core/scrnaseq wrapper for single-cell RNA-seq runs.
+tools:
+  required:
+    - pixi
+    - python3
+    - docker
+params:
+  agendo_id:
+    type: str
+    default: ""
+    description: Optional Agendo request id used to derive genome metadata via the default binding.
+  samplesheet:
+    type: path
+    required: true
+    description: nf-core/scrnaseq input samplesheet. With --binding default it can be generated from the latest demultiplex FASTQ outputs in the active project.
+  genome:
+    type: str
+    required: true
+    description: Facility genome identifier such as GRCh38, GRCm39, mRatBN7.2, Sscrofa11.1, or GRCz11.
+  aligner:
+    type: str
+    required: true
+    description: Aligner backend to use. The first izkf_pack version supports `star` and `cellranger`.
+  protocol:
+    type: str
+    default: ""
+    description: Library chemistry / protocol string such as `10XV2`, `10XV3`, or `10XV4`. When `aligner=cellranger`, an empty value resolves to `auto`.
+  expected_cells:
+    type: int
+    required: false
+    description: Optional expected cell count propagated into the staged samplesheet when the input sheet does not already define it.
+  skip_cellbender:
+    type: bool
+    default: true
+    description: Skip CellBender empty-droplet filtering. This keeps the first implementation lightweight and avoids unnecessary failures on unsupported systems.
+  star_index:
+    type: path
+    default: ""
+    description: Optional override for a precomputed STAR index. When empty, the runtime uses a facility-managed shared STAR index if available for the selected genome.
+  cellranger_index:
+    type: path
+    default: ""
+    description: Optional override for a Cell Ranger reference. Required for `aligner=cellranger` unless a facility-managed shared Cell Ranger reference is available for the selected genome.
+  max_cpus:
+    type: int
+    required: false
+    description: Optional CPU cap applied through the generated runtime Nextflow config. The default binding sets this to 80 percent of host CPUs.
+  max_memory:
+    type: str
+    default: ""
+    description: Optional memory cap applied through the generated runtime Nextflow config. The default binding sets this to 80 percent of host RAM when detectable.
+outputs:
+  results_dir: {}
+  multiqc_dir:
+    path: results/multiqc
+  multiqc_report:
+    path: results/multiqc/multiqc_report.html
+  pipeline_info_dir:
+    path: results/pipeline_info
+  software_versions:
+    path: results/software_versions.json
+  runtime_command:
+    path: results/runtime_command.json
+  input_samplesheet:
+    path: samplesheet.csv
+  selected_matrix_h5ad:
+    path: selected_matrix.h5ad
+  matrix_selection:
+    path: results/matrix_selection.json
+  all_h5ad_outputs:
+    glob: results/*/mtx_conversions/*.h5ad
+run:
+  mode: render
+  command: |
+    python3 ./run.py --run-script ./run.sh
+render:
+  command: |
+    python3 ./run.py --render-only --run-script ./run.sh

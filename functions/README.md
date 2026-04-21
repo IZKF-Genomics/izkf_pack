@@ -55,6 +55,16 @@ Environment variables:
 
 - `LINKAR_HOME`
 
+### `generate_nfcore_scrnaseq_samplesheet`
+
+Source: [`generate_nfcore_scrnaseq_samplesheet.py`](generate_nfcore_scrnaseq_samplesheet.py)
+
+Generates an `nf-core/scrnaseq` samplesheet from the latest recorded demultiplexed FASTQ pairs. It writes a cached samplesheet under the Linkar cache directory and includes the optional `expected_cells` column when that parameter is already resolved.
+
+Environment variables:
+
+- `LINKAR_HOME`
+
 ### `generate_nfcore_3mrnaseq_samplesheet`
 
 Source: [`generate_nfcore_3mrnaseq_samplesheet.py`](generate_nfcore_3mrnaseq_samplesheet.py)

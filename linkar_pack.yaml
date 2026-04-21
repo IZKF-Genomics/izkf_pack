@@ -33,6 +33,16 @@ templates:
         function: get_host_max_cpus
       max_memory:
         function: get_host_max_memory
+  nfcore_scrnaseq:
+    params:
+      samplesheet:
+        function: generate_nfcore_scrnaseq_samplesheet
+      genome:
+        function: get_agendo_genome
+      max_cpus:
+        function: get_host_max_cpus
+      max_memory:
+        function: get_host_max_memory
   cellranger_atac:
     params:
       fastq_dir:

@@ -81,9 +81,12 @@ def map_genome_to_organism(genome: object) -> str:
         "rn7": "rnorvegicus",
         "sscrofa11.1": "sscrofa",
         "susscr11": "sscrofa",
+        "grcz11": "drerio",
+        "danrer11": "drerio",
         "hsapiens": "hsapiens",
         "mmusculus": "mmusculus",
         "rnorvegicus": "rnorvegicus",
         "sscrofa": "sscrofa",
+        "drerio": "drerio",
     }
     return mapping.get(value, "")

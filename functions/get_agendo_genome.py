@@ -25,6 +25,8 @@ def resolve(ctx) -> str:
         "mouse": "GRCm39",
         "rat": "mRatBN7.2",
         "pig": "Sscrofa11.1",
+        "zebrafish": "GRCz11",
+        "danio rerio": "GRCz11",
     }
     genome = mapping.get(organism)
     if not genome:

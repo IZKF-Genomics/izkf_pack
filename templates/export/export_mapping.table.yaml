@@ -52,6 +52,23 @@ mappings:
         description: "Combined Bismark summary report from nfcore_methylseq."
         link_name: "nfcore_methylseq Bismark summary"
 
+  - template_id: nfcore_scrnaseq
+    src: "{template_root}"
+    dest: "2_Processed_data/nfcore_scrnaseq/{template_basename}"
+    report_links:
+      - path: "."
+        section: processed
+        description: "This folder contains the rendered script bundle, configuration, and nf-core/scrnaseq results."
+        link_name: "{template_basename}"
+      - path: "results/multiqc/multiqc_report.html"
+        section: processed/MultiQC
+        description: "MultiQC report from {template_basename}."
+        link_name: "{template_basename} MultiQC"
+      - path: "selected_matrix.h5ad"
+        section: processed/H5AD
+        description: "Preferred downstream AnnData matrix selected from {template_basename}."
+        link_name: "{template_basename} selected matrix"
+
   - template_id: cellranger_atac
     src_project_key: "templates[id=cellranger_atac].outputs.results_dir"
     src: "{template_root}"
