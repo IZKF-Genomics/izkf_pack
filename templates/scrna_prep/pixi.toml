@@ -5,8 +5,8 @@ platforms = ["linux-64"]
 version = "0.1.0"
 
 [tasks]
-render = { cmd = ["quarto", "render", "qc.qmd", "--to", "html", "--no-clean"] }
-clean = { cmd = ["bash", "-lc", "rm -rf results .quarto qc.html"] }
+render = { cmd = ["quarto", "render", "scrna_prep.qmd", "--to", "html", "--no-clean"] }
+clean = { cmd = ["bash", "-lc", "rm -rf results .quarto scrna_prep.html"] }
 
 [dependencies]
 python = ">=3.11,<3.13"

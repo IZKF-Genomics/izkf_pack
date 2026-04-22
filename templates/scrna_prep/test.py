@@ -231,7 +231,7 @@ PY""",
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
     run_py_text = (TEMPLATE_DIR / "run.py").read_text(encoding="utf-8")
-    qmd_text = (TEMPLATE_DIR / "qc.qmd").read_text(encoding="utf-8")
+    qmd_text = (TEMPLATE_DIR / "scrna_prep.qmd").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     spec_text = (TEMPLATE_DIR / "assets" / "software_versions_spec.yaml").read_text(encoding="utf-8")
 

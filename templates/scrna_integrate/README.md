@@ -7,13 +7,13 @@ It follows the same Linkar pattern as the other analysis workspaces in this pack
 - `run.sh` is the user-facing launcher
 - `run.py` contains the runtime orchestration and writes `config/project.toml` plus `results/run_info.yaml`
 - `pixi.toml` defines the local Python/Quarto environment
-- `qc.qmd` contains the integration and evaluation workflow
+- `scrna_integrate.qmd` contains the integration and evaluation workflow
 - `assets/` stores static template-owned files such as the software-version spec
 - `lib/` stores reusable Python helpers
 
 ## Layout
 
-- `qc.qmd`: report source and integration workflow
+- `scrna_integrate.qmd`: report source and integration workflow
 - `assets/`: static template-owned files checked into git
 - `config/`: runtime-generated project config
 - `lib/`: reusable Python helpers imported by the notebook
@@ -58,7 +58,7 @@ The launcher [run.sh](run.sh):
 - creates the runtime config under `config/project.toml`
 - records resolved parameters in `results/run_info.yaml`
 - installs the template-local Pixi environment
-- renders [qc.qmd](qc.qmd) to HTML
+- renders [scrna_integrate.qmd](scrna_integrate.qmd) to HTML
 - writes `results/software_versions.json`
 
 The notebook:
@@ -88,7 +88,7 @@ Best-practice constraints baked into the template:
 - `results/tables/cluster_counts.csv`
 - `results/run_info.yaml`
 - `results/software_versions.json`
-- `reports/qc.html`
+- `reports/scrna_integrate.html`
 
 ## Test Command
 

@@ -118,7 +118,7 @@ def main() -> int:
         (integrate_dir / "results" / "run_info.yaml").write_text("template: scrna_integrate\n", encoding="utf-8")
         (integrate_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
         (integrate_dir / "results" / "tables" / "integration_metrics.csv").write_text("metric,value\n", encoding="utf-8")
-        (integrate_dir / "reports" / "qc.html").write_text("<html></html>\n", encoding="utf-8")
+        (integrate_dir / "reports" / "scrna_integrate.html").write_text("<html></html>\n", encoding="utf-8")
         (annotate_dir / "results" / "adata.annotated.h5ad").write_text("h5ad\n", encoding="utf-8")
         (annotate_dir / "results" / "run_info.yaml").write_text("template: scrna_annotate\n", encoding="utf-8")
         (annotate_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
@@ -311,7 +311,7 @@ def main() -> int:
         ]
         assert len(integrate_report_entries) == 1
         integrate_report_paths = {link["path"] for link in integrate_report_entries[0].get("report_links", [])}
-        assert "qc.html" in integrate_report_paths
+        assert "scrna_integrate.html" in integrate_report_paths
         annotate_entries = [
             entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/scrna_annotate/scrna_annotate/results"
         ]

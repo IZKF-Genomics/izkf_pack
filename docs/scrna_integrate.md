@@ -76,7 +76,7 @@ Important outputs include:
 - `results/tables/cluster_counts.csv`
 - `results/run_info.yaml`
 - `results/software_versions.json`
-- `reports/qc.html`
+- `reports/scrna_integrate.html`
 
 ## Maintenance notes
 

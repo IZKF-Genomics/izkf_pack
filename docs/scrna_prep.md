@@ -84,7 +84,7 @@ Important outputs include:
 - `results/tables/*.csv`
 - `results/run_info.yaml`
 - `results/software_versions.json`
-- `reports/qc.html`
+- `reports/scrna_prep.html`
 
 ## Maintenance notes
 

@@ -215,14 +215,14 @@ PY""",
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
     run_py_text = (TEMPLATE_DIR / "run.py").read_text(encoding="utf-8")
-    qmd_text = (TEMPLATE_DIR / "qc.qmd").read_text(encoding="utf-8")
+    qmd_text = (TEMPLATE_DIR / "scrna_integrate.qmd").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     spec_text = (TEMPLATE_DIR / "assets" / "software_versions_spec.yaml").read_text(encoding="utf-8")
 
     assert "id: scrna_integrate" in template_text
     assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
     assert "quarto" in run_py_text
-    assert "qc.qmd" in run_py_text
+    assert "scrna_integrate.qmd" in run_py_text
     assert 'title: "scRNA Integration QC"' in qmd_text
     assert "compare_baseline_and_integrated" in qmd_text
     assert "unintegrated baseline" in readme_text.lower()

@@ -7,13 +7,13 @@ It follows the same Linkar pattern as the other analysis workspaces in this pack
 - `run.sh` is the user-facing launcher
 - `run.py` contains the runtime orchestration and writes `config/project.toml` plus `results/run_info.yaml`
 - `pixi.toml` defines the local Python/Quarto environment
-- `qc.qmd` contains the preprocessing and report logic
+- `scrna_prep.qmd` contains the preprocessing and report logic
 - `assets/` stores static template fixtures such as the sample metadata stub and software-version spec
 - `lib/` stores notebook helper code
 
 ## Layout
 
-- `qc.qmd`: report source and preprocessing workflow
+- `scrna_prep.qmd`: report source and preprocessing workflow
 - `assets/`: static template-owned files checked into git
 - `config/`: runtime-generated project config
 - `lib/`: reusable Python helpers imported by the notebook
@@ -67,7 +67,7 @@ The launcher [run.sh](run.sh):
 - creates the runtime config under `config/project.toml`
 - records resolved parameters in `results/run_info.yaml`
 - installs the template-local Pixi environment
-- renders [qc.qmd](qc.qmd) to HTML
+- renders [scrna_prep.qmd](scrna_prep.qmd) to HTML
 - writes `results/software_versions.json`
 
 The notebook supports:
@@ -91,7 +91,7 @@ QC gene annotation expects gene symbols for mitochondrial / ribosomal / hemoglob
 - `results/tables/*.csv`
 - `results/run_info.yaml`
 - `results/software_versions.json`
-- `reports/qc.html`
+- `reports/scrna_prep.html`
 
 ## Test command
 
