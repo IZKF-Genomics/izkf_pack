@@ -18,6 +18,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-dir", default="..")
     parser.add_argument("--template-dir", default=".")
     parser.add_argument("--dry-run", default="false")
+    parser.add_argument("--reuse-spec", default="false")
+    parser.add_argument("--reuse-credentials", default="false")
     parser.add_argument("--export-engine-api-url", required=True)
     parser.add_argument("--export-engine-backends", default="apache, owncloud, sftp")
     parser.add_argument("--export-expiry-days", type=int, default=30)
@@ -144,11 +146,17 @@ def main() -> int:
     spec_path = results_dir / "export_job_spec.json"
     build_script = template_dir / "build_export_bundle.py"
     submit_script = template_dir / "submit_export.py"
+    reuse_spec = parse_bool(args.reuse_spec)
+    reuse_credentials = parse_bool(args.reuse_credentials)
 
     print_section("Prepare Export Bundle")
-    if spec_path.exists():
+    if reuse_spec:
+        if not spec_path.exists():
+            raise SystemExit(f"cannot reuse missing export spec: {spec_path}")
         print(color("[info]", YELLOW, bold=True), f"using existing {spec_path}")
     else:
+        if spec_path.exists():
+            print(color("[info]", YELLOW, bold=True), f"rebuilding existing {spec_path}")
         run_python_script(
             build_script,
             [
@@ -166,6 +174,8 @@ def main() -> int:
                 args.export_username,
                 "--export-password",
                 args.export_password,
+                "--reuse-saved-credentials",
+                "true" if reuse_credentials else "false",
                 "--agendo-id",
                 args.agendo_id,
                 "--flowcell-id",
@@ -184,7 +194,6 @@ def main() -> int:
                 str(args.include_methods_in_spec),
                 "--methods-style",
                 args.methods_style,
-                "--skip-if-spec-exists",
             ],
         )
 

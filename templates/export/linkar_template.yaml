@@ -8,7 +8,15 @@ params:
   dry_run:
     type: bool
     default: false
-    description: When true, prepare or reuse export_job_spec.json and stop before API submission.
+    description: When true, prepare the selected export bundle state and stop before API submission.
+  reuse_spec:
+    type: bool
+    default: false
+    description: When true, submit or inspect the current export_job_spec.json without rebuilding it.
+  reuse_credentials:
+    type: bool
+    default: false
+    description: When true, rebuild export_job_spec.json while preserving saved credentials from prior export artifacts.
   export_engine_api_url:
     type: str
     default: http://genomics.rwth-aachen.de:9500
@@ -104,6 +112,8 @@ run:
       --project-dir "${LINKAR_PROJECT_DIR:-..}" \
       --template-dir "." \
       --dry-run "${param:dry_run}" \
+      --reuse-spec "${param:reuse_spec}" \
+      --reuse-credentials "${param:reuse_credentials}" \
       --export-engine-api-url "${param:export_engine_api_url}" \
       --export-engine-backends "${param:export_engine_backends}" \
       --export-expiry-days "${param:export_expiry_days}" \
@@ -128,21 +138,28 @@ render:
       exit 2
     fi
 
-    python3 ./build_export_bundle.py \
-      --project-dir "${project_dir}" \
-      --template-dir "." \
-      --results-dir "./results" \
-      --export-engine-backends "${param:export_engine_backends}" \
-      --export-expiry-days "${param:export_expiry_days}" \
-      --export-username "${param:export_username}" \
-      --export-password "${param:export_password}" \
-      --agendo-id "${param:agendo_id}" \
-      --flowcell-id "${param:flowcell_id}" \
-      --metadata-source "${param:metadata_source}" \
-      --metadata-file "${param:metadata_file}" \
-      --metadata-api-url "${param:metadata_api_url}" \
-      --metadata-api-endpoint "${param:metadata_api_endpoint}" \
-      --metadata-api-timeout "${param:metadata_api_timeout}" \
-      --include-methods-in-spec "${param:include_methods_in_spec}" \
-      --methods-style "${param:methods_style}" \
-      --skip-if-spec-exists
+    build_args=(
+      python3 ./build_export_bundle.py
+      --project-dir "${project_dir}"
+      --template-dir "."
+      --results-dir "./results"
+      --export-engine-backends "${param:export_engine_backends}"
+      --export-expiry-days "${param:export_expiry_days}"
+      --export-username "${param:export_username}"
+      --export-password "${param:export_password}"
+      --reuse-saved-credentials "${param:reuse_credentials}"
+      --agendo-id "${param:agendo_id}"
+      --flowcell-id "${param:flowcell_id}"
+      --metadata-source "${param:metadata_source}"
+      --metadata-file "${param:metadata_file}"
+      --metadata-api-url "${param:metadata_api_url}"
+      --metadata-api-endpoint "${param:metadata_api_endpoint}"
+      --metadata-api-timeout "${param:metadata_api_timeout}"
+      --include-methods-in-spec "${param:include_methods_in_spec}"
+      --methods-style "${param:methods_style}"
+    )
+    if [[ "${param:reuse_spec}" == "true" ]]; then
+      build_args+=(--skip-if-spec-exists)
+    fi
+
+    "${build_args[@]}"

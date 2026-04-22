@@ -111,12 +111,20 @@ build_embedding_plotly_2d <- function(df, x, y, color_var, title, subtitle = NUL
   ) |>
     plotly::layout(
       title = list(text = if (is.null(subtitle)) title else paste0(title, "<br><sup>", subtitle, "</sup>"), x = 0),
-      showlegend = FALSE,
+      showlegend = TRUE,
+      legend = list(
+        orientation = "h",
+        x = 0,
+        xanchor = "left",
+        y = -0.22,
+        yanchor = "top",
+        title = list(text = "")
+      ),
       xaxis = list(title = x, zeroline = FALSE),
       yaxis = list(title = y, zeroline = FALSE),
       hoverlabel = list(align = "left"),
       autosize = TRUE,
-      margin = list(l = 70, r = 20, t = 80, b = 55),
+      margin = list(l = 70, r = 20, t = 80, b = 110),
       height = height
     )
   widget <- plotly::config(widget, responsive = TRUE)
@@ -164,14 +172,22 @@ build_embedding_plotly_3d <- function(df, x, y, z, color_var, title, subtitle = 
   ) |>
     plotly::layout(
       title = list(text = if (is.null(subtitle)) title else paste0(title, "<br><sup>", subtitle, "</sup>"), x = 0),
-      showlegend = FALSE,
+      showlegend = TRUE,
+      legend = list(
+        orientation = "h",
+        x = 0,
+        xanchor = "left",
+        y = -0.18,
+        yanchor = "top",
+        title = list(text = "")
+      ),
       scene = list(
         xaxis = list(title = x),
         yaxis = list(title = y),
         zaxis = list(title = z),
         camera = list(eye = list(x = 1.6, y = 1.6, z = 1.2))
       ),
-      margin = list(l = 0, r = 0, t = 80, b = 30),
+      margin = list(l = 0, r = 0, t = 80, b = 90),
       height = height
     )
   widget <- plotly::config(widget, responsive = TRUE)

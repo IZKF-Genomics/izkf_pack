@@ -126,7 +126,11 @@ def normalize_protocol(aligner: str, protocol: str) -> str:
     if aligner == "cellranger":
         return normalized or DEFAULT_CELLRANGER_PROTOCOL
     if not normalized:
-        raise SystemExit("[error] protocol is required when aligner is not cellranger.")
+        raise SystemExit(
+            f"[error] protocol is required for aligner={aligner}. "
+            "Pass an explicit nf-core/scrnaseq protocol such as 10XV2, 10XV3, or 10XV4 "
+            "(for example: linkar render nfcore_scrnaseq --genome GRCz11 --aligner star --protocol 10XV3)."
+        )
     if normalized.lower() == "auto":
         raise SystemExit("[error] protocol=auto is only supported when aligner=cellranger.")
     return normalized

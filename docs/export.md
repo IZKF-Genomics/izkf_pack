@@ -47,8 +47,26 @@ changed since the spec was first built.
 
 Practical rule:
 
-- if the mapping table or project outputs changed, rebuild the spec
-- if the user is only reviewing the same planned export, reuse is fine
+- `bash run.sh` now rebuilds the spec, generates new credentials, and submits
+- use `--reuse-spec` when a manually edited or already-approved spec should be
+  submitted unchanged
+- use `--reuse-credentials` when the spec should be rebuilt but the client
+  credentials should stay stable
+- use `--prepare-only` when you want to inspect the prepared bundle before
+  submission
+
+Recommended update flow when only report links changed and the client
+credentials should stay fixed:
+
+```bash
+cd export
+bash run.sh --reuse-credentials --prepare-only
+less results/export_job_spec.json
+```
+
+With credential reuse enabled, the export template looks for a complete
+username/password pair in `export_submission.json` first, then
+`export_job_spec.json`, then export params recorded in `project.yaml`.
 
 Recommended review flow:
 

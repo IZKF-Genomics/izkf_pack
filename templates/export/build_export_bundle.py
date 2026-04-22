@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 from export_common import (
@@ -31,6 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--export-expiry-days", type=int, default=30)
     parser.add_argument("--export-username", default="")
     parser.add_argument("--export-password", default="")
+    parser.add_argument("--reuse-saved-credentials", default="false")
     parser.add_argument("--agendo-id", default="")
     parser.add_argument("--flowcell-id", default="")
     parser.add_argument("--metadata-source", default="auto")
@@ -46,6 +48,59 @@ def parse_args() -> argparse.Namespace:
 
 def to_bool(value: str) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def load_json_object(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def extract_message_credentials(text: object) -> tuple[str, str]:
+    raw = str(text or "")
+    username_match = re.search(r"'Username':\s*'([^']+)'", raw)
+    password_match = re.search(r"'Password':\s*'([^']+)'", raw)
+    username = username_match.group(1).strip() if username_match else ""
+    password = password_match.group(1).strip() if password_match else ""
+    return username, password
+
+
+def extract_saved_credentials(results_dir: Path, spec_path: Path, project_data: dict[str, object]) -> tuple[str, str]:
+    submission_payload = load_json_object(results_dir / "export_submission.json")
+    final_message = submission_payload.get("final_message")
+    if isinstance(final_message, dict):
+        username = str(final_message.get("username") or "").strip()
+        password = str(final_message.get("password") or "").strip()
+        if not (username and password):
+            username, password = extract_message_credentials(final_message.get("message"))
+        if username and password:
+            return username, password
+
+    spec_payload = load_json_object(spec_path)
+    username = str(spec_payload.get("username") or "").strip()
+    password = str(spec_payload.get("password") or "").strip()
+    if username and password:
+        return username, password
+
+    templates = project_data.get("templates")
+    if isinstance(templates, list):
+        for entry in reversed(templates):
+            if not isinstance(entry, dict) or str(entry.get("id") or "").strip() != "export":
+                continue
+            params = entry.get("params")
+            if not isinstance(params, dict):
+                continue
+            username = str(params.get("export_username") or "").strip()
+            password = str(params.get("export_password") or "").strip()
+            if username and password:
+                return username, password
+            break
+
+    return "", ""
 
 
 def main() -> int:
@@ -73,6 +128,12 @@ def main() -> int:
         "export_username": args.export_username,
         "export_password": args.export_password,
     }
+    if to_bool(args.reuse_saved_credentials):
+        existing_username, existing_password = extract_saved_credentials(results_dir, spec_path, project_data)
+        if not params["export_username"] and existing_username:
+            params["export_username"] = existing_username
+        if not params["export_password"] and existing_password:
+            params["export_password"] = existing_password
     identifiers = resolve_metadata_identifiers(params, project_data)
     username, password = derive_export_credentials(project_name, params)
 

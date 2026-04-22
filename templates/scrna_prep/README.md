@@ -81,9 +81,21 @@ The notebook supports:
 - optional Scrublet-based doublet scoring
 - PCA, neighbors, UMAP, Leiden clustering, and resolution benchmarking
 
+DRAGEN-produced count matrices can be passed to this template directly without
+running `nfcore_scrnaseq` first. For vendor-processed Illumina Single Cell 3'
+RNA Prep projects, prefer explicit `input_format` values such as `10x_h5` or
+`10x_mtx` instead of relying on `auto` detection when pointing `input_matrix`
+to the DRAGEN output.
+
 For `.h5ad` input, the workspace expects raw counts. If the object stores normalized values in `X`, provide raw counts in `adata.layers["counts"]` before running the template.
 
 QC gene annotation expects gene symbols for mitochondrial / ribosomal / hemoglobin labeling. When using `var_names=gene_ids`, keep gene symbols available in a recognized `adata.var` column such as `gene_symbols` or `gene_name`.
+
+Current limitation: QC gene-prefix annotation in this template is implemented
+for human and mouse aliases only. Handoffs from upstream genomes such as
+zebrafish (`drerio` / `GRCz11`) can still supply the expression matrix, but the
+QC report may require a small template update before gene-family labeling works
+cleanly for that organism.
 
 ## Outputs
 

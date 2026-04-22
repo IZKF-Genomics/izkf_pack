@@ -94,12 +94,20 @@ build_embedding_plotly_2d <- function(df, x, y, color_var, title, height = 380) 
   ) |>
     plotly::layout(
       title = list(text = title, x = 0),
-      showlegend = FALSE,
+      showlegend = TRUE,
+      legend = list(
+        orientation = "h",
+        x = 0,
+        xanchor = "left",
+        y = -0.22,
+        yanchor = "top",
+        title = list(text = "")
+      ),
       xaxis = list(title = x, zeroline = FALSE),
       yaxis = list(title = y, zeroline = FALSE),
       hoverlabel = list(align = "left"),
       autosize = TRUE,
-      margin = list(l = 60, r = 20, t = 65, b = 50),
+      margin = list(l = 60, r = 20, t = 65, b = 105),
       height = height
     )
   widget <- plotly::config(widget, responsive = TRUE)

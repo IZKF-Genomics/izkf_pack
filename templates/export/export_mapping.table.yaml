@@ -126,6 +126,15 @@ mappings:
         section: reports/Methylation
         description: "Rendered methylation-array HTML report."
 
+  - template_id: methylation_array_analysis
+    src: "{template_root}/results/tables"
+    dest: "3_Reports/results/tables"
+    report_links:
+      - path: "."
+        section: reports/Supporting files
+        description: "Workbook, CSV, and table artifacts linked from methylation-array HTML reports."
+        link_name: "methylation_array_analysis report tables"
+
   - template_id: scrna_prep
     src: "{template_root}/reports"
     dest: "3_Reports/scrna_prep"

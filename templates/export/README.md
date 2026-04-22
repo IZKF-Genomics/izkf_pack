@@ -11,7 +11,8 @@ It keeps the export mapping table as data, and makes the old BPM hook chain expl
 
 `linkar run export`:
 
-- builds the export bundle into `results/` if `results/export_job_spec.json` does not already exist
+- rebuilds the export bundle into `results/` by default
+- generates new credentials by default unless credential reuse is requested
 - submits the prepared spec
 - records submission artifacts into `results/`
 
@@ -34,11 +35,32 @@ If you want to rebuild the bundle manually:
 python3 build_export_bundle.py --project-dir "${LINKAR_PROJECT_DIR:-..}" --template-dir . --results-dir ./results
 ```
 
-The launcher uses the prepared spec by default:
+Default launcher behavior:
 
 ```bash
 ./run.sh
 ```
+
+This rebuilds `results/export_job_spec.json`, generates a new credential pair,
+and submits the export.
+
+Useful alternate modes:
+
+```bash
+bash run.sh --reuse-credentials
+bash run.sh --reuse-spec
+bash run.sh --prepare-only
+```
+
+Credential reuse looks for a complete username/password pair in this order:
+
+- `results/export_submission.json`
+- `results/export_job_spec.json`
+- export template params in `project.yaml`
+
+`--reuse-spec` keeps the current spec untouched and submits it as-is.
+`--reuse-credentials` rebuilds the spec but preserves saved credentials.
+`--prepare-only` performs the selected preparation mode without submission.
 
 You can also prepare without submission:
 

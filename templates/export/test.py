@@ -262,7 +262,9 @@ def main() -> int:
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
-        assert len(spec["export_list"]) == 14
+        original_username = spec["username"]
+        original_password = spec["password"]
+        assert len(spec["export_list"]) == 15
         assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
         export_srcs = {entry["src"] for entry in spec["export_list"]}
         export_dests = {entry["dest"] for entry in spec["export_list"]}
@@ -276,6 +278,7 @@ def main() -> int:
         assert "3_Reports/dgea/DGEA_Liver" in export_dests
         assert "3_Reports/dgea/DGEA_Bile_Duct" in export_dests
         assert "3_Reports/methylation_array_analysis" in export_dests
+        assert "3_Reports/results/tables" in export_dests
         assert "3_Reports/scrna_integrate/scrna_integrate" in export_dests
         assert "3_Reports/scrna_annotate/scrna_annotate" in export_dests
         assert "3_Reports/ercc/ercc" in export_dests
@@ -298,6 +301,9 @@ def main() -> int:
         assert "00_study_overview.html" in methylation_report_paths
         assert "02b_own_samples_embeddings.html" in methylation_report_paths
         assert "17_ProjectSpecific_Contrast.html" in methylation_report_paths
+        methylation_support_entry = next(entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/results/tables")
+        methylation_support_paths = {link["path"] for link in methylation_support_entry.get("report_links", [])}
+        assert "." in methylation_support_paths
         integrate_entries = [
             entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/scrna_integrate/scrna_integrate/results"
         ]
@@ -334,6 +340,60 @@ def main() -> int:
         assert (export_dir / "results" / "metadata_context.yaml").exists()
         assert (export_dir / "results" / "project_methods.md").exists()
 
+        rebuilt = subprocess.run(
+            [
+                "python3",
+                str(TEMPLATE_DIR / "run.py"),
+                "--dry-run",
+                "true",
+                "--reuse-credentials",
+                "true",
+                "--export-engine-api-url",
+                "http://127.0.0.1:9",
+                "--project-dir",
+                str(project_dir),
+                "--template-dir",
+                str(TEMPLATE_DIR),
+                "--results-dir",
+                str(export_dir / "results"),
+                "--metadata-source",
+                "mock",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert "rebuilding existing" in rebuilt.stdout
+        rebuilt_spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
+        assert rebuilt_spec["username"] == original_username
+        assert rebuilt_spec["password"] == original_password
+
+        reset_build = subprocess.run(
+            [
+                "python3",
+                str(TEMPLATE_DIR / "run.py"),
+                "--dry-run",
+                "true",
+                "--export-engine-api-url",
+                "http://127.0.0.1:9",
+                "--project-dir",
+                str(project_dir),
+                "--template-dir",
+                str(TEMPLATE_DIR),
+                "--results-dir",
+                str(export_dir / "results"),
+                "--metadata-source",
+                "mock",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert "rebuilding existing" in reset_build.stdout
+        reset_spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
+        assert reset_spec["username"] == "project"
+        assert reset_spec["password"] != original_password
+
         server = HTTPServer(("127.0.0.1", 0), ExportHandler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -348,6 +408,8 @@ def main() -> int:
                     str(project_dir),
                     "--template-dir",
                     str(TEMPLATE_DIR),
+                    "--reuse-spec",
+                    "true",
                     "--export-engine-api-url",
                     f"http://127.0.0.1:{server.server_port}",
                     "--metadata-source",
@@ -370,6 +432,34 @@ def main() -> int:
             ).read_text(encoding="utf-8")
             payload = json.loads((export_dir / "results" / "export_submission.json").read_text(encoding="utf-8"))
             assert payload["job_id"] == "job-123"
+
+            post_submit_reuse = subprocess.run(
+                [
+                    "python3",
+                    str(TEMPLATE_DIR / "run.py"),
+                    "--dry-run",
+                    "true",
+                    "--reuse-credentials",
+                    "true",
+                    "--export-engine-api-url",
+                    "http://127.0.0.1:9",
+                    "--project-dir",
+                    str(project_dir),
+                    "--template-dir",
+                    str(TEMPLATE_DIR),
+                    "--results-dir",
+                    str(export_dir / "results"),
+                    "--metadata-source",
+                    "mock",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            assert "rebuilding existing" in post_submit_reuse.stdout
+            reused_spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
+            assert reused_spec["username"] == "example_user"
+            assert reused_spec["password"] == "example_password"
         finally:
             server.shutdown()
             thread.join(timeout=5)

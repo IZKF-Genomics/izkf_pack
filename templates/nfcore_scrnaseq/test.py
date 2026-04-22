@@ -316,6 +316,32 @@ def test_star_requires_non_auto_protocol() -> None:
         assert "protocol=auto is only supported when aligner=cellranger" in combined
 
 
+def test_star_requires_explicit_protocol_message() -> None:
+    with tempfile.TemporaryDirectory(prefix="linkar-nfcore-scrnaseq-missing-protocol-test-") as tmp:
+        tmpdir = Path(tmp)
+        make_reference_tree(tmpdir)
+        template_dir = prepare_template_copy(tmpdir)
+        samplesheet = tmpdir / "samplesheet.csv"
+        samplesheet.write_text("sample,fastq_1,fastq_2\nS1,R1.fastq.gz,R2.fastq.gz\n", encoding="utf-8")
+        env = os.environ.copy()
+        env["LINKAR_RESULTS_DIR"] = str(template_dir / "results")
+        env["SAMPLESHEET"] = str(samplesheet)
+        env["GENOME"] = "GRCz11"
+        env["ALIGNER"] = "star"
+        completed = subprocess.run(
+            ["python3", str(template_dir / "run.py"), "--render-only", "--run-script", str(template_dir / "run.generated.sh")],
+            cwd=template_dir,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert completed.returncode != 0
+        combined = f"{completed.stdout}\n{completed.stderr}"
+        assert "protocol is required for aligner=star" in combined
+        assert "--protocol 10XV3" in combined
+
+
 class FakeProject:
     def __init__(self, fastq_files: list[str], *, expected_cells: str = "") -> None:
         self.data = {
