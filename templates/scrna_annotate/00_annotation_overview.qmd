@@ -80,6 +80,8 @@ cluster_key = context["cluster_key"]
 batch_key = context["batch_key"]
 condition_key = context["condition_key"]
 sample_id_key = context["sample_id_key"]
+top_label_col = "top_predicted_label" if "top_predicted_label" in cluster_summary.columns else "top_label"
+mean_conf_col = "mean_predicted_confidence" if "mean_predicted_confidence" in cluster_summary.columns else "mean_confidence"
 
 label_counts = (
     adata.obs[final_label_key]
@@ -94,9 +96,22 @@ cluster_review_table = cluster_summary.sort_values(
     ["annotation_status", "n_cells", "top_label_fraction"],
     ascending=[True, False, False],
 ).reset_index(drop=True)
+uncertain_clusters = cluster_summary.sort_values(
+    ["top_label_fraction", mean_conf_col, "n_cells"],
+    ascending=[True, True, False],
+).reset_index(drop=True)
 
 batch_composition = optional_composition_table(adata.obs, group_key=batch_key, label_key=final_label_key)
 condition_composition = optional_composition_table(adata.obs, group_key=condition_key, label_key=final_label_key)
+sample_review_summary = pd.DataFrame()
+if sample_id_key in adata.obs.columns:
+    sample_review_summary = (
+        adata.obs.groupby([sample_id_key, "annotation_status"], dropna=False)
+        .size()
+        .rename("n_cells")
+        .reset_index()
+        .sort_values(["n_cells", sample_id_key, "annotation_status"], ascending=[False, True, True])
+    )
 
 n_clusters = int(cluster_summary["cluster"].nunique())
 n_review_needed = int(cluster_summary["annotation_status"].astype(str).str.startswith("review_needed").sum())
@@ -222,6 +237,31 @@ surface for confidence and review burden.
 format_table(method_comparison)
 ```
 
+## Cluster Review Priority
+
+This view puts the most uncertain clusters near the top so the manual review
+effort can start where it is most likely to change the final interpretation.
+
+```{python}
+priority_table = uncertain_clusters[
+    ["cluster", "n_cells", top_label_col, "top_label_fraction", mean_conf_col, "annotation_status"]
+].head(15)
+format_table(priority_table)
+```
+
+```{python}
+priority_plot = px.scatter(
+    cluster_summary,
+    x="top_label_fraction",
+    y=mean_conf_col,
+    size="n_cells",
+    color="annotation_status",
+    hover_data=["cluster", top_label_col],
+    title="Cluster review priority: low dominance and low confidence clusters stand out first",
+)
+style_scatter(priority_plot, height=520)
+```
+
 ## Embedding Review
 
 These UMAPs are the fastest way to check whether final labels and review status
@@ -324,6 +364,32 @@ else:
         title=f"Final-label composition by {condition_key}",
     )
     style_bar(condition_plot, height=450)
+```
+
+## Sample-Level Review Burden
+
+This section helps answer whether unresolved annotation is concentrated in one
+sample or spread evenly across the dataset.
+
+```{python}
+if sample_review_summary.empty:
+    display(Markdown("No sample-level review summary is available for this run."))
+else:
+    format_table(sample_review_summary.head(30))
+```
+
+```{python}
+if sample_review_summary.empty:
+    display(Markdown("No sample-level review figure was generated."))
+else:
+    sample_plot = px.bar(
+        sample_review_summary,
+        x=sample_id_key,
+        y="n_cells",
+        color="annotation_status",
+        title=f"Annotation review burden by {sample_id_key}",
+    )
+    style_bar(sample_plot, height=450)
 ```
 
 ## Interpretation Guide

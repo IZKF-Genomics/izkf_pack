@@ -27,12 +27,13 @@ import sys
 
 from IPython.display import Markdown, display
 import pandas as pd
+import plotly.express as px
 
 LIB_DIR = Path(".").resolve() / "lib"
 if str(LIB_DIR) not in sys.path:
     sys.path.insert(0, str(LIB_DIR))
 
-from report_utils import format_table, load_report_context, package_versions_table
+from report_utils import format_table, load_report_context, package_versions_table, style_bar
 
 ROOT = Path(".").resolve()
 context = load_report_context(ROOT)
@@ -77,6 +78,26 @@ fit_df = pd.DataFrame(
 format_table(fit_df)
 ```
 
+```{python}
+evidence_profile = pd.DataFrame(
+    [
+        {"dimension": "interpretability", "score": 5},
+        {"dimension": "standalone labeling power", "score": 2},
+        {"dimension": "marker-driven validation", "score": 5},
+        {"dimension": "pathway context", "score": 4},
+        {"dimension": "runtime complexity", "score": 3},
+    ]
+)
+evidence_plot = px.bar(
+    evidence_profile,
+    x="dimension",
+    y="score",
+    title="Expected decoupler contribution profile",
+    range_y=[0, 5.5],
+)
+style_bar(evidence_plot, height=420)
+```
+
 ## Paper And Documentation Takeaways
 
 The decoupleR / decoupler documentation and paper frame the method family as an
@@ -95,6 +116,20 @@ takeaways_df = pd.DataFrame(
     ]
 )
 format_table(takeaways_df)
+```
+
+## Review Use Cases
+
+```{python}
+use_cases_df = pd.DataFrame(
+    [
+        {"use_case": "check a classifier-assigned cluster", "why_decoupler_helps": "adds interpretable marker or pathway evidence"},
+        {"use_case": "compare two plausible lineage labels", "why_decoupler_helps": "makes the evidence structure visible rather than only returning one label"},
+        {"use_case": "flag unresolved clusters", "why_decoupler_helps": "supports a review-needed decision without overcommitting to a final label"},
+        {"use_case": "support final label write-up", "why_decoupler_helps": "summaries are easier to explain biologically than raw classifier scores"},
+    ]
+)
+format_table(use_cases_df)
 ```
 
 ## Required Future Inputs
@@ -124,6 +159,20 @@ planned_df = pd.DataFrame(
 format_table(planned_df)
 ```
 
+## Planned Review Workflow
+
+```{python}
+workflow_df = pd.DataFrame(
+    [
+        {"step": "1", "action": "load marker or pathway resources", "goal": "define the biological evidence base"},
+        {"step": "2", "action": "score clusters or cells", "goal": "quantify support for candidate identities"},
+        {"step": "3", "action": "compare to classifier suggestions", "goal": "highlight agreement and conflict"},
+        {"step": "4", "action": "update final review status", "goal": "accept, revise, or leave unresolved"},
+    ]
+)
+format_table(workflow_df)
+```
+
 ## Readiness Checklist
 
 ```{python}
@@ -136,6 +185,16 @@ checklist_df = pd.DataFrame(
     ]
 )
 format_table(checklist_df)
+```
+
+```{python}
+checklist_plot = px.bar(
+    checklist_df.assign(done=[0, 0, 0, 0]),
+    x="task",
+    y="done",
+    title="decoupler review-layer implementation status",
+)
+style_bar(checklist_plot, height=420)
 ```
 
 ## References Consulted

@@ -27,12 +27,13 @@ import sys
 
 from IPython.display import Markdown, display
 import pandas as pd
+import plotly.express as px
 
 LIB_DIR = Path(".").resolve() / "lib"
 if str(LIB_DIR) not in sys.path:
     sys.path.insert(0, str(LIB_DIR))
 
-from report_utils import format_table, load_report_context, package_versions_table
+from report_utils import format_table, load_report_context, package_versions_table, style_bar
 
 ROOT = Path(".").resolve()
 context = load_report_context(ROOT)
@@ -77,6 +78,26 @@ fit_df = pd.DataFrame(
 format_table(fit_df)
 ```
 
+```{python}
+profile_df = pd.DataFrame(
+    [
+        {"dimension": "research flexibility", "score": 5},
+        {"dimension": "routine operational simplicity", "score": 2},
+        {"dimension": "checkpoint dependence", "score": 5},
+        {"dimension": "compute demand", "score": 4},
+        {"dimension": "future potential", "score": 5},
+    ]
+)
+profile_plot = px.bar(
+    profile_df,
+    x="dimension",
+    y="score",
+    title="Expected scGPT profile in this template",
+    range_y=[0, 5.5],
+)
+style_bar(profile_plot, height=420)
+```
+
 ## Paper And Documentation Takeaways
 
 The scGPT paper frames the method as a foundation-model approach for
@@ -95,6 +116,20 @@ takeaways_df = pd.DataFrame(
     ]
 )
 format_table(takeaways_df)
+```
+
+## When scGPT Might Be Worth The Complexity
+
+```{python}
+fit_cases_df = pd.DataFrame(
+    [
+        {"situation": "research project evaluating frontier annotation methods", "recommendation": "strong candidate for an experimental backend"},
+        {"situation": "need a routine facility-grade default", "recommendation": "prefer CellTypist or later scANVI support"},
+        {"situation": "checkpoint provenance is unclear", "recommendation": "do not trust outputs until lineage is explicit"},
+        {"situation": "GPU access is limited", "recommendation": "consider whether the operational cost is justified"},
+    ]
+)
+format_table(fit_cases_df)
 ```
 
 ## Required Future Inputs
@@ -125,6 +160,20 @@ diagnostics_df = pd.DataFrame(
 format_table(diagnostics_df)
 ```
 
+## Reporting Requirements Unique To scGPT
+
+```{python}
+requirements_df = pd.DataFrame(
+    [
+        {"requirement": "checkpoint provenance", "reason": "users need to know which pretrained or fine-tuned model generated the result"},
+        {"requirement": "gene vocabulary mapping summary", "reason": "annotation quality depends on how well query genes map to the model vocabulary"},
+        {"requirement": "runtime resource summary", "reason": "GPU and memory cost are part of reproducibility here"},
+        {"requirement": "fallback uncertainty handling", "reason": "foundation-model outputs should not be overinterpreted when confidence is weak"},
+    ]
+)
+format_table(requirements_df)
+```
+
 ## Readiness Checklist
 
 ```{python}
@@ -137,6 +186,16 @@ checklist_df = pd.DataFrame(
     ]
 )
 format_table(checklist_df)
+```
+
+```{python}
+checklist_plot = px.bar(
+    checklist_df.assign(done=[0, 0, 0, 0]),
+    x="task",
+    y="done",
+    title="scGPT implementation status",
+)
+style_bar(checklist_plot, height=420)
 ```
 
 ## References Consulted

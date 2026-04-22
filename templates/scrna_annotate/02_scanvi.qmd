@@ -27,12 +27,13 @@ import sys
 
 from IPython.display import Markdown, display
 import pandas as pd
+import plotly.express as px
 
 LIB_DIR = Path(".").resolve() / "lib"
 if str(LIB_DIR) not in sys.path:
     sys.path.insert(0, str(LIB_DIR))
 
-from report_utils import format_table, load_report_context, package_versions_table
+from report_utils import format_table, load_report_context, package_versions_table, style_bar
 
 ROOT = Path(".").resolve()
 context = load_report_context(ROOT)
@@ -81,6 +82,26 @@ fit_df = pd.DataFrame(
 format_table(fit_df)
 ```
 
+```{python}
+strength_profile = pd.DataFrame(
+    [
+        {"dimension": "reference mapping", "score": 5},
+        {"dimension": "batch awareness", "score": 5},
+        {"dimension": "runtime simplicity", "score": 2},
+        {"dimension": "interpretability", "score": 3},
+        {"dimension": "scalability", "score": 4},
+    ]
+)
+strength_plot = px.bar(
+    strength_profile,
+    x="dimension",
+    y="score",
+    title="Expected scANVI profile in this template",
+    range_y=[0, 5.5],
+)
+style_bar(strength_plot, height=420)
+```
+
 ## Paper And Documentation Takeaways
 
 The scvi-tools documentation positions scANVI as a semi-supervised extension of
@@ -98,6 +119,20 @@ takeaways_df = pd.DataFrame(
     ]
 )
 format_table(takeaways_df)
+```
+
+## When To Prefer scANVI
+
+```{python}
+preference_df = pd.DataFrame(
+    [
+        {"project_situation": "curated labeled reference is available", "recommendation": "strong fit"},
+        {"project_situation": "annotation and batch correction are tightly linked", "recommendation": "strong fit"},
+        {"project_situation": "small routine dataset with a good CellTypist model", "recommendation": "usually overkill"},
+        {"project_situation": "raw counts are missing", "recommendation": "do not use until counts-aware input is restored"},
+    ]
+)
+format_table(preference_df)
 ```
 
 ## Required Future Inputs
@@ -129,6 +164,20 @@ diagnostics_df = pd.DataFrame(
 format_table(diagnostics_df)
 ```
 
+## Planned Runtime Contract
+
+```{python}
+contract_df = pd.DataFrame(
+    [
+        {"contract_item": "input layer", "expected_behavior": "require raw counts and fail fast otherwise"},
+        {"contract_item": "reference labels", "expected_behavior": "validate presence and track unknown/unlabeled category explicitly"},
+        {"contract_item": "output embeddings", "expected_behavior": "store latent representation and downstream UMAP/neighbors keys clearly"},
+        {"contract_item": "review outputs", "expected_behavior": "surface low-confidence or weakly mapped cells in overview tables"},
+    ]
+)
+format_table(contract_df)
+```
+
 ## Readiness Checklist
 
 ```{python}
@@ -141,6 +190,16 @@ checklist_df = pd.DataFrame(
     ]
 )
 format_table(checklist_df)
+```
+
+```{python}
+checklist_plot = px.bar(
+    checklist_df.assign(done=[0, 0, 0, 0]),
+    x="task",
+    y="done",
+    title="scANVI implementation status",
+)
+style_bar(checklist_plot, height=420)
 ```
 
 ## References Consulted

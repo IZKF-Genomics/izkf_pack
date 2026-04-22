@@ -64,6 +64,8 @@ def embedding_frame(adata, basis: str, color_keys: list[str]) -> pd.DataFrame:
 predicted_label_key = context["predicted_label_key"]
 cluster_key = context["cluster_key"]
 final_label_key = context["final_label_key"]
+top_label_col = "top_predicted_label" if "top_predicted_label" in cluster_summary.columns else "top_label"
+mean_conf_col = "mean_predicted_confidence" if "mean_predicted_confidence" in cluster_summary.columns else "mean_confidence"
 
 label_prevalence = (
     cell_predictions[predicted_label_key]
@@ -77,6 +79,20 @@ label_prevalence["fraction_of_cells"] = label_prevalence["n_cells"] / max(1, len
 lowest_confidence_cells = cell_predictions.sort_values(
     ["predicted_confidence", cluster_key, predicted_label_key], ascending=[True, True, True]
 ).head(20)
+cluster_confidence_summary = (
+    cell_predictions.groupby(cluster_key, dropna=False)
+    .agg(
+        n_cells=("cell_id", "size"),
+        mean_confidence=("predicted_confidence", "mean"),
+        median_confidence=("predicted_confidence", "median"),
+    )
+    .reset_index()
+)
+cluster_confidence_summary = cluster_confidence_summary.merge(
+    cluster_summary[[cluster_key, top_label_col, "top_label_fraction", "annotation_status"]],
+    on=cluster_key,
+    how="left",
+)
 
 cluster_top_label_pivot = pd.DataFrame()
 if not top_label_summary.empty:
@@ -247,6 +263,29 @@ style_bar(confidence_by_status, height=450)
 format_table(lowest_confidence_cells)
 ```
 
+## Cluster Confidence Landscape
+
+CellTypist often looks convincing at the single-cell level while still hiding a
+few unstable clusters. This section highlights exactly where the cluster-level
+aggregation is strong or weak.
+
+```{python}
+format_table(cluster_confidence_summary.sort_values(["mean_confidence", "top_label_fraction"], ascending=[True, True]).head(20))
+```
+
+```{python}
+cluster_conf_plot = px.scatter(
+    cluster_confidence_summary,
+    x="top_label_fraction",
+    y="mean_confidence",
+    size="n_cells",
+    color="annotation_status",
+    hover_data=[cluster_key, top_label_col],
+    title="Cluster-level confidence versus dominant-label fraction",
+)
+style_scatter(cluster_conf_plot, height=520)
+```
+
 ## Predicted Label Distribution
 
 This section shows whether the raw cell-level predictions are balanced and how
@@ -330,6 +369,35 @@ clusters.
 ```{python}
 probability_preview = probability_matrix.head(20)
 format_table(probability_preview)
+```
+
+## Suggested Review Workflow
+
+This decision aid turns the quantitative summaries into a practical next step
+for each cluster.
+
+```{python}
+review_workflow_df = pd.DataFrame(
+    [
+        {
+            "situation": "high top-label fraction and high confidence",
+            "recommended_action": "candidate for direct acceptance after a quick marker sanity check",
+        },
+        {
+            "situation": "high confidence but weak dominant label",
+            "recommended_action": "inspect whether the cluster is biologically mixed or overclustered",
+        },
+        {
+            "situation": "low confidence localized to one region",
+            "recommended_action": "check for boundary states, doublets, or out-of-reference populations",
+        },
+        {
+            "situation": "marker conflict with otherwise strong classifier output",
+            "recommended_action": "prioritize marker review before accepting the final label",
+        },
+    ]
+)
+format_table(review_workflow_df)
 ```
 
 ## Interpretation Guide
