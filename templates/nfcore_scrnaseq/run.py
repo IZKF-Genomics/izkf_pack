@@ -5,7 +5,6 @@ import argparse
 import csv
 import json
 import os
-import re
 import shlex
 import shutil
 import subprocess
@@ -16,6 +15,10 @@ PIPELINE_NAME = "nf-core/scrnaseq"
 PIPELINE_VERSION = "4.1.0"
 EXECUTION_PROFILE = "docker"
 GENOME_PLACEHOLDER = "__EDIT_ME_GENOME__"
+FASTA_PLACEHOLDER = "__EDIT_ME_FASTA__"
+GTF_PLACEHOLDER = "__EDIT_ME_GTF__"
+STAR_INDEX_PLACEHOLDER = "__EDIT_ME_STAR_INDEX__"
+CELLRANGER_INDEX_PLACEHOLDER = "__EDIT_ME_CELLRANGER_INDEX__"
 SUPPORTED_ALIGNERS = {"star", "cellranger"}
 DEFAULT_CELLRANGER_PROTOCOL = "auto"
 REFERENCE_MAP = {
@@ -47,13 +50,46 @@ REFERENCE_MAP = {
         "fasta": "/data/ref_genomes/GRCz11/src/Danio_rerio.GRCz11.dna.toplevel.fa",
         "gtf": "/data/ref_genomes/GRCz11/src/Danio_rerio.GRCz11.115.gtf",
         "star_index": "/data/ref_genomes/GRCz11/indices/star",
-        "cellranger_index": "",
+        "cellranger_index": "/data/shared/10xGenomics/refs/refdata-gex-GRCz11-ensembl115-2026-A",
     },
 }
 
 
+def supported_genome_labels() -> list[str]:
+    return sorted(REFERENCE_MAP)
+
+
+def parser_epilog() -> str:
+    lines = [
+        "Supported genome labels:",
+        *[f"  - {label}" for label in supported_genome_labels()],
+        "",
+        "Supported aligners:",
+        "  - cellranger",
+        "  - star",
+        "",
+        "Runtime values are supplied by the rendered Linkar launcher via environment variables.",
+        "Common overrides and inputs:",
+        "  - SAMPLESHEET",
+        "  - GENOME",
+        "  - ALIGNER",
+        "  - PROTOCOL",
+        "  - STAR_INDEX",
+        "  - CELLRANGER_INDEX",
+        "  - EXPECTED_CELLS",
+        "  - SKIP_CELLBENDER",
+        "  - MAX_CPUS",
+        "  - MAX_MEMORY",
+    ]
+    return "\n".join(lines)
+
+
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Resolve and run nf-core/scrnaseq for izkf_pack.")
+    parser = argparse.ArgumentParser(
+        description="Resolve and run nf-core/scrnaseq for izkf_pack.",
+        epilog=parser_epilog(),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("--render-only", action="store_true", help="Write the resolved run.sh and exit.")
     parser.add_argument("--run-script", default="resolved_run.sh", help="Path to the generated rerunnable shell script.")
     return parser.parse_args()
@@ -104,10 +140,13 @@ def validate_aligner(aligner: str) -> str:
     return normalized
 
 
-def resolve_path_override(value: str) -> Path | None:
+def resolve_path_override(value: str, *, ignore_roots: tuple[Path, ...] = ()) -> Path | None:
     if not value.strip():
         return None
-    return Path(value).expanduser().resolve()
+    resolved = Path(value).expanduser().resolve()
+    if any(resolved == root for root in ignore_roots):
+        return None
+    return resolved
 
 
 def verify_existing(path: Path, *, label: str) -> Path:
@@ -116,14 +155,39 @@ def verify_existing(path: Path, *, label: str) -> Path:
     return path
 
 
-def resolve_references(genome: str, *, aligner: str, star_index: str, cellranger_index: str) -> dict[str, Path | None]:
+def resolve_references(
+    genome: str,
+    *,
+    aligner: str,
+    star_index: str,
+    cellranger_index: str,
+    allow_placeholders: bool = False,
+    ignore_override_roots: tuple[Path, ...] = (),
+) -> dict[str, Path | None]:
     if genome == GENOME_PLACEHOLDER:
+        if allow_placeholders:
+            override_star = resolve_path_override(star_index, ignore_roots=ignore_override_roots)
+            override_cellranger = resolve_path_override(cellranger_index, ignore_roots=ignore_override_roots)
+            return {
+                "fasta": Path(FASTA_PLACEHOLDER),
+                "gtf": Path(GTF_PLACEHOLDER),
+                "star_index": (
+                    verify_existing(override_star, label="STAR index override")
+                    if override_star is not None
+                    else Path(STAR_INDEX_PLACEHOLDER) if aligner == "star" else None
+                ),
+                "cellranger_index": (
+                    verify_existing(override_cellranger, label="Cell Ranger reference override")
+                    if override_cellranger is not None
+                    else Path(CELLRANGER_INDEX_PLACEHOLDER) if aligner == "cellranger" else None
+                ),
+            }
         raise SystemExit(
             f"[error] genome is unresolved. Edit run.sh and replace {GENOME_PLACEHOLDER} with a supported genome before running."
         )
     spec = REFERENCE_MAP.get(genome)
     if spec is None:
-        supported = ", ".join(sorted(REFERENCE_MAP))
+        supported = ", ".join(supported_genome_labels())
         raise SystemExit(f"[error] unsupported genome '{genome}'. Supported genomes in izkf_pack are: {supported}.")
 
     resolved = {
@@ -133,7 +197,7 @@ def resolve_references(genome: str, *, aligner: str, star_index: str, cellranger
         "cellranger_index": None,
     }
 
-    override_star = resolve_path_override(star_index)
+    override_star = resolve_path_override(star_index, ignore_roots=ignore_override_roots)
     if override_star is not None:
         resolved["star_index"] = verify_existing(override_star, label="STAR index override")
     elif spec.get("star_index"):
@@ -141,7 +205,7 @@ def resolve_references(genome: str, *, aligner: str, star_index: str, cellranger
         if candidate.exists():
             resolved["star_index"] = candidate
 
-    override_cellranger = resolve_path_override(cellranger_index)
+    override_cellranger = resolve_path_override(cellranger_index, ignore_roots=ignore_override_roots)
     if override_cellranger is not None:
         resolved["cellranger_index"] = verify_existing(override_cellranger, label="Cell Ranger reference override")
     elif spec.get("cellranger_index"):
@@ -197,6 +261,12 @@ def yaml_scalar(value: object) -> str:
 def write_params_file(path: Path, params: dict[str, object]) -> None:
     lines = [f"{key}: {yaml_scalar(value)}" for key, value in params.items()]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def cli_scalar(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
 
 
 def write_runtime_nextflow_config(
@@ -273,7 +343,7 @@ def write_software_versions(
 def build_nextflow_command(
     *,
     nextflow_config: Path,
-    params_file: Path,
+    params: dict[str, object],
     resume: bool,
 ) -> list[str]:
     command = [
@@ -286,11 +356,11 @@ def build_nextflow_command(
         PIPELINE_VERSION,
         "-profile",
         EXECUTION_PROFILE,
-        "-params-file",
-        str(params_file),
         "-c",
         str(nextflow_config),
     ]
+    for key, value in params.items():
+        command.extend([f"--{key}", cli_scalar(value)])
     if resume:
         command.append("-resume")
     return command
@@ -318,14 +388,29 @@ def format_shell_command_lines(command: list[str]) -> list[str]:
     return lines
 
 
-def write_resolved_run_script(output_path: Path, *, command: list[str]) -> None:
+def write_resolved_run_script(
+    output_path: Path,
+    *,
+    command: list[str],
+    guard_unresolved_params: bool,
+) -> None:
     command_lines = format_shell_command_lines(command)
     command_text = " \\\n".join(command_lines)
+    guard = ""
+    if guard_unresolved_params:
+        guard = (
+            'if grep -q "__EDIT_ME_" "${script_dir}/params.yaml"; then\n'
+            '  echo "[error] unresolved placeholders detected in params.yaml." >&2\n'
+            '  echo "[error] rerender with --genome or --agendo-id, or edit the generated parameters before execution." >&2\n'
+            "  exit 1\n"
+            "fi\n\n"
+        )
     script = (
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n\n"
         'script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"\n'
         'cd "${script_dir}"\n\n'
+        f"{guard}"
         "# Install the template-local environment before launching Nextflow.\n"
         "pixi install\n\n"
         'echo "[info] running"\n\n'
@@ -435,12 +520,29 @@ def main() -> int:
     max_cpus = optional_env("MAX_CPUS")
     max_memory = optional_env("MAX_MEMORY")
     resume = env_flag("LINKAR_NEXTFLOW_RESUME")
+    star_index_override = optional_env("STAR_INDEX")
+    cellranger_index_override = optional_env("CELLRANGER_INDEX")
+    ignore_override_roots = tuple(
+        Path(path).expanduser().resolve()
+        for path in (
+            optional_env("LINKAR_PROJECT_DIR"),
+            str(run_workspace_dir),
+        )
+        if path
+    )
+    star_index_override_path = resolve_path_override(star_index_override, ignore_roots=ignore_override_roots)
+    cellranger_index_override_path = resolve_path_override(
+        cellranger_index_override,
+        ignore_roots=ignore_override_roots,
+    )
 
     references = resolve_references(
         genome,
         aligner=aligner,
-        star_index=optional_env("STAR_INDEX"),
-        cellranger_index=optional_env("CELLRANGER_INDEX"),
+        star_index=str(star_index_override_path) if star_index_override_path is not None else "",
+        cellranger_index=str(cellranger_index_override_path) if cellranger_index_override_path is not None else "",
+        allow_placeholders=args.render_only,
+        ignore_override_roots=ignore_override_roots,
     )
     reference_summary = (
         references["cellranger_index"].name if aligner == "cellranger" and references["cellranger_index"] is not None
@@ -469,6 +571,29 @@ def main() -> int:
         params_payload["cellranger_index"] = str(references["cellranger_index"])
     write_params_file(params_file, params_payload)
 
+    command_params: dict[str, object] = {
+        "input": relative_path_for_command(run_workspace_dir, staged_samplesheet),
+        "outdir": relative_path_for_command(run_workspace_dir, results_dir),
+        "aligner": aligner,
+        "protocol": protocol,
+        "genome": genome,
+        "igenomes_ignore": True,
+    }
+    if skip_cellbender:
+        command_params["skip_cellbender"] = True
+    if genome == GENOME_PLACEHOLDER:
+        command_params["fasta"] = str(references["fasta"])
+        command_params["gtf"] = str(references["gtf"])
+        if aligner == "star" and references["star_index"] is not None:
+            command_params["star_index"] = str(references["star_index"])
+        if aligner == "cellranger" and references["cellranger_index"] is not None:
+            command_params["cellranger_index"] = str(references["cellranger_index"])
+    else:
+        if star_index_override_path is not None and aligner == "star" and references["star_index"] is not None:
+            command_params["star_index"] = str(references["star_index"])
+        if cellranger_index_override_path is not None and aligner == "cellranger" and references["cellranger_index"] is not None:
+            command_params["cellranger_index"] = str(references["cellranger_index"])
+
     nextflow_config_path = run_workspace_dir / "nextflow.config"
     write_runtime_nextflow_config(
         Path(__file__).resolve().with_name("nextflow.config"),
@@ -479,10 +604,14 @@ def main() -> int:
 
     command = build_nextflow_command(
         nextflow_config=Path(relative_path_for_command(run_workspace_dir, nextflow_config_path)),
-        params_file=Path(relative_path_for_command(run_workspace_dir, params_file)),
+        params=command_params,
         resume=resume,
     )
-    write_resolved_run_script(run_script_path, command=command)
+    write_resolved_run_script(
+        run_script_path,
+        command=command,
+        guard_unresolved_params=args.render_only and genome == GENOME_PLACEHOLDER,
+    )
 
     software_versions_path = results_dir / "software_versions.json"
     write_software_versions(
@@ -513,7 +642,11 @@ def main() -> int:
     if args.render_only:
         return 0
 
-    subprocess.run([str(run_script_path)], check=True, cwd=run_workspace_dir)
+    subprocess.run(
+        [str(run_script_path), *(["-resume"] if resume else [])],
+        check=True,
+        cwd=run_workspace_dir,
+    )
     select_matrix_output(workspace_dir=run_workspace_dir, results_dir=results_dir, aligner=aligner)
     return 0
 

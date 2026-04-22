@@ -19,6 +19,13 @@ def _load_agendo_common():
 
 def resolve(ctx) -> str:
     common = _load_agendo_common()
+    if not common.nonempty((ctx.resolved_params or {}).get("agendo_id")):
+        ctx.warn(
+            "No agendo_id provided; could not derive genome from Agendo metadata.",
+            action="Pass --agendo-id or rerender with --genome before execution.",
+            fallback=GENOME_PLACEHOLDER,
+        )
+        return GENOME_PLACEHOLDER
     organism = common.nonempty(common.resolve_request_metadata(ctx).get("organism")).lower()
     mapping = {
         "human": "GRCh38",
@@ -32,7 +39,7 @@ def resolve(ctx) -> str:
     if not genome:
         ctx.warn(
             f"Could not derive genome from Agendo organism '{organism}'.",
-            action=f"Edit run.sh and replace {GENOME_PLACEHOLDER} before execution.",
+            action="Rerender with --genome or edit the generated parameters before execution.",
             fallback=GENOME_PLACEHOLDER,
         )
         return GENOME_PLACEHOLDER

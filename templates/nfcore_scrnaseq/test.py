@@ -39,15 +39,18 @@ def make_fake_runtime_bin(root: Path) -> Path:
         "fi\n"
         "if [[ \"${1:-}\" == \"run\" ]]; then\n"
         "  printf '%s\\n' \"$*\" > \"${NFCORE_ARGS_LOG:?}\"\n"
-        "  params_file=''\n"
+        "  outdir=''\n"
+        "  aligner=''\n"
         "  for ((i=1; i<=$#; i++)); do\n"
-        "    if [[ \"${!i}\" == \"-params-file\" ]]; then\n"
+        "    if [[ \"${!i}\" == \"--outdir\" ]]; then\n"
         "      j=$((i+1))\n"
-        "      params_file=\"${!j}\"\n"
+        "      outdir=\"${!j}\"\n"
+        "    fi\n"
+        "    if [[ \"${!i}\" == \"--aligner\" ]]; then\n"
+        "      j=$((i+1))\n"
+        "      aligner=\"${!j}\"\n"
         "    fi\n"
         "  done\n"
-        "  outdir=$(awk -F': ' '$1==\"outdir\" {gsub(/\"/,\"\",$2); print $2}' \"${params_file}\")\n"
-        "  aligner=$(awk -F': ' '$1==\"aligner\" {gsub(/\"/,\"\",$2); print $2}' \"${params_file}\")\n"
         "  mkdir -p \"${outdir}/multiqc\" \"${outdir}/pipeline_info\" \"${outdir}/${aligner}/mtx_conversions\"\n"
         "  printf '<html>multiqc</html>\\n' > \"${outdir}/multiqc/multiqc_report.html\"\n"
         "  printf 'trace\\n' > \"${outdir}/pipeline_info/execution_trace.txt\"\n"
@@ -159,8 +162,17 @@ def test_rendered_run_script_star() -> None:
         args_text = (tmpdir / "args.log").read_text(encoding="utf-8")
         assert "nf-core/scrnaseq" in args_text
         assert "-profile docker" in args_text
-        assert "-params-file params.yaml" in args_text
         assert "-c nextflow.config" in args_text
+        assert "--input samplesheet.csv" in args_text
+        assert "--outdir results" in args_text
+        assert "--aligner star" in args_text
+        assert "--protocol 10XV3" in args_text
+        assert "--genome GRCz11" in args_text
+        assert "--igenomes_ignore true" in args_text
+        assert "--fasta " not in args_text
+        assert "--gtf " not in args_text
+        assert "--star_index " not in args_text
+        assert "--skip_cellbender true" in args_text
         assert "-resume" in args_text
         params_text = (template_dir / "params.yaml").read_text(encoding="utf-8")
         assert 'aligner: "star"' in params_text
@@ -210,11 +222,14 @@ def test_cellranger_auto_protocol() -> None:
         env["PATH"] = f"{fake_bin}:{env.get('PATH', '')}"
         env["NFCORE_ARGS_LOG"] = str(tmpdir / "args.log")
         env["LINKAR_RESULTS_DIR"] = str(template_dir / "results")
+        env["LINKAR_PROJECT_DIR"] = str(tmpdir / "scrna_project")
         env["SAMPLESHEET"] = str(samplesheet)
         env["GENOME"] = "GRCh38"
         env["ALIGNER"] = "cellranger"
+        env["CELLRANGER_INDEX"] = str(tmpdir / "scrna_project")
+        rendered_run_script = template_dir / "run.generated.sh"
         completed = subprocess.run(
-            ["python3", str(template_dir / "run.py"), "--render-only", "--run-script", str(template_dir / "run.generated.sh")],
+            ["python3", str(template_dir / "run.py"), "--render-only", "--run-script", str(rendered_run_script)],
             cwd=template_dir,
             env=env,
             text=True,
@@ -226,6 +241,53 @@ def test_cellranger_auto_protocol() -> None:
         assert 'aligner: "cellranger"' in params_text
         assert 'protocol: "auto"' in params_text
         assert 'cellranger_index: "' in params_text
+        run_text = rendered_run_script.read_text(encoding="utf-8")
+        assert "--genome GRCh38" in run_text
+        assert "--cellranger_index" not in run_text
+
+
+def test_render_only_with_placeholder_genome_writes_guarded_run_script() -> None:
+    with tempfile.TemporaryDirectory(prefix="linkar-nfcore-scrnaseq-placeholder-test-") as tmp:
+        tmpdir = Path(tmp)
+        make_reference_tree(tmpdir)
+        template_dir = prepare_template_copy(tmpdir)
+        samplesheet = tmpdir / "samplesheet.csv"
+        samplesheet.write_text(
+            "sample,fastq_1,fastq_2\nS1,R1.fastq.gz,R2.fastq.gz\n",
+            encoding="utf-8",
+        )
+        env = os.environ.copy()
+        env["LINKAR_RESULTS_DIR"] = str(template_dir / "results")
+        env["SAMPLESHEET"] = str(samplesheet)
+        env["GENOME"] = "__EDIT_ME_GENOME__"
+        env["ALIGNER"] = "cellranger"
+        env["CELLRANGER_INDEX"] = str(tmpdir / "data" / "shared" / "10xGenomics" / "refs" / "refdata-gex-GRCh38-2024-A")
+        rendered_run_script = template_dir / "run.generated.sh"
+        completed = subprocess.run(
+            ["python3", str(template_dir / "run.py"), "--render-only", "--run-script", str(rendered_run_script)],
+            cwd=template_dir,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert completed.returncode == 0, completed.stderr
+        params_text = (template_dir / "params.yaml").read_text(encoding="utf-8")
+        assert 'genome: "__EDIT_ME_GENOME__"' in params_text
+        assert 'fasta: "__EDIT_ME_FASTA__"' in params_text
+        assert 'gtf: "__EDIT_ME_GTF__"' in params_text
+        assert 'cellranger_index: "' in params_text
+        run_text = rendered_run_script.read_text(encoding="utf-8")
+        assert 'grep -q "__EDIT_ME_" "${script_dir}/params.yaml"' in run_text
+        rerun = subprocess.run(
+            ["bash", str(rendered_run_script)],
+            cwd=template_dir,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert rerun.returncode != 0
+        assert "unresolved placeholders detected in params.yaml" in rerun.stderr
 
 
 def test_star_requires_non_auto_protocol() -> None:
@@ -305,11 +367,35 @@ def test_samplesheet_binding() -> None:
         assert rows[1][3] == "1234"
 
 
+def test_agendo_genome_without_request_id_returns_placeholder() -> None:
+    class MissingAgendoContext:
+        def __init__(self) -> None:
+            self.resolved_params = {}
+            self.warnings = []
+
+        def warn(self, message: str, *, action: str | None = None, fallback=None) -> None:
+            self.warnings.append(
+                {"message": message, "action": action, "fallback": fallback}
+            )
+
+    ctx = MissingAgendoContext()
+    assert load_function("get_agendo_genome")(ctx) == "__EDIT_ME_GENOME__"
+    assert ctx.warnings == [
+        {
+            "message": "No agendo_id provided; could not derive genome from Agendo metadata.",
+            "action": "Pass --agendo-id or rerender with --genome before execution.",
+            "fallback": "__EDIT_ME_GENOME__",
+        }
+    ]
+
+
 def main() -> None:
     test_rendered_run_script_star()
     test_cellranger_auto_protocol()
+    test_render_only_with_placeholder_genome_writes_guarded_run_script()
     test_star_requires_non_auto_protocol()
     test_samplesheet_binding()
+    test_agendo_genome_without_request_id_returns_placeholder()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
     run_py_text = (TEMPLATE_DIR / "run.py").read_text(encoding="utf-8")
@@ -325,6 +411,7 @@ def main() -> None:
     assert 'params.yaml' in run_py_text
     assert 'SUPPORTED_ALIGNERS' in run_py_text
     assert 'protocol=auto is only supported when aligner=cellranger' in run_py_text
+    assert 'command.append("-resume")' in run_py_text
     assert 'selected_matrix.h5ad' in readme_text
     pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
     pack_data = yaml.safe_load(pack_text)

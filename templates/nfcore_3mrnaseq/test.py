@@ -321,7 +321,7 @@ def test_agendo_genome_unknown_organism_returns_placeholder() -> None:
             assert ctx.warnings == [
                 {
                     "message": "Could not derive genome from Agendo organism 'other'.",
-                    "action": "Edit run.sh and replace __EDIT_ME_GENOME__ before execution.",
+                    "action": "Rerender with --genome or edit the generated parameters before execution.",
                     "fallback": "__EDIT_ME_GENOME__",
                 }
             ]

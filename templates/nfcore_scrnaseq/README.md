@@ -36,7 +36,7 @@ Exposed parameters:
 With `--binding default`, the pack can resolve:
 
 - `samplesheet` from the latest `demultiplex.demux_fastq_files` outputs in the active project
-- `genome` from Agendo organism metadata
+- `genome` from Agendo organism metadata when `agendo_id` is available; otherwise render falls back to an editable placeholder and a guarded `run.sh`
 - `max_cpus` and `max_memory` from host capacity
 
 ## Samplesheet staging
@@ -62,17 +62,27 @@ The actual runtime logic lives in [run.py](run.py).
 - validates `genome`, `aligner`, and `protocol` before launch
 - stages a rerunnable `samplesheet.csv` in the rendered workspace
 - resolves shared FASTA / GTF / STAR / Cell Ranger references for supported genomes
-- writes a rerunnable shell script with the exact `nextflow` command
+- writes a rerunnable shell script with the full resolved `nextflow` command line
 - writes `params.yaml` and a generated runtime `nextflow.config` in the rendered workspace
 - records `software_versions.json`
 - records `runtime_command.json` with the effective Nextflow invocation and resolved runtime context
 - selects a preferred downstream `.h5ad` result and links it as `selected_matrix.h5ad`
 
+The template-local [nextflow.config](nextflow.config) carries a facility genome registry keyed by
+labels such as `GRCh38`, `GRCm39`, and `GRCz11`. The rendered launcher therefore keeps the visible
+CLI short and uses `--genome <label>` by default instead of printing long reference paths unless an
+explicit override such as `--cellranger-index` was provided.
+
+This is an intentional facility wrapper convenience. The upstream nf-core/scrnaseq documentation
+recommends using pipeline parameters via the CLI or `-params-file` and reserving `-c` for
+infrastructure tweaks. Here the custom config is used as a local label-to-reference registry so the
+generated command remains readable while still resolving to the facility-managed references.
+
 When Linkar renders this template, it asks `run.py` to write `./run.sh` in the rendered workspace.
 That generated `run.sh` contains:
 
 - `pixi install`
-- the exact resolved `nextflow run nf-core/scrnaseq ...` command
+- the exact resolved `nextflow run nf-core/scrnaseq ...` command with explicit nf-core parameters instead of only `-params-file`
 
 That means users can inspect the real command in plain shell and rerun the analysis later with:
 

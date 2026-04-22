@@ -79,7 +79,7 @@ Environment variables:
 
 Source: [`get_agendo_genome.py`](get_agendo_genome.py)
 
-Reads request metadata and maps organism labels to supported genome identifiers. If no supported mapping exists, it returns a placeholder that makes the rendered launcher clearly editable before execution.
+Reads request metadata and maps organism labels to supported genome identifiers. If no `agendo_id` is provided or no supported mapping exists, it returns a placeholder that makes the rendered launcher clearly editable before execution.
 
 Environment variables:
 
