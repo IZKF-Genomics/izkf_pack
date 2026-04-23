@@ -42,6 +42,9 @@ pixi run sync-samples
 pixi run preflight
 ```
 
+`pixi install` is normally needed only the first time you enter the workspace or after
+changing `pixi.toml` / `pixi.lock`.
+
 Edit:
 
 - `config/datasets.toml`
@@ -208,6 +211,16 @@ pixi run preflight
 ./run.sh
 ```
 
+After the environment exists, the usual rerun path is just:
+
+```bash
+./run.sh
+```
+
+`./run.sh` still calls `pixi install`, but Pixi will usually no-op when the environment is already
+up to date. The Bioconductor data bootstrap in `run.sh` is also cached and skipped once completed,
+unless the environment contents change.
+
 `./run.sh` does not regenerate `config/samples.csv` by default. This is intentional so manual edits
 to `sample_id`, `group`, and other annotations are preserved across reruns.
 
@@ -236,17 +249,40 @@ If preprocessing already succeeded and you only want to rerun failed comparison 
 cached merged object in `results/rds/combined_active.rds`, use:
 
 ```bash
-pixi run Rscript rerun_failed_comparisons.R --from 3
+pixi run rerun-comparisons --from 4
 ```
 
 Or rerun only selected report orders:
 
 ```bash
-pixi run Rscript rerun_failed_comparisons.R --only 3,4,7
+pixi run rerun-comparisons --only 4,5,8
+```
+
+Or skip Quarto rendering and recompute only the bundle, figures, and tables for those selected
+comparison reports:
+
+```bash
+pixi run rerun-comparisons --only 4,5,8 --no-render
 ```
 
 This does not rerun global reports or raw preprocessing. It only recomputes the selected comparison
 analyses and renders their standalone HTML reports.
+
+Important:
+
+- `rerun-comparisons` selects by internal report order, not by custom `report_label`.
+- Global reports are `00`, `01`, `02`, `02b`, and `03`.
+- Comparison report order starts at `4`.
+- A custom `report_label` such as `06a` or `08b` controls the output filename, but the rerun script
+  still selects the comparison by numeric order in the constructor list.
+
+Example: if the 16th comparison in `DNAm_constructor.R` has `report_label = "08b"`, rerun it with:
+
+```bash
+pixi run rerun-comparisons --only 19
+```
+
+because `19 = 16 + 3`.
 
 If you only changed data registration and need to rebuild the sample table first:
 
@@ -277,9 +313,11 @@ Ordered reports are written to `reports/`:
 - `00_study_overview.html`
 - `01_input_qc.html`
 - `02_all_samples_embeddings.html`
-- `03_<ComparisonLabel>.html`
-- `04_<ComparisonLabel>.html`
-- additional comparison reports follow the constructor order
+- `02b_own_samples_embeddings.html`
+- `03_batch_diagnostics.html`
+- comparison reports follow after the global reports
+- comparison output filenames use either the constructor order offset or an explicit `report_label`
+  from `DNAm_constructor.R`
 
 Intermediate objects, tables, and figures are written under `results/`.
 
