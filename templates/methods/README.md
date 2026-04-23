@@ -31,8 +31,7 @@ Typical usage:
 
 ```bash
 linkar run methods \
-  --outdir ./methods \
-  --refresh
+  --outdir ./methods
 ```
 
 or inspect first:
@@ -49,6 +48,9 @@ linkar collect ./methods
 
 Rerunning with the same visible bundle overwrites `methods/results/*` with the latest generated
 drafts.
+
+`methods` does not expose a template-specific `--refresh` flag. Re-running the same visible bundle
+with `linkar run methods --outdir ./methods` refreshes the generated drafts in place.
 
 Exposed parameters:
 
