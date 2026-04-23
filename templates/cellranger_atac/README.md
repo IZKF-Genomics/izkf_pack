@@ -33,8 +33,8 @@ Files that do not match that pattern are ignored.
 ```bash
 linkar run cellranger_atac \
   --pack /path/to/izkf_pack \
-  --param fastq_dir=/results/output/260330_Yildiz_ZimmerBensch_BioII_scATAcseq \
-  --param reference=/path/to/refdata-cellranger-atac-mm10-1.2.0
+  --fastq-dir /results/output/260330_Yildiz_ZimmerBensch_BioII_scATAcseq \
+  --reference /path/to/refdata-cellranger-atac-mm10-1.2.0
 ```
 
 This will produce count runs such as:
