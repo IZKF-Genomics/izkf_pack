@@ -75,6 +75,7 @@ def main() -> int:
         dgea_liver_dir = project_dir / "DGEA_Liver"
         dgea_bile_dir = project_dir / "DGEA_Bile_Duct"
         methylation_dir = project_dir / "methylation_array_analysis"
+        prep_dir = project_dir / "scrna_prep"
         integrate_dir = project_dir / "scrna_integrate"
         annotate_dir = project_dir / "scrna_annotate"
         ercc_dir = project_dir / "ercc"
@@ -89,6 +90,8 @@ def main() -> int:
         (methylation_dir / "results" / "figures").mkdir(parents=True)
         (methylation_dir / "results" / "rds").mkdir(parents=True)
         (methylation_dir / "reports").mkdir(parents=True)
+        (prep_dir / "results" / "tables").mkdir(parents=True)
+        (prep_dir / "reports").mkdir(parents=True)
         (integrate_dir / "results" / "tables").mkdir(parents=True)
         (integrate_dir / "reports").mkdir(parents=True)
         (annotate_dir / "results" / "tables").mkdir(parents=True)
@@ -114,6 +117,11 @@ def main() -> int:
         (methylation_dir / "reports" / "00_study_overview.html").write_text("<html></html>\n", encoding="utf-8")
         (methylation_dir / "reports" / "02b_own_samples_embeddings.html").write_text("<html></html>\n", encoding="utf-8")
         (methylation_dir / "reports" / "17_ProjectSpecific_Contrast.html").write_text("<html></html>\n", encoding="utf-8")
+        (prep_dir / "results" / "adata.prep.h5ad").write_text("h5ad\n", encoding="utf-8")
+        (prep_dir / "results" / "run_info.yaml").write_text("template: scrna_prep\n", encoding="utf-8")
+        (prep_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
+        (prep_dir / "results" / "tables" / "qc_summary.csv").write_text("metric,value\n", encoding="utf-8")
+        (prep_dir / "reports" / "scrna_prep.html").write_text("<html></html>\n", encoding="utf-8")
         (integrate_dir / "results" / "adata.integrated.h5ad").write_text("h5ad\n", encoding="utf-8")
         (integrate_dir / "results" / "run_info.yaml").write_text("template: scrna_integrate\n", encoding="utf-8")
         (integrate_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
@@ -190,6 +198,14 @@ def main() -> int:
                     },
                 },
                 {
+                    "id": "scrna_prep",
+                    "path": str(prep_dir),
+                    "outputs": {
+                        "results_dir": str((prep_dir / "results").resolve()),
+                        "scrna_prep_h5ad": str((prep_dir / "results" / "adata.prep.h5ad").resolve()),
+                    },
+                },
+                {
                     "id": "scrna_integrate",
                     "path": str(integrate_dir),
                     "outputs": {
@@ -258,13 +274,13 @@ def main() -> int:
         )
         assert "Dry Run Complete" in dry_run.stdout
         assert "Project templates:" in dry_run.stdout
-        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_integrate (1), scrna_annotate (1), ercc (1), methods (2)" in dry_run.stdout
+        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_prep (1), scrna_integrate (1), scrna_annotate (1), ercc (1), methods (2)" in dry_run.stdout
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
         original_username = spec["username"]
         original_password = spec["password"]
-        assert len(spec["export_list"]) == 15
+        assert len(spec["export_list"]) == 16
         assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
         export_srcs = {entry["src"] for entry in spec["export_list"]}
         export_dests = {entry["dest"] for entry in spec["export_list"]}
@@ -279,6 +295,7 @@ def main() -> int:
         assert "3_Reports/dgea/DGEA_Bile_Duct" in export_dests
         assert "3_Reports/methylation_array_analysis" in export_dests
         assert "3_Reports/results/tables" in export_dests
+        assert "3_Reports/scrna_prep" in export_dests
         assert "3_Reports/scrna_integrate/scrna_integrate" in export_dests
         assert "3_Reports/scrna_annotate/scrna_annotate" in export_dests
         assert "3_Reports/ercc/ercc" in export_dests
@@ -304,6 +321,12 @@ def main() -> int:
         methylation_support_entry = next(entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/results/tables")
         methylation_support_paths = {link["path"] for link in methylation_support_entry.get("report_links", [])}
         assert "." in methylation_support_paths
+        prep_report_entries = [
+            entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/scrna_prep"
+        ]
+        assert len(prep_report_entries) == 1
+        prep_report_paths = {link["path"] for link in prep_report_entries[0].get("report_links", [])}
+        assert "scrna_prep.html" in prep_report_paths
         integrate_entries = [
             entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/scrna_integrate/scrna_integrate/results"
         ]
