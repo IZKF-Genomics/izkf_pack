@@ -24,6 +24,10 @@ def resolve(ctx) -> str:
     if isinstance(value, str) and value.strip():
         return value.strip()
 
+    value = common.latest_visible_output(ctx, "results/adata.prep.h5ad", template_ids=UPSTREAM_TEMPLATE_IDS)
+    if value:
+        return value
+
     fallback = common.latest_output(ctx, "h5ad_outputs", template_ids=UPSTREAM_TEMPLATE_IDS)
     if isinstance(fallback, list):
         for item in fallback:

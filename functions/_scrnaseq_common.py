@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 
@@ -35,6 +36,43 @@ def latest_output(ctx, key: str, template_ids: tuple[str, ...] = UPSTREAM_TEMPLA
     if isinstance(outputs, dict):
         return outputs.get(key)
     return None
+
+
+def project_root(ctx) -> Path | None:
+    project = getattr(ctx, "project", None)
+    if project is None:
+        return None
+    for attr in ("root", "path", "project_dir"):
+        value = getattr(project, attr, None)
+        if value:
+            return Path(value).expanduser().resolve()
+    data = getattr(project, "data", {}) or {}
+    for key in ("root", "path", "project_dir"):
+        value = data.get(key)
+        if value:
+            return Path(value).expanduser().resolve()
+    return None
+
+
+def latest_visible_output(
+    ctx,
+    relative_path: str,
+    template_ids: tuple[str, ...] = UPSTREAM_TEMPLATE_IDS,
+) -> str:
+    root = project_root(ctx)
+    if root is None:
+        return ""
+    entry = latest_entry(ctx, template_ids)
+    if entry is None:
+        return ""
+    workspace = str(entry.get("path") or entry.get("history_path") or "").strip()
+    if not workspace:
+        return ""
+    workspace_path = Path(workspace).expanduser()
+    if not workspace_path.is_absolute():
+        workspace_path = root / workspace_path
+    candidate = (workspace_path / relative_path).resolve()
+    return str(candidate) if candidate.exists() else ""
 
 
 def latest_param(ctx, key: str, template_ids: tuple[str, ...] = UPSTREAM_TEMPLATE_IDS) -> Any:

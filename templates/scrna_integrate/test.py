@@ -36,8 +36,9 @@ def assert_fails(command: list[str], expected_message: str, *, env: dict[str, st
 
 
 class FakeProject:
-    def __init__(self, templates: list[dict]) -> None:
+    def __init__(self, templates: list[dict], root: Path | None = None) -> None:
         self.data = {"templates": templates}
+        self.root = root
 
 
 class FakeTemplate:
@@ -45,8 +46,8 @@ class FakeTemplate:
 
 
 class FakeContext:
-    def __init__(self, templates: list[dict]) -> None:
-        self.project = FakeProject(templates)
+    def __init__(self, templates: list[dict], root: Path | None = None) -> None:
+        self.project = FakeProject(templates, root=root)
         self.template = FakeTemplate()
         self.resolved_params = {}
 
@@ -211,6 +212,23 @@ PY""",
     ctx = FakeContext(upstream_templates)
     assert load_function("get_scrna_integrate_input_h5ad")(ctx) == "/tmp/results/adata.prep.h5ad"
     assert load_function("get_scrna_integrate_input_source_template")(ctx) == "scrna_prep"
+
+    visible_project = Path(tempfile.mkdtemp(prefix="linkar-scrna-visible-"))
+    visible_h5ad = visible_project / "scrna_prep" / "results" / "adata.prep.h5ad"
+    visible_h5ad.parent.mkdir(parents=True)
+    visible_h5ad.write_text("placeholder", encoding="utf-8")
+    rendered_ctx = FakeContext(
+        [
+            {
+                "id": "scrna_prep",
+                "path": "scrna_prep",
+                "outputs": {},
+                "state": "rendered",
+            }
+        ],
+        root=visible_project,
+    )
+    assert load_function("get_scrna_integrate_input_h5ad")(rendered_ctx) == str(visible_h5ad)
 
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")

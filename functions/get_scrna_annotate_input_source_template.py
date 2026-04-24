@@ -5,8 +5,8 @@ from pathlib import Path
 
 
 PREFERRED_TEMPLATE_OUTPUTS = (
-    ("scrna_prep", "scrna_prep_h5ad"),
-    ("scrna_integrate", "integrated_h5ad"),
+    ("scrna_prep", "scrna_prep_h5ad", "results/adata.prep.h5ad"),
+    ("scrna_integrate", "integrated_h5ad", "results/adata.integrated.h5ad"),
 )
 
 
@@ -22,8 +22,11 @@ def _load_common():
 
 def resolve(ctx) -> str:
     common = _load_common()
-    for template_id, output_key in PREFERRED_TEMPLATE_OUTPUTS:
+    for template_id, output_key, visible_path in PREFERRED_TEMPLATE_OUTPUTS:
         value = common.latest_output(ctx, output_key, template_ids=(template_id,))
         if isinstance(value, str) and value.strip():
+            return template_id
+        value = common.latest_visible_output(ctx, visible_path, template_ids=(template_id,))
+        if value:
             return template_id
     return ""
