@@ -27,6 +27,7 @@ execute:
 from pathlib import Path
 import importlib.metadata
 import platform
+import subprocess
 import tomllib
 
 import numpy as np
@@ -88,6 +89,15 @@ def package_versions_table(packages: list[str]) -> pd.DataFrame:
             version = "not installed"
         rows.append({"package": package, "version": version})
     return pd.DataFrame(rows)
+
+
+def command_version(command: list[str]) -> str:
+    try:
+        completed = subprocess.run(command, check=False, capture_output=True, text=True)
+    except FileNotFoundError:
+        return "not installed"
+    output = "\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
+    return output.splitlines()[0] if output else "not installed"
 
 
 def format_table(df: pd.DataFrame, digits: int = 3):
@@ -377,9 +387,9 @@ session_info_df = pd.concat(
                 "scanorama",
                 "scvi-tools",
                 "torch",
-                "quarto",
             ]
         ),
+        pd.DataFrame([{"package": "quarto", "version": command_version(["quarto", "--version"])}]),
     ],
     ignore_index=True,
 )

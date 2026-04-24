@@ -18,7 +18,7 @@ TOOL_COMMANDS: dict[str, list[str]] = {
     "nextflow": ["nextflow", "-version"],
     "pixi": ["pixi", "--version"],
     "python": [sys.executable, "--version"],
-    "quarto": ["quarto", "--version"],
+    "quarto": ["pixi", "run", "quarto", "--version"],
 }
 
 

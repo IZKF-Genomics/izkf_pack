@@ -5,7 +5,6 @@ tools:
   required:
     - pixi
     - python3
-    - quarto
 params:
   input_h5ad:
     type: path

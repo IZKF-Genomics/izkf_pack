@@ -28,6 +28,10 @@ def make_fake_bin(root: Path) -> Path:
         "  echo 'R scripting front-end version 4.4.1'\n"
         "  exit 0\n"
         "fi\n"
+        "if [[ \"${1:-}\" == \"run\" && \"${2:-}\" == \"quarto\" && \"${3:-}\" == \"--version\" ]]; then\n"
+        "  echo '1.8.27'\n"
+        "  exit 0\n"
+        "fi\n"
         "echo \"unsupported fake pixi invocation: $*\" >&2\n"
         "exit 1\n",
         encoding="utf-8",
@@ -59,6 +63,7 @@ def main() -> int:
             "  - pixi\n"
             "  - nextflow\n"
             "  - R\n"
+            "  - quarto\n"
             "params:\n"
             "  - name: genome\n"
             "    env: EFFECTIVE_GENOME\n"
@@ -97,6 +102,7 @@ def main() -> int:
         assert versions["pixi"]["version"] == "pixi 0.42.1"
         assert versions["nextflow"]["version"] == "nextflow version 24.10.0"
         assert versions["R"]["version"] == "R scripting front-end version 4.4.1"
+        assert versions["quarto"]["version"] == "1.8.27"
         assert versions["genome"]["version"] == "GRCh38_with_ERCC"
         assert versions["genome"]["source"] == "param"
         assert versions["workflow"]["version"] == "1.2.3"
