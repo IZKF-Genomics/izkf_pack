@@ -798,6 +798,56 @@ def test_scrna_prep_citations_and_short_sentence() -> None:
     assert "[1, 2, 3, 4, 5]" in sentence
 
 
+def test_scrna_prep_catalog_entry_matches_current_input_model() -> None:
+    catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
+    entry = catalog["templates"]["scrna_prep"]
+
+    assert "H5AD or matrix-style inputs" in entry["summary"]
+    assert "imports exactly one H5AD or matrix-style input" in entry["method_core"]
+    details = " ".join(entry["method_details"])
+    assert "exactly one primary input path used per run" in details
+    assert "Optional sample metadata can be joined by sample identifier" in details
+    assert entry["citations"] == ["scanpy", "umap", "leiden", "quarto"]
+
+
+def test_scrna_prep_settings_include_resolved_leiden_resolution() -> None:
+    module = load_run_module()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        run_dir = Path(tmpdir) / "scrna_prep_run"
+        summary_path = run_dir / "results" / "tables" / "run_summary.json"
+        summary_path.parent.mkdir(parents=True)
+        summary_path.write_text(
+            json.dumps(
+                {
+                    "input_format": "10x_h5",
+                    "leiden_resolution": 0.6,
+                    "leiden_resolution_source": "heuristic_cell_count",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        settings = module.collect_setting_bullets(
+            {
+                "template": "scrna_prep",
+                "run_dir": str(run_dir),
+                "params": {
+                    "organism": "mouse",
+                    "input_format": "auto",
+                    "resolution_grid": "0.2,0.4,0.6,0.8",
+                    "leiden_resolution": "",
+                },
+            },
+            {},
+        )
+
+    assert any("Organism" in line and "`mouse`" in line for line in settings)
+    assert any("Input format" in line and "`auto`" in line for line in settings)
+    assert any("Resolution grid reviewed" in line and "`0.2, 0.4, 0.6, 0.8`" in line for line in settings)
+    assert any("Final Leiden resolution" in line and "`0.6`" in line for line in settings)
+    assert any("Leiden resolution source" in line and "`heuristic cell count`" in line for line in settings)
+
+
 def test_scrna_integrate_citations_and_short_sentence() -> None:
     module = load_run_module()
     catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
@@ -873,6 +923,8 @@ def main() -> int:
     test_collect_run_context_adds_variant_names_for_duplicate_nfcore_runs()
     test_recorded_command_block_is_multiline()
     test_scrna_prep_citations_and_short_sentence()
+    test_scrna_prep_catalog_entry_matches_current_input_model()
+    test_scrna_prep_settings_include_resolved_leiden_resolution()
     test_scrna_integrate_citations_and_short_sentence()
     test_scrna_annotate_citations_and_short_sentence()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")

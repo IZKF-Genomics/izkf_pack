@@ -837,6 +837,9 @@ def format_publication_value(key: str, value: Any) -> str:
     if isinstance(value, (list, dict)):
         return json.dumps(value, sort_keys=True)
     text = str(value).strip()
+    if key == "resolution_grid":
+        parts = [part.strip() for part in text.split(",") if part.strip()]
+        return ", ".join(parts)
     if key == "application":
         normalized = text.lower().replace("-", "").replace("_", "").replace(" ", "")
         if normalized in {"3mrnaseq", "3mrna", "3mseq"}:
@@ -1187,6 +1190,43 @@ def collect_setting_bullets(run: dict[str, Any], context: dict[str, Any]) -> lis
             items.append(("Spike-in control", spikein))
         if runtime_command_has_flag(run, "--with_umi"):
             items.append(("UMI handling", umi_value or "enabled"))
+    elif template == "scrna_prep":
+        organism = format_publication_value("organism", params.get("organism") or "")
+        if organism:
+            items.append(("Organism", organism))
+
+        input_format = format_publication_value("input_format", params.get("input_format") or "")
+        if input_format:
+            items.append(("Input format", input_format))
+
+        resolution_grid = format_publication_value("resolution_grid", params.get("resolution_grid") or "")
+        if resolution_grid:
+            items.append(("Resolution grid reviewed", resolution_grid))
+
+        run_dir = normalize_id_value(run.get("run_dir"))
+        run_summary_path = Path(run_dir) / "results" / "tables" / "run_summary.json" if run_dir else None
+        run_summary: dict[str, Any] = {}
+        if run_summary_path and run_summary_path.exists():
+            try:
+                payload = json.loads(run_summary_path.read_text(encoding="utf-8"))
+            except Exception:
+                payload = {}
+            if isinstance(payload, dict):
+                run_summary = payload
+
+        final_leiden_resolution = run_summary.get("leiden_resolution")
+        if not is_meaningful_value(final_leiden_resolution):
+            final_leiden_resolution = params.get("leiden_resolution")
+        rendered_resolution = format_publication_value("leiden_resolution", final_leiden_resolution)
+        if rendered_resolution:
+            items.append(("Final Leiden resolution", rendered_resolution))
+
+        resolution_source = format_publication_value(
+            "leiden_resolution_source",
+            str(run_summary.get("leiden_resolution_source") or "").replace("_", " "),
+        )
+        if resolution_source:
+            items.append(("Leiden resolution source", resolution_source))
     else:
         label_map = {
             "reference": "Reference",
