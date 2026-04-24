@@ -1,0 +1,15 @@
+formal_annotation:
+  enabled: false
+  method: celltypist
+  majority_vote_min_fraction: 0.6
+  confidence_threshold: 0.5
+  predicted_label_key: formal_label_celltypist
+  final_label_key: final_label
+  rank_top_markers: 5
+  marker_file: ""
+
+celltypist:
+  model: ""
+  mode: best_match
+  p_thres: 0.5
+  use_gpu: false

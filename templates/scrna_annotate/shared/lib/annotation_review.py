@@ -6,7 +6,10 @@ import scanpy as sc
 
 def score_marker_sets(adata, marker_sets: dict[str, list[str]], *, cluster_key: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     if not marker_sets:
-        return pd.DataFrame(columns=["cluster", "marker_suggested_label", "marker_score"]), pd.DataFrame(columns=["cluster", "label", "marker_score"])
+        return (
+            pd.DataFrame(columns=["cluster", "marker_suggested_label", "marker_score"]),
+            pd.DataFrame(columns=["cluster", "label", "marker_score"]),
+        )
 
     scored = adata.copy()
     score_columns: list[str] = []
@@ -19,11 +22,14 @@ def score_marker_sets(adata, marker_sets: dict[str, list[str]], *, cluster_key: 
         score_columns.append(column)
 
     if not score_columns:
-        return pd.DataFrame(columns=["cluster", "marker_suggested_label", "marker_score"]), pd.DataFrame(columns=["cluster", "label", "marker_score"])
+        return (
+            pd.DataFrame(columns=["cluster", "marker_suggested_label", "marker_score"]),
+            pd.DataFrame(columns=["cluster", "label", "marker_score"]),
+        )
 
     cluster_scores = (
         scored.obs[[cluster_key, *score_columns]]
-        .groupby(cluster_key, dropna=False)
+        .groupby(cluster_key, dropna=False, observed=False)
         .mean()
         .reset_index()
         .rename(columns={cluster_key: "cluster"})
@@ -53,5 +59,4 @@ def merge_marker_review(cluster_summary: pd.DataFrame, marker_summary: pd.DataFr
         & out["marker_suggested_label"].ne(out["cluster_suggested_label"])
     )
     out.loc[conflict, "annotation_status"] = "review_needed_marker_conflict"
-    out.loc[conflict, "cluster_suggested_label"] = out.loc[conflict, "cluster_suggested_label"]
     return out

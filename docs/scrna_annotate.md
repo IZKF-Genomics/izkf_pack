@@ -1,137 +1,193 @@
 # scrna_annotate workspace notes
 
-The [`scrna_annotate`](../templates/scrna_annotate/README.md)
-template creates an editable Scanpy-based workspace for cell type annotation
-review after preprocessing or integration.
+The [`scrna_annotate`](../templates/scrna_annotate/README.md) template is a
+tiered Scanpy-based annotation workflow.
 
-This document records the pack-specific assumptions behind the first
+The rebuilt structure is intentionally progressive:
+
+- Tier 1: quick preview
+- Tier 2: refinement
+- Tier 3: formal annotation
+
+This document records the pack-specific assumptions behind the current
 implementation.
 
-## Config model
+## Workflow model
 
-The user-facing entrypoint is now a commented YAML file:
+The old single-directory annotation runtime is being replaced by a workflow that
+separates annotation into three user-facing layers:
 
-- `templates/scrna_annotate/config/00_annotation_config.yaml`
+- `tier1_quick_preview`
+- `tier2_refinement`
+- `tier3_formal_annotation`
 
-If it is missing, `run.sh` seeds it from:
+The top-level template directory now acts as a workflow orchestrator rather than
+as a single monolithic runtime.
 
-- `templates/scrna_annotate/assets/00_annotation_config.template.yaml`
+Current top-level entrypoint:
 
-The runtime then converts that YAML config into the internal
-`config/project.toml` file consumed by the builder and report code.
+- `templates/scrna_annotate/run.sh`
 
-Environment variables still override YAML values when both are present.
+Top-level workflow config:
 
-## Python-only scope
+- `templates/scrna_annotate/config/workflow.yaml`
 
-This template is intentionally Python-only. Current and planned in-scope
-backends are:
+## Why the template uses tiers
 
-- `CellTypist`
-- future `scANVI`
-- future `decoupler` review
-- future `scGPT`
+The rebuild is driven by three practical issues in the older design:
 
-R-centered tools such as `scmap` and `scPred` are intentionally excluded from
-this workspace to keep the runtime simpler and more maintainable.
+- users had to think about formal annotation too early
+- `CellTypist` was the only real backend, but many datasets do not have a
+  suitable model
+- review, preview, and formal annotation concerns were mixed into one runtime
 
-## Default input preference
+The rebuilt design follows single-cell best practices more closely:
 
-Although the template can read either a prep-stage or integrate-stage AnnData
-object, the default pack binding prefers the latest
-[`scrna_prep`](../templates/scrna_prep/README.md) output.
+- let users see something first
+- keep uncertainty visible
+- only enable reference-aware annotation when the reference really fits
 
-This is intentional for v0.1 because the CellTypist workflow benefits from a
-broader feature space than an HVG-only integration object may provide.
+## Current tier status
+
+### Tier 1
 
 Current behavior:
 
-- prefer `scrna_prep.scrna_prep_h5ad`
-- fall back to `scrna_integrate.integrated_h5ad` only when no prep
-  output is available
+- validates the input AnnData object
+- requires a cluster column and `X_umap`
+- writes conservative preview labels
+- writes cluster-level preview summaries
+- writes cluster top-marker tables
+- renders a quick preview report
 
-## Automated labels are not treated as final truth
+Current outputs include:
 
-The annotation template keeps three layers distinct:
+- `tier1_quick_preview/results/adata.preview.h5ad`
+- `tier1_quick_preview/results/tables/preview_consensus.csv`
+- `tier1_quick_preview/results/tables/preview_disagreement_summary.csv`
+- `tier1_quick_preview/results/tables/cluster_top_markers.csv`
+- `tier1_quick_preview/reports/01_quick_preview.html`
 
-- per-cell predicted labels
-- cluster-level suggested labels
-- final labels after review rules
+Tier 1 is meant to be low-setup and safe by default. It is the default
+execution path of the workflow.
 
-Clusters that do not meet the configured dominance and confidence thresholds are
-left unresolved as `Unknown` rather than being silently assigned a label.
+### Tier 2
 
-## CellTypist input expectation
+Current behavior:
 
-CellTypist expects gene symbols and a log1p-normalized expression matrix. The
-template therefore:
+- consumes Tier 1 outputs
+- writes conservative refinement suggestions
+- reads Tier 1 cluster top markers
+- optionally scores user-supplied marker sets
+- renders a refinement report
 
-- resolves gene symbols from known `adata.var` columns when feature IDs are used
-- prepares a log-normalized expression view for prediction when the current
-  matrix does not already look like log1p-normalized data
+Current outputs include:
 
-If the input lacks a usable gene-symbol representation, the run stops with a
-clear error.
+- `tier2_refinement/results/adata.refined.h5ad`
+- `tier2_refinement/results/tables/refinement_suggestions.csv`
+- `tier2_refinement/results/tables/marker_review_summary.csv`
+- `tier2_refinement/results/tables/cluster_marker_candidates.csv`
+- `tier2_refinement/reports/02_refinement.html`
 
-## Marker review
+Tier 2 is not intended to replace formal reference-based annotation. Its role
+is to strengthen or challenge Tier 1 preview labels before the user commits to
+a formal method.
 
-Marker sets are optional in v0.1. When supplied, they are used as a review
-layer rather than as a silent override of the classifier output.
+### Tier 3
 
-This means marker-based summaries can downgrade confidence in a cluster label,
-but they do not automatically replace the underlying classifier prediction
-without explicit user review.
+Current behavior:
 
-## Output expectations
+- consumes Tier 2 outputs
+- reads Tier 3 formal annotation config
+- runs `CellTypist` when enabled and configured
+- writes formal prediction tables
+- writes an annotated H5AD
+- renders a formal annotation report
 
-Important outputs include:
+Current outputs include:
 
-- `results/adata.annotated.h5ad`
-- `results/tables/cell_annotation_predictions.csv`
-- `results/tables/cluster_annotation_summary.csv`
-- `results/tables/marker_review_summary.csv`
-- `results/tables/annotation_status_summary.csv`
-- `results/tables/method_comparison.csv`
-- `results/run_info.yaml`
-- `results/software_versions.json`
-- `reports/00_annotation_overview.html`
-- `reports/01_celltypist.html`
-- `reports/02_scanvi.html`
-- `reports/03_decoupler_review.html`
-- `reports/04_scdeepsort.html`
-- `reports/05_scgpt.html`
+- `tier3_formal_annotation/results/adata.annotated.h5ad`
+- `tier3_formal_annotation/results/tables/formal_annotation_predictions.csv`
+- `tier3_formal_annotation/results/tables/formal_annotation_summary.csv`
+- `tier3_formal_annotation/reports/03_formal_annotation.html`
 
-Important config files include:
+Tier 3 is intentionally not the default execution path.
 
-- `config/00_annotation_config.yaml`
-- `config/00_annotation_config.resolved.yaml`
-- `config/project.toml`
+## Current method scope
 
-Method-specific report scaffolds currently present in the template directory:
+The rebuilt template remains intentionally Python-only.
 
-- `01_celltypist.qmd`
-- `02_scanvi.qmd`
-- `03_decoupler_review.qmd`
-- `04_scdeepsort.qmd`
-- `05_scgpt.qmd`
+Currently active or scaffolded methods:
 
-At the moment only `01_celltypist.qmd` is backed by executable runtime logic.
-The later numbered QMD files are rendered scaffold reports so future
-Python-native backends can slot into the same report organization without
-another directory refactor.
+- Tier 1 quick preview scaffold
+- Tier 2 marker-backed refinement scaffold
+- Tier 3 `CellTypist`
+
+Still planned for later integration:
+
+- `scANVI`
+- `decoupler` as a richer review layer
+- selected low-setup quick-preview tools when operationally justified
+
+Still intentionally out of scope:
+
+- `scmap`
+- `scPred`
+
+Those remain excluded because they would pull the template back into a
+mixed-language runtime before the Python-first rebuild is stable.
+
+## Default input preference
+
+The rebuilt workflow still assumes that the most natural upstream source is the
+latest `scrna_prep` output.
+
+Reason:
+
+- preview and formal annotation both benefit from the broader feature space in a
+  prep-stage object
+
+Using an integration-stage object is still possible, but should remain an
+intentional user choice rather than a silent default.
+
+## CellTypist assumptions still matter
+
+Although the workflow has been redesigned, the `CellTypist` backend still has
+the same biological and technical constraints:
+
+- a relevant reference model is critical
+- the method expects usable gene symbols
+- the expression view should be compatible with log-normalized prediction
+
+The workflow changes user experience and structure, but it does not make an
+ill-matched reference safer.
+
+## Output philosophy
+
+The rebuild continues to enforce a conservative output policy:
+
+- preview labels are not final labels
+- refinement labels are not final labels
+- formal labels should still be reviewable
+- unresolved clusters should remain `Unknown`
+
+This is a deliberate design choice and should not be relaxed just because the
+workflow is now easier to run.
 
 ## Maintenance notes
 
-When editing this template, treat these as high-sensitivity areas:
+When editing the rebuilt template, treat these as high-sensitivity areas:
 
-- default input selection between prep and integrate outputs
-- gene symbol resolution
-- CellTypist preprocessing assumptions
-- cluster-level acceptance logic
-- output paths consumed by export and methods generation
+- tier-to-tier input and output contracts
+- shared helper modules in `shared/lib/`
+- top-level workflow orchestration in `run.sh`
+- preview marker ranking assumptions
+- formal annotation label naming and final-label write logic
 
 ## Related docs
 
+- [scrna_annotate_redesign.md](scrna_annotate_redesign.md)
+- [scrna_annotate_rebuild_plan.md](scrna_annotate_rebuild_plan.md)
 - [scrna_prep.md](scrna_prep.md)
 - [scrna_integrate.md](scrna_integrate.md)
 - [template_outputs.md](template_outputs.md)

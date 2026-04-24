@@ -1,0 +1,33 @@
+# Top-level workflow config for the rebuilt scrna_annotate template.
+#
+# The design is intentionally progressive:
+# - Tier 1: quick preview with the lowest setup burden
+# - Tier 2: refinement and marker-backed review
+# - Tier 3: formal reference-based annotation
+#
+# Fill the global section first. The top-level ./run.sh command will default to
+# Tier 1 so users can see a first-pass result quickly.
+
+global:
+  # Required: path to the input AnnData object.
+  input_h5ad: ""
+
+  # Required unless your object already uses `leiden`.
+  cluster_key: leiden
+
+  # Optional metadata keys used in plots and summaries when present.
+  batch_key: batch
+  condition_key: condition
+  sample_id_key: sample_id
+  sample_label_key: sample_display
+
+  # Label used for unresolved cells or clusters across all tiers.
+  unknown_label: Unknown
+
+workflow:
+  # Default tier used by the top-level ./run.sh command.
+  default_tier: tier1
+
+  # Future-facing flag. The current scaffold records next-step recommendations
+  # in reports but does not auto-run later tiers.
+  auto_recommend_next: true

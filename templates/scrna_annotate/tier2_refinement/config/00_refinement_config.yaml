@@ -1,0 +1,10 @@
+# Tier 2 refinement config.
+#
+# Tier 2 consumes Tier 1 outputs and helps the user decide whether the preview
+# labels are biologically plausible enough to keep, collapse, or refine further.
+
+refinement:
+  marker_file: ""
+  broad_lineage_mode: true
+  rank_top_markers: 5
+  unknown_label: Unknown

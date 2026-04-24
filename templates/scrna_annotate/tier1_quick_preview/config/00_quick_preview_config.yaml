@@ -1,0 +1,20 @@
+# Tier 1 quick preview config.
+#
+# This layer is designed to be the easiest entry point. It should run with the
+# least possible setup and produce preview labels plus a report explaining what
+# to do next.
+
+quick_preview:
+  # Planned quick-preview methods. The current implementation always provides a
+  # manual review baseline and records which methods were available.
+  methods:
+    - manual_review
+    - cellannotator
+
+  # Set true later when GPTCelltype integration is added.
+  enable_gptcelltype: false
+
+  # Whether to synthesize a simple preview consensus label.
+  write_consensus: true
+
+  unknown_label: Unknown

@@ -6,7 +6,8 @@ version = "0.1.0"
 
 [tasks]
 render = { cmd = ["bash", "run.sh"] }
-clean = { cmd = ["bash", "-lc", "rm -rf results .quarto reports 00_annotation_overview.html 01_celltypist.html 02_scanvi.html 03_decoupler_review.html 04_scdeepsort.html 05_scgpt.html"] }
+clean = { cmd = ["bash", "-lc", "rm -rf reports tier1_quick_preview/results tier1_quick_preview/reports tier2_refinement/results tier2_refinement/reports tier3_formal_annotation/results tier3_formal_annotation/reports"] }
+test-rebuild = { cmd = ["python", "test_rebuild.py"] }
 
 [dependencies]
 python = ">=3.11,<3.13"

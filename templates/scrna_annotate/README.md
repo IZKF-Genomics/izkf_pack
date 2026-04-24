@@ -1,261 +1,206 @@
-# scrna_annotate
+# `scrna_annotate`
 
-`scrna_annotate` creates an editable Python-only `scverse` / `scanpy`
-workspace for scRNA-seq cell annotation review. It currently implements
-`CellTypist` as the production backend, keeps marker review optional, and
-renders one shared overview report plus method-specific sub-reports.
+`scrna_annotate` is a tiered single-cell annotation workflow built around a
+progressive user experience.
 
-The design follows the single-cell best-practices guidance that automated
-annotation should be treated as a starting point, not as final truth:
+The new design is intentionally progressive:
 
-- keep per-cell predictions separate from cluster-level suggestions
-- keep final labels separate from automated labels
-- preserve unresolved clusters as `Unknown`
-- support marker-based review instead of silently overriding classifier output
+- Tier 1: quick preview with the lowest setup burden
+- Tier 2: refinement and marker-backed review
+- Tier 3: formal reference-aware annotation
+
+The main user experience goal is simple:
+
+- let the user see a result first
+- then decide whether refinement is needed
+- only ask for formal models and reference choices later
+
+This follows the single-cell best-practices view that annotation should be
+treated as a staged review process rather than a one-click source of truth.
 
 Reference:
 - Single-cell best practices, annotation chapter:
   <https://www.sc-best-practices.org/cellular_structure/annotation.html>
 
-## Python-only scope
+## New Layout
 
-This template is intentionally kept Python-only.
+```text
+scrna_annotate/
+  README.md
+  run.sh
+  config/
+    workflow.yaml
+  tier1_quick_preview/
+  tier2_refinement/
+  tier3_formal_annotation/
+  shared/
+```
 
-- Included now: `CellTypist`
-- Planned Python candidates: `scANVI`, `decoupler` review, `scGPT`
-- Explicitly out of scope for this template: `scmap` and `scPred`, because
-  they are R/Bioconductor-centered tools and would complicate the runtime
-  environment
+Each tier owns its own:
 
-That keeps `run.sh`, `pixi`, and the exported workspace easier to maintain.
+- `run.sh`
+- `run.py`
+- `config/`
+- `results/`
+- `reports/`
 
-## Layout
-
-- `run.sh`: user-facing launcher
-- `run.py`: prep-only helper that resolves YAML plus env values into runtime config files
-- `assets/00_annotation_config.template.yaml`: commented user config template
-- `config/00_annotation_config.yaml`: working copy created automatically on first run
-- `config/project.toml`: internal runtime config generated from YAML/env values
-- `config/00_annotation_config.resolved.yaml`: resolved config used for the run
-- `build_annotation_outputs.py`: shared annotation pipeline executed once
-- `00_annotation_overview.qmd`: cross-method review report
-- `01_celltypist.qmd`: CellTypist-specific diagnostic report
-- `02_scanvi.qmd`: reserved scaffold for a future scANVI report
-- `03_decoupler_review.qmd`: reserved scaffold for a future decoupler review report
-- `04_scdeepsort.qmd`: reserved scaffold for a future scDeepSort report
-- `05_scgpt.qmd`: reserved scaffold for a future scGPT report
-- `lib/`: reusable Python helpers
-- `results/`: generated tables, H5AD output, and metadata
-- `reports/`: rendered HTML reports
+The top-level `run.sh` acts as a workflow orchestrator.
 
 ## Quick Start
 
-1. Open `config/00_annotation_config.yaml`.
-   If it does not exist yet, run `./run.sh` once and the template will seed it
-   from `assets/00_annotation_config.template.yaml`.
-2. Fill in at least:
+1. Open [config/workflow.yaml](config/workflow.yaml)
+2. Fill in:
    - `global.input_h5ad`
-   - `celltypist.model`
-   - `global.cluster_key` if your clustering column is not `leiden`
-3. Optionally set `marker_review.marker_file`.
-4. Run:
+   - `global.cluster_key` if your input does not use `leiden`
+3. Run:
 
 ```bash
 ./run.sh
 ```
 
-5. Inspect:
-   - `reports/00_annotation_overview.html`
-   - `reports/01_celltypist.html`
-   - `results/adata.annotated.h5ad`
+Default behavior:
 
-Environment variables still work and override YAML values. That makes the
-template compatible with Linkar bindings while still giving users a readable
-config file for local reruns.
+- runs Tier 1 only
+- writes Tier 1 outputs to `tier1_quick_preview/results/`
+- renders the first report to `tier1_quick_preview/reports/01_quick_preview.html`
+- updates the workflow overview at `reports/00_overview.html`
 
-## Required inputs
+## Workflow Commands
 
-At minimum the run needs:
+Run the default entry tier:
 
-- an input `.h5ad` object
-- a cluster column in `adata.obs`
-- a suitable CellTypist model
-- a precomputed `X_umap` embedding in the input object
-
-Recommended upstream source:
-
-- prefer `scrna_prep` output when possible, because classifier-based
-  annotation benefits from the full gene feature space
-- use `scrna_integrate` output only when you intentionally want to
-  annotate an integrated object and the feature representation is still suitable
-  for the classifier
-
-## YAML config structure
-
-The user-facing config is organized into three sections:
-
-- `global`: input paths, metadata keys, review thresholds, output label keys
-- `celltypist`: backend-specific settings
-- `marker_review`: optional marker gene file
-
-The shipped template already includes comment lines for every current key and
-its expected values:
-
-- [assets/00_annotation_config.template.yaml](assets/00_annotation_config.template.yaml)
-
-Example:
-
-```yaml
-global:
-  input_h5ad: /abs/path/to/adata.prep.h5ad
-  input_source_template: scrna_prep
-  annotation_method: celltypist
-  annotation_methods:
-    - celltypist
-  cluster_key: leiden
-  batch_key: batch
-  condition_key: condition
-  sample_id_key: sample_id
-  sample_label_key: sample_display
-  majority_vote_min_fraction: 0.6
-  confidence_threshold: 0.5
-  unknown_label: Unknown
-  predicted_label_key: predicted_label
-  final_label_key: final_label
-  rank_top_markers: 5
-  random_seed: 0
-
-celltypist:
-  model: Immune_All_Low.pkl
-  mode: best_match
-  p_thres: 0.5
-  use_gpu: false
-
-marker_review:
-  marker_file: /abs/path/to/markers.yaml
+```bash
+./run.sh
 ```
 
-## Marker file format
+Run one specific tier:
 
-The optional marker file must be YAML. Two simple formats are accepted:
-
-```yaml
-T_cells:
-  - CD3D
-  - CD3E
-B_cells:
-  - MS4A1
-  - CD79A
+```bash
+./run.sh --tier tier1
+./run.sh --tier tier2
+./run.sh --tier tier3
 ```
 
-or
+Run a range:
 
-```yaml
-T_cells:
-  markers:
-    - CD3D
-    - CD3E
-B_cells:
-  markers:
-    - MS4A1
-    - CD79A
+```bash
+./run.sh --from tier1 --to tier3
 ```
 
-## Runtime behavior
+## Tier Summary
 
-`./run.sh` does the following explicitly:
+## Tier 1: Quick Preview
 
-1. runs `python3 run.py` to seed and resolve the numbered config files
-2. reads YAML settings and environment overrides
-3. writes `config/00_annotation_config.resolved.yaml`
-4. writes the internal `config/project.toml`
-5. records `results/run_info.yaml`
-6. installs the Pixi environment if needed
-7. runs `build_annotation_outputs.py` once
-8. renders `00_annotation_overview.qmd`
-9. renders `01_celltypist.qmd`
-10. renders `02_scanvi.qmd`
-11. renders `03_decoupler_review.qmd`
-12. renders `04_scdeepsort.qmd`
-13. renders `05_scgpt.qmd`
-14. writes `results/software_versions.json`
+Purpose:
 
-Only `01_celltypist.qmd` currently reflects a fully implemented backend. The
-later numbered reports are rendered too, but they are intentionally scaffold
-reports for future Python backends rather than full analyses.
+- give the user a first-pass annotation landscape with minimal setup
 
-The analysis itself:
+Current outputs:
 
-- loads the input AnnData object
-- checks the requested cluster column
-- requires `X_umap` for review plots
-- prepares a CellTypist-compatible expression view
-- runs CellTypist prediction
-- computes per-cell confidence
-- summarizes predictions per cluster
-- optionally scores marker sets for review
-- writes conservative final labels that keep uncertain clusters as `Unknown`
+- `results/adata.preview.h5ad`
+- `results/tables/preview_consensus.csv`
+- `results/tables/preview_disagreement_summary.csv`
+- `reports/01_quick_preview.html`
 
-## Outputs
+Current behavior:
 
-- `results/adata.annotated.h5ad`
-- `results/tables/cell_annotation_predictions.csv`
-- `results/tables/cluster_annotation_summary.csv`
+- validates the input
+- checks that `cluster_key` and `X_umap` exist
+- writes conservative placeholder preview labels
+- points the user toward Tier 2 refinement
+
+Current quick-preview default:
+
+- conservative preview labels
+- cluster-level disagreement summary
+- cluster top markers for the next tier
+- marker-ready handoff into Tier 2
+
+## Tier 2: Refinement
+
+Purpose:
+
+- review preview outputs
+- add marker-backed evidence
+- decide whether broad lineage labels are already defensible
+
+Current outputs:
+
+- `results/adata.refined.h5ad`
+- `results/tables/refinement_suggestions.csv`
 - `results/tables/marker_review_summary.csv`
-- `results/tables/annotation_status_summary.csv`
-- `results/tables/method_comparison.csv`
+- `results/tables/cluster_marker_candidates.csv`
+- `reports/02_refinement.html`
+
+Current refinement behavior:
+
+- reads Tier 1 outputs
+- carries cluster top markers into refinement summaries
+- scores marker sets when a marker file is provided
+- writes a refinement-ready AnnData object for Tier 3
+
+## Tier 3: Formal Annotation
+
+Purpose:
+
+- run formal reference-aware methods only after the user is ready
+
+Current outputs:
+
 - `results/run_info.yaml`
-- `results/software_versions.json`
-- `reports/00_annotation_overview.html`
-- `reports/01_celltypist.html`
-- `reports/02_scanvi.html`
-- `reports/03_decoupler_review.html`
-- `reports/04_scdeepsort.html`
-- `reports/05_scgpt.html`
+- `results/adata.annotated.h5ad` when enabled
+- `results/tables/formal_annotation_predictions.csv` when enabled
+- `results/tables/formal_annotation_summary.csv` when enabled
+- `reports/03_formal_annotation.html`
 
-## Annotation methods and template fit
+Current formal backend:
 
-This template is designed around a multi-report comparison structure, but only
-Python-native backends are considered in-scope.
+- `CellTypist`
 
-| Tool | Runtime | Best use | Template role | Current status | Caveat | References |
-| --- | --- | --- | --- | --- | --- | --- |
-| CellTypist | Python | Routine reference-based cell type annotation | Primary production backend | Implemented | Strongly depends on reference/model relevance | [Docs](https://celltypist.readthedocs.io/), [Paper](https://pubmed.ncbi.nlm.nih.gov/35549406/) |
-| scANVI | Python | Reference mapping with batch-aware semi-supervised modeling | Future annotation backend | Planned | Heavier setup and raw-count assumptions must be enforced | [Docs](https://scvi-tools.readthedocs.io/en/latest/user_guide/models/scanvi.html), [Framework](https://docs.scvi-tools.org/en/latest/index.html) |
-| decoupler | Python | Marker/pathway activity review | Future review layer, not standalone final annotation | Planned | Better for validation than for single-label assignment | [Docs](https://decoupler.readthedocs.io/en/stable/notebooks/scell/rna_sc.html), [Paper](https://academic.oup.com/bioinformaticsadvances/article/2/1/vbac016/6544613) |
-| scDeepSort | Python | Pretrained human/mouse annotation in supported settings | Possible experimental backend | Not implemented | Older Python/runtime constraints make maintenance harder | [Docs](https://scdeepsort.readthedocs.io/en/master/installation.html), [Paper](https://academic.oup.com/nar/article/49/21/e122/6368052) |
-| scGPT | Python | Research-oriented foundation-model annotation and mapping | Possible experimental backend | Not implemented | High compute and operational complexity | [Docs](https://scgpt.readthedocs.io/), [Paper](https://www.nature.com/articles/s41592-024-02201-0) |
+Planned later backend:
 
-Report scaffolds already present in the template:
+- `scANVI`
 
-- `01_celltypist.qmd`
-- `02_scanvi.qmd`
-- `03_decoupler_review.qmd`
-- `04_scdeepsort.qmd`
-- `05_scgpt.qmd`
+## Config Model
 
-R-based tools intentionally excluded from this template:
+The workflow starts from one top-level workflow config:
 
-- `scmap`
-- `scPred`
+- [config/workflow.yaml](config/workflow.yaml)
 
-If those are ever needed, they should live in a separate mixed-language template
-instead of expanding this Python runtime.
+Tier-specific configs live in:
 
-## Clear usage patterns
+- [tier1_quick_preview/config/00_quick_preview_config.yaml](tier1_quick_preview/config/00_quick_preview_config.yaml)
+- [tier2_refinement/config/00_refinement_config.yaml](tier2_refinement/config/00_refinement_config.yaml)
+- [tier3_formal_annotation/config/00_formal_annotation_config.yaml](tier3_formal_annotation/config/00_formal_annotation_config.yaml)
+
+This keeps first-run setup small while still letting later tiers expose
+specialized parameters.
+
+## Why This Template Uses Tiers
+
+The workflow is organized to keep the first user decision small and safe.
+
+The rebuilt design separates responsibilities:
+
+- Tier 1 should be easy to run
+- Tier 2 should help the user understand uncertainty
+- Tier 3 should only be used when a suitable formal method exists
+
+That means the workflow is organized around decisions, not around tool names.
+
+## Recommended Use Right Now
 
 Use this template when:
 
-- you already completed preprocessing and clustering
-- you want an editable annotation workspace rather than a black-box result
-- you want HTML reports plus an updated `.h5ad`
-- you want to rerun the annotation step by editing a single numbered YAML file
+- you want to exercise the new tier structure
+- you want a conservative quick preview entrypoint
+- you want a clear preview -> refinement -> formal annotation progression
 
-Do not use this template as the only source of biological truth when:
+Keep in mind:
 
-- the CellTypist model is not a good match for your tissue, species, or assay
-- the dataset is highly novel and marker-driven review will dominate
-- integration has removed too much gene-level structure for classifier use
+- Tier 1 favors safety and speed over confident final labels
+- Tier 2 is designed to strengthen or challenge the Tier 1 preview
+- Tier 3 should only be enabled when a suitable formal reference exists
 
 ## Test command
 

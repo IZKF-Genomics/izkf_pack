@@ -1,2 +1,15 @@
 /.quarto/
 **/*.quarto_ipynb
+/reports/
+/tier1_quick_preview/results/
+/tier1_quick_preview/reports/
+/tier2_refinement/results/
+/tier2_refinement/reports/
+/tier3_formal_annotation/results/
+/tier3_formal_annotation/reports/
+/input.h5ad
+/config/00_annotation_config.yaml
+/config/00_annotation_config.resolved.yaml
+/config/project.toml
+/results/
+/__pycache__/

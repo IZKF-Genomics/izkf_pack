@@ -68,7 +68,7 @@ def resolve_gene_symbols(var: pd.DataFrame, var_names) -> pd.Index:
         if (series != "").any():
             return pd.Index(series.where(series != "", pd.Index(var_names).astype(str)))
     raise RuntimeError(
-        "CellTypist annotation expects gene symbols. The input appears to use feature IDs, but no recognized gene-symbol column was found in adata.var."
+        "The input appears to use feature IDs, but no recognized gene-symbol column was found in adata.var."
     )
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -72,7 +73,7 @@ def run_celltypist_annotation(
     try:
         import celltypist
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("celltypist is required for scrna_annotate.") from exc
+        raise RuntimeError("celltypist is required for scrna_annotate formal annotation.") from exc
 
     prepared = prepare_celltypist_adata(adata)
     predictions = celltypist.annotate(
@@ -114,7 +115,7 @@ def summarize_cluster_predictions(
     rows: list[dict[str, object]] = []
     top_label_rows: list[dict[str, object]] = []
 
-    grouped = obs.groupby(cluster_key, dropna=False)
+    grouped = obs.groupby(cluster_key, dropna=False, observed=False)
     for cluster, group in grouped:
         label_counts = (
             group[predicted_label_key]
