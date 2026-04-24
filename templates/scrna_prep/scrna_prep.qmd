@@ -29,6 +29,7 @@ import importlib.metadata
 import json
 import math
 import platform
+import subprocess
 import sys
 import tomllib
 
@@ -40,6 +41,7 @@ import plotly.graph_objects as go
 import scanpy as sc
 from IPython.display import Markdown, display
 from plotly.subplots import make_subplots
+from scipy import sparse
 from scipy.stats import median_abs_deviation
 from sklearn.metrics import davies_bouldin_score
 
@@ -78,6 +80,14 @@ ORGANISM_ALIASES = {
     "mouse": "mouse",
     "mmusculus": "mouse",
     "mus_musculus": "mouse",
+}
+SUPPORTED_INPUT_FORMATS = {
+    "h5ad",
+    "10x_h5",
+    "10x_mtx",
+    "parsebio",
+    "scalebio",
+    "cellranger_per_sample_outs",
 }
 
 STAGE_ORDER = ["Before filtering", "After filtering"]
@@ -155,7 +165,16 @@ def detect_input_format(path: Path) -> str:
 
 
 def read_optional_metadata(path: Path) -> pd.DataFrame | None:
-    if not path.exists() or path.stat().st_size == 0:
+    if not path.exists():
+        raise RuntimeError(
+            "sample metadata file was not found. "
+            f"Set input.sample_metadata to a CSV file path or restore the default file at: {path}"
+        )
+    if path.is_dir():
+        raise RuntimeError(
+            f"sample metadata must be a CSV file path, not a directory: {path}"
+        )
+    if path.stat().st_size == 0:
         return None
     df = pd.read_csv(path)
     return None if df.empty else df
@@ -191,7 +210,9 @@ def annotate_qc_genes(adata, organism: str) -> None:
     org = ORGANISM_ALIASES.get(organism.lower(), "")
     if org not in QC_PATTERNS:
         raise RuntimeError(
-            "metadata.organism is missing or unsupported. Set --param organism or ensure an upstream template wrote params.organism or params.genome in project.yaml."
+            "metadata.organism is missing or unsupported. "
+            "Set --param organism to one of: human, hsapiens, homo_sapiens, mouse, mmusculus, mus_musculus. "
+            "An upstream template can also provide params.organism or params.genome in project.yaml."
         )
     pats = QC_PATTERNS[org]
     feature_names = resolve_qc_feature_names(adata.var, adata.var_names)
@@ -368,21 +389,63 @@ def read_cellranger_per_sample_outs(data_path: Path):
     return combined
 
 
-def load_input_adata(input_h5ad: str, input_matrix: str, input_format: str, var_names: str):
-    chosen = str(input_matrix).strip() or str(input_h5ad).strip()
-    if not chosen:
+def resolve_input_selection(input_h5ad: str, input_matrix: str, input_format: str) -> tuple[Path, str]:
+    h5ad_value = str(input_h5ad).strip()
+    matrix_value = str(input_matrix).strip()
+    fmt = str(input_format).strip().lower() or "auto"
+
+    if not h5ad_value and not matrix_value:
         raise RuntimeError(
-            "No input matrix was provided. Set input_matrix/input_h5ad or render in a project with nfcore_scrnaseq published outputs."
+            "No input was provided. Set exactly one of input.input_h5ad or input.input_matrix."
+        )
+    if h5ad_value and matrix_value:
+        raise RuntimeError(
+            "Set exactly one of input.input_h5ad or input.input_matrix. "
+            "Use input_h5ad for AnnData .h5ad input and input_matrix for matrix-style inputs."
+        )
+    if fmt != "auto" and fmt not in SUPPORTED_INPUT_FORMATS:
+        raise RuntimeError(
+            "input.input_format must be one of: "
+            "auto, h5ad, 10x_h5, 10x_mtx, parsebio, scalebio, cellranger_per_sample_outs"
         )
 
-    input_path = resolve_path(ROOT, chosen)
-    fmt = str(input_format).strip().lower() or "auto"
-    if fmt == "auto":
-        fmt = detect_input_format(input_path)
-    if fmt not in {"h5ad", "10x_h5", "10x_mtx", "parsebio", "scalebio", "cellranger_per_sample_outs"}:
+    raw_value = h5ad_value or matrix_value
+    input_path = resolve_path(ROOT, raw_value)
+    if not input_path.exists():
+        raise RuntimeError(f"Configured input path does not exist: {input_path}")
+
+    if h5ad_value:
+        if input_path.suffix.lower() != ".h5ad":
+            raise RuntimeError(f"input.input_h5ad must point to a .h5ad file. Received: {input_path}")
+        if fmt not in {"auto", "h5ad"}:
+            raise RuntimeError("Use input.input_format=auto or h5ad when input.input_h5ad is set")
+        return input_path, "h5ad"
+
+    if input_path.suffix.lower() == ".h5ad":
         raise RuntimeError(
-            f"Could not determine input format for '{input_path}'. Set input_format to one of: h5ad, 10x_h5, 10x_mtx, parsebio, scalebio, cellranger_per_sample_outs."
+            "Use input.input_h5ad for AnnData .h5ad input. "
+            f"input.input_matrix received a .h5ad path: {input_path}"
         )
+
+    resolved_format = detect_input_format(input_path) if fmt == "auto" else fmt
+    if resolved_format not in SUPPORTED_INPUT_FORMATS:
+        raise RuntimeError(
+            f"Could not determine input format for '{input_path}'. "
+            "Set input.input_format to one of: 10x_h5, 10x_mtx, parsebio, scalebio, cellranger_per_sample_outs."
+        )
+    if resolved_format in {"h5ad", "10x_h5"} and input_path.is_dir():
+        raise RuntimeError(
+            f"input.input_matrix must be a file path when input.input_format={resolved_format}. Received: {input_path}"
+        )
+    if resolved_format in {"10x_mtx", "parsebio", "scalebio", "cellranger_per_sample_outs"} and not input_path.is_dir():
+        raise RuntimeError(
+            f"input.input_matrix must be a directory when input.input_format={resolved_format}. Received: {input_path}"
+        )
+    return input_path, resolved_format
+
+
+def load_input_adata(input_h5ad: str, input_matrix: str, input_format: str, var_names: str):
+    input_path, fmt = resolve_input_selection(input_h5ad, input_matrix, input_format)
     var_choice = str(var_names).strip() or "gene_symbols"
     if var_choice not in {"gene_symbols", "gene_ids"}:
         raise RuntimeError("input.var_names must be gene_symbols or gene_ids")
@@ -670,6 +733,15 @@ def package_versions_table(packages: list[str]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def command_version(command: list[str]) -> str:
+    try:
+        completed = subprocess.run(command, check=False, capture_output=True, text=True)
+    except FileNotFoundError:
+        return "not installed"
+    output = "\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
+    return output.splitlines()[0] if output else "not installed"
+
+
 def uns_dict_of_lists(df: pd.DataFrame) -> dict[str, list]:
     safe = df.copy()
     for column in safe.columns:
@@ -842,7 +914,8 @@ sample_metadata_path = resolve_path(ROOT, str(cfg["input"]["sample_metadata"]))
 organism = str(cfg["metadata"]["organism"]).strip().lower()
 if not organism:
     raise RuntimeError(
-        "config metadata.organism is empty; set --param organism to a supported value such as human, mouse, hsapiens, or mmusculus"
+        "config metadata.organism is empty; set --param organism to one of: "
+        "human, hsapiens, homo_sapiens, mouse, mmusculus, mus_musculus"
     )
 sample_id_key = str(cfg["metadata"]["sample_id_key"]).strip() or "sample_id"
 batch_key = str(cfg["metadata"]["batch_key"]).strip() or "batch"
@@ -1336,9 +1409,9 @@ session_info_df = pd.concat(
                 "igraph",
                 "leidenalg",
                 "scrublet",
-                "quarto",
             ]
         ),
+        pd.DataFrame([{"package": "quarto", "version": command_version(["quarto", "--version"])}]),
     ],
     ignore_index=True,
 )
@@ -1653,8 +1726,9 @@ if condition_available:
 ### Final Selected Leiden UMAP
 
 This final panel shows the retained object colored by the Leiden clustering
-actually used downstream. It is repeated here after the resolution review so
-the chosen clustering can be checked directly in its final form.
+actually used downstream together with the batch labels on the same final UMAP.
+It is repeated here after the resolution review so the chosen clustering and
+residual batch structure can be checked directly in their final form.
 
 ```{python}
 display(
@@ -1671,6 +1745,15 @@ embedding_plot(
     "X_umap",
     "leiden",
     f"Final UMAP colored by Leiden cluster at resolution {resolved_leiden_resolution:.2f}",
+)
+```
+
+```{python}
+embedding_plot(
+    filtered,
+    "X_umap",
+    batch_key,
+    f"Final UMAP colored by {batch_key} at resolution {resolved_leiden_resolution:.2f}",
 )
 ```
 

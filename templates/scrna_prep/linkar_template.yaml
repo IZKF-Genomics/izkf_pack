@@ -5,20 +5,19 @@ tools:
   required:
     - pixi
     - python3
-    - quarto
 params:
   input_h5ad:
     type: path
     default: ""
-    description: Optional upstream `.h5ad` input. When both `input_h5ad` and `input_matrix` are empty, the run stops with a clear error.
+    description: Use exactly one of `input_h5ad` or `input_matrix`. Choose `input_h5ad` only for an existing AnnData `.h5ad` file with raw counts in `X` or `adata.layers["counts"]`.
   input_matrix:
     type: path
     default: ""
-    description: Optional direct input path for H5AD, Cell Ranger `.h5`, 10x matrix directories, ParseBio outputs, ScaleBio outputs, or Cell Ranger `per_sample_outs`.
+    description: Use exactly one of `input_h5ad` or `input_matrix`. Choose `input_matrix` for matrix-style inputs such as Cell Ranger `.h5`, 10x MTX directories, ParseBio outputs, ScaleBio outputs, or Cell Ranger `per_sample_outs`. Do not use it for `.h5ad`.
   input_source_template:
     type: str
     default: ""
-    description: Optional provenance label recording which upstream template produced the chosen input.
+    description: Optional provenance label only. It is recorded in the report and outputs, but it does not change how the input is loaded.
   ambient_correction_applied:
     type: bool
     default: false
@@ -30,19 +29,19 @@ params:
   input_format:
     type: str
     default: "auto"
-    description: Input format override. Supported values are `auto`, `h5ad`, `10x_h5`, `10x_mtx`, `parsebio`, `scalebio`, and `cellranger_per_sample_outs`.
+    description: Input format override. Keep `auto` for obvious `.h5ad`, `.h5`, and well-formed input directories. Set it explicitly for ambiguous vendor outputs. Supported values are `auto`, `h5ad`, `10x_h5`, `10x_mtx`, `parsebio`, `scalebio`, and `cellranger_per_sample_outs`.
   var_names:
     type: str
     default: "gene_symbols"
-    description: Feature naming choice for matrix-style inputs. Supported values are `gene_symbols` and `gene_ids`. QC gene annotation still requires gene symbols, either as feature names or in a recognized `adata.var` column.
+    description: Feature naming choice for MTX-style inputs. Use `gene_symbols` when possible. Supported values are `gene_symbols` and `gene_ids`. This setting is ignored for `.h5ad` and 10x `.h5` input.
   sample_metadata:
     type: path
     default: ""
-    description: Optional sample metadata CSV with a `sample_id` column. When omitted, the workspace uses `config/samples.csv`.
+    description: Optional sample metadata CSV with a `sample_id` column. Use this when batch, condition, or display labels are not already present in `adata.obs`. Leave it empty to use `assets/samples.csv`.
   organism:
     type: str
     default: ""
-    description: Organism label for QC gene-prefix logic such as `human`, `mouse`, `hsapiens`, or `mmusculus`.
+    description: Required organism alias for QC gene annotation. Supported values are `human`, `hsapiens`, `homo_sapiens`, `mouse`, `mmusculus`, and `mus_musculus`.
   batch_key:
     type: str
     default: "batch"
@@ -58,19 +57,19 @@ params:
   doublet_method:
     type: str
     default: "none"
-    description: Doublet scoring method. Supported values are `none` and `scrublet`.
+    description: Doublet scoring method. Use `none` to skip doublet scoring or `scrublet` to compute predicted doublets before filtering.
   filter_predicted_doublets:
     type: bool
     default: false
-    description: When `doublet_method=scrublet`, remove predicted doublets from the filtered object.
+    description: When `doublet_method=scrublet`, remove predicted doublets from the filtered object. This option requires `doublet_method=scrublet`.
   qc_mode:
     type: str
     default: "fixed"
-    description: QC decision mode. Supported values are `fixed` and `mad_per_sample`.
+    description: QC decision mode. Use `fixed` for explicit thresholds such as `min_genes` and `max_pct_counts_mt`, or `mad_per_sample` for sample-aware outlier filtering.
   qc_nmads:
     type: str
     default: "3.0"
-    description: Number of MADs used for outlier detection when `qc_mode=mad_per_sample`.
+    description: Number of MADs used for outlier detection when `qc_mode=mad_per_sample`. This setting is ignored when `qc_mode=fixed`.
   min_genes:
     type: int
     default: 200
@@ -110,31 +109,29 @@ params:
   leiden_resolution:
     type: str
     default: ""
-    description: Optional Leiden resolution override. When omitted, the notebook chooses a heuristic value after QC.
+    description: Optional Leiden resolution override for the final clustering. When omitted, the notebook chooses a heuristic value after QC.
   resolution_grid:
     type: str
     default: "0.2,0.4,0.6,0.8,1.0,1.2"
-    description: Comma-separated Leiden resolutions to benchmark in the clustering diagnostics section.
+    description: Comma-separated Leiden resolutions to benchmark in the clustering diagnostics section, for example `0.2,0.4,0.6,0.8,1.0`.
 outputs:
   results_dir: {}
   run_info:
-    path: results/run_info.yaml
+    path: run_info.yaml
   software_versions:
-    path: results/software_versions.json
-  config_file:
-    path: config/project.toml
+    path: software_versions.json
   sample_metadata_template:
-    path: assets/samples.csv
+    path: ../assets/samples.csv
   scrna_prep_h5ad:
-    path: results/adata.prep.h5ad
+    path: adata.prep.h5ad
   html_reports:
-    glob: reports/*.html
+    glob: "../reports/*.html"
   h5ad_outputs:
-    glob: results/*.h5ad
+    glob: "*.h5ad"
   tables:
-    glob: results/tables/*.csv
+    glob: "tables/*.csv"
   metadata_json:
-    glob: results/*.json
+    glob: "*.json"
 run:
   mode: render
   entry: run.sh

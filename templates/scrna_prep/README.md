@@ -4,7 +4,7 @@ This template creates an editable `scverse` / `scanpy` preprocessing workspace f
 
 It follows the same Linkar pattern as the other analysis workspaces in this pack:
 
-- `run.sh` is the user-facing launcher
+- `run.sh` is the user-facing launcher and shows the main shell steps explicitly
 - `run.py` contains the runtime orchestration and writes `config/project.toml` plus `results/run_info.yaml`
 - `pixi.toml` defines the local Python/Quarto environment
 - `scrna_prep.qmd` contains the preprocessing and report logic
@@ -18,40 +18,33 @@ It follows the same Linkar pattern as the other analysis workspaces in this pack
 - `config/`: runtime-generated project config
 - `lib/`: reusable Python helpers imported by the notebook
 - `run.py`: main execution logic
-- `run.sh`: thin launcher kept for the Linkar entrypoint
+- `run.sh`: explicit launcher kept for the Linkar entrypoint
 - `test.py`: template-local verification
 
-## Linkar interface
+## Input Model
 
-Important parameters:
+The template accepts exactly one primary input path:
 
 - `input_h5ad`
+  Use this only for an existing AnnData `.h5ad` file.
 - `input_matrix`
-- `input_format`
-- `sample_metadata`
-- `organism`
-- `batch_key`
-- `condition_key`
-- `sample_id_key`
-- `doublet_method`
-- `filter_predicted_doublets`
-- `qc_mode`
-- `qc_nmads`
-- `min_genes`
-- `min_cells`
-- `min_counts`
-- `max_pct_counts_mt`
-- `max_pct_counts_ribo`
-- `max_pct_counts_hb`
-- `n_top_hvgs`
-- `n_pcs`
-- `n_neighbors`
-- `leiden_resolution`
-- `resolution_grid`
+  Use this for matrix-style inputs such as Cell Ranger `.h5`, 10x MTX directories, ParseBio outputs, ScaleBio outputs, or Cell Ranger `per_sample_outs`.
 
-At least one of `input_h5ad` or `input_matrix` must be set before execution, and `organism` must be provided for QC gene annotation.
+Key rules:
 
-When `sample_metadata` is not provided, the template defaults to `assets/samples.csv`.
+- Set exactly one of `input_h5ad` or `input_matrix`.
+- Set `organism` for QC gene annotation.
+- Leave `sample_metadata` empty unless you have a real CSV file to provide.
+- Keep `input_format=auto` for obvious `.h5ad`, `.h5`, or standard output directories.
+- Prefer an explicit `input_format` for vendor-specific or ambiguous directories such as DRAGEN exports.
+
+Parameter behavior:
+
+- `input_source_template`, `ambient_correction_applied`, and `ambient_correction_method` are provenance fields. They are recorded in the report but do not change how the input is read.
+- `var_names` matters for MTX-style inputs. It is ignored for `.h5ad` and 10x `.h5`.
+- `filter_predicted_doublets=true` only makes sense with `doublet_method=scrublet`.
+- `qc_nmads` is only used when `qc_mode=mad_per_sample`.
+- When `sample_metadata` is omitted, the workspace uses `assets/samples.csv`.
 
 With `--binding default`, the pack can resolve these values automatically from the latest recorded `nfcore_scrnaseq` run when present:
 
@@ -60,15 +53,103 @@ With `--binding default`, the pack can resolve these values automatically from t
 - `ambient_correction_applied` and `ambient_correction_method` from the selected matrix filename
 - `organism` from the upstream genome metadata
 
-## Runtime behavior
+## Examples
+
+Minimal `.h5ad` handoff:
+
+```bash
+linkar render scrna_prep \
+  --input-h5ad /path/to/adata.raw_counts.h5ad \
+  --organism mouse
+```
+
+10x / Cell Ranger HDF5:
+
+```bash
+linkar render scrna_prep \
+  --input-matrix /path/to/filtered_feature_bc_matrix.h5 \
+  --input-format 10x_h5 \
+  --organism human
+```
+
+10x MTX directory:
+
+```bash
+linkar render scrna_prep \
+  --input-matrix /path/to/filtered_feature_bc_matrix \
+  --input-format 10x_mtx \
+  --organism human
+```
+
+ParseBio directory:
+
+```bash
+linkar render scrna_prep \
+  --input-matrix /path/to/parsebio_run \
+  --input-format parsebio \
+  --organism mouse
+```
+
+ScaleBio or STARsolo-style MTX directory:
+
+```bash
+linkar render scrna_prep \
+  --input-matrix /path/to/scalebio_counts \
+  --input-format scalebio \
+  --organism mouse \
+  --var-names gene_symbols
+```
+
+Cell Ranger `per_sample_outs` directory:
+
+```bash
+linkar render scrna_prep \
+  --input-matrix /path/to/per_sample_outs \
+  --input-format cellranger_per_sample_outs \
+  --organism human
+```
+
+Optional sample metadata CSV:
+
+```bash
+linkar render scrna_prep \
+  --input-matrix /path/to/filtered_feature_bc_matrix.h5 \
+  --input-format 10x_h5 \
+  --sample-metadata /path/to/sample_metadata.csv \
+  --organism human
+```
+
+Automatic handoff from `nfcore_scrnaseq` with default binding:
+
+```bash
+linkar render scrna_prep --binding default
+```
+
+The binding case works best when an upstream `nfcore_scrnaseq` run already published `selected_matrix_h5ad` and organism metadata.
+
+## Input-Specific Notes
+
+For `.h5ad` input, the workspace expects raw counts. If the object stores normalized values in `X`, provide raw counts in `adata.layers["counts"]` before running the template.
+
+For 10x `.h5` input, `scanpy.read_10x_h5()` defines the feature names, so `var_names` has no effect.
+
+For MTX-style inputs, use `var_names=gene_symbols` when possible. QC gene annotation still requires gene symbols, either as feature names or in a recognized `adata.var` column such as `gene_symbols` or `gene_name`.
+
+DRAGEN-produced count matrices can be passed to this template directly without running `nfcore_scrnaseq` first. For vendor-processed Illumina Single Cell 3' RNA Prep projects, prefer explicit `input_format` values such as `10x_h5` or `10x_mtx` instead of relying on `auto`.
+
+Current limitation: QC gene-prefix annotation in this template is implemented for human and mouse aliases only. Handoffs from upstream genomes such as zebrafish (`drerio` / `GRCz11`) can still supply the expression matrix, but the QC report may require a small template update before gene-family labeling works cleanly for that organism.
+
+## Runtime Behavior
 
 The launcher [run.sh](run.sh):
 
 - creates the runtime config under `config/project.toml`
 - records resolved parameters in `results/run_info.yaml`
-- installs the template-local Pixi environment
-- renders [scrna_prep.qmd](scrna_prep.qmd) to HTML
+- runs `pixi install`
+- runs `pixi run quarto render scrna_prep.qmd --to html --output-dir reports --no-clean`
 - writes `results/software_versions.json`
+
+Internally, [run.py](run.py) supports `--prepare-only` so the shell launcher can show the execution steps explicitly while still centralizing validation and runtime config generation in Python.
 
 The notebook supports:
 
@@ -81,22 +162,6 @@ The notebook supports:
 - optional Scrublet-based doublet scoring
 - PCA, neighbors, UMAP, Leiden clustering, and resolution benchmarking
 
-DRAGEN-produced count matrices can be passed to this template directly without
-running `nfcore_scrnaseq` first. For vendor-processed Illumina Single Cell 3'
-RNA Prep projects, prefer explicit `input_format` values such as `10x_h5` or
-`10x_mtx` instead of relying on `auto` detection when pointing `input_matrix`
-to the DRAGEN output.
-
-For `.h5ad` input, the workspace expects raw counts. If the object stores normalized values in `X`, provide raw counts in `adata.layers["counts"]` before running the template.
-
-QC gene annotation expects gene symbols for mitochondrial / ribosomal / hemoglobin labeling. When using `var_names=gene_ids`, keep gene symbols available in a recognized `adata.var` column such as `gene_symbols` or `gene_name`.
-
-Current limitation: QC gene-prefix annotation in this template is implemented
-for human and mouse aliases only. Handoffs from upstream genomes such as
-zebrafish (`drerio` / `GRCz11`) can still supply the expression matrix, but the
-QC report may require a small template update before gene-family labeling works
-cleanly for that organism.
-
 ## Outputs
 
 - `results/adata.prep.h5ad`
@@ -105,7 +170,7 @@ cleanly for that organism.
 - `results/software_versions.json`
 - `reports/scrna_prep.html`
 
-## Test command
+## Test Command
 
 ```bash
 cd templates/scrna_prep

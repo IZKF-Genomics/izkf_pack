@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import os
 import subprocess
 from pathlib import Path
@@ -18,6 +19,31 @@ NOTEBOOK_PATH = TEMPLATE_DIR / "scrna_prep.qmd"
 SOFTWARE_VERSIONS_SPEC = TEMPLATE_DIR / "assets" / "software_versions_spec.yaml"
 PROJECT_CONFIG_PATH = CONFIG_DIR / "project.toml"
 RUN_INFO_PATH = RESULTS_DIR / "run_info.yaml"
+SUPPORTED_ORGANISM_ALIASES = {
+    "human": "human",
+    "hsapiens": "human",
+    "homo_sapiens": "human",
+    "mouse": "mouse",
+    "mmusculus": "mouse",
+    "mus_musculus": "mouse",
+}
+SUPPORTED_ORGANISM_HELP = ", ".join(SUPPORTED_ORGANISM_ALIASES)
+SUPPORTED_INPUT_FORMATS = (
+    "auto",
+    "h5ad",
+    "10x_h5",
+    "10x_mtx",
+    "parsebio",
+    "scalebio",
+    "cellranger_per_sample_outs",
+)
+SUPPORTED_MATRIX_INPUT_FORMATS = tuple(fmt for fmt in SUPPORTED_INPUT_FORMATS if fmt not in {"auto", "h5ad"})
+SUPPORTED_INPUT_FORMAT_HELP = ", ".join(SUPPORTED_INPUT_FORMATS)
+SUPPORTED_MATRIX_INPUT_FORMAT_HELP = ", ".join(SUPPORTED_MATRIX_INPUT_FORMATS)
+SUPPORTED_VAR_NAME_CHOICES = ("gene_symbols", "gene_ids")
+SUPPORTED_VAR_NAME_HELP = ", ".join(SUPPORTED_VAR_NAME_CHOICES)
+SUPPORTED_DOUBLET_METHODS = ("none", "scrublet")
+SUPPORTED_QC_MODES = ("fixed", "mad_per_sample")
 
 
 def env(name: str, default: str = "") -> str:
@@ -31,6 +57,81 @@ def parse_bool(value: str) -> bool:
 def toml_string(value: str) -> str:
     escaped = value.replace("\\", "\\\\").replace('"', '\\"')
     return f'"{escaped}"'
+
+
+def resolve_runtime_path(value: str) -> Path:
+    path = Path(value).expanduser()
+    return path if path.is_absolute() else (TEMPLATE_DIR / path).resolve()
+
+
+def first_existing(*paths: Path) -> Path | None:
+    for candidate in paths:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def detect_input_format(path: Path) -> str:
+    if path.is_dir():
+        if path.name == "per_sample_outs":
+            for child in sorted(path.iterdir()):
+                if not child.is_dir():
+                    continue
+                count_dir = child / "count"
+                if first_existing(
+                    count_dir / "sample_filtered_feature_bc_matrix.h5",
+                    count_dir / "sample_raw_feature_bc_matrix.h5",
+                ):
+                    return "cellranger_per_sample_outs"
+        if first_existing(path / "count_matrix.mtx", path / "count_matrix.mtx.gz") and first_existing(
+            path / "all_genes.csv", path / "all_genes.csv.gz"
+        ):
+            return "parsebio"
+        if first_existing(path / "matrix.mtx", path / "matrix.mtx.gz") and first_existing(
+            path / "features.tsv", path / "features.tsv.gz"
+        ) and (
+            "scalebio" in path.as_posix().lower()
+            or "starsolo" in path.as_posix().lower()
+        ):
+            return "scalebio"
+        if first_existing(path / "matrix.mtx", path / "matrix.mtx.gz") and first_existing(
+            path / "features.tsv", path / "features.tsv.gz"
+        ):
+            return "10x_mtx"
+        return ""
+    lower = path.name.lower()
+    if lower.endswith(".h5ad"):
+        return "h5ad"
+    if lower.endswith(".h5"):
+        return "10x_h5"
+    return ""
+
+
+def require_int(name: str, raw: str, *, minimum: int = 0) -> None:
+    try:
+        value = int(str(raw).strip())
+    except ValueError as exc:
+        raise SystemExit(f"Set {name} to an integer value. Received: {raw}.") from exc
+    if value < minimum:
+        comparator = f"at least {minimum}"
+        raise SystemExit(f"Set {name} to an integer value of {comparator}. Received: {value}.")
+
+
+def require_float(name: str, raw: str, *, minimum: float | None = None, maximum: float | None = None) -> None:
+    try:
+        value = float(str(raw).strip())
+    except ValueError as exc:
+        raise SystemExit(f"Set {name} to a numeric value. Received: {raw}.") from exc
+    if minimum is not None and value < minimum:
+        raise SystemExit(f"Set {name} to a numeric value >= {minimum}. Received: {value}.")
+    if maximum is not None and value > maximum:
+        raise SystemExit(f"Set {name} to a numeric value <= {maximum}. Received: {value}.")
+
+
+def require_optional_percent(name: str, raw: str) -> None:
+    if not str(raw).strip():
+        return
+    require_float(name, raw, minimum=0.0, maximum=100.0)
 
 
 def resolved_params() -> dict[str, str]:
@@ -66,10 +167,124 @@ def resolved_params() -> dict[str, str]:
 
 
 def validate_params(params: dict[str, str]) -> None:
-    if not params["input_h5ad"].strip() and not params["input_matrix"].strip():
-        raise SystemExit("Set either INPUT_H5AD or INPUT_MATRIX before running scrna_prep.")
-    if not params["organism"].strip():
-        raise SystemExit("Set ORGANISM to a supported value such as human, mouse, hsapiens, or mmusculus.")
+    input_h5ad = params["input_h5ad"].strip()
+    input_matrix = params["input_matrix"].strip()
+    input_format = params["input_format"].strip().lower() or "auto"
+    var_names = params["var_names"].strip() or "gene_symbols"
+    doublet_method = params["doublet_method"].strip().lower() or "none"
+    qc_mode = params["qc_mode"].strip().lower() or "fixed"
+
+    if not input_h5ad and not input_matrix:
+        raise SystemExit(
+            "Set INPUT_H5AD or INPUT_MATRIX before running scrna_prep. "
+            "For example, pass --input-h5ad /path/to/input.h5ad or --input-matrix /path/to/matrix_dir."
+        )
+    if input_h5ad and input_matrix:
+        raise SystemExit(
+            "Set only one of INPUT_H5AD or INPUT_MATRIX before running scrna_prep. "
+            "Use INPUT_H5AD for AnnData .h5ad input and INPUT_MATRIX for matrix-style inputs such as "
+            "Cell Ranger .h5, 10x MTX directories, ParseBio, ScaleBio, or per_sample_outs."
+        )
+    if input_format not in SUPPORTED_INPUT_FORMATS:
+        raise SystemExit(
+            f"Set INPUT_FORMAT to one of: {SUPPORTED_INPUT_FORMAT_HELP}. Received: {params['input_format'].strip() or '<empty>'}."
+        )
+    if var_names not in SUPPORTED_VAR_NAME_CHOICES:
+        raise SystemExit(
+            f"Set VAR_NAMES to one of: {SUPPORTED_VAR_NAME_HELP}. Received: {params['var_names'].strip() or '<empty>'}."
+        )
+
+    chosen_name = "INPUT_H5AD" if input_h5ad else "INPUT_MATRIX"
+    chosen_value = input_h5ad or input_matrix
+    chosen_path = resolve_runtime_path(chosen_value)
+    if not chosen_path.exists():
+        raise SystemExit(f"{chosen_name} does not exist: {chosen_path}.")
+
+    detected_format = detect_input_format(chosen_path)
+    if input_h5ad:
+        if chosen_path.suffix.lower() != ".h5ad":
+            raise SystemExit(f"INPUT_H5AD must point to a .h5ad file. Received: {chosen_path}.")
+        if input_format not in {"auto", "h5ad"}:
+            raise SystemExit(
+                f"Use INPUT_FORMAT=auto or h5ad when INPUT_H5AD is set. Received: {input_format}."
+            )
+    else:
+        if chosen_path.suffix.lower() == ".h5ad":
+            raise SystemExit(
+                "Use INPUT_H5AD for AnnData .h5ad input. "
+                f"INPUT_MATRIX received a .h5ad path: {chosen_path}."
+            )
+        if input_format == "h5ad":
+            raise SystemExit("Use INPUT_H5AD for .h5ad input. INPUT_MATRIX cannot be combined with INPUT_FORMAT=h5ad.")
+        if input_format == "auto" and not detected_format:
+            raise SystemExit(
+                "Could not determine INPUT_FORMAT for INPUT_MATRIX automatically. "
+                f"Path: {chosen_path}. Set INPUT_FORMAT to one of: {SUPPORTED_MATRIX_INPUT_FORMAT_HELP}."
+            )
+
+    resolved_input_format = input_format if input_format != "auto" else detected_format
+    if resolved_input_format in {"h5ad", "10x_h5"} and chosen_path.is_dir():
+        raise SystemExit(
+            f"{chosen_name} points to a directory, but INPUT_FORMAT={resolved_input_format} expects a file path. "
+            f"Received: {chosen_path}."
+        )
+    if resolved_input_format in {"10x_mtx", "parsebio", "scalebio", "cellranger_per_sample_outs"} and not chosen_path.is_dir():
+        raise SystemExit(
+            f"{chosen_name} points to a file, but INPUT_FORMAT={resolved_input_format} expects a directory. "
+            f"Received: {chosen_path}."
+        )
+
+    organism = params["organism"].strip().lower()
+    if not organism:
+        raise SystemExit(
+            "Set ORGANISM to a supported alias for QC gene annotation before running scrna_prep. "
+            f"Supported values: {SUPPORTED_ORGANISM_HELP}."
+        )
+    if organism not in SUPPORTED_ORGANISM_ALIASES:
+        raise SystemExit(
+            "Set ORGANISM to a supported alias for QC gene annotation before running scrna_prep. "
+            f"Supported values: {SUPPORTED_ORGANISM_HELP}. Received: {params['organism'].strip()}."
+        )
+    sample_metadata = params["sample_metadata"].strip()
+    if sample_metadata:
+        sample_metadata_path = resolve_runtime_path(sample_metadata)
+        if not sample_metadata_path.exists():
+            raise SystemExit(
+                "SAMPLE_METADATA does not exist. Set SAMPLE_METADATA to a CSV file path or leave it empty "
+                f"to use assets/samples.csv. Missing path: {sample_metadata_path}."
+            )
+        if sample_metadata_path.is_dir():
+            raise SystemExit(
+                "Set SAMPLE_METADATA to a CSV file path, not a directory. "
+                f"Received directory: {sample_metadata_path.resolve()}."
+            )
+    if doublet_method not in SUPPORTED_DOUBLET_METHODS:
+        raise SystemExit(
+            f"Set DOUBLET_METHOD to one of: {', '.join(SUPPORTED_DOUBLET_METHODS)}. Received: {params['doublet_method'].strip() or '<empty>'}."
+        )
+    if parse_bool(params["filter_predicted_doublets"]) and doublet_method != "scrublet":
+        raise SystemExit(
+            "FILTER_PREDICTED_DOUBLETS requires DOUBLET_METHOD=scrublet so predicted doublets are available."
+        )
+    if qc_mode not in SUPPORTED_QC_MODES:
+        raise SystemExit(f"Set QC_MODE to one of: {', '.join(SUPPORTED_QC_MODES)}. Received: {params['qc_mode'].strip() or '<empty>'}.")
+
+    require_float("QC_NMADS", params["qc_nmads"], minimum=0.1)
+    require_int("MIN_GENES", params["min_genes"], minimum=0)
+    require_int("MIN_CELLS", params["min_cells"], minimum=1)
+    require_int("MIN_COUNTS", params["min_counts"], minimum=0)
+    require_float("MAX_PCT_COUNTS_MT", params["max_pct_counts_mt"], minimum=0.0, maximum=100.0)
+    require_optional_percent("MAX_PCT_COUNTS_RIBO", params["max_pct_counts_ribo"])
+    require_optional_percent("MAX_PCT_COUNTS_HB", params["max_pct_counts_hb"])
+    require_int("N_TOP_HVGS", params["n_top_hvgs"], minimum=1)
+    require_int("N_PCS", params["n_pcs"], minimum=1)
+    require_int("N_NEIGHBORS", params["n_neighbors"], minimum=1)
+    if params["leiden_resolution"].strip():
+        require_float("LEIDEN_RESOLUTION", params["leiden_resolution"], minimum=0.000001)
+    for part in str(params["resolution_grid"]).split(","):
+        if not part.strip():
+            continue
+        require_float("RESOLUTION_GRID", part.strip(), minimum=0.000001)
 
 
 def write_project_config(path: Path, params: dict[str, str], *, project_name: str, sample_metadata: str) -> None:
@@ -165,7 +380,18 @@ def run_command(cmd: list[str]) -> None:
     subprocess.run(cmd, cwd=TEMPLATE_DIR, check=True)
 
 
-def main() -> int:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Prepare and optionally run the scrna_prep workspace.")
+    parser.add_argument(
+        "--prepare-only",
+        action="store_true",
+        help="Validate inputs and write runtime config files without running pixi or Quarto.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
     params = resolved_params()
     validate_params(params)
 
@@ -178,6 +404,9 @@ def main() -> int:
 
     write_project_config(PROJECT_CONFIG_PATH, params, project_name=project_name, sample_metadata=sample_metadata)
     write_run_info(RUN_INFO_PATH, params, project_name=project_name, sample_metadata=sample_metadata)
+
+    if args.prepare_only:
+        return 0
 
     run_command(["pixi", "install"])
     run_command(
