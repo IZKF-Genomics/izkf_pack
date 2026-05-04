@@ -166,7 +166,7 @@ def resolve_input_path(raw: str | Path, run_dir: Path, default_host: str) -> tup
     return host, candidate
 
 
-def load_linkar_outputs(run_dir: Path) -> dict[str, object]:
+def load_linkar_meta(run_dir: Path) -> dict[str, object]:
     meta_path = run_dir / ".linkar" / "meta.json"
     if not meta_path.exists():
         return {}
@@ -174,8 +174,19 @@ def load_linkar_outputs(run_dir: Path) -> dict[str, object]:
         payload = json.loads(meta_path.read_text(encoding="utf-8"))
     except Exception:
         return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def load_linkar_outputs(run_dir: Path) -> dict[str, object]:
+    payload = load_linkar_meta(run_dir)
     outputs = payload.get("outputs")
     return outputs if isinstance(outputs, dict) else {}
+
+
+def load_linkar_params(run_dir: Path) -> dict[str, object]:
+    payload = load_linkar_meta(run_dir)
+    params = payload.get("params")
+    return params if isinstance(params, dict) else {}
 
 
 def load_output_contract(run_dir: Path) -> dict[str, object]:
@@ -243,6 +254,20 @@ def resolve_first_existing_input(
     if first_resolved is None:
         return default_host, run_dir
     return first_resolved
+
+
+def path_points_to_run_dir(value: object, run_dir: Path) -> bool:
+    raw = str(value or "").strip()
+    if not raw:
+        return False
+    _host, path = split_hostpath(raw, "")
+    candidate = Path(path)
+    if not candidate.is_absolute():
+        candidate = (run_dir / candidate).resolve()
+    try:
+        return candidate.resolve() == run_dir.resolve()
+    except OSError:
+        return candidate.absolute() == run_dir.absolute()
 
 
 def auto_link_name(path: str, dest: str) -> str:
@@ -430,13 +455,27 @@ def main() -> int:
         raise SystemExit(f"run_dir not found or not a directory: {run_dir}")
 
     project_name = args.project_name.strip() or default_project_name(run_dir)
-    sample_project = args.sample_project.strip()
     host_default = os.uname().nodename.split(".")[0]
     linkar_outputs = load_linkar_outputs(run_dir)
+    linkar_params = load_linkar_params(run_dir)
     contract_outputs = load_output_contract(run_dir)
+    sample_project = args.sample_project.strip() or str(linkar_params.get("sample_project") or "").strip()
+    adopted_project_run = bool(sample_project) and path_points_to_run_dir(
+        linkar_outputs.get("output_dir"), run_dir
+    )
 
     if args.fastq_dir.strip():
         fastq_host, fastq_dir = resolve_input_path(args.fastq_dir.strip(), run_dir, host_default)
+    elif sample_project and adopted_project_run:
+        fastq_host, fastq_dir = resolve_first_existing_input(
+            [
+                linkar_outputs.get("output_dir"),
+                derive_parent_from_file_outputs(linkar_outputs.get("demux_fastq_files")),
+                run_dir,
+            ],
+            run_dir,
+            host_default,
+        )
     elif sample_project:
         fastq_host, fastq_dir = resolve_first_existing_input(
             [
@@ -460,6 +499,15 @@ def main() -> int:
 
     if args.multiqc_report.strip():
         multiqc_host, multiqc_report = resolve_input_path(args.multiqc_report.strip(), run_dir, host_default)
+    elif sample_project and adopted_project_run:
+        multiqc_host, multiqc_report = resolve_first_existing_input(
+            [
+                linkar_outputs.get("multiqc_report"),
+                run_dir / "qc" / "multiqc" / "multiqc_report.html",
+            ],
+            run_dir,
+            host_default,
+        )
     elif sample_project:
         multiqc_host, multiqc_report = resolve_first_existing_input(
             [

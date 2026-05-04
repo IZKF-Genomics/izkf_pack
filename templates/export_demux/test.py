@@ -178,6 +178,57 @@ def main() -> int:
         assert project_spec["export_list"][0]["dest"] == "1_Raw_data/Project_A"
         assert project_spec["export_list"][1]["src"] == str(project_multiqc_report.resolve())
 
+        (project_output_dir / ".linkar").mkdir()
+        (project_output_dir / ".linkar" / "meta.json").write_text(
+            json.dumps(
+                {
+                    "params": {"sample_project": "Project_A"},
+                    "outputs": {
+                        "demux_fastq_files": [str(project_output_dir / "project_sample.fastq.gz")],
+                        "output_dir": str(project_output_dir),
+                        "multiqc_report": str(project_multiqc_report),
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        (project_output_dir / "template_outputs.json").write_text(
+            json.dumps(
+                {
+                    "outputs": {
+                        "demux_fastq_files": [str(project_output_dir / "project_sample.fastq.gz")],
+                        "output_dir": str(project_output_dir),
+                        "multiqc_report": str(project_multiqc_report),
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        adopted_project_dry = subprocess.run(
+            [
+                "python3",
+                str(TEMPLATE_DIR / "run.py"),
+                "--results-dir",
+                str(results_dir),
+                "--run-dir",
+                str(project_output_dir),
+                "--project-name",
+                "Project_A_adopted_fastq_export",
+                "--dry-run",
+                "true",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert "Dry Run" in adopted_project_dry.stdout
+        adopted_latest = project_output_dir / ".linkar" / "export_demux" / "latest"
+        adopted_project_spec = json.loads((adopted_latest / "export_job_spec.json").read_text(encoding="utf-8"))
+        assert adopted_project_spec["project_name"] == "Project_A_adopted_fastq_export"
+        assert adopted_project_spec["export_list"][0]["src"] == str(project_output_dir.resolve())
+        assert adopted_project_spec["export_list"][0]["dest"] == "1_Raw_data/Project_A"
+        assert adopted_project_spec["export_list"][1]["src"] == str(project_multiqc_report.resolve())
+
         server = HTTPServer(("127.0.0.1", 0), Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()

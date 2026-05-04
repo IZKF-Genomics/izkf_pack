@@ -36,6 +36,17 @@ linkar run export_demux \
   --verbose
 ```
 
+If you already adopted one project folder with `linkar project init --adopt`, pass that project
+folder as `run_dir`. In that case `sample_project` is read from the adopted `.linkar/meta.json`, so
+you do not need to repeat it:
+
+```bash
+linkar run export_demux \
+  --run-dir /path/to/processed_runs/example_run/results/output/Project_A \
+  --project-name Project_A_fastq_export \
+  --verbose
+```
+
 ## Canonical metadata
 
 After a successful run, these files are written under:

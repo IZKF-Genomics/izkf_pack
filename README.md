@@ -153,6 +153,15 @@ linkar run export_demux \
   --verbose
 ```
 
+After adopting a single `Sample_Project` folder, export can use the adopted folder directly:
+
+```bash
+linkar run export_demux \
+  --run-dir /path/to/processed_runs/example_run/results/output/Project_A \
+  --project-name Project_A_fastq_export \
+  --verbose
+```
+
 ### Run nf-core RNA-seq Processing for 3' mRNA-seq
 
 After finishing demultiplexing, create a project and adopt the processed run:
