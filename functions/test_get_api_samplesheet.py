@@ -15,6 +15,8 @@ assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
+EXPECTED_FLOWCELL_API_BASE = "https://genomics.rwth-aachen.de/api/get/samples/flowcell/"
+
 
 def make_ctx(template_root: Path, **resolved_params: object) -> SimpleNamespace:
     return SimpleNamespace(
@@ -38,6 +40,25 @@ def main() -> None:
 
             ctx = make_ctx(tmpdir, samplesheet="", use_api_samplesheet=False)
             assert MODULE.resolve(ctx) == str(fallback.resolve())
+            assert MODULE.API_BASE_FLOWCELL == EXPECTED_FLOWCELL_API_BASE
+
+            ctx = make_ctx(
+                tmpdir,
+                bcl_dir="/data/run/260407_NB501289_0992_AHLHGVBGYX",
+                flowcell_id="HLHGVBGYX",
+                use_api_samplesheet=True,
+            )
+            MODULE._build_auth_header = lambda: "Basic token"
+            calls: list[str] = []
+
+            def fetch_flowcell_only(url: str, auth_header: str) -> bytes:
+                calls.append(url)
+                return b"api-flowcell\n"
+
+            MODULE._fetch = fetch_flowcell_only
+            resolved = Path(MODULE.resolve(ctx))
+            assert resolved.read_text(encoding="utf-8") == "api-flowcell\n"
+            assert calls == [f"{EXPECTED_FLOWCELL_API_BASE}HLHGVBGYX"]
 
             ctx = make_ctx(
                 tmpdir,
@@ -46,7 +67,7 @@ def main() -> None:
                 use_api_samplesheet=True,
             )
             MODULE._build_auth_header = lambda: "Basic token"
-            calls: list[str] = []
+            calls = []
 
             def fetch_with_flowcell_404(url: str, auth_header: str) -> bytes:
                 calls.append(url)
@@ -58,7 +79,7 @@ def main() -> None:
             resolved = Path(MODULE.resolve(ctx))
             assert resolved.read_text(encoding="utf-8") == "api-request\n"
             assert len(calls) == 2
-            assert "flowcell/HLHGVBGYX" in calls[0]
+            assert calls[0] == f"{EXPECTED_FLOWCELL_API_BASE}HLHGVBGYX"
             assert "request/5616" in calls[1]
 
             ctx = make_ctx(

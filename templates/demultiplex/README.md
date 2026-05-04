@@ -6,7 +6,7 @@ instead of vendoring a snapshot into the pack.
 ## Upstream source
 
 - repo: `https://github.com/MoSafi2/demultiplexing_prefect`
-- pinned commit: `de60c1993bccb90d4ffd21ca30b5919b34adc888`
+- pinned commit: `b388e6b94a03c65364d8df85044a89335e4b39e3`
 
 Each rendered or executed run clones the upstream repository into the run directory, checks out the
 pinned commit above, and launches the pipeline from that staged checkout.
@@ -55,7 +55,7 @@ The template keeps the execution logic in a standalone [run.sh](run.sh):
 
 ```bash
 git clone --depth 1 https://github.com/MoSafi2/demultiplexing_prefect ./demultiplexing_prefect
-git -C ./demultiplexing_prefect checkout de60c1993bccb90d4ffd21ca30b5919b34adc888
+git -C ./demultiplexing_prefect checkout b388e6b94a03c65364d8df85044a89335e4b39e3
 cd ./demultiplexing_prefect
 pixi run demux-pipeline ...
 ```
@@ -72,11 +72,21 @@ sample-project subdirectories match the surrounding output directories.
 When you run with `--binding default`, `samplesheet` resolves in this order:
 
 1. explicit `--samplesheet`
-2. facility API lookup using `GF_API_NAME` and `GF_API_PASS`
-3. bundled template fallback [samplesheet.csv](samplesheet.csv) if the API lookup is unavailable or returns no record
+2. facility API lookup by `--flowcell-id` when provided, or by a flowcell id derived from `--bcl-dir`
+3. optional Agendo request-id fallback by `--agendo-id` only when the flowcell lookup returns 404
+4. bundled template fallback [samplesheet.csv](samplesheet.csv) if the API lookup is unavailable or returns no record
 
 That fallback file is only a generic placeholder. It is useful as a last-resort file default, but
 it may not be correct for a real sequencing run.
+
+Flowcell-only API lookup does not require `--agendo-id`:
+
+```bash
+linkar render demultiplex \
+  --binding default \
+  --bcl-dir /data/bcl/260407_NB501289_0992_AHLHGVBGYX \
+  --flowcell-id HLHGVBGYX
+```
 
 ## Test commands
 

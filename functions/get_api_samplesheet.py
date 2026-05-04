@@ -10,7 +10,7 @@ from urllib.request import Request, urlopen
 
 API_BASE_FLOWCELL = os.environ.get(
     "GF_API_BASE_FLOWCELL",
-    "https://genomics.rwth-aachen.de/api/get/samplesheet/flowcell/",
+    "https://genomics.rwth-aachen.de/api/get/samples/flowcell/",
 )
 API_BASE_REQUEST = os.environ.get(
     "GF_API_BASE_REQUEST",

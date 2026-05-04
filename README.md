@@ -109,8 +109,7 @@ Inspect first, then execute manually:
 cd /path/to/processed_runs/
 
 linkar render demultiplex \
-  --bcl-dir /path/to/raw_runs/example_run \
-  --agendo-id EXAMPLE_REQUEST_ID
+  --bcl-dir /path/to/raw_runs/example_run
 
 cd example_run
 bash run.sh
@@ -125,11 +124,15 @@ cd /path/to/processed_runs/
 
 linkar run demultiplex \
   --bcl-dir /path/to/raw_runs/example_run \
-  --agendo-id EXAMPLE_REQUEST_ID \
   --verbose
 ```
 
 `linkar run` includes render, execution, output collection, and `.linkar` metadata writing in one command. When it runs inside an active Linkar project, it also records the run in `project.yaml`.
+
+With the default binding, demultiplex samplesheets are resolved from the facility API by flowcell.
+In normal run folders the flowcell id is derived from the BCL folder name, so `--flowcell-id` and
+`--agendo-id` are usually unnecessary. Pass `--flowcell-id` only for unusual folder names, and
+`--agendo-id` only as a request-id fallback when flowcell lookup is unavailable.
 
 Export an ad hoc demultiplexing run:
 

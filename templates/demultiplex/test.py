@@ -218,7 +218,7 @@ def main() -> None:
         assert (tmpdir / "demultiplexing_prefect" / "demux_pipeline" / "__init__.py").exists()
         assert (
             tmpdir / "demultiplexing_prefect" / "CHECKED_OUT_COMMIT.txt"
-        ).read_text(encoding="utf-8").strip() == "commit=de60c1993bccb90d4ffd21ca30b5919b34adc888"
+        ).read_text(encoding="utf-8").strip() == "commit=b388e6b94a03c65364d8df85044a89335e4b39e3"
         assert (
             tmpdir / "demultiplexing_prefect" / "CLONED_FROM.txt"
         ).read_text(encoding="utf-8").strip() == "repo=https://github.com/MoSafi2/demultiplexing_prefect"
