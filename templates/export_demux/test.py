@@ -83,6 +83,7 @@ def main() -> int:
         (run_dir / ".linkar").mkdir(parents=True)
         actual_output_dir = run_dir / "results" / "output"
         project_output_dir = actual_output_dir / "Project_A"
+        project_b_output_dir = actual_output_dir / "Project_B"
         actual_multiqc_report = run_dir / "results" / "multiqc" / "multiqc_report.html"
         project_multiqc_report = (
             project_output_dir / "qc" / "multiqc" / "multiqc_report.html"
@@ -92,6 +93,8 @@ def main() -> int:
         (actual_output_dir / "sample.fastq.gz").write_text("fq\n", encoding="utf-8")
         project_output_dir.mkdir(parents=True)
         (project_output_dir / "project_sample.fastq.gz").write_text("fq\n", encoding="utf-8")
+        project_b_output_dir.mkdir(parents=True)
+        (project_b_output_dir / "project_b_sample.fastq.gz").write_text("fq\n", encoding="utf-8")
         project_multiqc_report.parent.mkdir(parents=True)
         project_multiqc_report.write_text("<html>project</html>\n", encoding="utf-8")
         actual_multiqc_report.write_text("<html></html>\n", encoding="utf-8")
@@ -112,6 +115,7 @@ def main() -> int:
                 {
                     "outputs": {
                         "demux_fastq_files": [str(actual_output_dir / "sample.fastq.gz")],
+                        "output_dir": str(actual_output_dir),
                         "multiqc_report": str(actual_multiqc_report),
                     }
                 }
@@ -144,6 +148,7 @@ def main() -> int:
         assert dry_spec["authors"] == ["CKuo, IZKF"]
         assert dry_spec["export_list"][0]["project"] == dry_spec["project_name"]
         assert dry_spec["export_list"][0]["src"] == str(actual_output_dir.resolve())
+        assert dry_spec["export_list"][0]["dest"] == "1_Raw_data/FASTQ"
         assert dry_spec["export_list"][1]["src"] == str(actual_multiqc_report.resolve())
         assert not (results_dir / "export_demux_summary.json").exists()
 
@@ -170,6 +175,7 @@ def main() -> int:
         project_spec = json.loads((latest / "export_job_spec.json").read_text(encoding="utf-8"))
         assert project_spec["project_name"] == "Project_A_fastq_export"
         assert project_spec["export_list"][0]["src"] == str(project_output_dir.resolve())
+        assert project_spec["export_list"][0]["dest"] == "1_Raw_data/Project_A"
         assert project_spec["export_list"][1]["src"] == str(project_multiqc_report.resolve())
 
         server = HTTPServer(("127.0.0.1", 0), Handler)

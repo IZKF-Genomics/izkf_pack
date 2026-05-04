@@ -216,6 +216,11 @@ def main() -> None:
         assert (results_dir / "output" / "sample_project" / "qc" / "multiqc" / "multiqc_report.html").exists()
         assert (results_dir / "multiqc" / "multiqc_report.html").exists()
         assert (results_dir / "samples.tsv").exists()
+        project_view = results_dir / "project_views" / "sample_project"
+        assert (project_view / ".linkar" / "meta.json").exists()
+        assert (project_view / "results" / "output").is_symlink()
+        assert (project_view / "results" / "qc").is_symlink()
+        assert (project_view / "results" / "multiqc").is_symlink()
 
         contract = json.loads((results_dir / "template_outputs.json").read_text(encoding="utf-8"))
         assert contract["outputs"]["contamination_dir"] is None
@@ -228,6 +233,16 @@ def main() -> None:
         assert contract["outputs"]["project_multiqc_reports"] == {
             "sample_project": str(results_dir / "output" / "sample_project" / "qc" / "multiqc" / "multiqc_report.html")
         }
+        view_meta = json.loads((project_view / ".linkar" / "meta.json").read_text(encoding="utf-8"))
+        assert view_meta["template"] == "demultiplex"
+        assert view_meta["params"]["sample_project"] == "sample_project"
+        assert view_meta["outputs"]["output_dir"] == str((project_view / "results" / "output").resolve())
+        assert view_meta["outputs"]["demux_fastq_files"] == [
+            str((project_view / "results" / "output" / "sample_R1.fastq.gz").resolve())
+        ]
+        assert view_meta["outputs"]["multiqc_report"] == str(
+            (project_view / "results" / "multiqc" / "multiqc_report.html").resolve()
+        )
         versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
         versions = {entry["name"]: entry for entry in versions_payload["software"]}
         assert list(versions) == ["bcl-convert"]
@@ -245,12 +260,14 @@ def main() -> None:
         assert 'entry: run.sh' in template_yaml
         assert 'git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"' in template_run_sh
         assert 'git -C "${upstream_repo_dir}" checkout "${upstream_commit}"' in template_run_sh
+        assert 'python3 "${script_dir}/build_project_views.py" --results-dir "${results_dir}"' in template_run_sh
         assert 'pixi run demux-pipeline' in template_run_sh
         assert 'find "${results_dir}/output" -type d -exec chmod 775 {} +' in template_run_sh
         assert 'upstream_commit="ff96024e2115a315d82e52412d8069d23e0fb4e0"' in template_run_sh
         assert 'upstream_repo_url="https://github.com/chaochungkuo/demultiplexing_prefect"' in template_run_sh
         assert "results/output/*/qc/contamination/**/*" in template_yaml
         assert "results/output/*/qc/multiqc/multiqc_report.html" in template_yaml
+        assert "results/project_views/*" in template_yaml
         assert "results/output/*/qc/fastp_passthrough/**/*.fastq.gz" in template_yaml
         assert "software_versions.json" in template_run_sh
         assert 'python3 - <<\'PY\'' in template_run_sh

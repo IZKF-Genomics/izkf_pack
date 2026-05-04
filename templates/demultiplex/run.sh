@@ -5,6 +5,7 @@ upstream_repo_url="https://github.com/chaochungkuo/demultiplexing_prefect"
 upstream_commit="ff96024e2115a315d82e52412d8069d23e0fb4e0"
 upstream_repo_dir="./demultiplexing_prefect"
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 render_root="$(pwd)"
 results_dir="${LINKAR_RESULTS_DIR:?}"
 samplesheet_path="${SAMPLESHEET:?}"
@@ -85,5 +86,7 @@ popd >/dev/null
 if [[ -d "${results_dir}/output" ]]; then
   find "${results_dir}/output" -type d -exec chmod 775 {} +
 fi
+
+python3 "${script_dir}/build_project_views.py" --results-dir "${results_dir}"
 
 rm -rf .pixi

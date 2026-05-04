@@ -24,6 +24,7 @@ one project. The template then defaults to:
 
 - FASTQ directory: `<run_dir>/results/output/<Sample_Project>`
 - MultiQC report: `<run_dir>/results/output/<Sample_Project>/qc/multiqc/multiqc_report.html`
+- export destination: `1_Raw_data/<Sample_Project>`
 
 Example:
 

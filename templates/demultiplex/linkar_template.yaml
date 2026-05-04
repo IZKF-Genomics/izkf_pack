@@ -96,6 +96,8 @@ outputs:
     path: results/multiqc/multiqc_report.html
   project_multiqc_reports:
     glob: results/output/*/qc/multiqc/multiqc_report.html
+  project_views:
+    glob: results/project_views/*
   template_outputs_json:
     path: results/template_outputs.json
   run_summary:

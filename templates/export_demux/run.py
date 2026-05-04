@@ -277,6 +277,10 @@ def export_entry(
     return entry
 
 
+def fastq_export_dest(sample_project: str) -> str:
+    return f"1_Raw_data/{sample_project}" if sample_project else "1_Raw_data/FASTQ"
+
+
 def export_metadata_paths(run_dir: Path) -> tuple[Path, Path]:
     root = run_dir / ".linkar" / "export_demux"
     attempt_dir = root / now_stamp()
@@ -506,7 +510,7 @@ def main() -> int:
     export_list = [
         export_entry(
             fastq_dir,
-            "1_Raw_data/FASTQ",
+            fastq_export_dest(sample_project),
             fastq_host,
             project_name,
             include_fastq,
