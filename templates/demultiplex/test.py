@@ -242,9 +242,15 @@ def main() -> None:
         assert view_meta["outputs"]["multiqc_report"] == str(
             (project_dir / "qc" / "multiqc" / "multiqc_report.html").resolve()
         )
+        assert "project_qc_dirs" not in view_meta["outputs"]
+        assert "project_contamination_dirs" not in view_meta["outputs"]
+        assert "project_multiqc_reports" not in view_meta["outputs"]
         project_outputs = json.loads((project_dir / "template_outputs.json").read_text(encoding="utf-8"))
         assert project_outputs["outdir"] == str(project_dir.resolve())
         assert project_outputs["outputs"]["sample_project"] == "sample_project"
+        assert "project_qc_dirs" not in project_outputs["outputs"]
+        assert "project_contamination_dirs" not in project_outputs["outputs"]
+        assert "project_multiqc_reports" not in project_outputs["outputs"]
         versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
         versions = {entry["name"]: entry for entry in versions_payload["software"]}
         assert list(versions) == ["bcl-convert"]

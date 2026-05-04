@@ -60,23 +60,12 @@ def build_outputs(
             str(path.resolve()) for path in fastq_files(project_dir)
         ],
         "qc_dir": str(qc_dir.resolve()) if qc_dir.exists() else None,
-        "project_qc_dirs": {project: str(qc_dir.resolve())} if qc_dir.exists() else {},
         "contamination_dir": (
             str(contamination_dir.resolve()) if contamination_dir.exists() else None
-        ),
-        "project_contamination_dirs": (
-            {project: str(contamination_dir.resolve())}
-            if contamination_dir.exists()
-            else {}
         ),
         "multiqc_report": str(multiqc_report.resolve())
         if multiqc_report.exists()
         else None,
-        "project_multiqc_reports": (
-            {project: str(multiqc_report.resolve())}
-            if multiqc_report.exists()
-            else {}
-        ),
         "sample_project": project,
         "source_results_dir": str(project_dir.parent.parent.resolve()),
         "source_output_dir": str(project_dir.resolve()),
@@ -85,7 +74,6 @@ def build_outputs(
     source_report = map_value(contract.get("project_multiqc_reports"), project)
     if source_report and not outputs["multiqc_report"]:
         outputs["multiqc_report"] = source_report
-        outputs["project_multiqc_reports"] = {project: source_report}
 
     return outputs
 
