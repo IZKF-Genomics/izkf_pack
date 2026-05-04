@@ -168,13 +168,14 @@ cd example_3mrnaseq_project
 linkar project view
 ```
 
-If the demultiplex run contains several `Sample_Project` folders, adopt the generated project view
-instead of the whole demultiplex run:
+If the demultiplex run contains several `Sample_Project` folders, adopt that project output folder
+instead of the whole demultiplex run. The demultiplex template writes `.linkar/meta.json` and
+`template_outputs.json` directly inside each `results/output/<Sample_Project>/` folder.
 
 ```bash
 linkar project init \
   --name Project_A \
-  --adopt /path/to/processed_runs/example_run/results/project_views/Project_A
+  --adopt /path/to/processed_runs/example_run/results/output/Project_A
 ```
 
 Run the nf-core 3' mRNA-seq workflow. The default binding can reuse demultiplex outputs and resolve metadata from `agendo_id`.

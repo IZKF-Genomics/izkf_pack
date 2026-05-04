@@ -216,11 +216,10 @@ def main() -> None:
         assert (results_dir / "output" / "sample_project" / "qc" / "multiqc" / "multiqc_report.html").exists()
         assert (results_dir / "multiqc" / "multiqc_report.html").exists()
         assert (results_dir / "samples.tsv").exists()
-        project_view = results_dir / "project_views" / "sample_project"
-        assert (project_view / ".linkar" / "meta.json").exists()
-        assert (project_view / "results" / "output").is_symlink()
-        assert (project_view / "results" / "qc").is_symlink()
-        assert (project_view / "results" / "multiqc").is_symlink()
+        project_dir = results_dir / "output" / "sample_project"
+        assert (project_dir / ".linkar" / "meta.json").exists()
+        assert (project_dir / "template_outputs.json").exists()
+        assert not (results_dir / "project_views").exists()
 
         contract = json.loads((results_dir / "template_outputs.json").read_text(encoding="utf-8"))
         assert contract["outputs"]["contamination_dir"] is None
@@ -233,16 +232,19 @@ def main() -> None:
         assert contract["outputs"]["project_multiqc_reports"] == {
             "sample_project": str(results_dir / "output" / "sample_project" / "qc" / "multiqc" / "multiqc_report.html")
         }
-        view_meta = json.loads((project_view / ".linkar" / "meta.json").read_text(encoding="utf-8"))
+        view_meta = json.loads((project_dir / ".linkar" / "meta.json").read_text(encoding="utf-8"))
         assert view_meta["template"] == "demultiplex"
         assert view_meta["params"]["sample_project"] == "sample_project"
-        assert view_meta["outputs"]["output_dir"] == str((project_view / "results" / "output").resolve())
+        assert view_meta["outputs"]["output_dir"] == str(project_dir.resolve())
         assert view_meta["outputs"]["demux_fastq_files"] == [
-            str((project_view / "results" / "output" / "sample_R1.fastq.gz").resolve())
+            str((project_dir / "sample_R1.fastq.gz").resolve())
         ]
         assert view_meta["outputs"]["multiqc_report"] == str(
-            (project_view / "results" / "multiqc" / "multiqc_report.html").resolve()
+            (project_dir / "qc" / "multiqc" / "multiqc_report.html").resolve()
         )
+        project_outputs = json.loads((project_dir / "template_outputs.json").read_text(encoding="utf-8"))
+        assert project_outputs["outdir"] == str(project_dir.resolve())
+        assert project_outputs["outputs"]["sample_project"] == "sample_project"
         versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
         versions = {entry["name"]: entry for entry in versions_payload["software"]}
         assert list(versions) == ["bcl-convert"]
@@ -267,7 +269,8 @@ def main() -> None:
         assert 'upstream_repo_url="https://github.com/chaochungkuo/demultiplexing_prefect"' in template_run_sh
         assert "results/output/*/qc/contamination/**/*" in template_yaml
         assert "results/output/*/qc/multiqc/multiqc_report.html" in template_yaml
-        assert "results/project_views/*" in template_yaml
+        assert "results/output/*/.linkar/meta.json" in template_yaml
+        assert "results/output/*/template_outputs.json" in template_yaml
         assert "results/output/*/qc/fastp_passthrough/**/*.fastq.gz" in template_yaml
         assert "software_versions.json" in template_run_sh
         assert 'python3 - <<\'PY\'' in template_run_sh

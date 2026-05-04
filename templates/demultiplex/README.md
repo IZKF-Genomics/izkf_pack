@@ -69,20 +69,24 @@ sample-project subdirectories match the surrounding output directories. When `Sa
 is present, Linkar captures raw FASTQs from `results/output/<Sample_Project>/` and project-local
 QC and contamination outputs from `results/output/<Sample_Project>/qc/`.
 
-The template also builds adoptable per-project views under:
+The template also writes adoptable project metadata directly inside each project output folder:
 
 ```text
-results/project_views/<Sample_Project>/
+results/output/<Sample_Project>/
+├── .linkar/
+│   └── meta.json
+├── template_outputs.json
+├── *.fastq.gz
+└── qc/
 ```
 
-Each view contains symlinked `results/output`, `results/qc`, and `results/multiqc` entries plus a
-filtered `.linkar/meta.json`. Use that view when one demultiplex run contains several projects but
-you want a Linkar project history for just one `Sample_Project`:
+Use that project folder when one demultiplex run contains several projects but you want a Linkar
+project history for just one `Sample_Project`:
 
 ```bash
 linkar project init \
   --name Project_A \
-  --adopt /path/to/processed_runs/example_run/results/project_views/Project_A
+  --adopt /path/to/processed_runs/example_run/results/output/Project_A
 ```
 
 ## Samplesheet resolution

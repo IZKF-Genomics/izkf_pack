@@ -9,20 +9,10 @@ from pathlib import Path
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build adoptable per-Sample_Project views for a demultiplex run."
+        description="Write adoptable metadata into each demultiplex Sample_Project folder."
     )
     parser.add_argument("--results-dir", required=True, type=Path)
     return parser.parse_args()
-
-
-def replace_symlink(link: Path, target: Path) -> None:
-    if link.is_symlink() or link.exists():
-        if link.is_dir() and not link.is_symlink():
-            shutil.rmtree(link)
-        else:
-            link.unlink()
-    link.parent.mkdir(parents=True, exist_ok=True)
-    link.symlink_to(target.resolve(), target_is_directory=target.is_dir())
 
 
 def fastq_files(project_dir: Path) -> list[Path]:
@@ -55,22 +45,19 @@ def map_value(mapping: object, key: str) -> str:
 
 def build_outputs(
     *,
-    view_dir: Path,
     project: str,
     project_dir: Path,
     contract: dict[str, object],
 ) -> dict[str, object]:
-    view_results = view_dir / "results"
-    output_dir = view_results / "output"
-    qc_dir = view_results / "qc"
-    multiqc_report = view_results / "multiqc" / "multiqc_report.html"
+    qc_dir = project_dir / "qc"
+    multiqc_report = qc_dir / "multiqc" / "multiqc_report.html"
     contamination_dir = qc_dir / "contamination"
 
     outputs: dict[str, object] = {
-        "results_dir": str(view_results.resolve()),
-        "output_dir": str(output_dir.resolve()),
+        "results_dir": str(project_dir.resolve()),
+        "output_dir": str(project_dir.resolve()),
         "demux_fastq_files": [
-            str((output_dir / path.name).resolve()) for path in fastq_files(project_dir)
+            str(path.resolve()) for path in fastq_files(project_dir)
         ],
         "qc_dir": str(qc_dir.resolve()) if qc_dir.exists() else None,
         "project_qc_dirs": {project: str(qc_dir.resolve())} if qc_dir.exists() else {},
@@ -103,7 +90,7 @@ def build_outputs(
     return outputs
 
 
-def write_view_metadata(view_dir: Path, outputs: dict[str, object], project: str) -> None:
+def write_project_metadata(project_dir: Path, outputs: dict[str, object], project: str) -> None:
     meta = {
         "id": "demultiplex",
         "template": "demultiplex",
@@ -111,15 +98,15 @@ def write_view_metadata(view_dir: Path, outputs: dict[str, object], project: str
         "params": {"sample_project": project},
         "outputs": outputs,
     }
-    linkar_dir = view_dir / ".linkar"
+    linkar_dir = project_dir / ".linkar"
     linkar_dir.mkdir(parents=True, exist_ok=True)
     (linkar_dir / "meta.json").write_text(
         json.dumps(meta, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    (view_dir / "results" / "template_outputs.json").write_text(
+    (project_dir / "template_outputs.json").write_text(
         json.dumps(
-            {"outdir": str(view_dir / "results"), "outputs": outputs},
+            {"outdir": str(project_dir.resolve()), "outputs": outputs},
             indent=2,
             sort_keys=True,
         )
@@ -128,51 +115,38 @@ def write_view_metadata(view_dir: Path, outputs: dict[str, object], project: str
     )
 
 
-def build_view(results_dir: Path, project_dir: Path, contract: dict[str, object]) -> Path:
+def build_project_metadata(project_dir: Path, contract: dict[str, object]) -> Path:
     project = project_dir.name
-    view_dir = results_dir / "project_views" / project
-    view_results = view_dir / "results"
-    view_results.mkdir(parents=True, exist_ok=True)
-
-    replace_symlink(view_results / "output", project_dir)
-    qc_dir = project_dir / "qc"
-    if qc_dir.exists():
-        replace_symlink(view_results / "qc", qc_dir)
-    multiqc_dir = qc_dir / "multiqc"
-    if multiqc_dir.exists():
-        replace_symlink(view_results / "multiqc", multiqc_dir)
-
     outputs = build_outputs(
-        view_dir=view_dir,
         project=project,
         project_dir=project_dir,
         contract=contract,
     )
-    write_view_metadata(view_dir, outputs, project)
-    return view_dir
+    write_project_metadata(project_dir, outputs, project)
+    return project_dir
 
 
 def main() -> int:
     args = parse_args()
     results_dir = args.results_dir.resolve()
     output_root = results_dir / "output"
-    views_root = results_dir / "project_views"
-    if views_root.exists():
-        shutil.rmtree(views_root)
+    legacy_views_root = results_dir / "project_views"
+    if legacy_views_root.exists():
+        shutil.rmtree(legacy_views_root)
     if not output_root.exists():
         return 0
 
     contract = load_contract(results_dir)
-    views = []
+    projects = []
     for project_dir in sorted(path for path in output_root.iterdir() if path.is_dir()):
         if not fastq_files(project_dir):
             continue
-        views.append(build_view(results_dir, project_dir, contract))
+        projects.append(build_project_metadata(project_dir, contract))
 
-    if views:
-        print("Built demultiplex project views:")
-        for view in views:
-            print(f"- {view}")
+    if projects:
+        print("Wrote demultiplex project adoption metadata:")
+        for project_dir in projects:
+            print(f"- {project_dir}")
     return 0
 
 
