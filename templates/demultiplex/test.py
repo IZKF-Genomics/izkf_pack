@@ -66,8 +66,8 @@ def make_fake_pixi_bin(root: Path) -> Path:
         "    falco_dir.mkdir(parents=True, exist_ok=True)\n"
         "    (falco_dir / 'report.html').write_text('<html>falco</html>\\n', encoding='utf-8')\n"
         "if args.contamination_tool != 'none':\n"
-        "    contamination = args.outdir / 'contamination'\n"
-        "    contamination.mkdir(exist_ok=True)\n"
+        "    contamination = project_dir / 'qc' / 'contamination' / 'kraken' / 'sample'\n"
+        "    contamination.mkdir(parents=True, exist_ok=True)\n"
         "    (contamination / 'summary.txt').write_text(args.contamination_tool + '\\n', encoding='utf-8')\n"
         "multiqc_dir = args.outdir / 'multiqc'\n"
         "multiqc_dir.mkdir(exist_ok=True)\n"
@@ -84,7 +84,8 @@ def make_fake_pixi_bin(root: Path) -> Path:
         "    'outputs': {\n"
         "        'qc_dir': str(project_dir / 'qc'),\n"
         "        'project_qc_dirs': {'sample_project': str(project_dir / 'qc')},\n"
-        "        'contamination_dir': str(args.outdir / 'contamination') if (args.outdir / 'contamination').exists() else None,\n"
+        "        'contamination_dir': None,\n"
+        "        'project_contamination_dirs': {'sample_project': str(project_dir / 'qc' / 'contamination')},\n"
         "        'multiqc_report': str(args.outdir / 'multiqc' / 'multiqc_report.html'),\n"
         "        'project_multiqc_reports': {'sample_project': str(project_multiqc_dir / 'multiqc_report.html')},\n"
         "        'run_summary': str(pipeline_dir / 'run_summary.json'),\n"
@@ -211,14 +212,18 @@ def main() -> None:
         assert (results_dir / "output" / "sample_project" / "qc" / "fastp" / "sample.html").exists()
         assert (results_dir / "output" / "sample_project" / "qc" / "fastp" / "sample.json").exists()
         assert (results_dir / "output" / "sample_project" / "qc" / "fastp_passthrough" / "sample_R1.fastq.gz").exists()
+        assert (results_dir / "output" / "sample_project" / "qc" / "contamination" / "kraken" / "sample" / "summary.txt").exists()
         assert (results_dir / "output" / "sample_project" / "qc" / "multiqc" / "multiqc_report.html").exists()
         assert (results_dir / "multiqc" / "multiqc_report.html").exists()
         assert (results_dir / "samples.tsv").exists()
 
         contract = json.loads((results_dir / "template_outputs.json").read_text(encoding="utf-8"))
-        assert contract["outputs"]["contamination_dir"] == str(results_dir / "contamination")
+        assert contract["outputs"]["contamination_dir"] is None
         assert contract["outputs"]["project_qc_dirs"] == {
             "sample_project": str(results_dir / "output" / "sample_project" / "qc")
+        }
+        assert contract["outputs"]["project_contamination_dirs"] == {
+            "sample_project": str(results_dir / "output" / "sample_project" / "qc" / "contamination")
         }
         assert contract["outputs"]["project_multiqc_reports"] == {
             "sample_project": str(results_dir / "output" / "sample_project" / "qc" / "multiqc" / "multiqc_report.html")
@@ -230,7 +235,7 @@ def main() -> None:
         assert (tmpdir / "demultiplexing_prefect" / "demux_pipeline" / "__init__.py").exists()
         assert (
             tmpdir / "demultiplexing_prefect" / "CHECKED_OUT_COMMIT.txt"
-        ).read_text(encoding="utf-8").strip() == "commit=2228a4cf40e240418ba0e360da130d9f23ae0248"
+        ).read_text(encoding="utf-8").strip() == "commit=ff96024e2115a315d82e52412d8069d23e0fb4e0"
         assert (
             tmpdir / "demultiplexing_prefect" / "CLONED_FROM.txt"
         ).read_text(encoding="utf-8").strip() == "repo=https://github.com/chaochungkuo/demultiplexing_prefect"
@@ -242,8 +247,9 @@ def main() -> None:
         assert 'git -C "${upstream_repo_dir}" checkout "${upstream_commit}"' in template_run_sh
         assert 'pixi run demux-pipeline' in template_run_sh
         assert 'find "${results_dir}/output" -type d -exec chmod 775 {} +' in template_run_sh
-        assert 'upstream_commit="2228a4cf40e240418ba0e360da130d9f23ae0248"' in template_run_sh
+        assert 'upstream_commit="ff96024e2115a315d82e52412d8069d23e0fb4e0"' in template_run_sh
         assert 'upstream_repo_url="https://github.com/chaochungkuo/demultiplexing_prefect"' in template_run_sh
+        assert "results/output/*/qc/contamination/**/*" in template_yaml
         assert "results/output/*/qc/multiqc/multiqc_report.html" in template_yaml
         assert "results/output/*/qc/fastp_passthrough/**/*.fastq.gz" in template_yaml
         assert "software_versions.json" in template_run_sh

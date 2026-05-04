@@ -87,6 +87,10 @@ outputs:
   contamination_dir: {}
   contamination_outputs:
     glob: results/contamination/**/*
+  project_contamination_dirs:
+    glob: results/output/*/qc/contamination
+  project_contamination_outputs:
+    glob: results/output/*/qc/contamination/**/*
   multiqc_dir: {}
   multiqc_report:
     path: results/multiqc/multiqc_report.html
