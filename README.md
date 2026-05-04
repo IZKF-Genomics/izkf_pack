@@ -143,6 +143,16 @@ linkar run export_demux \
   --verbose
 ```
 
+Export one `Sample_Project` from a demultiplex run containing several projects:
+
+```bash
+linkar run export_demux \
+  --run-dir /path/to/processed_runs/example_run \
+  --sample-project Project_A \
+  --project-name Project_A_fastq_export \
+  --verbose
+```
+
 ### Run nf-core RNA-seq Processing for 3' mRNA-seq
 
 After finishing demultiplexing, create a project and adopt the processed run:
@@ -264,6 +274,19 @@ linkar run methods \
 
 This keeps the visible methods workspace in `./methods` and overwrites `methods/results/` on reruns instead of leaving the user to inspect historical `.linkar/runs/...` snapshots.
 
+For ad hoc method drafting from existing scripts, QC reports, configs, or result folders, use an LLM
+to generate a single Word document directly:
+
+```bash
+linkar run methods_from_paths \
+  --input-paths analysis/,qc/,scripts/ \
+  --out-file Methods_project.docx
+```
+
+The direct template keeps the main output at `results/methods.docx`; pass
+`--keep-intermediates true` only when you want the extracted context, markdown drafts, prompt, and
+LLM response for review.
+
 ### Export
 
 Use this after the project contains the runs and reports you want to publish.
@@ -338,12 +361,13 @@ If a required parameter cannot be resolved automatically, pass it explicitly wit
 | [`nfcore_3mrnaseq`](templates/nfcore_3mrnaseq/linkar_template.yaml) | Run the site-specific `nf-core/rnaseq` wrapper for 3' mRNA-seq projects. | [README](templates/nfcore_3mrnaseq/README.md) |
 | [`scrna_prep`](templates/scrna_prep/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq preprocessing workspace with Quarto QC reporting. | [README](templates/scrna_prep/README.md) |
 | [`scrna_integrate`](templates/scrna_integrate/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq dataset integration workspace with baseline and integrated QC reporting. | [README](templates/scrna_integrate/README.md) |
-| [`scrna_annotate`](templates/scrna_annotate/linkar_template.yaml) | Create and run an editable Python-only scverse/Scanpy single-cell RNA-seq annotation workspace with a commented YAML config, a shared overview report, and method-specific sub-reports such as CellTypist. | [README](templates/scrna_annotate/README.md) |
+| [`scrna_annotate`](templates/scrna_annotate/linkar_template.yaml) | Create and run an editable tiered scverse/Scanpy single-cell RNA-seq annotation workspace with quick preview, semi-automatic marker evidence review, and formal annotation reports. | [README](templates/scrna_annotate/README.md) |
 | [`dgea`](templates/dgea/linkar_template.yaml) | Create and run an editable R/Quarto differential expression workspace. | [README](templates/dgea/README.md) |
 | [`ercc`](templates/ercc/linkar_template.yaml) | Create and run an editable ERCC spike-in QC workspace with Quarto reporting. | [README](templates/ercc/README.md) |
 | [`methylation_array_analysis`](templates/methylation_array_analysis/linkar_template.yaml) | Create and run an editable Illumina methylation array study workspace with preprocessing, batch-aware analysis, and ordered Quarto reports. | [README](templates/methylation_array_analysis/README.md) |
 | [`cellranger_atac`](templates/cellranger_atac/linkar_template.yaml) | Discover ATAC samples, run `cellranger-atac count`, and optionally aggregate libraries. | [README](templates/cellranger_atac/README.md) |
 | [`methods`](templates/methods/linkar_template.yaml) | Generate long and short project methods drafts from Linkar project history. | [README](templates/methods/README.md) |
+| [`methods_from_paths`](templates/methods_from_paths/linkar_template.yaml) | Use an LLM to generate a publication methods Word document directly from supplied scripts, QC reports, configs, and result folders. | [README](templates/methods_from_paths/README.md) |
 | [`export`](templates/export/linkar_template.yaml) | Build and submit a project export bundle from recorded project outputs. | [README](templates/export/README.md) |
 | [`export_demux`](templates/export_demux/linkar_template.yaml) | Export an ad hoc demultiplexing run outside a full Linkar project. | [README](templates/export_demux/README.md) |
 | [`export_bcl`](templates/export_bcl/linkar_template.yaml) | Export a raw sequencing run without writing metadata into the source folder. | [README](templates/export_bcl/README.md) |
@@ -406,10 +430,11 @@ Run focused template tests:
 ```bash
 python3 templates/cellranger_atac/test.py
 python3 templates/methods/test.py
+python3 templates/methods_from_paths/test.py
 python3 templates/dgea/test.py
 python3 templates/nfcore_3mrnaseq/test.py
 python3 templates/scrna_integrate/test.py
-python3 templates/scrna_annotate/test.py
+(cd templates/scrna_annotate && pixi run test-rebuild)
 ```
 
 Run discovery tests:

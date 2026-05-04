@@ -8,11 +8,15 @@ params:
   run_dir:
     type: path
     required: true
-    description: Path to the ad hoc demultiplex run directory. Expected to contain output/ and multiqc/multiqc_report.html unless overrides are provided.
+    description: Path to the ad hoc demultiplex run directory. Expected to contain collected Linkar demultiplex metadata, results/output and results/multiqc/multiqc_report.html, or output/ and multiqc/multiqc_report.html unless overrides are provided.
   project_name:
     type: str
     default: ""
     description: Project name recorded in the export request. Defaults to the basename of run_dir.
+  sample_project:
+    type: str
+    default: ""
+    description: Optional Sample_Project folder to export from a multi-project demultiplex run. When set, FASTQs and MultiQC default to results/output/<Sample_Project>/ and results/output/<Sample_Project>/qc/multiqc/multiqc_report.html.
   author:
     type: str
     default: ""
@@ -20,11 +24,11 @@ params:
   fastq_dir:
     type: str
     default: ""
-    description: Optional override for the FASTQ directory. Defaults to output_dir from .linkar/meta.json, then run_dir/output.
+    description: Optional override for the FASTQ directory. Defaults to output_dir from .linkar/meta.json, the common parent of demux_fastq_files, run_dir/results/output, then run_dir/output.
   multiqc_report:
     type: str
     default: ""
-    description: Optional override for the MultiQC report path. Defaults to multiqc_report from .linkar/meta.json, then run_dir/multiqc/multiqc_report.html.
+    description: Optional override for the MultiQC report path. Defaults to multiqc_report from .linkar/meta.json, then run_dir/results/multiqc/multiqc_report.html, then run_dir/multiqc/multiqc_report.html.
   export_engine_api_url:
     type: str
     default: http://genomics.rwth-aachen.de:9500/export
@@ -83,6 +87,7 @@ run:
       --results-dir "${LINKAR_RESULTS_DIR}" \
       --run-dir "${param:run_dir}" \
       --project-name "${param:project_name}" \
+      --sample-project "${param:sample_project}" \
       --author "${param:author}" \
       --fastq-dir "${param:fastq_dir}" \
       --multiqc-report "${param:multiqc_report}" \

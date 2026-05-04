@@ -46,24 +46,23 @@ def make_fake_pixi_bin(root: Path) -> Path:
         "parser.add_argument('--output-contract-file', required=True, type=Path)\n"
         "args = parser.parse_args()\n"
         "args.outdir.mkdir(parents=True, exist_ok=True)\n"
-        "(args.outdir / 'output').mkdir(exist_ok=True)\n"
-        "(args.outdir / 'output' / 'sample_project').mkdir(exist_ok=True)\n"
-        "(args.outdir / 'output' / 'sample_R1.fastq.gz').write_text('demux\\n', encoding='utf-8')\n"
-        "(args.outdir / 'output' / 'sample_project' / 'sample_R1.fastq.gz').write_text('demux\\n', encoding='utf-8')\n"
+        "project_dir = args.outdir / 'output' / 'sample_project'\n"
+        "project_dir.mkdir(parents=True, exist_ok=True)\n"
+        "(project_dir / 'sample_R1.fastq.gz').write_text('demux\\n', encoding='utf-8')\n"
         "if 'fastqc' in args.qc_tool:\n"
-        "    fastqc_dir = args.outdir / 'fastqc'\n"
-        "    fastqc_dir.mkdir(exist_ok=True)\n"
+        "    fastqc_dir = project_dir / 'qc' / 'fastqc'\n"
+        "    fastqc_dir.mkdir(parents=True, exist_ok=True)\n"
         "    (fastqc_dir / 'sample_fastqc.html').write_text('<html>fastqc</html>\\n', encoding='utf-8')\n"
         "if 'fastp' in args.qc_tool:\n"
-        "    fastp_dir = args.outdir / 'fastp'\n"
-        "    fastp_dir.mkdir(exist_ok=True)\n"
+        "    fastp_dir = project_dir / 'qc' / 'fastp'\n"
+        "    fastp_dir.mkdir(parents=True, exist_ok=True)\n"
         "    (fastp_dir / 'sample.html').write_text('<html>fastp</html>\\n', encoding='utf-8')\n"
         "    (fastp_dir / 'sample.json').write_text('{}\\n', encoding='utf-8')\n"
-        "    passthrough = args.outdir / 'fastp_passthrough'\n"
-        "    passthrough.mkdir(exist_ok=True)\n"
+        "    passthrough = project_dir / 'qc' / 'fastp_passthrough'\n"
+        "    passthrough.mkdir(parents=True, exist_ok=True)\n"
         "    (passthrough / 'sample_R1.fastq.gz').write_text('fastp\\n', encoding='utf-8')\n"
         "if 'falco' in args.qc_tool:\n"
-        "    falco_dir = args.outdir / 'falco' / 'sample_R1'\n"
+        "    falco_dir = project_dir / 'qc' / 'falco' / 'sample_R1'\n"
         "    falco_dir.mkdir(parents=True, exist_ok=True)\n"
         "    (falco_dir / 'report.html').write_text('<html>falco</html>\\n', encoding='utf-8')\n"
         "if args.contamination_tool != 'none':\n"
@@ -73,16 +72,21 @@ def make_fake_pixi_bin(root: Path) -> Path:
         "multiqc_dir = args.outdir / 'multiqc'\n"
         "multiqc_dir.mkdir(exist_ok=True)\n"
         "(multiqc_dir / 'multiqc_report.html').write_text('<html>multiqc</html>\\n', encoding='utf-8')\n"
-        "(args.outdir / 'samples.tsv').write_text('sample\\tR1\\t\\n', encoding='utf-8')\n"
+        "project_multiqc_dir = project_dir / 'qc' / 'multiqc'\n"
+        "project_multiqc_dir.mkdir(parents=True, exist_ok=True)\n"
+        "(project_multiqc_dir / 'multiqc_report.html').write_text('<html>project multiqc</html>\\n', encoding='utf-8')\n"
+        "(args.outdir / 'samples.tsv').write_text('sample\\tR1\\t\\tsample_project\\n', encoding='utf-8')\n"
         "pipeline_dir = args.outdir / '.pipeline' / 'run-001'\n"
         "pipeline_dir.mkdir(parents=True, exist_ok=True)\n"
         "(pipeline_dir / 'run_summary.json').write_text(json.dumps({'threads': args.threads}) + '\\n', encoding='utf-8')\n"
         "payload = {\n"
         "    'outdir': str(args.outdir),\n"
         "    'outputs': {\n"
-        "        'qc_dir': str(args.outdir / 'fastqc') if (args.outdir / 'fastqc').exists() else None,\n"
+        "        'qc_dir': str(project_dir / 'qc'),\n"
+        "        'project_qc_dirs': {'sample_project': str(project_dir / 'qc')},\n"
         "        'contamination_dir': str(args.outdir / 'contamination') if (args.outdir / 'contamination').exists() else None,\n"
         "        'multiqc_report': str(args.outdir / 'multiqc' / 'multiqc_report.html'),\n"
+        "        'project_multiqc_reports': {'sample_project': str(project_multiqc_dir / 'multiqc_report.html')},\n"
         "        'run_summary': str(pipeline_dir / 'run_summary.json'),\n"
         "    },\n"
         "}\n"
@@ -200,17 +204,25 @@ def main() -> None:
             check=False,
         )
         assert completed.returncode == 0, completed.stderr
-        assert (results_dir / "output" / "sample_R1.fastq.gz").exists()
+        assert not (results_dir / "output" / "sample_R1.fastq.gz").exists()
+        assert (results_dir / "output" / "sample_project" / "sample_R1.fastq.gz").exists()
         assert (results_dir / "output" / "sample_project").stat().st_mode & 0o777 == 0o775
-        assert (results_dir / "fastqc" / "sample_fastqc.html").exists()
-        assert (results_dir / "fastp" / "sample.html").exists()
-        assert (results_dir / "fastp" / "sample.json").exists()
-        assert (results_dir / "fastp_passthrough" / "sample_R1.fastq.gz").exists()
+        assert (results_dir / "output" / "sample_project" / "qc" / "fastqc" / "sample_fastqc.html").exists()
+        assert (results_dir / "output" / "sample_project" / "qc" / "fastp" / "sample.html").exists()
+        assert (results_dir / "output" / "sample_project" / "qc" / "fastp" / "sample.json").exists()
+        assert (results_dir / "output" / "sample_project" / "qc" / "fastp_passthrough" / "sample_R1.fastq.gz").exists()
+        assert (results_dir / "output" / "sample_project" / "qc" / "multiqc" / "multiqc_report.html").exists()
         assert (results_dir / "multiqc" / "multiqc_report.html").exists()
         assert (results_dir / "samples.tsv").exists()
 
         contract = json.loads((results_dir / "template_outputs.json").read_text(encoding="utf-8"))
         assert contract["outputs"]["contamination_dir"] == str(results_dir / "contamination")
+        assert contract["outputs"]["project_qc_dirs"] == {
+            "sample_project": str(results_dir / "output" / "sample_project" / "qc")
+        }
+        assert contract["outputs"]["project_multiqc_reports"] == {
+            "sample_project": str(results_dir / "output" / "sample_project" / "qc" / "multiqc" / "multiqc_report.html")
+        }
         versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
         versions = {entry["name"]: entry for entry in versions_payload["software"]}
         assert list(versions) == ["bcl-convert"]
@@ -218,10 +230,10 @@ def main() -> None:
         assert (tmpdir / "demultiplexing_prefect" / "demux_pipeline" / "__init__.py").exists()
         assert (
             tmpdir / "demultiplexing_prefect" / "CHECKED_OUT_COMMIT.txt"
-        ).read_text(encoding="utf-8").strip() == "commit=b388e6b94a03c65364d8df85044a89335e4b39e3"
+        ).read_text(encoding="utf-8").strip() == "commit=2228a4cf40e240418ba0e360da130d9f23ae0248"
         assert (
             tmpdir / "demultiplexing_prefect" / "CLONED_FROM.txt"
-        ).read_text(encoding="utf-8").strip() == "repo=https://github.com/MoSafi2/demultiplexing_prefect"
+        ).read_text(encoding="utf-8").strip() == "repo=https://github.com/chaochungkuo/demultiplexing_prefect"
 
         template_yaml = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
         template_run_sh = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
@@ -230,6 +242,10 @@ def main() -> None:
         assert 'git -C "${upstream_repo_dir}" checkout "${upstream_commit}"' in template_run_sh
         assert 'pixi run demux-pipeline' in template_run_sh
         assert 'find "${results_dir}/output" -type d -exec chmod 775 {} +' in template_run_sh
+        assert 'upstream_commit="2228a4cf40e240418ba0e360da130d9f23ae0248"' in template_run_sh
+        assert 'upstream_repo_url="https://github.com/chaochungkuo/demultiplexing_prefect"' in template_run_sh
+        assert "results/output/*/qc/multiqc/multiqc_report.html" in template_yaml
+        assert "results/output/*/qc/fastp_passthrough/**/*.fastq.gz" in template_yaml
         assert "software_versions.json" in template_run_sh
         assert 'python3 - <<\'PY\'' in template_run_sh
         assert '"name": "bcl-convert"' in template_run_sh

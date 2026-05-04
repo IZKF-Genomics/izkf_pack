@@ -20,6 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--results-dir", required=True)
     parser.add_argument("--run-dir", required=True)
     parser.add_argument("--project-name", default="")
+    parser.add_argument("--sample-project", default="")
     parser.add_argument("--author", default="")
     parser.add_argument("--fastq-dir", default="")
     parser.add_argument("--multiqc-report", default="")
@@ -177,6 +178,73 @@ def load_linkar_outputs(run_dir: Path) -> dict[str, object]:
     return outputs if isinstance(outputs, dict) else {}
 
 
+def load_output_contract(run_dir: Path) -> dict[str, object]:
+    for path in (
+        run_dir / "results" / "template_outputs.json",
+        run_dir / "template_outputs.json",
+    ):
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        outputs = payload.get("outputs") if isinstance(payload, dict) else None
+        if isinstance(outputs, dict):
+            return outputs
+    return {}
+
+
+def project_map_value(value: object, project: str) -> str:
+    if not isinstance(value, dict):
+        return ""
+    raw = value.get(project)
+    return str(raw or "").strip()
+
+
+def derive_parent_from_file_outputs(value: object) -> str:
+    if isinstance(value, str):
+        files = [value]
+    elif isinstance(value, list):
+        files = [str(item) for item in value if str(item).strip()]
+    else:
+        files = []
+    if not files:
+        return ""
+
+    hosts_and_paths = [split_hostpath(item, "") for item in files]
+    hosts = {host for host, _path in hosts_and_paths}
+    if len(hosts) != 1:
+        return ""
+    host = hosts.pop()
+    parents = [str(Path(path).parent) for _host, path in hosts_and_paths if path]
+    if not parents:
+        return ""
+    parent = os.path.commonpath(parents)
+    return f"{host}:{parent}" if host else parent
+
+
+def resolve_first_existing_input(
+    candidates: list[object],
+    run_dir: Path,
+    default_host: str,
+) -> tuple[str, Path]:
+    first_resolved: tuple[str, Path] | None = None
+    for candidate in candidates:
+        raw = str(candidate or "").strip()
+        if not raw:
+            continue
+        resolved = resolve_input_path(raw, run_dir, default_host)
+        if first_resolved is None:
+            first_resolved = resolved
+        host, path = resolved
+        if host != default_host or path.exists():
+            return resolved
+    if first_resolved is None:
+        return default_host, run_dir
+    return first_resolved
+
+
 def auto_link_name(path: str, dest: str) -> str:
     name = Path(dest).name if path == "." else Path(path).name
     return name.replace("_", " ").strip()
@@ -279,6 +347,12 @@ def print_list_item(label: str, value: str) -> None:
     print(f"- {label}: {value}")
 
 
+def print_json_object_body(payload: dict[str, str]) -> None:
+    lines = json.dumps(payload, indent=2).splitlines()
+    for line in lines[1:-1]:
+        print(f"{line},")
+
+
 def print_final_export_summary(final_json: dict[str, object]) -> None:
     print_section("Final Export Summary", CYAN)
     print("Export complete.")
@@ -332,7 +406,7 @@ def print_final_export_summary(final_json: dict[str, object]) -> None:
         }
         print("")
         print_section("JSON Patch for MS Planner", YELLOW)
-        print(json.dumps(planner_patch, indent=2))
+        print_json_object_body(planner_patch)
 
 
 def final_pending(exc: HTTPError, detail: str) -> bool:
@@ -352,21 +426,70 @@ def main() -> int:
         raise SystemExit(f"run_dir not found or not a directory: {run_dir}")
 
     project_name = args.project_name.strip() or default_project_name(run_dir)
+    sample_project = args.sample_project.strip()
     host_default = os.uname().nodename.split(".")[0]
     linkar_outputs = load_linkar_outputs(run_dir)
+    contract_outputs = load_output_contract(run_dir)
 
-    fastq_raw = (
-        args.fastq_dir.strip()
-        or str(linkar_outputs.get("output_dir") or "")
-        or str(run_dir / "output")
-    )
-    multiqc_raw = (
-        args.multiqc_report.strip()
-        or str(linkar_outputs.get("multiqc_report") or "")
-        or str(run_dir / "multiqc" / "multiqc_report.html")
-    )
-    fastq_host, fastq_dir = resolve_input_path(fastq_raw, run_dir, host_default)
-    multiqc_host, multiqc_report = resolve_input_path(multiqc_raw, run_dir, host_default)
+    if args.fastq_dir.strip():
+        fastq_host, fastq_dir = resolve_input_path(args.fastq_dir.strip(), run_dir, host_default)
+    elif sample_project:
+        fastq_host, fastq_dir = resolve_first_existing_input(
+            [
+                run_dir / "results" / "output" / sample_project,
+                run_dir / "output" / sample_project,
+            ],
+            run_dir,
+            host_default,
+        )
+    else:
+        fastq_host, fastq_dir = resolve_first_existing_input(
+            [
+                linkar_outputs.get("output_dir"),
+                derive_parent_from_file_outputs(linkar_outputs.get("demux_fastq_files")),
+                run_dir / "results" / "output",
+                run_dir / "output",
+            ],
+            run_dir,
+            host_default,
+        )
+
+    if args.multiqc_report.strip():
+        multiqc_host, multiqc_report = resolve_input_path(args.multiqc_report.strip(), run_dir, host_default)
+    elif sample_project:
+        multiqc_host, multiqc_report = resolve_first_existing_input(
+            [
+                project_map_value(contract_outputs.get("project_multiqc_reports"), sample_project),
+                run_dir
+                / "results"
+                / "output"
+                / sample_project
+                / "qc"
+                / "multiqc"
+                / "multiqc_report.html",
+                run_dir
+                / "output"
+                / sample_project
+                / "qc"
+                / "multiqc"
+                / "multiqc_report.html",
+            ],
+            run_dir,
+            host_default,
+        )
+    else:
+        multiqc_host, multiqc_report = resolve_first_existing_input(
+            [
+                linkar_outputs.get("multiqc_report"),
+                Path(str(linkar_outputs.get("multiqc_dir") or "")) / "multiqc_report.html"
+                if linkar_outputs.get("multiqc_dir")
+                else "",
+                run_dir / "results" / "multiqc" / "multiqc_report.html",
+                run_dir / "multiqc" / "multiqc_report.html",
+            ],
+            run_dir,
+            host_default,
+        )
 
     if fastq_host == host_default and not fastq_dir.exists():
         raise SystemExit(f"FASTQ dir not found: {fastq_dir}")
@@ -499,6 +622,8 @@ def main() -> int:
     print_section("Export Request", BLUE)
     print_key_value("API endpoint", export_endpoint)
     print_key_value("Project", project_name)
+    if sample_project:
+        print_key_value("Sample_Project", sample_project)
     print_key_value("Source run_dir", str(run_dir))
     print_key_value("Canonical metadata", str(latest_dir))
     print_section("Job Registered", GREEN)

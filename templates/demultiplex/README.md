@@ -5,8 +5,8 @@ instead of vendoring a snapshot into the pack.
 
 ## Upstream source
 
-- repo: `https://github.com/MoSafi2/demultiplexing_prefect`
-- pinned commit: `b388e6b94a03c65364d8df85044a89335e4b39e3`
+- repo: `https://github.com/chaochungkuo/demultiplexing_prefect`
+- pinned commit: `2228a4cf40e240418ba0e360da130d9f23ae0248`
 
 Each rendered or executed run clones the upstream repository into the run directory, checks out the
 pinned commit above, and launches the pipeline from that staged checkout.
@@ -54,8 +54,8 @@ Those belonged to the older wrapper, not the current upstream `main` CLI.
 The template keeps the execution logic in a standalone [run.sh](run.sh):
 
 ```bash
-git clone --depth 1 https://github.com/MoSafi2/demultiplexing_prefect ./demultiplexing_prefect
-git -C ./demultiplexing_prefect checkout b388e6b94a03c65364d8df85044a89335e4b39e3
+git clone --depth 1 https://github.com/chaochungkuo/demultiplexing_prefect ./demultiplexing_prefect
+git -C ./demultiplexing_prefect checkout 2228a4cf40e240418ba0e360da130d9f23ae0248
 cd ./demultiplexing_prefect
 pixi run demux-pipeline ...
 ```
@@ -65,7 +65,9 @@ launcher for render mode. That keeps the template contract small while the real 
 one script that is easier to test and review. The rendered `run.sh` also writes
 `software_versions.json` inline so it does not depend on helper scripts from the pack checkout.
 After demultiplexing, it normalizes directory permissions under `results/output` to `775` so
-sample-project subdirectories match the surrounding output directories.
+sample-project subdirectories match the surrounding output directories. When `Sample_Project`
+is present, Linkar captures raw FASTQs from `results/output/<Sample_Project>/` and project-local
+QC outputs from `results/output/<Sample_Project>/qc/`.
 
 ## Samplesheet resolution
 

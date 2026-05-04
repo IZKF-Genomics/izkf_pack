@@ -57,33 +57,45 @@ outputs:
   output_dir:
     path: results/output
   software_versions:
-    path: software_versions.json
+    path: results/software_versions.json
   demux_fastq_files:
-    glob: output/**/*.fastq.gz
+    glob: results/output/*/*.fastq.gz
+  project_qc_dirs:
+    glob: results/output/*/qc
   fastqc_dir: {}
+  fastqc_project_dirs:
+    glob: results/output/*/qc/fastqc
   fastqc_reports:
-    glob: fastqc/*_fastqc.html
+    glob: results/output/*/qc/fastqc/*_fastqc.html
   fastp_dir: {}
+  fastp_project_dirs:
+    glob: results/output/*/qc/fastp
   fastp_html_reports:
-    glob: fastp/*.html
+    glob: results/output/*/qc/fastp/*.html
   fastp_json_reports:
-    glob: fastp/*.json
+    glob: results/output/*/qc/fastp/*.json
   fastp_passthrough_dir: {}
+  fastp_passthrough_project_dirs:
+    glob: results/output/*/qc/fastp_passthrough
   fastp_passthrough_fastq_files:
-    glob: fastp_passthrough/**/*.fastq.gz
+    glob: results/output/*/qc/fastp_passthrough/**/*.fastq.gz
   falco_dir: {}
+  falco_project_dirs:
+    glob: results/output/*/qc/falco
   falco_reports:
-    glob: falco/**/*.html
+    glob: results/output/*/qc/falco/**/*.html
   contamination_dir: {}
   contamination_outputs:
-    glob: contamination/**/*
+    glob: results/contamination/**/*
   multiqc_dir: {}
   multiqc_report:
-    path: multiqc/multiqc_report.html
+    path: results/multiqc/multiqc_report.html
+  project_multiqc_reports:
+    glob: results/output/*/qc/multiqc/multiqc_report.html
   template_outputs_json:
-    path: template_outputs.json
+    path: results/template_outputs.json
   run_summary:
-    glob: .pipeline/*/run_summary.json
+    glob: results/.pipeline/*/run_summary.json
 run:
   mode: render
   entry: run.sh
