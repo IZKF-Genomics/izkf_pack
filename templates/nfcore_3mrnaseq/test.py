@@ -286,6 +286,8 @@ def test_agendo_bindings_use_cached_metadata() -> None:
             assert load_function("get_agendo_genome")(CachedContext()) == "GRCh38"
             assert load_function("get_agendo_umi")(CachedContext()) == UMI_KIT
             assert load_function("get_agendo_spikein")(CachedContext()) == "ERCC RNA Spike-in Mix"
+            (cache_dir / "12345.json").write_text(json.dumps({"organism": "chicken"}), encoding="utf-8")
+            assert load_function("get_agendo_genome")(CachedContext()) == "GRCg7b"
         finally:
             if env_before is None:
                 os.environ.pop("LINKAR_HOME", None)

@@ -796,6 +796,7 @@ def humanize_base_genome_identifier(text: str) -> str:
         "hg38": "Human genome (hg38)",
         "hg19": "Human genome (hg19)",
         "GRCm39": "Mouse genome (GRCm39)",
+        "GRCg7b": "Gallus gallus genome (GRCg7b)",
         "mm10": "Mouse genome (mm10)",
         "mm39": "Mouse genome (mm39)",
     }

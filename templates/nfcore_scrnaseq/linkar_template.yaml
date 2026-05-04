@@ -18,7 +18,7 @@ params:
   genome:
     type: str
     required: true
-    description: Facility genome identifier such as GRCh38, GRCm39, mRatBN7.2, Sscrofa11.1, or GRCz11.
+    description: Facility genome identifier such as GRCh38, GRCm39, mRatBN7.2, Sscrofa11.1, GRCz11, or GRCg7b.
   aligner:
     type: str
     required: true

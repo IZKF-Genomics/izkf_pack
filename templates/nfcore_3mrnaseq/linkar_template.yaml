@@ -18,7 +18,7 @@ params:
   genome:
     type: str
     required: true
-    description: Facility genome identifier such as GRCh38, GRCm39, mRatBN7.2, or Sscrofa11.1.
+    description: Facility genome identifier such as GRCh38, GRCm39, mRatBN7.2, Sscrofa11.1, or GRCg7b.
   umi:
     type: str
     default: ""

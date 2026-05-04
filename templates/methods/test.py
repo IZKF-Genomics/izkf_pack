@@ -570,6 +570,10 @@ def test_humanize_ercc_augmented_genome_names() -> None:
         module.format_publication_value("genome", "GRCm39_with_ERCC")
         == "Mouse genome (GRCm39) augmented with ERCC spike-in sequences"
     )
+    assert (
+        module.format_publication_value("genome", "GRCg7b_with_ERCC")
+        == "Gallus gallus genome (GRCg7b) augmented with ERCC spike-in sequences"
+    )
 
 
 def test_inferred_versions_and_reference_urls() -> None:
