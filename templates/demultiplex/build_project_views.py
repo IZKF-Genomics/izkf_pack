@@ -66,9 +66,6 @@ def build_outputs(
         "multiqc_report": str(multiqc_report.resolve())
         if multiqc_report.exists()
         else None,
-        "sample_project": project,
-        "source_results_dir": str(project_dir.parent.parent.resolve()),
-        "source_output_dir": str(project_dir.resolve()),
     }
 
     source_report = map_value(contract.get("project_multiqc_reports"), project)
