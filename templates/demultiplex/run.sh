@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-upstream_repo_url="https://github.com/MoSafi2/demultiplexing_prefect"
-upstream_commit="d0ab7e358abc3adfd7bfd5db731c280b90d1e9e9"
+upstream_repo_url="https://github.com/chaochungkuo/demultiplexing_prefect"
+upstream_commit="c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce"
 upstream_repo_dir="./demultiplexing_prefect"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,6 +20,7 @@ fi
 
 rm -rf "${upstream_repo_dir}"
 git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"
+git -C "${upstream_repo_dir}" fetch --depth 1 origin "${upstream_commit}"
 git -C "${upstream_repo_dir}" checkout "${upstream_commit}"
 
 mkdir -p "${results_dir}"

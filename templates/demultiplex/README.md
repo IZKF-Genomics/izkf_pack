@@ -6,7 +6,7 @@ instead of vendoring a snapshot into the pack.
 ## Upstream source
 
 - repo: `https://github.com/chaochungkuo/demultiplexing_prefect`
-- pinned commit: `ff96024e2115a315d82e52412d8069d23e0fb4e0`
+- pinned commit: `c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce`
 
 Each rendered or executed run clones the upstream repository into the run directory, checks out the
 pinned commit above, and launches the pipeline from that staged checkout.
@@ -55,7 +55,8 @@ The template keeps the execution logic in a standalone [run.sh](run.sh):
 
 ```bash
 git clone --depth 1 https://github.com/chaochungkuo/demultiplexing_prefect ./demultiplexing_prefect
-git -C ./demultiplexing_prefect checkout ff96024e2115a315d82e52412d8069d23e0fb4e0
+git -C ./demultiplexing_prefect fetch --depth 1 origin c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce
+git -C ./demultiplexing_prefect checkout c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce
 cd ./demultiplexing_prefect
 pixi run demux-pipeline ...
 ```

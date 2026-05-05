@@ -115,6 +115,10 @@ def make_fake_git_bin(root: Path) -> Path:
         "  printf 'repo=%s\\n' \"${4:-}\" > \"${target}/CLONED_FROM.txt\"\n"
         "  exit 0\n"
         "fi\n"
+        "if [[ \"${1:-}\" == \"-C\" && \"${3:-}\" == \"fetch\" ]]; then\n"
+        "  printf 'fetch=%s\\n' \"${7:-}\" > \"${2}/FETCHED_COMMIT.txt\"\n"
+        "  exit 0\n"
+        "fi\n"
         "if [[ \"${1:-}\" == \"-C\" && \"${3:-}\" == \"checkout\" ]]; then\n"
         "  printf 'commit=%s\\n' \"${4:-}\" > \"${2}/CHECKED_OUT_COMMIT.txt\"\n"
         "  exit 0\n"
@@ -263,7 +267,10 @@ def main() -> None:
         assert (tmpdir / "demultiplexing_prefect" / "demux_pipeline" / "__init__.py").exists()
         assert (
             tmpdir / "demultiplexing_prefect" / "CHECKED_OUT_COMMIT.txt"
-        ).read_text(encoding="utf-8").strip() == "commit=ff96024e2115a315d82e52412d8069d23e0fb4e0"
+        ).read_text(encoding="utf-8").strip() == "commit=c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce"
+        assert (
+            tmpdir / "demultiplexing_prefect" / "FETCHED_COMMIT.txt"
+        ).read_text(encoding="utf-8").strip() == "fetch=c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce"
         assert (
             tmpdir / "demultiplexing_prefect" / "CLONED_FROM.txt"
         ).read_text(encoding="utf-8").strip() == "repo=https://github.com/chaochungkuo/demultiplexing_prefect"
@@ -272,11 +279,12 @@ def main() -> None:
         template_run_sh = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
         assert 'entry: run.sh' in template_yaml
         assert 'git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"' in template_run_sh
+        assert 'git -C "${upstream_repo_dir}" fetch --depth 1 origin "${upstream_commit}"' in template_run_sh
         assert 'git -C "${upstream_repo_dir}" checkout "${upstream_commit}"' in template_run_sh
         assert 'python3 "${script_dir}/build_project_views.py" --results-dir "${results_dir}"' in template_run_sh
         assert 'pixi run demux-pipeline' in template_run_sh
         assert 'find "${results_dir}/output" -type d -exec chmod 775 {} +' in template_run_sh
-        assert 'upstream_commit="ff96024e2115a315d82e52412d8069d23e0fb4e0"' in template_run_sh
+        assert 'upstream_commit="c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce"' in template_run_sh
         assert 'upstream_repo_url="https://github.com/chaochungkuo/demultiplexing_prefect"' in template_run_sh
         assert "results/output/*/qc/contamination/**/*" in template_yaml
         assert "results/output/*/qc/multiqc/multiqc_report.html" in template_yaml
