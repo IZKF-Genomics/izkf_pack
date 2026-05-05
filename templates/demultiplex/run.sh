@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-upstream_repo_url="https://github.com/chaochungkuo/demultiplexing_prefect"
+upstream_repo_url="https://github.com/MoSafi2/demultiplexing_prefect"
 upstream_commit="c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce"
 upstream_repo_dir="./demultiplexing_prefect"
 
