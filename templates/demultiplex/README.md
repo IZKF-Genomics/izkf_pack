@@ -95,7 +95,7 @@ linkar project init \
 When you run with `--binding default`, `samplesheet` resolves in this order:
 
 1. explicit `--samplesheet`
-2. facility API lookup by `--flowcell-id` when provided, or by a flowcell id derived from `--bcl-dir`
+2. facility API lookup at `/api/get/samplesheet/flowcell/{flowcell}` using `--flowcell-id` when provided, or a flowcell id derived from `--bcl-dir`
 3. optional Agendo request-id fallback by `--agendo-id` only when the flowcell lookup returns 404
 4. bundled template fallback [samplesheet.csv](samplesheet.csv) if the API lookup is unavailable or returns no record
 

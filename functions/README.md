@@ -10,7 +10,7 @@ These functions should stay small, predictable, and easy to debug. If a function
 
 Source: [`get_api_samplesheet.py`](get_api_samplesheet.py)
 
-Resolves the demultiplexing samplesheet. It prefers an explicit `samplesheet` parameter, can query a configured metadata API when `use_api_samplesheet=true`, and falls back to the template-level bundled samplesheet when no API result is available.
+Resolves the demultiplexing samplesheet. It prefers an explicit `samplesheet` parameter, can query `/api/get/samplesheet/flowcell/{flowcell}` when `use_api_samplesheet=true`, and falls back to the template-level bundled samplesheet when no API result is available.
 
 Environment variables:
 

@@ -15,7 +15,7 @@ assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
-EXPECTED_FLOWCELL_API_BASE = "https://genomics.rwth-aachen.de/api/get/samples/flowcell/"
+EXPECTED_FLOWCELL_API_BASE = "https://genomics.rwth-aachen.de/api/get/samplesheet/flowcell/"
 
 
 def make_ctx(template_root: Path, **resolved_params: object) -> SimpleNamespace:

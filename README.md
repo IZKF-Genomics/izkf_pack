@@ -129,7 +129,7 @@ linkar run demultiplex \
 
 `linkar run` includes render, execution, output collection, and `.linkar` metadata writing in one command. When it runs inside an active Linkar project, it also records the run in `project.yaml`.
 
-With the default binding, demultiplex samplesheets are resolved from the facility API by flowcell.
+With the default binding, demultiplex samplesheets are resolved from `/api/get/samplesheet/flowcell/{flowcell}`.
 In normal run folders the flowcell id is derived from the BCL folder name, so `--flowcell-id` and
 `--agendo-id` are usually unnecessary. Pass `--flowcell-id` only for unusual folder names, and
 `--agendo-id` only as a request-id fallback when flowcell lookup is unavailable.
