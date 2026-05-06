@@ -237,7 +237,18 @@ def main() -> None:
             "sample_project": str(results_dir / "output" / "sample_project" / "qc" / "multiqc" / "multiqc_report.html")
         }
         view_meta = json.loads((project_dir / ".linkar" / "meta.json").read_text(encoding="utf-8"))
+        assert view_meta["declared_outputs"] == {
+            "results_dir": {"path": ".."},
+            "output_dir": {"path": ".."},
+            "demux_fastq_files": {"glob": "../*.fastq.gz"},
+            "qc_dir": {"path": "../qc"},
+            "contamination_dir": {"path": "../qc/contamination"},
+            "multiqc_report": {"path": "../qc/multiqc/multiqc_report.html"},
+        }
+        assert view_meta["id"] == "demultiplex"
         assert view_meta["template"] == "demultiplex"
+        assert view_meta["source_template"] == "demultiplex"
+        assert view_meta["outdir"] == str(project_dir.resolve())
         assert view_meta["params"]["sample_project"] == "sample_project"
         assert view_meta["outputs"]["output_dir"] == str(project_dir.resolve())
         assert view_meta["outputs"]["demux_fastq_files"] == [
@@ -253,7 +264,16 @@ def main() -> None:
         assert "project_contamination_dirs" not in view_meta["outputs"]
         assert "project_multiqc_reports" not in view_meta["outputs"]
         project_outputs = json.loads((project_dir / "template_outputs.json").read_text(encoding="utf-8"))
+        assert project_outputs["declared_outputs"] == view_meta["declared_outputs"]
+        assert project_outputs["id"] == "demultiplex"
+        assert project_outputs["template"] == "demultiplex"
+        assert project_outputs["source_template"] == "demultiplex"
         assert project_outputs["outdir"] == str(project_dir.resolve())
+        assert project_outputs["params"]["sample_project"] == "sample_project"
+        assert project_outputs["outputs"]["output_dir"] == str(project_dir.resolve())
+        assert project_outputs["outputs"]["demux_fastq_files"] == [
+            str((project_dir / "sample_R1.fastq.gz").resolve())
+        ]
         assert "sample_project" not in project_outputs["outputs"]
         assert "source_results_dir" not in project_outputs["outputs"]
         assert "source_output_dir" not in project_outputs["outputs"]
@@ -273,7 +293,7 @@ def main() -> None:
         ).read_text(encoding="utf-8").strip() == "fetch=c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce"
         assert (
             tmpdir / "demultiplexing_prefect" / "CLONED_FROM.txt"
-        ).read_text(encoding="utf-8").strip() == "repo=https://github.com/chaochungkuo/demultiplexing_prefect"
+        ).read_text(encoding="utf-8").strip() == "repo=https://github.com/MoSafi2/demultiplexing_prefect"
 
         template_yaml = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
         template_run_sh = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
@@ -285,7 +305,7 @@ def main() -> None:
         assert 'pixi run demux-pipeline' in template_run_sh
         assert 'find "${results_dir}/output" -type d -exec chmod 775 {} +' in template_run_sh
         assert 'upstream_commit="c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce"' in template_run_sh
-        assert 'upstream_repo_url="https://github.com/chaochungkuo/demultiplexing_prefect"' in template_run_sh
+        assert 'upstream_repo_url="https://github.com/MoSafi2/demultiplexing_prefect"' in template_run_sh
         assert "results/output/*/qc/contamination/**/*" in template_yaml
         assert "results/output/*/qc/multiqc/multiqc_report.html" in template_yaml
         assert "results/output/*/.linkar/meta.json" in template_yaml

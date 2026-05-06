@@ -75,27 +75,40 @@ def build_outputs(
     return outputs
 
 
-def write_project_metadata(project_dir: Path, outputs: dict[str, object], project: str) -> None:
-    meta = {
+def build_project_payload(
+    project_dir: Path,
+    outputs: dict[str, object],
+    project: str,
+) -> dict[str, object]:
+    declared_outputs = {
+        "results_dir": {"path": ".."},
+        "output_dir": {"path": ".."},
+        "demux_fastq_files": {"glob": "../*.fastq.gz"},
+        "qc_dir": {"path": "../qc"},
+        "contamination_dir": {"path": "../qc/contamination"},
+        "multiqc_report": {"path": "../qc/multiqc/multiqc_report.html"},
+    }
+    return {
+        "declared_outputs": declared_outputs,
         "id": "demultiplex",
         "template": "demultiplex",
         "source_template": "demultiplex",
+        "outdir": str(project_dir.resolve()),
         "params": {"sample_project": project},
         "outputs": outputs,
     }
+
+
+def write_project_metadata(project_dir: Path, outputs: dict[str, object], project: str) -> None:
+    payload = build_project_payload(project_dir, outputs, project)
     linkar_dir = project_dir / ".linkar"
     linkar_dir.mkdir(parents=True, exist_ok=True)
     (linkar_dir / "meta.json").write_text(
-        json.dumps(meta, indent=2, sort_keys=True) + "\n",
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     (project_dir / "template_outputs.json").write_text(
-        json.dumps(
-            {"outdir": str(project_dir.resolve()), "outputs": outputs},
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
 

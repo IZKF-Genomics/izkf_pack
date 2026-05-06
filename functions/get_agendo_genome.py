@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 GENOME_PLACEHOLDER = "__EDIT_ME_GENOME__"
+OTHER_ORGANISM_FIELD = 'specify "other" organism'
 
 
 def _load_agendo_common():
@@ -17,6 +18,28 @@ def _load_agendo_common():
     return module
 
 
+def _field_value(metadata: dict[str, object], field_name: str) -> str:
+    fields = metadata.get("fields")
+    if not isinstance(fields, list):
+        return ""
+    for field in fields:
+        if not isinstance(field, dict):
+            continue
+        name = str(field.get("name") or "").replace("&quot;", '"').strip().lower()
+        if name == field_name:
+            return str(field.get("value") or "").strip()
+    return ""
+
+
+def _organism_from_metadata(metadata: dict[str, object], common) -> str:
+    organism = common.nonempty(metadata.get("organism"))
+    if organism.lower() == "other":
+        specified = _field_value(metadata, OTHER_ORGANISM_FIELD)
+        if specified:
+            return specified
+    return organism
+
+
 def resolve(ctx) -> str:
     common = _load_agendo_common()
     if not common.nonempty((ctx.resolved_params or {}).get("agendo_id")):
@@ -26,7 +49,8 @@ def resolve(ctx) -> str:
             fallback=GENOME_PLACEHOLDER,
         )
         return GENOME_PLACEHOLDER
-    organism = common.nonempty(common.resolve_request_metadata(ctx).get("organism")).lower()
+    metadata = common.resolve_request_metadata(ctx)
+    organism = _organism_from_metadata(metadata, common).lower()
     mapping = {
         "human": "GRCh38",
         "mouse": "GRCm39",
@@ -36,6 +60,7 @@ def resolve(ctx) -> str:
         "danio rerio": "GRCz11",
         "chicken": "GRCg7b",
         "gallus gallus": "GRCg7b",
+        "gallus gallus domesticus": "GRCg7b",
     }
     genome = mapping.get(organism)
     if not genome:

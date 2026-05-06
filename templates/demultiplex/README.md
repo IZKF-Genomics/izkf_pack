@@ -5,7 +5,7 @@ instead of vendoring a snapshot into the pack.
 
 ## Upstream source
 
-- repo: `https://github.com/chaochungkuo/demultiplexing_prefect`
+- repo: `https://github.com/MoSafi2/demultiplexing_prefect`
 - pinned commit: `c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce`
 
 Each rendered or executed run clones the upstream repository into the run directory, checks out the
@@ -54,7 +54,7 @@ Those belonged to the older wrapper, not the current upstream `main` CLI.
 The template keeps the execution logic in a standalone [run.sh](run.sh):
 
 ```bash
-git clone --depth 1 https://github.com/chaochungkuo/demultiplexing_prefect ./demultiplexing_prefect
+git clone --depth 1 https://github.com/MoSafi2/demultiplexing_prefect ./demultiplexing_prefect
 git -C ./demultiplexing_prefect fetch --depth 1 origin c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce
 git -C ./demultiplexing_prefect checkout c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce
 cd ./demultiplexing_prefect
@@ -80,6 +80,13 @@ results/output/<Sample_Project>/
 ├── *.fastq.gz
 └── qc/
 ```
+
+Both `.linkar/meta.json` and `template_outputs.json` identify the adopted slice as a
+`demultiplex` template result and include the same project-local outputs, including
+`demux_fastq_files`. They also include project-local `declared_outputs` so
+`linkar project init --adopt` can refresh the adopted slice without replacing those outputs with an
+empty result set. This keeps project initialization and downstream bindings consistent whether
+Linkar reads the project metadata file or the template outputs contract.
 
 Use that project folder when one demultiplex run contains several projects but you want a Linkar
 project history for just one `Sample_Project`:
