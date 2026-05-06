@@ -377,6 +377,12 @@ def main() -> None:
     assert 'path: runtime_command.json' in template_text
     assert "__EDIT_ME_MAX_CPUS__" in nextflow_config_text
     assert "__EDIT_ME_MAX_MEMORY__" in nextflow_config_text
+    assert "star_index" not in nextflow_config_text
+    assert "bowtie2_index" not in nextflow_config_text
+    assert "bwa_index" not in nextflow_config_text
+    assert "salmon_index" not in nextflow_config_text
+    assert "star         = '/data/ref_genomes/GRCm39/indices/star'" in nextflow_config_text
+    assert "salmon       = '/data/ref_genomes/GRCm39/indices/salmon'" in nextflow_config_text
     pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
     pack_data = yaml.safe_load(pack_text)
     nfcore_params = pack_data["templates"]["nfcore_3mrnaseq"]["params"]
