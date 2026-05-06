@@ -91,6 +91,7 @@ def build_project_payload(
     return {
         "declared_outputs": declared_outputs,
         "id": "demultiplex",
+        "instance_id": f"demultiplex_{project}",
         "template": "demultiplex",
         "source_template": "demultiplex",
         "outdir": str(project_dir.resolve()),

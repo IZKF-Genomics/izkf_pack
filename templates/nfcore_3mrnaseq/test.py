@@ -383,6 +383,8 @@ def main() -> None:
     assert "salmon_index" not in nextflow_config_text
     assert "star         = '/data/ref_genomes/GRCm39/indices/star'" in nextflow_config_text
     assert "salmon       = '/data/ref_genomes/GRCm39/indices/salmon'" in nextflow_config_text
+    assert "bed12              = '/data/ref_genomes/GRCm39/src/GRCm39.annotation.bed'" in nextflow_config_text
+    assert "transcript_fasta   = '/data/ref_genomes/GRCm39/src/GRCm39.transcripts.fa'" in nextflow_config_text
     pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
     pack_data = yaml.safe_load(pack_text)
     nfcore_params = pack_data["templates"]["nfcore_3mrnaseq"]["params"]

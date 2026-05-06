@@ -246,6 +246,7 @@ def main() -> None:
             "multiqc_report": {"path": "../qc/multiqc/multiqc_report.html"},
         }
         assert view_meta["id"] == "demultiplex"
+        assert view_meta["instance_id"] == "demultiplex_sample_project"
         assert view_meta["template"] == "demultiplex"
         assert view_meta["source_template"] == "demultiplex"
         assert view_meta["outdir"] == str(project_dir.resolve())
@@ -266,6 +267,7 @@ def main() -> None:
         project_outputs = json.loads((project_dir / "template_outputs.json").read_text(encoding="utf-8"))
         assert project_outputs["declared_outputs"] == view_meta["declared_outputs"]
         assert project_outputs["id"] == "demultiplex"
+        assert project_outputs["instance_id"] == "demultiplex_sample_project"
         assert project_outputs["template"] == "demultiplex"
         assert project_outputs["source_template"] == "demultiplex"
         assert project_outputs["outdir"] == str(project_dir.resolve())
