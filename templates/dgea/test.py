@@ -63,6 +63,19 @@ def main() -> int:
         constructor = (TEMPLATE_DIR / "DGEA_constructor.R").read_text(encoding="utf-8")
         assert 'source("dgea_inputs.R")' in constructor
         assert "comparisons <- list()" in constructor
+        assert "# BEGIN CONFIGURED SAMPLE METADATA" in constructor
+        assert "# BEGIN CONFIGURED COMPARISONS" in constructor
+        assert "Auto-configured one comparison" not in constructor
+
+        configurator = (TEMPLATE_DIR / "configure_comparisons.py").read_text(encoding="utf-8")
+        assert "HIDDEN_COLUMNS" in configurator
+        assert "fastq_1" in configurator
+        assert "Split sample names by underscore" in configurator
+        assert "design_formula" in configurator
+        assert "NO_COLOR" in configurator
+        assert "Preview R code" in configurator
+        assert "from rich.console import Console" in configurator
+        assert "from rich.table import Table" in configurator
 
         settings = (TEMPLATE_DIR / ".vscode" / "settings.json").read_text(encoding="utf-8")
         assert "${workspaceFolder}/.pixi/envs/default/bin/R" in settings
@@ -70,7 +83,12 @@ def main() -> int:
         run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
         functions_text = (TEMPLATE_DIR / "DGEA_functions.R").read_text(encoding="utf-8")
         spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
+        template_text = (TEMPLATE_DIR / "DGEA_template.qmd").read_text(encoding="utf-8")
+        install_bioc_text = (TEMPLATE_DIR / "install_bioc_data.sh").read_text(encoding="utf-8")
         assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
+        assert "--configure" in run_sh_text
+        assert "pixi run python ./configure_comparisons.py" in run_sh_text
+        assert "pixi install --frozen --quiet --no-progress" in run_sh_text
         assert 'qmd_file <- "DGEA_all_samples.qmd"' in functions_text
         assert 'template_path = file.path(workspace_dir, "SimpleComparison_template.qmd")' in functions_text
         assert 'support_files <- c("references.bib", "thermofisher_LSG_manuals_cms_095046.txt")' in functions_text
@@ -78,6 +96,12 @@ def main() -> int:
         assert "file.rename(misplaced_output, expected_output)" in functions_text
         assert "!identical(additional_tag, base_filetag)" in functions_text
         assert "quarto" in spec_text
+        assert 'rich = ">=13.9.0, <15"' in (TEMPLATE_DIR / "pixi.toml").read_text(encoding="utf-8")
+        assert "paired:" not in template_text
+        assert "knitr::asis_output(paste(" in template_text
+        assert '"# GO Analysis",' in template_text
+        assert "  # GO Analysis" not in template_text
+        assert ".linkar_bioc_data_installed" in install_bioc_text
     return 0
 
 

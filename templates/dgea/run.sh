@@ -3,6 +3,18 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 pack_root="${LINKAR_PACK_ROOT:-$(cd "${script_dir}/../.." && pwd)}"
+configure=false
+LINKAR_RESULTS_DIR="${LINKAR_RESULTS_DIR:-./results}"
+
+if [[ "${1:-}" == "--configure" ]]; then
+  configure=true
+  shift
+fi
+
+if [[ "$#" -gt 0 ]]; then
+  echo "Usage: ./run.sh [--configure]" >&2
+  exit 2
+fi
 
 mkdir -p "${LINKAR_RESULTS_DIR}"
 
@@ -17,7 +29,15 @@ python3 ./build_dgea_inputs.py \
   --name "${NAME:-}" \
   --authors "${AUTHORS:-}"
 
-pixi install
+if [[ "${configure}" == true ]]; then
+  pixi install --frozen --quiet --no-progress
+  pixi run python ./configure_comparisons.py \
+    --samplesheet "${SAMPLESHEET:?}" \
+    --constructor "DGEA_constructor.R"
+  exit 0
+fi
+
+pixi install --frozen --quiet --no-progress
 pixi run install-bioc-data
 pixi run Rscript DGEA_constructor.R
 

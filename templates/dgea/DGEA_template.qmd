@@ -29,7 +29,6 @@ params:
   target_group: ""
   additional_tag: null
   design_formula: "~ group"
-  paired: false
   go: true
   gsea: true
   cutoff_adj_p: 0.05
@@ -153,7 +152,6 @@ config <- list(
   target_group = params$target_group,
   additional_tag = params$additional_tag,
   design_formula = design_formula,
-  paired = isTRUE(params$paired),
   go = go,
   gsea = gsea,
   highlighted_genes = params$highlighted_genes,
@@ -175,7 +173,6 @@ config <- list(
 | organism          | `r organism` |
 | base_group        | `r config$base_group` |
 | target_group      | `r config$target_group` |
-| paired            | `r config$paired` |
 | design_formula    | `r gsub(",", " ", as.character(config$design_formula))` |
 | gsea              | `r gsea` |
 | go                | `r go` |
@@ -865,13 +862,17 @@ datatable(
 #| results: asis
 
 if (exists("go") && isTRUE(go)){
-  cat("
-  # GO Analysis
-
-  GO Enrichment Analysis in **clusterProfiler** [@wu2021clusterprofiler] identifies overrepresented Gene Ontology (GO) terms within a predefined list of differentially expressed genes.  
-  This method uses **overrepresentation analysis (ORA)** with statistical tests such as the **hypergeometric test** to determine if specific biological processes, cellular components, or molecular functions occur more frequently in the gene set compared to a background set *(Here we only use BP)*.  
-  The results depend on the threshold used to define significant genes, making it sensitive to the cutoff criteria applied during differential expression analysis.
-  ")
+  knitr::asis_output(paste(
+    "# GO Analysis",
+    "",
+    "GO Enrichment Analysis in **clusterProfiler** [@wu2021clusterprofiler] identifies overrepresented Gene Ontology (GO) terms within a predefined list of differentially expressed genes.",
+    "",
+    "This method uses **overrepresentation analysis (ORA)** with statistical tests such as the **hypergeometric test** to determine if specific biological processes, cellular components, or molecular functions occur more frequently in the gene set compared to a background set *(Here we only use BP)*.",
+    "",
+    "The results depend on the threshold used to define significant genes, making it sensitive to the cutoff criteria applied during differential expression analysis.",
+    "",
+    sep = "\n"
+  ))
 }
 
 ```

@@ -20,25 +20,13 @@ if (!"sample" %in% names(samplesheet)) {
   stop("Samplesheet must contain a 'sample' column.", call. = FALSE)
 }
 
-# Optional convenience fallback for legacy nf-core samplesheets that do not yet
-# contain explicit grouping columns. Edit or remove this block as needed.
-if (!"group" %in% names(samplesheet) && all(grepl("_", samplesheet$sample))) {
-  parts <- tidyr::separate_wider_delim(
-    tibble(sample = samplesheet$sample),
-    sample,
-    delim = "_",
-    names = c("group", "sample_id"),
-    too_many = "merge",
-    too_few = "align_start"
-  )
-  samplesheet$group <- parts$group
-  if (!"id" %in% names(samplesheet)) {
-    samplesheet$id <- parts$sample_id
-  }
-}
+# BEGIN CONFIGURED SAMPLE METADATA
+# No configured sample metadata. Edit this block or run ./run.sh --configure.
+# The constructor will use an existing 'group' column if present.
+# END CONFIGURED SAMPLE METADATA
 
 if (!"group" %in% names(samplesheet)) {
-  message("No 'group' column found. The all-samples overview can still run, but pairwise reports require you to define groups manually.")
+  message("No 'group' column found. The all-samples overview can still run, but pairwise reports require sample metadata. Run ./run.sh --configure or edit DGEA_constructor.R manually.")
 }
 
 workspace_dir <- getwd()
@@ -55,7 +43,6 @@ global_config <- list(
   spikein = spikein,
   name = project_name,
   authors = authors,
-  paired = FALSE,
   design_formula = "~ group",
   go = TRUE,
   gsea = TRUE,
@@ -77,22 +64,11 @@ render_DGEA_all_sample(global_config)
 # - name: optional report label
 # - base_group / target_group: required for pairwise DGEA
 # - samplesheet: optional replacement sample table
-# - design_formula, paired, go, gsea, cutoffs: optional overrides
+# - design_formula, go, gsea, cutoffs: optional overrides
+# Use ./run.sh --configure to generate this block from an interactive terminal.
+# BEGIN CONFIGURED COMPARISONS
 comparisons <- list()
-
-if ("group" %in% names(samplesheet)) {
-  groups <- unique(stats::na.omit(samplesheet$group))
-  if (length(groups) == 2) {
-    comparisons <- list(
-      list(
-        name = paste0(groups[[2]], "_vs_", groups[[1]]),
-        base_group = groups[[1]],
-        target_group = groups[[2]]
-      )
-    )
-    message("Auto-configured one comparison because exactly two groups were found in the samplesheet.")
-  }
-}
+# END CONFIGURED COMPARISONS
 
 # Example custom comparison:
 # comparisons <- list(

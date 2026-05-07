@@ -47,3 +47,4 @@ r-lifecycle = ">=1.0.5,<2"
 
 [pypi-dependencies]
 quarto-cli = ">=1.8.25, <2"
+rich = ">=13.9.0, <15"

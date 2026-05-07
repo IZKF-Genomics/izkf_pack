@@ -134,7 +134,6 @@ render_DGEA_report <- function(config) {
     } else {
       config$design_formula
     },
-    paired = isTRUE(config$paired),
     go = isTRUE(config$go),
     gsea = isTRUE(config$gsea),
     cutoff_adj_p = config$cutoff_adj_p %||% 0.05,
