@@ -315,19 +315,25 @@ LLM response for review.
 
 Use this after the project contains the runs and reports you want to publish.
 
-Inspect and edit the generated export specification before submission:
+Prepare and inspect the generated export specification before submission:
 
 ```bash
-linkar render export
-cd export
-less results/export_job_spec.json
-bash run.sh
+linkar run export --prepare-only
+less export/results/export_job_spec.json
 ```
 
-One-shot export:
+Submit the first export:
 
 ```bash
 linkar run export
+```
+
+Update an existing export after regenerating reports or adding files. This uses
+the export engine refresh endpoint, so the existing job id, username, password,
+and download link are preserved:
+
+```bash
+linkar run export --refresh
 ```
 
 Check an export job:
@@ -338,14 +344,18 @@ linkar run export_status \
   --verbose
 ```
 
-Delete an export project only when you are certain:
+Clean an export job only when you are certain:
 
 ```bash
 linkar run export_del \
-  --project-id EXAMPLE_EXPORT_PROJECT_ID \
+  --job-id EXAMPLE_JOB_ID \
   --confirm-delete true \
   --verbose
 ```
+
+The older project-name cleanup endpoint is deprecated by the export engine. Use
+`export_del --project-id ... --legacy-project-delete true` only for legacy active
+exports that cannot be addressed by job id.
 
 ## Troubleshooting
 
@@ -396,7 +406,7 @@ If a required parameter cannot be resolved automatically, pass it explicitly wit
 | [`export_demux`](templates/export_demux/linkar_template.yaml) | Export an ad hoc demultiplexing run outside a full Linkar project. | [README](templates/export_demux/README.md) |
 | [`export_bcl`](templates/export_bcl/linkar_template.yaml) | Export a raw sequencing run without writing metadata into the source folder. | [README](templates/export_bcl/README.md) |
 | [`export_status`](templates/export_status/linkar_template.yaml) | Query the export engine status for an existing export job. | [README](templates/export_status/README.md) |
-| [`export_del`](templates/export_del/linkar_template.yaml) | Delete an export project from the export engine after explicit confirmation. | [README](templates/export_del/README.md) |
+| [`export_del`](templates/export_del/linkar_template.yaml) | Clean an export job from the export engine after explicit confirmation. | [README](templates/export_del/README.md) |
 | [`archive_raw`](templates/archive_raw/linkar_template.yaml) | Archive raw sequencing run folders with a manifest log. | [README](templates/archive_raw/README.md) |
 | [`archive_fastq`](templates/archive_fastq/linkar_template.yaml) | Archive processed sequencing run folders with a manifest log and optional cleanup. | [README](templates/archive_fastq/README.md) |
 | [`archive_projects`](templates/archive_projects/linkar_template.yaml) | Archive project folders with a manifest log and optional cleanup. | [README](templates/archive_projects/README.md) |
