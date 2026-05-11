@@ -17,6 +17,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Submit a prepared export_job_spec.json to the export engine.")
     parser.add_argument("--results-dir", default="./results")
     parser.add_argument("--api-url", required=True)
+    parser.add_argument("--refresh", default="false")
+    parser.add_argument("--job-id", default="")
     parser.add_argument("--poll-interval-seconds", type=int, default=2)
     parser.add_argument("--timeout-seconds", type=int, default=3600)
     return parser.parse_args()
@@ -25,6 +27,23 @@ def parse_args() -> argparse.Namespace:
 def endpoint(base_url: str) -> str:
     base = base_url.strip().rstrip("/")
     return base if base.endswith("/export") else f"{base}/export"
+
+
+def parse_bool(value: object, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    lowered = str(value).strip().lower()
+    if lowered in {"1", "true", "yes", "y", "on"}:
+        return True
+    if lowered in {"0", "false", "no", "n", "off"}:
+        return False
+    return default
+
+
+def refresh_endpoint(export_url: str, job_id: str) -> str:
+    return f"{export_url}/{job_id}/refresh"
 
 
 def final_message_endpoint(export_url: str, job_id: str) -> str:
@@ -129,6 +148,42 @@ def parse_raw_api_message(text: str) -> dict[str, str]:
     return parsed
 
 
+def read_saved_job_id(results_dir: Path) -> str:
+    state_path = results_dir / "export_state.json"
+    if state_path.exists():
+        try:
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+        except Exception:
+            state = {}
+        if isinstance(state, dict):
+            job_id = str(state.get("job_id") or "").strip()
+            if job_id:
+                return job_id
+
+    job_id_path = results_dir / "export_job_id.txt"
+    if job_id_path.exists():
+        return job_id_path.read_text(encoding="utf-8").strip()
+    return ""
+
+
+def build_refresh_payload(payload: dict[str, object]) -> dict[str, object]:
+    allowed = {"project_name", "export_list", "backend", "authors", "expiry_days"}
+    return {key: value for key, value in payload.items() if key in allowed}
+
+
+def build_export_state(job_id: str, final_payload: dict[str, object], final_path: str) -> dict[str, object]:
+    raw_message = str(final_payload.get("message") or "")
+    raw_fields = parse_raw_api_message(raw_message)
+    state: dict[str, object] = {
+        "job_id": job_id,
+        "final_path": final_path or None,
+        "report_url": final_payload.get("main_report") or raw_fields.get("Report URL") or None,
+        "download_url": raw_fields.get("Download URL") or None,
+        "username": final_payload.get("username") or raw_fields.get("Username") or None,
+    }
+    return {key: value for key, value in state.items() if value not in {"", None}}
+
+
 def wait_for_final_message(url: str, *, poll_interval_seconds: int, timeout_seconds: int) -> tuple[dict[str, object], str | None]:
     deadline = time.monotonic() + max(timeout_seconds, 1)
     last_error: str | None = None
@@ -153,29 +208,52 @@ def main() -> int:
     if not spec_path.exists():
         raise SystemExit(f"export spec not found: {spec_path}")
     payload = json.loads(spec_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise SystemExit("export spec must be a JSON object")
     export_url = endpoint(args.api_url)
+    refresh = parse_bool(args.refresh)
+    job_id = args.job_id.strip() or (read_saved_job_id(results_dir) if refresh else "")
+    submit_url = export_url
+    submit_payload = payload
+    action_label = "Submitting export job"
+
+    if refresh:
+        if not job_id:
+            raise SystemExit("refresh requires --job-id or an existing export_job_id.txt/export_state.json")
+        submit_url = refresh_endpoint(export_url, job_id)
+        submit_payload = build_refresh_payload(payload)
+        (results_dir / "export_refresh_spec.json").write_text(
+            json.dumps(submit_payload, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        action_label = "Refreshing export job"
 
     req = Request(
-        url=export_url,
-        data=json.dumps(payload).encode("utf-8"),
+        url=submit_url,
+        data=json.dumps(submit_payload).encode("utf-8"),
         headers={"Content-Type": "application/json", "Accept": "application/json"},
         method="POST",
     )
     body = run_with_spinner(
-        "Submitting export job",
+        action_label,
         lambda: urlopen(req, timeout=60).read().decode("utf-8", errors="replace"),
     )
     response = json.loads(body) if body else {}
     if not isinstance(response, dict):
         raise SystemExit("export engine returned a non-object response")
-    job_id = str(response.get("job_id") or "").strip()
+    response_job_id = str(response.get("job_id") or "").strip()
+    if response_job_id:
+        job_id = response_job_id
     if not job_id:
         raise SystemExit("export engine response did not include job_id")
 
     print_key_value("Job ID", job_id, tone=GREEN)
-    print_key_value("Endpoint", export_url)
+    print_key_value("Endpoint", submit_url)
 
-    status_payload: dict[str, object] = {"job_id": job_id, "submission": response}
+    status_payload: dict[str, object] = {
+        "job_id": job_id,
+        "mode": "refresh" if refresh else "create",
+        "submission": response,
+    }
     raw_final_message = ""
     final_path = ""
     final_payload, final_error = run_with_spinner(
@@ -202,6 +280,10 @@ def main() -> int:
     (results_dir / "export_job_id.txt").write_text(job_id + "\n", encoding="utf-8")
     (results_dir / "export_final_message.txt").write_text(raw_final_message + ("\n" if raw_final_message else ""), encoding="utf-8")
     (results_dir / "export_final_path.txt").write_text(final_path + ("\n" if final_path else ""), encoding="utf-8")
+    (results_dir / "export_state.json").write_text(
+        json.dumps(build_export_state(job_id, final_payload, final_path), indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
     if final_error:
         print_section("Export Result", GREEN)
         print_key_value("Status", final_error, tone=YELLOW)

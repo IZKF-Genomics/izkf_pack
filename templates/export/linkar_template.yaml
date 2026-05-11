@@ -1,5 +1,5 @@
 id: export
-version: 0.1.1
+version: 0.1.2
 description: Prepare and submit an export bundle from Linkar project history.
 tools:
   required:
@@ -8,7 +8,19 @@ params:
   dry_run:
     type: bool
     default: false
+    description: Backward-compatible alias for prepare_only.
+  prepare_only:
+    type: bool
+    default: false
     description: When true, prepare the selected export bundle state and stop before API submission.
+  refresh:
+    type: bool
+    default: false
+    description: When true, refresh an existing export job in place instead of creating a new export.
+  job_id:
+    type: str
+    default: ""
+    description: Existing export job id used by refresh. If omitted, saved export state is used.
   reuse_spec:
     type: bool
     default: false
@@ -85,6 +97,8 @@ outputs:
   results_dir: {}
   export_job_spec:
     path: export_job_spec.json
+  export_refresh_spec:
+    path: export_refresh_spec.json
   metadata_context:
     path: metadata_context.yaml
   metadata_raw:
@@ -97,6 +111,8 @@ outputs:
     path: methods_context.yaml
   export_submission:
     path: export_submission.json
+  export_state:
+    path: export_state.json
   export_job_id:
     path: export_job_id.txt
   export_final_message:
@@ -112,6 +128,9 @@ run:
       --project-dir "${LINKAR_PROJECT_DIR:-..}" \
       --template-dir "." \
       --dry-run "${param:dry_run}" \
+      --prepare-only "${param:prepare_only}" \
+      --refresh "${param:refresh}" \
+      --job-id "${param:job_id}" \
       --reuse-spec "${param:reuse_spec}" \
       --reuse-credentials "${param:reuse_credentials}" \
       --export-engine-api-url "${param:export_engine_api_url}" \

@@ -17,13 +17,27 @@ TEMPLATE_DIR = Path(__file__).resolve().parent
 
 class ExportHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
-        if self.path != "/export":
+        if self.path == "/export":
+            response = {"job_id": "job-123"}
+        elif self.path == "/export/job-123/refresh":
+            response = {"job_id": "job-123"}
+            self.server.refresh_payload = json.loads(  # type: ignore[attr-defined]
+                self.rfile.read(int(self.headers.get("Content-Length", "0"))).decode("utf-8")
+            )
+            body = json.dumps(response).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        else:
             self.send_error(404)
             return
         length = int(self.headers.get("Content-Length", "0"))
         payload = json.loads(self.rfile.read(length).decode("utf-8"))
         self.server.payload = payload  # type: ignore[attr-defined]
-        body = json.dumps({"job_id": "job-123"}).encode("utf-8")
+        body = json.dumps(response).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -272,7 +286,7 @@ def main() -> int:
             capture_output=True,
             text=True,
         )
-        assert "Dry Run Complete" in dry_run.stdout
+        assert "Prepare Only Complete" in dry_run.stdout
         assert "Project templates:" in dry_run.stdout
         assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_prep (1), scrna_integrate (1), scrna_annotate (1), ercc (1), methods (2)" in dry_run.stdout
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
@@ -455,6 +469,9 @@ def main() -> int:
             ).read_text(encoding="utf-8")
             payload = json.loads((export_dir / "results" / "export_submission.json").read_text(encoding="utf-8"))
             assert payload["job_id"] == "job-123"
+            state = json.loads((export_dir / "results" / "export_state.json").read_text(encoding="utf-8"))
+            assert state["job_id"] == "job-123"
+            assert state["username"] == "example_user"
 
             post_submit_reuse = subprocess.run(
                 [
@@ -483,6 +500,40 @@ def main() -> int:
             reused_spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
             assert reused_spec["username"] == "example_user"
             assert reused_spec["password"] == "example_password"
+
+            refresh = subprocess.run(
+                [
+                    "python3",
+                    str(TEMPLATE_DIR / "run.py"),
+                    "--refresh",
+                    "true",
+                    "--export-engine-api-url",
+                    f"http://127.0.0.1:{server.server_port}",
+                    "--project-dir",
+                    str(project_dir),
+                    "--template-dir",
+                    str(TEMPLATE_DIR),
+                    "--results-dir",
+                    str(export_dir / "results"),
+                    "--metadata-source",
+                    "mock",
+                    "--poll-interval-seconds",
+                    "1",
+                    "--timeout-seconds",
+                    "5",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            assert "Refresh Export" in refresh.stdout
+            refresh_payload = server.refresh_payload  # type: ignore[attr-defined]
+            assert refresh_payload["project_name"] == "example_project_001"
+            assert "export_list" in refresh_payload
+            assert "username" not in refresh_payload
+            assert "password" not in refresh_payload
+            refresh_spec = json.loads((export_dir / "results" / "export_refresh_spec.json").read_text(encoding="utf-8"))
+            assert refresh_spec == refresh_payload
         finally:
             server.shutdown()
             thread.join(timeout=5)

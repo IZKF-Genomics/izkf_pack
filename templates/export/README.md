@@ -16,6 +16,18 @@ It keeps the export mapping table as data, and makes the old BPM hook chain expl
 - submits the prepared spec
 - records submission artifacts into `results/`
 
+`linkar run export --prepare-only`:
+
+- rebuilds the export bundle into `results/`
+- writes `results/export_job_spec.json` and related metadata
+- does not contact the export engine
+
+`linkar run export --refresh`:
+
+- rebuilds the export bundle from the current project history
+- submits `results/export_refresh_spec.json` to the existing export job
+- preserves the existing job id, username, password, and download link through the export engine refresh endpoint
+
 `linkar render export`:
 
 - renders the template bundle
@@ -47,9 +59,10 @@ and submits the export.
 Useful alternate modes:
 
 ```bash
-bash run.sh --reuse-credentials
+linkar run export --prepare-only
+linkar run export --refresh
 bash run.sh --reuse-spec
-bash run.sh --prepare-only
+bash run.sh --reuse-credentials
 ```
 
 Credential reuse looks for a complete username/password pair in this order:
@@ -61,6 +74,7 @@ Credential reuse looks for a complete username/password pair in this order:
 `--reuse-spec` keeps the current spec untouched and submits it as-is.
 `--reuse-credentials` rebuilds the spec but preserves saved credentials.
 `--prepare-only` performs the selected preparation mode without submission.
+`--refresh` rebuilds the spec and updates the existing export in place.
 
 You can also prepare without submission:
 
@@ -71,11 +85,13 @@ python3 run.py --project-dir "${LINKAR_PROJECT_DIR:-..}" --template-dir . --resu
 Generated artifacts include:
 
 - `results/export_job_spec.json`
+- `results/export_refresh_spec.json` when refreshing
 - `results/metadata_context.yaml`
 - `results/metadata_raw.json`
 - `results/metadata_normalized.yaml`
 - `results/project_methods.md`
 - `results/methods_context.yaml`
+- `results/export_state.json` after submission or refresh
 
 ## Notes
 

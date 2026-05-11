@@ -18,6 +18,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-dir", default="..")
     parser.add_argument("--template-dir", default=".")
     parser.add_argument("--dry-run", default="false")
+    parser.add_argument("--prepare-only", default="false")
+    parser.add_argument("--refresh", default="false")
+    parser.add_argument("--job-id", default="")
     parser.add_argument("--reuse-spec", default="false")
     parser.add_argument("--reuse-credentials", default="false")
     parser.add_argument("--export-engine-api-url", required=True)
@@ -147,7 +150,9 @@ def main() -> int:
     build_script = template_dir / "build_export_bundle.py"
     submit_script = template_dir / "submit_export.py"
     reuse_spec = parse_bool(args.reuse_spec)
-    reuse_credentials = parse_bool(args.reuse_credentials)
+    refresh = parse_bool(args.refresh)
+    prepare_only = parse_bool(args.prepare_only) or parse_bool(args.dry_run)
+    reuse_credentials = parse_bool(args.reuse_credentials) or refresh
 
     print_section("Prepare Export Bundle")
     if reuse_spec:
@@ -199,24 +204,29 @@ def main() -> int:
 
     describe_prepared_bundle(project_dir, results_dir)
 
-    if parse_bool(args.dry_run):
-        print_section("Dry Run Complete", GREEN)
+    if prepare_only:
+        print_section("Prepare Only Complete", GREEN)
         print("Prepared the export bundle without contacting the export API.")
         return 0
 
-    print_section("Submit Export", GREEN)
+    print_section("Refresh Export" if refresh else "Submit Export", GREEN)
+    submit_args = [
+        "--results-dir",
+        str(results_dir),
+        "--api-url",
+        args.export_engine_api_url,
+        "--poll-interval-seconds",
+        str(args.poll_interval_seconds),
+        "--timeout-seconds",
+        str(args.timeout_seconds),
+    ]
+    if refresh:
+        submit_args.extend(["--refresh", "true"])
+    if args.job_id.strip():
+        submit_args.extend(["--job-id", args.job_id.strip()])
     run_python_script(
         submit_script,
-        [
-            "--results-dir",
-            str(results_dir),
-            "--api-url",
-            args.export_engine_api_url,
-            "--poll-interval-seconds",
-            str(args.poll_interval_seconds),
-            "--timeout-seconds",
-            str(args.timeout_seconds),
-        ],
+        submit_args,
     )
     return 0
 
