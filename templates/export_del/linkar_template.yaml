@@ -1,14 +1,18 @@
 id: export_del
-version: 0.1.0
-description: Delete an export project from the facility export engine.
+version: 0.1.1
+description: Delete an export job from the facility export engine.
 tools:
   required:
     - python3
 params:
+  job_id:
+    type: str
+    default: ""
+    description: Export engine job id to clean up.
   project_id:
     type: str
-    required: true
-    description: Export engine project id to delete.
+    default: ""
+    description: Deprecated project-name cleanup target. Prefer job_id.
   export_engine_api_url:
     type: str
     default: http://genomics.rwth-aachen.de:9500/export
@@ -17,10 +21,16 @@ params:
     type: bool
     default: false
     description: Must be set to true to perform the deletion request.
+  legacy_project_delete:
+    type: bool
+    default: false
+    description: Allow the deprecated project-name cleanup endpoint when project_id is provided.
 outputs:
   results_dir: {}
   delete_response:
     path: delete_response.json
+  export_job_id:
+    path: export_job_id.txt
   export_project_id:
     path: export_project_id.txt
 run:
@@ -29,6 +39,8 @@ run:
   command: |
     python3 ./run.py \
       --results-dir "${LINKAR_RESULTS_DIR}" \
+      --job-id "${param:job_id}" \
       --project-id "${param:project_id}" \
       --export-engine-api-url "${param:export_engine_api_url}" \
-      --confirm-delete "${param:confirm_delete}"
+      --confirm-delete "${param:confirm_delete}" \
+      --legacy-project-delete "${param:legacy_project_delete}"

@@ -14,10 +14,13 @@ TEMPLATE_DIR = Path(__file__).resolve().parent
 
 class Handler(BaseHTTPRequestHandler):
     def do_DELETE(self) -> None:
-        if self.path != "/export/project-123":
+        if self.path == "/export/jobs/job-123":
+            body = json.dumps({"cleaned_count": 1, "warnings": []}).encode("utf-8")
+        elif self.path == "/export/project-123":
+            body = json.dumps({"status": "deleted", "project_id": "project-123"}).encode("utf-8")
+        else:
             self.send_error(404)
             return
-        body = json.dumps({"status": "deleted", "project_id": "project-123"}).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -38,8 +41,8 @@ def main() -> int:
                 str(TEMPLATE_DIR / "run.py"),
                 "--results-dir",
                 str(results_dir),
-                "--project-id",
-                "project-123",
+                "--job-id",
+                "job-123",
             ],
             capture_output=True,
             text=True,
@@ -57,8 +60,8 @@ def main() -> int:
                     str(TEMPLATE_DIR / "run.py"),
                     "--results-dir",
                     str(results_dir),
-                    "--project-id",
-                    "project-123",
+                    "--job-id",
+                    "job-123",
                     "--confirm-delete",
                     "true",
                     "--export-engine-api-url",
@@ -68,10 +71,35 @@ def main() -> int:
                 capture_output=True,
                 text=True,
             )
-            assert "deleted" in completed.stdout
+            assert "completed" in completed.stdout
             payload = json.loads((results_dir / "delete_response.json").read_text(encoding="utf-8"))
-            assert payload["project_id"] == "project-123"
-            assert (results_dir / "export_project_id.txt").read_text(encoding="utf-8").strip() == "project-123"
+            assert payload["cleaned_count"] == 1
+            assert (results_dir / "export_job_id.txt").read_text(encoding="utf-8").strip() == "job-123"
+
+            legacy_results_dir = Path(tmpdir) / "legacy-results"
+            legacy = subprocess.run(
+                [
+                    "python3",
+                    str(TEMPLATE_DIR / "run.py"),
+                    "--results-dir",
+                    str(legacy_results_dir),
+                    "--project-id",
+                    "project-123",
+                    "--legacy-project-delete",
+                    "true",
+                    "--confirm-delete",
+                    "true",
+                    "--export-engine-api-url",
+                    f"http://127.0.0.1:{server.server_port}",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            assert "deleted" in legacy.stdout
+            legacy_payload = json.loads((legacy_results_dir / "delete_response.json").read_text(encoding="utf-8"))
+            assert legacy_payload["project_id"] == "project-123"
+            assert (legacy_results_dir / "export_project_id.txt").read_text(encoding="utf-8").strip() == "project-123"
         finally:
             server.shutdown()
             thread.join(timeout=5)
