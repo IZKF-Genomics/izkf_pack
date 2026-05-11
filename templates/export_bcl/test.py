@@ -100,6 +100,18 @@ def main() -> int:
         )
         assert "Dry Run" in dry.stdout
         assert (results_dir / "export_job_spec.redacted.json").exists()
+        dry_spec = json.loads((results_dir / "export_job_spec.json").read_text(encoding="utf-8"))
+        dry_entry = dry_spec["export_list"][0]
+        assert "include_in_report" not in dry_entry
+        assert "report_section" not in dry_entry
+        assert dry_entry["report_links"] == [
+            {
+                "path": ".",
+                "section": "raw",
+                "description": "Raw BCL run directory",
+                "link_name": "BCL",
+            }
+        ]
         assert not (run_dir / ".linkar").exists()
 
         server = HTTPServer(("127.0.0.1", 0), Handler)
@@ -132,6 +144,9 @@ def main() -> int:
             assert '"Project ID": "20250101_Test_BCL_FASTQ"' in submit.stdout
             assert "Publisher Results" in submit.stdout
             assert "1. APACHE" in submit.stdout
+            submitted_entry = server.payload["export_list"][0]  # type: ignore[attr-defined]
+            assert "report_links" in submitted_entry
+            assert "include_in_report" not in submitted_entry
         finally:
             server.shutdown()
             thread.join(timeout=5)

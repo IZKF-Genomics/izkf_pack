@@ -246,18 +246,23 @@ def main() -> int:
     password = args.export_password.strip() or secrets.token_urlsafe(16)
     host = os.uname().nodename.split(".")[0]
 
-    export_list = [
-        {
-            "src": str(bcl_dir.resolve()),
-            "dest": "BCL",
-            "host": host,
-            "project": project_name,
-            "mode": "symlink",
-            "include_in_report": include_bcl,
-            "report_section": "raw",
-            "description": "Raw BCL run directory",
-        }
-    ]
+    bcl_entry = {
+        "src": str(bcl_dir.resolve()),
+        "dest": "BCL",
+        "host": host,
+        "project": project_name,
+        "mode": "symlink",
+    }
+    if include_bcl:
+        bcl_entry["report_links"] = [
+            {
+                "path": ".",
+                "section": "raw",
+                "description": "Raw BCL run directory",
+                "link_name": "BCL",
+            }
+        ]
+    export_list = [bcl_entry]
 
     job_spec = {
         "project_name": project_name,
