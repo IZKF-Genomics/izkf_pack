@@ -2,7 +2,7 @@
 set -euo pipefail
 
 upstream_repo_url="https://github.com/MoSafi2/demultiplexing_prefect"
-upstream_commit="c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce"
+upstream_commit="8c2ebab05f9c49487cb01e226c77f27893f84d0b"
 upstream_repo_dir="./demultiplexing_prefect"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
