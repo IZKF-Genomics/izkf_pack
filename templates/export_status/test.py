@@ -15,17 +15,20 @@ TEMPLATE_DIR = Path(__file__).resolve().parent
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
-        if self.path != "/export/status/job-123":
+        if self.path == "/export/status/job-123":
+            body = json.dumps(
+                {
+                    "job_id": "job-123",
+                    "status": "completed",
+                    "main_report": "https://example.org/export/123",
+                    "final_path": "/exports/project_123",
+                }
+            ).encode("utf-8")
+        elif self.path == "/export/status/job-string":
+            body = json.dumps("completed").encode("utf-8")
+        else:
             self.send_error(404)
             return
-        body = json.dumps(
-            {
-                "job_id": "job-123",
-                "status": "completed",
-                "main_report": "https://example.org/export/123",
-                "final_path": "/exports/project_123",
-            }
-        ).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -63,6 +66,26 @@ def main() -> int:
             assert payload["job_id"] == "job-123"
             assert payload["final_path"] == "/exports/project_123"
             assert (results_dir / "export_job_id.txt").read_text(encoding="utf-8").strip() == "job-123"
+
+            string_results_dir = Path(tmpdir) / "string-results"
+            string_completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(TEMPLATE_DIR / "run.py"),
+                    "--results-dir",
+                    str(string_results_dir),
+                    "--job-id",
+                    "job-string",
+                    "--export-engine-api-url",
+                    f"http://127.0.0.1:{server.server_port}",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            assert "completed" in string_completed.stdout
+            string_payload = json.loads((string_results_dir / "export_status.json").read_text(encoding="utf-8"))
+            assert string_payload == {"job_id": "job-string", "status": "completed"}
         finally:
             server.shutdown()
             thread.join(timeout=5)

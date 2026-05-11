@@ -86,12 +86,17 @@ def main() -> int:
         raise SystemExit(f"Status API request failed: {exc.reason}")
 
     try:
-        parsed = json.loads(body)
+        parsed_raw = json.loads(body)
     except json.JSONDecodeError:
         raise SystemExit("Status API returned a non-JSON response")
 
-    if not isinstance(parsed, dict):
-        raise SystemExit("Status API returned a non-object response")
+    if isinstance(parsed_raw, str):
+        parsed = {"job_id": job_id, "status": parsed_raw}
+    elif isinstance(parsed_raw, dict):
+        parsed = parsed_raw
+        parsed.setdefault("job_id", job_id)
+    else:
+        raise SystemExit("Status API returned an unsupported JSON response")
 
     write_json(results_dir / "export_status.json", parsed)
     write_text(results_dir / "export_job_id.txt", job_id + "\n")
