@@ -379,7 +379,8 @@ def print_list_item(label: str, value: str) -> None:
 def print_json_object_body(payload: dict[str, str]) -> None:
     lines = json.dumps(payload, indent=2).splitlines()
     for line in lines[1:-1]:
-        print(f"{line},")
+        suffix = "" if line.rstrip().endswith(",") else ","
+        print(f"{line}{suffix}")
 
 
 def print_final_export_summary(final_json: dict[str, object]) -> None:

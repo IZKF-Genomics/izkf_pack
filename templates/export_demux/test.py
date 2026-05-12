@@ -258,6 +258,7 @@ def main() -> int:
             assert "JSON Patch for MS Planner" in submit.stdout
             planner_block = submit.stdout.split("JSON Patch for MS Planner", 1)[1]
             assert '{\n  "Project ID"' not in planner_block
+            assert ",," not in planner_block
             assert '  "Project ID": "20250101_Test_Project_Assay_FASTQ",' in planner_block
             assert '  "Download command": "wget https://example.org/data",' in planner_block
             assert "Publisher Results" in submit.stdout
