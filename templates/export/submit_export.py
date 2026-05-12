@@ -148,6 +148,52 @@ def parse_raw_api_message(text: str) -> dict[str, str]:
     return parsed
 
 
+def print_list_item(label: str, value: str) -> None:
+    print(f"- {label}: {value}")
+
+
+def print_final_export_summary(final_payload: dict[str, object]) -> None:
+    print_section("Final Export Summary", CYAN)
+    print("Export complete.")
+
+    raw_fields = parse_raw_api_message(str(final_payload.get("message") or ""))
+    main_report = str(final_payload.get("main_report") or raw_fields.get("Report URL") or "").strip()
+    username = str(final_payload.get("username") or raw_fields.get("Username") or "").strip()
+    password = str(final_payload.get("password") or raw_fields.get("Password") or "").strip()
+
+    if main_report:
+        print("")
+        print("Main Report")
+        print_list_item("URL", main_report)
+
+    if username or password:
+        print("")
+        print("Access Credentials")
+        if username:
+            print_list_item("Username", username)
+        if password:
+            print_list_item("Password", password)
+
+    publisher_results = final_payload.get("publisher_results")
+    if isinstance(publisher_results, list) and publisher_results:
+        print("")
+        print("Publisher Results")
+        for index, publisher in enumerate(publisher_results, start=1):
+            if not isinstance(publisher, dict):
+                continue
+            publisher_name = str(publisher.get("publisher") or f"publisher {index}").upper()
+            print(f"{index}. {publisher_name}")
+            url = str(publisher.get("url") or "").strip()
+            publisher_username = str(publisher.get("username") or "").strip()
+            publisher_password = str(publisher.get("password") or "").strip()
+            if url:
+                print_list_item("URL", url)
+            if publisher_username:
+                print_list_item("Username", publisher_username)
+            if publisher_password:
+                print_list_item("Password", publisher_password)
+
+
 def read_saved_job_id(results_dir: Path) -> str:
     state_path = results_dir / "export_state.json"
     if state_path.exists():
@@ -290,6 +336,10 @@ def main() -> int:
         if final_path:
             print_key_value("Final path", final_path)
         return 0
+
+    if final_payload:
+        print("")
+        print_final_export_summary(final_payload)
 
     if raw_final_message:
         print("")

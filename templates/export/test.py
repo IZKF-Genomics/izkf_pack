@@ -55,6 +55,28 @@ class ExportHandler(BaseHTTPRequestHandler):
             return
         body = json.dumps(
             {
+                "main_report": "https://example.org/data/example_project_001/main_report.html",
+                "username": "example_user",
+                "password": "example_password",
+                "publisher_results": [
+                    {
+                        "publisher": "sftp",
+                        "url": "sftp://data.example.org",
+                        "username": "example_user_example_project_001",
+                        "password": "example_password",
+                    },
+                    {
+                        "publisher": "apache",
+                        "url": "https://example.org/data/example_project_001",
+                        "username": "example_user",
+                        "password": "example_password",
+                    },
+                    {
+                        "publisher": "owncloud",
+                        "url": "https://example.org/share/example_project_001",
+                        "password": "example_password",
+                    },
+                ],
                 "message": "\n".join(
                     [
                         "'Project ID': 'example_project_001',",
@@ -461,6 +483,17 @@ def main() -> int:
                 text=True,
             )
             assert "Job ID:" in submit.stdout
+            assert "Final Export Summary" in submit.stdout
+            assert "Main Report" in submit.stdout
+            assert "- URL: https://example.org/data/example_project_001/main_report.html" in submit.stdout
+            assert "Access Credentials" in submit.stdout
+            assert "- Username: example_user" in submit.stdout
+            assert "- Password: example_password" in submit.stdout
+            assert "Publisher Results" in submit.stdout
+            assert "1. SFTP" in submit.stdout
+            assert "- Username: example_user_example_project_001" in submit.stdout
+            assert "2. APACHE" in submit.stdout
+            assert "3. OWNCLOUD" in submit.stdout
             assert "JSON Patch for MS Planner" in submit.stdout
             assert "'Project ID': 'example_project_001'," in submit.stdout
             assert (export_dir / "results" / "export_job_id.txt").read_text(encoding="utf-8").strip() == "job-123"
