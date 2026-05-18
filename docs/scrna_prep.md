@@ -20,6 +20,13 @@ The template supports several input modes, including:
 
 At least one of `input_h5ad` or `input_matrix` must be set.
 
+For multiple 10x MTX samples, pass the parent directory as `input_matrix`.
+The `10x_mtx` loader accepts child sample directories with standard 10x file
+names or matching prefixes, for example
+`WT-2.scRNA.filtered.matrix.mtx.gz`,
+`WT-2.scRNA.filtered.features.tsv.gz`, and
+`WT-2.scRNA.filtered.barcodes.tsv.gz`.
+
 ## organism is required
 
 The template expects `organism` to be set explicitly so QC gene annotation can
@@ -31,6 +38,9 @@ Examples:
 - `mouse`
 - `hsapiens`
 - `mmusculus`
+- `zebrafish`
+- `drerio`
+- `danio_rerio`
 
 ## Raw-count expectation for `.h5ad`
 

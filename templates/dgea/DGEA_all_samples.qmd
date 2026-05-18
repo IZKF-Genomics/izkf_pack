@@ -24,6 +24,7 @@ params:
   application: ""
   name: ""
   authors: ""
+  tx2gene_file: ""
 ---
 
 ```{r setup, echo=TRUE, warning=FALSE, message=FALSE}
@@ -39,6 +40,10 @@ library(openxlsx)
 library(ggrepel)
 library(tibble)
 
+`%||%` <- function(x, y) if (is.null(x) || (is.character(x) && identical(x, ""))) y else x
+normalize_application <- function(x) tolower(gsub("[^[:alnum:]]", "", x %||% ""))
+is_standard_nfcore_rnaseq <- function(x) normalize_application(x) == "nfcorernaseq"
+
 salmon_dir <- params$salmon_dir
 samplesheet <- read.csv(params$samplesheet_path, stringsAsFactors = FALSE)
 rownames(samplesheet) <- samplesheet$sample
@@ -47,7 +52,7 @@ organism <- params$organism
 spikein <- params$spikein
 norm_spikein_ercc <- isTRUE(grepl("ERCC", spikein, ignore.case = TRUE))
 
-if (identical(application, "nfcore_RNAseq")) {
+if (is_standard_nfcore_rnaseq(application)) {
   counts_from_abundance <- "lengthScaledTPM"
   length_correction <- TRUE
 } else {
@@ -55,7 +60,13 @@ if (identical(application, "nfcore_RNAseq")) {
   length_correction <- FALSE
 }
 
-tx2gene_file <- file.path(salmon_dir, "tx2gene.tsv")
+tx2gene_file <- if (nzchar(params$tx2gene_file)) {
+  params$tx2gene_file
+} else if (file.exists(file.path(salmon_dir, "tx2gene.tsv"))) {
+  file.path(salmon_dir, "tx2gene.tsv")
+} else {
+  file.path(salmon_dir, "salmon.merged.tx2gene.tsv")
+}
 
 stopifnot(
   nzchar(salmon_dir),

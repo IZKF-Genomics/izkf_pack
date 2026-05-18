@@ -55,15 +55,41 @@ Template authors and AI agents should also read [TEMPLATE_AUTHORING_FOR_AGENTS.m
 
 ## Install
 
-Clone the pack and register it as a global Linkar pack:
+For most users, register the published GitHub pack as a global Linkar pack:
+
+```bash
+linkar config pack add github:IZKF-Genomics/izkf_pack --id izkf_pack
+```
+
+Linkar caches Git-backed packs under `~/.linkar/assets/` and records the
+resolved commit revision. `izkf_pack` does not maintain a separate pack-level
+version in `linkar_pack.yaml`; the Git revision is the source of truth. Use Git
+tags such as `v2026.05.15` as named revisions when you need a human-readable
+release point.
+
+Update the cached GitHub pack when a new published revision is available:
+
+```bash
+linkar config pack update izkf_pack
+linkar config pack list
+```
+
+For pack development, clone the repository and register the local checkout:
 
 ```bash
 cd ~/github/
 gh repo clone IZKF-Genomics/izkf_pack
-linkar config pack add ~/github/izkf_pack/
+linkar config pack add ~/github/izkf_pack/ --id izkf_pack_local
 ```
 
-After this, Linkar can find the pack without passing `--pack` each time.
+After this, Linkar can find the pack without passing `--pack` each time. Select
+the GitHub pack or the local development checkout explicitly when both are
+configured:
+
+```bash
+linkar config pack use izkf_pack
+linkar config pack use izkf_pack_local
+```
 
 Check the active global pack:
 
@@ -272,6 +298,120 @@ linkar run nfcore_methylseq \
 
 The default binding can generate the methylseq samplesheet from demultiplexed FASTQ names, resolve `genome`, and set the MultiQC title from the project name.
 
+### Run Single-cell RNA-seq Processing, QC, and Integration
+
+After finishing demultiplexing, create a Linkar project and adopt the processed run or the relevant
+`Sample_Project` output folder:
+
+```bash
+cd /path/to/projects/
+
+linkar project init \
+  --name example_scrnaseq_project \
+  --adopt /path/to/processed_runs/example_run/results/output/example_project
+
+cd example_scrnaseq_project
+linkar project view
+```
+
+Run the facility wrapper around `nf-core/scrnaseq`. The default binding can generate the
+nf-core samplesheet from recorded demultiplex FASTQs, resolve `genome` from `agendo_id`, and set
+host CPU and memory caps.
+
+```bash
+linkar run nfcore_scrnaseq \
+  --binding default \
+  --agendo-id EXAMPLE_REQUEST_ID \
+  --aligner star \
+  --protocol 10XV3 \
+  --expected-cells 5000 \
+  --verbose
+```
+
+For Cell Ranger-backed processing, use `aligner=cellranger`. When `protocol` is omitted for this
+aligner, the wrapper resolves it to `auto`.
+
+```bash
+linkar run nfcore_scrnaseq \
+  --binding default \
+  --agendo-id EXAMPLE_REQUEST_ID \
+  --aligner cellranger \
+  --expected-cells 5000 \
+  --verbose
+```
+
+If you want to inspect the generated Nextflow command before execution:
+
+```bash
+linkar render nfcore_scrnaseq \
+  --binding default \
+  --agendo-id EXAMPLE_REQUEST_ID \
+  --aligner star \
+  --protocol 10XV3 \
+  --outdir ./nfcore_scrnaseq
+
+cd nfcore_scrnaseq
+bash run.sh
+cd ..
+linkar collect nfcore_scrnaseq
+```
+
+Create the editable Scanpy preprocessing and QC workspace from the latest recorded
+`nfcore_scrnaseq` output:
+
+```bash
+linkar run scrna_prep \
+  --binding default \
+  --verbose
+```
+
+You can also run `scrna_prep` directly from an existing raw-count `.h5ad`:
+
+```bash
+linkar run scrna_prep \
+  --input-h5ad /path/to/adata.raw_counts.h5ad \
+  --organism mouse \
+  --verbose
+```
+
+Or from a matrix-style input such as 10x HDF5, 10x MTX, ParseBio, ScaleBio, STARsolo, or Cell Ranger
+`per_sample_outs`:
+
+```bash
+linkar run scrna_prep \
+  --input-matrix /path/to/filtered_feature_bc_matrix.h5 \
+  --input-format 10x_h5 \
+  --organism human \
+  --verbose
+```
+
+Run dataset integration after preprocessing. The default binding can use the latest
+`scrna_prep` output as `input_h5ad`.
+
+```bash
+linkar run scrna_integrate \
+  --binding default \
+  --integration-method scvi \
+  --batch-key batch \
+  --condition-key condition \
+  --verbose
+```
+
+For a lighter classical integration backend:
+
+```bash
+linkar run scrna_integrate \
+  --input-h5ad scrna_prep/results/adata.prep.h5ad \
+  --integration-method harmony \
+  --batch-key batch \
+  --condition-key condition \
+  --verbose
+```
+
+The integration template intentionally fails if the chosen `batch_key` is missing or contains only
+one real batch. For `integration_method=scvi` or `scanvi`, the input object must include raw counts
+in `adata.layers["counts"]`.
+
 ### Single-cell ATAC-seq
 
 Run Cell Ranger ATAC after a compatible FASTQ directory is recorded or passed explicitly:
@@ -393,6 +533,7 @@ If a required parameter cannot be resolved automatically, pass it explicitly wit
 | --- | --- | --- |
 | [`demultiplex`](templates/demultiplex/linkar_template.yaml) | Clone and run the pinned demultiplexing workflow, writing processed outputs under `results/`. | [README](templates/demultiplex/README.md) |
 | [`nfcore_3mrnaseq`](templates/nfcore_3mrnaseq/linkar_template.yaml) | Run the site-specific `nf-core/rnaseq` wrapper for 3' mRNA-seq projects. | [README](templates/nfcore_3mrnaseq/README.md) |
+| [`nfcore_scrnaseq`](templates/nfcore_scrnaseq/linkar_template.yaml) | Run the facility-focused `nf-core/scrnaseq` wrapper for single-cell RNA-seq projects. | [README](templates/nfcore_scrnaseq/README.md) |
 | [`scrna_prep`](templates/scrna_prep/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq preprocessing workspace with Quarto QC reporting. | [README](templates/scrna_prep/README.md) |
 | [`scrna_integrate`](templates/scrna_integrate/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq dataset integration workspace with baseline and integrated QC reporting. | [README](templates/scrna_integrate/README.md) |
 | [`scrna_annotate`](templates/scrna_annotate/linkar_template.yaml) | Create and run an editable tiered scverse/Scanpy single-cell RNA-seq annotation workspace with quick preview, semi-automatic marker evidence review, and formal annotation reports. | [README](templates/scrna_annotate/README.md) |
@@ -467,6 +608,8 @@ python3 templates/methods/test.py
 python3 templates/methods_from_paths/test.py
 python3 templates/dgea/test.py
 python3 templates/nfcore_3mrnaseq/test.py
+python3 templates/nfcore_scrnaseq/test.py
+python3 templates/scrna_prep/test.py
 python3 templates/scrna_integrate/test.py
 (cd templates/scrna_annotate && pixi run test-rebuild)
 ```

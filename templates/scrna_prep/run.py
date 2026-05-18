@@ -26,6 +26,10 @@ SUPPORTED_ORGANISM_ALIASES = {
     "mouse": "mouse",
     "mmusculus": "mouse",
     "mus_musculus": "mouse",
+    "zebrafish": "zebrafish",
+    "drerio": "zebrafish",
+    "danio_rerio": "zebrafish",
+    "danio rerio": "zebrafish",
 }
 SUPPORTED_ORGANISM_HELP = ", ".join(SUPPORTED_ORGANISM_ALIASES)
 SUPPORTED_INPUT_FORMATS = (
@@ -71,6 +75,23 @@ def first_existing(*paths: Path) -> Path | None:
     return None
 
 
+def has_10x_mtx_triplet(path: Path) -> bool:
+    matrix_files = list(path.glob("*matrix.mtx")) + list(path.glob("*matrix.mtx.gz"))
+    for matrix_file in matrix_files:
+        name = matrix_file.name
+        if name.endswith("matrix.mtx.gz"):
+            prefix = name[: -len("matrix.mtx.gz")]
+        elif name.endswith("matrix.mtx"):
+            prefix = name[: -len("matrix.mtx")]
+        else:
+            continue
+        if first_existing(path / f"{prefix}features.tsv", path / f"{prefix}features.tsv.gz") and first_existing(
+            path / f"{prefix}barcodes.tsv", path / f"{prefix}barcodes.tsv.gz"
+        ):
+            return True
+    return False
+
+
 def detect_input_format(path: Path) -> str:
     if path.is_dir():
         if path.name == "per_sample_outs":
@@ -98,6 +119,11 @@ def detect_input_format(path: Path) -> str:
             path / "features.tsv", path / "features.tsv.gz"
         ):
             return "10x_mtx"
+        if has_10x_mtx_triplet(path):
+            return "10x_mtx"
+        for child in sorted(path.iterdir()):
+            if child.is_dir() and has_10x_mtx_triplet(child):
+                return "10x_mtx"
         return ""
     lower = path.name.lower()
     if lower.endswith(".h5ad"):

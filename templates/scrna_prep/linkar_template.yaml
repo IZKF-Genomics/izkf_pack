@@ -41,7 +41,7 @@ params:
   organism:
     type: str
     default: ""
-    description: Required organism alias for QC gene annotation. Supported values are `human`, `hsapiens`, `homo_sapiens`, `mouse`, `mmusculus`, and `mus_musculus`.
+    description: Required organism alias for QC gene annotation. Supported values are `human`, `hsapiens`, `homo_sapiens`, `mouse`, `mmusculus`, `mus_musculus`, `zebrafish`, `drerio`, and `danio_rerio`.
   batch_key:
     type: str
     default: "batch"

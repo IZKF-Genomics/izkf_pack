@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 PIPELINE_NAME = "nf-core/rnaseq"
-PIPELINE_VERSION = "3.22.2"
+PIPELINE_VERSION = "3.25.0"
 EXECUTION_PROFILE = "docker"
 GENOME_PLACEHOLDER = "__EDIT_ME_GENOME__"
 UMI_KIT = "UMI Second Strand SynthesisModule for QuantSeq FWD"

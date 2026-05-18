@@ -71,6 +71,11 @@ QC_PATTERNS = {
         "ribo": ("Rps", "Rpl"),
         "hb_regex": r"^Hb(?!p)",
     },
+    "zebrafish": {
+        "mt": ("mt-",),
+        "ribo": ("rps", "rpl"),
+        "hb_regex": r"^hb(?!p)",
+    },
 }
 
 ORGANISM_ALIASES = {
@@ -80,6 +85,10 @@ ORGANISM_ALIASES = {
     "mouse": "mouse",
     "mmusculus": "mouse",
     "mus_musculus": "mouse",
+    "zebrafish": "zebrafish",
+    "drerio": "zebrafish",
+    "danio_rerio": "zebrafish",
+    "danio rerio": "zebrafish",
 }
 SUPPORTED_INPUT_FORMATS = {
     "h5ad",
@@ -128,6 +137,27 @@ def first_existing(*paths: Path) -> Path | None:
     return None
 
 
+def find_10x_mtx_triplet(path: Path) -> tuple[str, Path, Path, Path] | None:
+    matrix_files = sorted(list(path.glob("*matrix.mtx")) + list(path.glob("*matrix.mtx.gz")))
+    for matrix_file in matrix_files:
+        name = matrix_file.name
+        if name.endswith("matrix.mtx.gz"):
+            prefix = name[: -len("matrix.mtx.gz")]
+        elif name.endswith("matrix.mtx"):
+            prefix = name[: -len("matrix.mtx")]
+        else:
+            continue
+        features_file = first_existing(path / f"{prefix}features.tsv", path / f"{prefix}features.tsv.gz")
+        barcodes_file = first_existing(path / f"{prefix}barcodes.tsv", path / f"{prefix}barcodes.tsv.gz")
+        if features_file and barcodes_file:
+            return prefix, matrix_file, features_file, barcodes_file
+    return None
+
+
+def has_10x_mtx_triplet(path: Path) -> bool:
+    return find_10x_mtx_triplet(path) is not None
+
+
 def detect_input_format(path: Path) -> str:
     if path.is_dir():
         if path.name == "per_sample_outs":
@@ -155,6 +185,11 @@ def detect_input_format(path: Path) -> str:
             path / "features.tsv", path / "features.tsv.gz"
         ):
             return "10x_mtx"
+        if has_10x_mtx_triplet(path):
+            return "10x_mtx"
+        for child in sorted(path.iterdir()):
+            if child.is_dir() and has_10x_mtx_triplet(child):
+                return "10x_mtx"
         return ""
     lower = path.name.lower()
     if lower.endswith(".h5ad"):
@@ -211,7 +246,7 @@ def annotate_qc_genes(adata, organism: str) -> None:
     if org not in QC_PATTERNS:
         raise RuntimeError(
             "metadata.organism is missing or unsupported. "
-            "Set --param organism to one of: human, hsapiens, homo_sapiens, mouse, mmusculus, mus_musculus. "
+            "Set --param organism to one of: human, hsapiens, homo_sapiens, mouse, mmusculus, mus_musculus, zebrafish, drerio, danio_rerio. "
             "An upstream template can also provide params.organism or params.genome in project.yaml."
         )
     pats = QC_PATTERNS[org]
@@ -389,6 +424,50 @@ def read_cellranger_per_sample_outs(data_path: Path):
     return combined
 
 
+def read_10x_mtx_one(data_path: Path, var_names: str, sample_id: str | None = None):
+    triplet = find_10x_mtx_triplet(data_path)
+    if triplet is None:
+        raise RuntimeError(
+            f"10x MTX input directory is incomplete: {data_path}. "
+            "Expected matrix.mtx(.gz), features.tsv(.gz), and barcodes.tsv(.gz), optionally with the same filename prefix."
+        )
+    prefix, matrix_file, features_file, barcodes_file = triplet
+    adata = sc.read_10x_mtx(data_path, var_names=var_names, make_unique=True, prefix=prefix)
+    if sample_id:
+        adata.obs_names = pd.Index([f"{sample_id}:{bc}" for bc in adata.obs_names.astype(str)])
+        adata.obs["sample_id"] = sample_id
+        adata.obs["library_id"] = sample_id
+        adata.obs["batch"] = sample_id
+    adata.uns["input_member_paths"] = [str(matrix_file), str(features_file), str(barcodes_file)]
+    return adata
+
+
+def read_10x_mtx(data_path: Path, var_names: str):
+    if has_10x_mtx_triplet(data_path):
+        return read_10x_mtx_one(data_path, var_names)
+
+    adatas = []
+    found_inputs = []
+    for child in sorted(data_path.iterdir()):
+        if not child.is_dir() or not has_10x_mtx_triplet(child):
+            continue
+        sample_id = child.name
+        adata = read_10x_mtx_one(child, var_names, sample_id=sample_id)
+        found_inputs.extend(adata.uns.get("input_member_paths", []))
+        adatas.append(adata)
+
+    if not adatas:
+        raise RuntimeError(
+            f"10x MTX input directory is incomplete: {data_path}. "
+            "Expected a single 10x MTX directory, or child sample directories containing matching "
+            "*matrix.mtx.gz, *features.tsv.gz, and *barcodes.tsv.gz files."
+        )
+
+    combined = sc.concat(adatas, join="outer", merge="same")
+    combined.uns["input_member_paths"] = found_inputs
+    return combined
+
+
 def resolve_input_selection(input_h5ad: str, input_matrix: str, input_format: str) -> tuple[Path, str]:
     h5ad_value = str(input_h5ad).strip()
     matrix_value = str(input_matrix).strip()
@@ -455,7 +534,7 @@ def load_input_adata(input_h5ad: str, input_matrix: str, input_format: str, var_
     elif fmt == "10x_h5":
         adata = sc.read_10x_h5(input_path)
     elif fmt == "10x_mtx":
-        adata = sc.read_10x_mtx(input_path, var_names=var_choice, make_unique=True)
+        adata = read_10x_mtx(input_path, var_choice)
     elif fmt == "cellranger_per_sample_outs":
         adata = read_cellranger_per_sample_outs(input_path)
     elif fmt == "parsebio":
@@ -915,7 +994,7 @@ organism = str(cfg["metadata"]["organism"]).strip().lower()
 if not organism:
     raise RuntimeError(
         "config metadata.organism is empty; set --param organism to one of: "
-        "human, hsapiens, homo_sapiens, mouse, mmusculus, mus_musculus"
+        "human, hsapiens, homo_sapiens, mouse, mmusculus, mus_musculus, zebrafish, drerio, danio_rerio"
     )
 sample_id_key = str(cfg["metadata"]["sample_id_key"]).strip() or "sample_id"
 batch_key = str(cfg["metadata"]["batch_key"]).strip() or "batch"

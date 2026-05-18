@@ -9,6 +9,20 @@ null_if_na <- function(x) {
   x
 }
 
+resolve_tx2gene_file <- function(salmon_dir, tx2gene_file = NULL) {
+  candidates <- unique(stats::na.omit(c(
+    null_if_na(tx2gene_file),
+    file.path(salmon_dir, "tx2gene.tsv"),
+    file.path(salmon_dir, "salmon.merged.tx2gene.tsv")
+  )))
+  for (candidate in candidates) {
+    if (file.exists(candidate)) {
+      return(candidate)
+    }
+  }
+  candidates[[1]]
+}
+
 yaml_escape_string <- function(x) {
   gsub("\"", "\\\\\"", x)
 }
@@ -141,7 +155,7 @@ render_DGEA_report <- function(config) {
     pvalueCutoff_GO = config$pvalueCutoff_GO %||% 0.05,
     pvalueCutoff_GSEA = config$pvalueCutoff_GSEA %||% 0.05,
     highlighted_genes = null_if_na(config$highlighted_genes),
-    tx2gene_file = config$tx2gene_file %||% file.path(config$salmon_dir, "tx2gene.tsv"),
+    tx2gene_file = resolve_tx2gene_file(config$salmon_dir, config$tx2gene_file),
     filetag = filetag
   )
 
@@ -177,7 +191,8 @@ render_DGEA_all_sample <- function(config) {
     spikein = config$spikein,
     application = config$application,
     name = config$name %||% "project",
-    authors = config$authors %||% "PROJECT_AUTHORS"
+    authors = config$authors %||% "PROJECT_AUTHORS",
+    tx2gene_file = resolve_tx2gene_file(config$salmon_dir, config$tx2gene_file)
   )
 
   qmd_file <- "DGEA_all_samples.qmd"

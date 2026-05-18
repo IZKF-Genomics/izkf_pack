@@ -42,11 +42,15 @@ library(tibble)
 library(RColorBrewer)
 library(pheatmap)
 
+`%||%` <- function(x, y) if (is.null(x) || (is.character(x) && identical(x, ""))) y else x
+normalize_application <- function(x) tolower(gsub("[^[:alnum:]]", "", x %||% ""))
+is_standard_nfcore_rnaseq <- function(x) normalize_application(x) == "nfcorernaseq"
+
 validate_inputs <- function() {
   stopifnot(nzchar(params$salmon_dir))
   stopifnot(nzchar(params$sample1), nzchar(params$sample2))
   if (!nzchar(params$application)) {
-    stop("params$application must be set (nfcore_RNAseq or nfcore_3mRNAseq).")
+    stop("params$application must be set (for example nfcore_rnaseq or nfcore_3mrnaseq).")
   }
 }
 
@@ -85,7 +89,7 @@ if (organism == "mmusculus") {
   warning("No annotation package available for organism: ", organism, ". Gene full-name annotation will be skipped.")
 }
 
-counts_file <- if (identical(params$application, "nfcore_RNAseq")) {
+counts_file <- if (is_standard_nfcore_rnaseq(params$application)) {
   file.path(salmon_dir, "salmon.merged.gene_counts_length_scaled.tsv")
 } else {
   file.path(salmon_dir, "salmon.merged.gene_counts_scaled.tsv")

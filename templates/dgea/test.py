@@ -18,7 +18,8 @@ def main() -> int:
         results_dir = workspace / "results"
         salmon_dir = workspace / "salmon"
         salmon_dir.mkdir()
-        (salmon_dir / "tx2gene.tsv").write_text("tx1\tgene1\tGene1\n", encoding="utf-8")
+        merged_tx2gene = salmon_dir / "salmon.merged.tx2gene.tsv"
+        merged_tx2gene.write_text("tx1\tgene1\tGene1\n", encoding="utf-8")
         samplesheet = workspace / "samplesheet.csv"
         samplesheet.write_text(
             "sample,group,id\nWT_1,WT,1\nKO_1,KO,1\n",
@@ -54,6 +55,7 @@ def main() -> int:
         inputs_text = (workspace / "dgea_inputs.R").read_text(encoding="utf-8")
         assert "salmon_dir <- " in inputs_text
         assert str(salmon_dir.resolve()) in inputs_text
+        assert str(merged_tx2gene.resolve()) in inputs_text
         assert 'organism <- "hsapiens"' in inputs_text
 
         run_info = yaml.safe_load((results_dir / "run_info.yaml").read_text(encoding="utf-8"))
@@ -98,9 +100,13 @@ def main() -> int:
         assert "quarto" in spec_text
         assert 'rich = ">=13.9.0, <15"' in (TEMPLATE_DIR / "pixi.toml").read_text(encoding="utf-8")
         assert "paired:" not in template_text
+        assert "salmon.merged.tx2gene.tsv" in template_text
+        assert "is_standard_nfcore_rnaseq(params$application)" in template_text
         assert "knitr::asis_output(paste(" in template_text
         assert '"# GO Analysis",' in template_text
         assert "  # GO Analysis" not in template_text
+        assert "is_standard_nfcore_rnaseq(application)" in (TEMPLATE_DIR / "DGEA_all_samples.qmd").read_text(encoding="utf-8")
+        assert "is_standard_nfcore_rnaseq(params$application)" in (TEMPLATE_DIR / "SimpleComparison_template.qmd").read_text(encoding="utf-8")
         assert ".linkar_bioc_data_installed" in install_bioc_text
     return 0
 

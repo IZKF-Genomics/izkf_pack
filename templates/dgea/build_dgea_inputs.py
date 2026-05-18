@@ -26,7 +26,16 @@ def r_string(value: str) -> str:
     return f'"{escaped}"'
 
 
+def resolve_tx2gene_file(salmon_dir: Path) -> Path:
+    for name in ("tx2gene.tsv", "salmon.merged.tx2gene.tsv"):
+        candidate = salmon_dir / name
+        if candidate.exists():
+            return candidate.resolve()
+    return (salmon_dir / "tx2gene.tsv").resolve()
+
+
 def write_inputs_r(path: Path, args: argparse.Namespace) -> None:
+    tx2gene_file = resolve_tx2gene_file(Path(args.salmon_dir).resolve())
     path.write_text(
         "\n".join(
             [
@@ -38,7 +47,7 @@ def write_inputs_r(path: Path, args: argparse.Namespace) -> None:
                 f'application <- {r_string(args.application)}',
                 f'project_name <- {r_string(args.name)}',
                 f'authors <- {r_string(args.authors)}',
-                'tx2gene_file <- file.path(salmon_dir, "tx2gene.tsv")',
+                f'tx2gene_file <- {r_string(str(tx2gene_file))}',
                 f'results_dir <- {r_string(str(Path(args.results_dir).resolve()))}',
                 'dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)',
                 "",

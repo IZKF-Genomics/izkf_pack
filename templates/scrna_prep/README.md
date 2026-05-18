@@ -135,9 +135,11 @@ For 10x `.h5` input, `scanpy.read_10x_h5()` defines the feature names, so `var_n
 
 For MTX-style inputs, use `var_names=gene_symbols` when possible. QC gene annotation still requires gene symbols, either as feature names or in a recognized `adata.var` column such as `gene_symbols` or `gene_name`.
 
+For multi-sample 10x MTX inputs, point `input_matrix` at the parent directory. Each child sample directory may contain either standard 10x filenames or matching prefixed files such as `WT-2.scRNA.filtered.matrix.mtx.gz`, `WT-2.scRNA.filtered.features.tsv.gz`, and `WT-2.scRNA.filtered.barcodes.tsv.gz`. The loader concatenates child directories and records the child folder name as `sample_id`, `library_id`, and `batch`.
+
 DRAGEN-produced count matrices can be passed to this template directly without running `nfcore_scrnaseq` first. For vendor-processed Illumina Single Cell 3' RNA Prep projects, prefer explicit `input_format` values such as `10x_h5` or `10x_mtx` instead of relying on `auto`.
 
-Current limitation: QC gene-prefix annotation in this template is implemented for human and mouse aliases only. Handoffs from upstream genomes such as zebrafish (`drerio` / `GRCz11`) can still supply the expression matrix, but the QC report may require a small template update before gene-family labeling works cleanly for that organism.
+Zebrafish inputs are supported with `zebrafish`, `drerio`, or `danio_rerio`. For GRCz11/Ensembl-style references, QC gene annotation expects gene symbols such as `mt-nd1`, `rpl18a`, and `hbba2`; use `var_names=gene_symbols` for MTX-style inputs when possible.
 
 ## Runtime Behavior
 

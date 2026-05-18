@@ -91,6 +91,16 @@ def main() -> int:
         (tenx_mtx_dir / "features.tsv").write_text("gene1\tGene1\tGene Expression\n", encoding="utf-8")
         (tenx_mtx_dir / "barcodes.tsv").write_text("cell-1\n", encoding="utf-8")
 
+        tenx_mtx_multi_dir = tmp_path / "multi_sample_10x"
+        for sample_id, prefix in (("WT2", "WT-2.scRNA.filtered."), ("Mut2", "Mut-2.scRNA.filtered.")):
+            sample_dir = tenx_mtx_multi_dir / sample_id
+            sample_dir.mkdir(parents=True)
+            (sample_dir / f"{prefix}matrix.mtx.gz").write_text(
+                "%%MatrixMarket matrix coordinate integer general\n", encoding="utf-8"
+            )
+            (sample_dir / f"{prefix}features.tsv.gz").write_text("gene1\tGene1\tGene Expression\n", encoding="utf-8")
+            (sample_dir / f"{prefix}barcodes.tsv.gz").write_text("cell-1\n", encoding="utf-8")
+
         parsebio_dir = tmp_path / "parsebio_run"
         parsebio_dir.mkdir()
         (parsebio_dir / "count_matrix.mtx").write_text("%%MatrixMarket matrix coordinate integer general\n", encoding="utf-8")
@@ -148,6 +158,7 @@ def main() -> int:
         assert run_module.detect_input_format(input_h5ad) == "h5ad"
         assert run_module.detect_input_format(input_h5) == "10x_h5"
         assert run_module.detect_input_format(tenx_mtx_dir) == "10x_mtx"
+        assert run_module.detect_input_format(tenx_mtx_multi_dir) == "10x_mtx"
         assert run_module.detect_input_format(parsebio_dir) == "parsebio"
         assert run_module.detect_input_format(scalebio_dir) == "scalebio"
         assert run_module.detect_input_format(per_sample_outs_dir) == "cellranger_per_sample_outs"
@@ -224,11 +235,19 @@ def main() -> int:
             "Set ORGANISM to a supported alias for QC gene annotation before running scrna_prep.",
         )
 
+        zebrafish_organism_params = dict(minimal_params)
+        zebrafish_organism_params["organism"] = "zebrafish"
+        run_module.validate_params(zebrafish_organism_params)
+
+        drerio_organism_params = dict(minimal_params)
+        drerio_organism_params["organism"] = "drerio"
+        run_module.validate_params(drerio_organism_params)
+
         unsupported_organism_params = dict(minimal_params)
-        unsupported_organism_params["organism"] = "zebrafish"
+        unsupported_organism_params["organism"] = "yeast"
         assert_system_exit(
             lambda: run_module.validate_params(unsupported_organism_params),
-            "Received: zebrafish.",
+            "Received: yeast.",
         )
 
         missing_metadata_params = dict(minimal_params)
@@ -557,6 +576,10 @@ PY""",
     assert 'mask_var="highly_variable"' in qmd_text
     assert "sc.pp.scale(filtered" not in qmd_text
     assert "resolve_qc_feature_names" in qmd_text
+    assert "find_10x_mtx_triplet" in qmd_text
+    assert "read_10x_mtx_one" in qmd_text
+    assert '"drerio": "zebrafish"' in qmd_text
+    assert '"zebrafish": "zebrafish"' in run_py_text
     assert 'astype(str).fillna("unknown")' not in qmd_text
     assert "authors:" not in template_text
     assert "--authors" not in run_sh_text

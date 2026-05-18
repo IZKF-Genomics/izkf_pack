@@ -61,6 +61,8 @@ library(clusterProfiler)
 library(enrichplot)
 
 `%||%` <- function(x, y) if (is.null(x) || (is.character(x) && identical(x, ""))) y else x
+normalize_application <- function(x) tolower(gsub("[^[:alnum:]]", "", x %||% ""))
+is_standard_nfcore_rnaseq <- function(x) normalize_application(x) == "nfcorernaseq"
 
 samplesheet <- read.csv(params$samplesheet_path, stringsAsFactors = FALSE)
 rownames(samplesheet) <- samplesheet$sample
@@ -117,13 +119,19 @@ if (is.null(OrgDb) && (go || gsea)) {
 
 show_go_up <- FALSE
 show_go_down <- FALSE
-tx2gene_file <- if (nzchar(params$tx2gene_file)) params$tx2gene_file else file.path(params$salmon_dir, "tx2gene.tsv")
+tx2gene_file <- if (nzchar(params$tx2gene_file)) {
+  params$tx2gene_file
+} else if (file.exists(file.path(params$salmon_dir, "tx2gene.tsv"))) {
+  file.path(params$salmon_dir, "tx2gene.tsv")
+} else {
+  file.path(params$salmon_dir, "salmon.merged.tx2gene.tsv")
+}
 stopifnot(
   nzchar(params$salmon_dir),
   file.exists(tx2gene_file)
 )
 
-if (identical(params$application, "nfcore_RNAseq")) {
+if (is_standard_nfcore_rnaseq(params$application)) {
   counts_from_abundance <- "lengthScaledTPM"
   length_correction <- TRUE
 } else {
@@ -927,13 +935,29 @@ dotplot(go_up, title = "GO Enrichment - Upregulated Genes") + theme_minimal()
 
 `r if(show_go_up){"A dotplot for Gene Ontology (GO) analysis is a visualization that displays enriched GO terms along with their significance and gene ratio. In this plot, each dot represents a GO term, with the x-axis showing the gene ratio (the proportion of genes associated with the term) and the y-axis listing the GO terms. The size of the dot indicates the number of genes in each category, while the color represents the statistical significance (e.g., p-value). This visualization helps quickly identify the most enriched GO terms and compare their significance and gene involvement."}`
 
-```{r go-up-emapplot, echo=go, results="markup", warning=FALSE, message=FALSE, eval=show_go_up}
-emapplot(
-  pairwise_termsim(go_up),
-  showCategory = 5,
-  #cex.params = list(category_label = 0.7)
-) +
-  ggtitle("Enrichment Map - Upregulated Genes")
+```{r go-up-emapplot, echo=go, results="asis", warning=FALSE, message=FALSE, eval=show_go_up}
+emap_up <- tryCatch(
+  {
+    emapplot(
+      pairwise_termsim(go_up),
+      showCategory = 5,
+      #cex.params = list(category_label = 0.7)
+    ) +
+      ggtitle("Enrichment Map - Upregulated Genes")
+  },
+  error = function(e) {
+    cat("> Enrichment map skipped: ", conditionMessage(e), "\n\n", sep = "")
+    NULL
+  }
+)
+if (!is.null(emap_up)) {
+  tryCatch(
+    print(emap_up),
+    error = function(e) {
+      cat("> Enrichment map skipped: ", conditionMessage(e), "\n\n", sep = "")
+    }
+  )
+}
 ```
 
 `r if(show_go_up){"An emapplot visualizes the relationships between enriched pathways or gene sets by displaying them as a network graph. In this plot, nodes represent the enriched pathways, while edges (connections) between nodes indicate the degree of gene overlap between the pathways. The size of the nodes reflects the number of genes in each pathway, and the color can represent statistical significance (e.g., p-value). The emapplot helps identify clusters of related pathways, providing insight into how different biological functions or processes are interconnected, making it easier to interpret the overall biological context of the enrichment results."}`
@@ -947,12 +971,28 @@ dotplot(go_down, title = "GO Enrichment - Downregulated Genes") +
 
 `r if(show_go_down){"A dotplot for Gene Ontology (GO) analysis is a visualization that displays enriched GO terms along with their significance and gene ratio. In this plot, each dot represents a GO term, with the x-axis showing the gene ratio (the proportion of genes associated with the term) and the y-axis listing the GO terms. The size of the dot indicates the number of genes in each category, while the color represents the statistical significance (e.g., p-value). This visualization helps quickly identify the most enriched GO terms and compare their significance and gene involvement."}`
 
-```{r go-down-emapplot, echo=go, results="markup", warning=FALSE, message=FALSE, eval=show_go_down}
-emapplot(
-  pairwise_termsim(go_down),
-  showCategory = 5,
-  # cex.params = list(category_label = 0.7)
-) + ggtitle("Enrichment Map - Downregulated Genes")
+```{r go-down-emapplot, echo=go, results="asis", warning=FALSE, message=FALSE, eval=show_go_down}
+emap_down <- tryCatch(
+  {
+    emapplot(
+      pairwise_termsim(go_down),
+      showCategory = 5,
+      # cex.params = list(category_label = 0.7)
+    ) + ggtitle("Enrichment Map - Downregulated Genes")
+  },
+  error = function(e) {
+    cat("> Enrichment map skipped: ", conditionMessage(e), "\n\n", sep = "")
+    NULL
+  }
+)
+if (!is.null(emap_down)) {
+  tryCatch(
+    print(emap_down),
+    error = function(e) {
+      cat("> Enrichment map skipped: ", conditionMessage(e), "\n\n", sep = "")
+    }
+  )
+}
 ```
 
 `r if(show_go_down){"An emapplot visualizes the relationships between enriched pathways or gene sets by displaying them as a network graph. In this plot, nodes represent the enriched pathways, while edges (connections) between nodes indicate the degree of gene overlap between the pathways. The size of the nodes reflects the number of genes in each pathway, and the color can represent statistical significance (e.g., p-value). The emapplot helps identify clusters of related pathways, providing insight into how different biological functions or processes are interconnected, making it easier to interpret the overall biological context of the enrichment results."}`
