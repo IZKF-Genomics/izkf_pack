@@ -1,0 +1,45 @@
+id: sctab
+name: scTab
+group: foundation_model
+maturity: planned
+default_enabled: false
+experimental: true
+environment:
+  manager: pixi
+  lockfile: pixi.lock
+entrypoint:
+  command: pixi run python run.py
+input_requirements:
+  input_h5ad: required
+  organism: recommended
+  tissue: recommended
+  gene_id_type: model_vocabulary_required
+  expression:
+    accepted:
+      - normalized_log1p
+  model:
+    checkpoint_required: true
+    vocabulary_required: true
+  hardware:
+    gpu: optional
+configuration:
+  model_path:
+    type: path
+    required: true
+  vocab_path:
+    type: path
+    required: true
+  batch_size:
+    type: int
+    default: 128
+  min_vocab_overlap:
+    type: float
+    default: 0.70
+  use_gpu:
+    type: bool
+    default: false
+outputs:
+  annotation_result: annotation_result.json
+notes:
+  - Must record checkpoint hash, vocabulary hash, label space, and gene vocabulary overlap.
+  - Should remain disabled by default.

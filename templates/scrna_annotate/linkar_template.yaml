@@ -1,66 +1,72 @@
 id: scrna_annotate
-version: 0.1.0
-description: Tiered scverse/Scanpy single-cell RNA-seq annotation workflow with quick preview, refinement, and formal annotation layers.
+version: 0.2.0-design
+description: Design-only scaffold for a provider-based single-cell RNA-seq annotation runner that emits standard annotation JSON files.
 tools:
   required:
-    - pixi
-    - python3
+    - bash
 params:
-  workflow_config:
-    type: path
-    default: "config/workflow.yaml"
-    description: Top-level workflow config file for the rebuilt tiered annotation template.
   input_h5ad:
     type: path
     default: ""
-    description: Prepared `.h5ad` input used as the global workflow input. The rebuilt template expects this path in `config/workflow.yaml`.
+    description: Prepared `.h5ad` input. The default binding prefers the latest `scrna_prep` output, then `scrna_integrate` when available.
+  input_source_template:
+    type: str
+    default: ""
+    description: Provenance label for the upstream template that produced `input_h5ad`.
+  dataset_config:
+    type: path
+    default: "config/dataset.toml"
+    description: Dataset-level metadata contract used by all providers.
+  providers_config:
+    type: path
+    default: "config/providers.toml"
+    description: Provider enablement and provider-specific parameters.
   cluster_key:
     type: str
     default: "leiden"
-    description: Cluster column used across all tiers of the rebuilt workflow.
+    description: Cluster column used to aggregate cell-level provider results and compare cluster-level annotations.
+  organism:
+    type: str
+    default: ""
+    description: Dataset organism, for example `human`, `mouse`, or `zebrafish`.
+  tissue:
+    type: str
+    default: ""
+    description: Tissue or biological context. This should usually be set explicitly because marker databases and references are tissue-sensitive.
   batch_key:
     type: str
     default: "batch"
-    description: Optional batch column used in summaries and plots when available.
+    description: Optional batch column in `adata.obs`.
   condition_key:
     type: str
     default: "condition"
-    description: Optional condition column used in summaries and plots when available.
+    description: Optional condition column in `adata.obs`.
   sample_id_key:
     type: str
     default: "sample_id"
-    description: Optional sample identifier column used in summaries and plots.
-  sample_label_key:
+    description: Optional sample identifier column in `adata.obs`.
+  gene_id_type:
     type: str
-    default: "sample_display"
-    description: Optional sample display column used in hover labels and tables.
-  unknown_label:
+    default: "gene_symbols"
+    description: Declared gene identifier type for provider readiness checks. Expected values are `gene_symbols`, `ensembl`, or `auto`.
+  expression_layer:
     type: str
-    default: "Unknown"
-    description: Label used for unresolved cells or clusters across all tiers.
+    default: "X"
+    description: Expression layer/view used by providers unless a provider config overrides it.
+  provider_preset:
+    type: str
+    default: "default"
+    description: Planned provider preset. `default` should remain conservative; experimental providers such as scGPT/scTab must require explicit configuration.
 outputs:
-  workflow_config_file:
-    path: config/workflow.yaml
-  workflow_reports:
-    glob: reports/*.html
-  tier1_adata:
-    path: tier1_quick_preview/results/adata.preview.h5ad
-  tier2_adata:
-    path: tier2_refinement/results/adata.refined.h5ad
-  tier3_adata:
-    path: tier3_formal_annotation/results/adata.annotated.h5ad
-  tier1_reports:
-    glob: tier1_quick_preview/reports/*.html
-  tier2_reports:
-    glob: tier2_refinement/reports/*.html
-  tier3_reports:
-    glob: tier3_formal_annotation/reports/*.html
-  tier1_tables:
-    glob: tier1_quick_preview/results/tables/*.csv
-  tier2_tables:
-    glob: tier2_refinement/results/tables/*.csv
-  tier3_tables:
-    glob: tier3_formal_annotation/results/tables/*.csv
+  results_dir: {}
+  dataset_profile:
+    path: results/dataset_profile.json
+  provider_index:
+    path: results/provider_index.json
+  provider_results:
+    glob: results/providers/*/annotation_result.json
+  provider_logs:
+    glob: results/providers/*/logs/*
 run:
   mode: render
   entry: run.sh

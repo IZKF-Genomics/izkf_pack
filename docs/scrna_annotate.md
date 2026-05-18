@@ -1,193 +1,208 @@
-# scrna_annotate workspace notes
+# scrna_annotate design notes
 
-The [`scrna_annotate`](../templates/scrna_annotate/README.md) template is a
-tiered Scanpy-based annotation workflow.
+The [`scrna_annotate`](../templates/scrna_annotate/README.md) template has been reset to a
+design-only scaffold for a provider-based annotation architecture.
 
-The rebuilt structure is intentionally progressive:
+No annotation provider code is implemented in this scaffold yet. The purpose of the current
+directory is to define the interface, output schema, provider manifest model, and implementation
+sequence before writing execution code.
 
-- Tier 1: quick preview
-- Tier 2: refinement
-- Tier 3: formal annotation
+## Architecture
 
-This document records the pack-specific assumptions behind the current
-implementation.
+The planned model separates execution from interpretation:
 
-## Workflow model
+- `scrna_annotate` runs independent annotation providers.
+- Each provider writes one standard `annotation_result.json`.
+- Each provider may write a method-level Quarto report.
+- `scrna_audit` will read the JSON files, link provider reports, and create comparisons,
+  consensus summaries, benchmark pages, and review tables.
 
-The old single-directory annotation runtime is being replaced by a workflow that
-separates annotation into three user-facing layers:
+This boundary is important. Annotation methods have different assumptions and input requirements,
+so the audit layer should not hide those differences by recomputing or silently filling in missing
+provider results.
 
-- `tier1_quick_preview`
-- `tier2_refinement`
-- `tier3_formal_annotation`
+## Why the old tiered design was removed
 
-The top-level template directory now acts as a workflow orchestrator rather than
-as a single monolithic runtime.
+The previous `scrna_annotate` template used a tiered preview/refinement/formal structure. That was
+useful as a user-experience experiment, but it mixed several concerns:
 
-Current top-level entrypoint:
+- workflow orchestration
+- method execution
+- preview labels
+- formal reference-aware annotation
+- reporting and review
 
-- `templates/scrna_annotate/run.sh`
+The new plan is cleaner:
 
-Top-level workflow config:
+- one provider runner template
+- provider-owned method reports
+- one audit and benchmark reporting template
+- one provider JSON contract between them
 
-- `templates/scrna_annotate/config/workflow.yaml`
+## Provider groups
 
-## Why the template uses tiers
+Planned provider groups:
 
-The rebuild is driven by three practical issues in the older design:
+| Group | Examples | Default? | Notes |
+| --- | --- | --- | --- |
+| `marker_based` | marker overlap, scType, scCATCH, SCINA, Garnett, CellAssign | yes, conservative | Best first target because evidence is inspectable. |
+| `reference_based` | CellTypist, SingleR, CHETAH, scmap, scPred, Seurat label transfer | optional | Requires explicit model/reference provenance. |
+| `atlas_model` | Azimuth, Symphony, scArches, custom atlas classifier | optional | Needs atlas version and label-space metadata. |
+| `foundation_model` | scGPT, scTab, Geneformer, UCE, scFoundation, scBERT | experimental | Requires model checkpoint, vocabulary, preprocessing, and hardware provenance. |
+| `llm_assisted` | marker-list interpretation, literature-assisted explanation | optional | Should explain evidence, not act as sole source of truth. |
+| `manual_curated` | collaborator labels, manuscript labels, review CSV | optional | Human labels should be first-class provider evidence. |
+| `mock` | schema test provider | test only | Useful for building `scrna_audit` before real providers exist. |
 
-- users had to think about formal annotation too early
-- `CellTypist` was the only real backend, but many datasets do not have a
-  suitable model
-- review, preview, and formal annotation concerns were mixed into one runtime
+## Input requirement strategy
 
-The rebuilt design follows single-cell best practices more closely:
+Do not force all methods into one flat parameter set.
 
-- let users see something first
-- keep uncertainty visible
-- only enable reference-aware annotation when the reference really fits
+Use three layers:
 
-## Current tier status
+1. Dataset contract
+2. Provider-specific config
+3. Resolver and validation layer
 
-### Tier 1
+The dataset contract describes the data:
 
-Current behavior:
+- `input_h5ad`
+- `organism`
+- `tissue`
+- `cluster_key`
+- `sample_key`
+- `batch_key`
+- `condition_key`
+- `gene_id_type`
+- `expression_layer`
+- `raw_layer`
 
-- validates the input AnnData object
-- requires a cluster column and `X_umap`
-- writes conservative preview labels
-- writes cluster-level preview summaries
-- writes cluster top-marker tables
-- renders a quick preview report
+Provider-specific config describes the method:
 
-Current outputs include:
+- CellTypist model
+- SingleR reference
+- marker database settings
+- manual label CSV
+- scGPT/scTab checkpoint and vocabulary paths
 
-- `tier1_quick_preview/results/adata.preview.h5ad`
-- `tier1_quick_preview/results/tables/preview_consensus.csv`
-- `tier1_quick_preview/results/tables/preview_disagreement_summary.csv`
-- `tier1_quick_preview/results/tables/cluster_top_markers.csv`
-- `tier1_quick_preview/reports/01_quick_preview.html`
+The resolver should inspect the `.h5ad`, check provider manifests, and classify each provider as:
 
-Tier 1 is meant to be low-setup and safe by default. It is the default
-execution path of the workflow.
+- `completed`
+- `completed_with_warnings`
+- `skipped`
+- `needs_config`
+- `failed`
 
-### Tier 2
+## Output contract
 
-Current behavior:
+Every provider writes:
 
-- consumes Tier 1 outputs
-- writes conservative refinement suggestions
-- reads Tier 1 cluster top markers
-- optionally scores user-supplied marker sets
-- renders a refinement report
+```text
+results/providers/<provider_id>/annotation_result.json
+```
 
-Current outputs include:
+Every provider may also write:
 
-- `tier2_refinement/results/adata.refined.h5ad`
-- `tier2_refinement/results/tables/refinement_suggestions.csv`
-- `tier2_refinement/results/tables/marker_review_summary.csv`
-- `tier2_refinement/results/tables/cluster_marker_candidates.csv`
-- `tier2_refinement/reports/02_refinement.html`
+```text
+results/providers/<provider_id>/report.qmd
+results/providers/<provider_id>/report.html
+```
 
-Tier 2 is not intended to replace formal reference-based annotation. Its role
-is to strengthen or challenge Tier 1 preview labels before the user commits to
-a formal method.
+The Quarto source is the canonical human-readable method report. Rendered HTML is optional and
+should not be required for a successful annotation run. If Quarto is unavailable, a provider should
+write `report.qmd`, omit `report.html`, and record a warning in `annotation_result.json`.
 
-### Tier 3
+Provider reports are for method-specific evidence and diagnostics. For example, a marker-based
+provider can show matched and missing marker genes, while a reference-based provider can show model
+or reference provenance and score diagnostics. The audit template should link to these reports, but
+it should not parse them as input data.
 
-Current behavior:
+The top-level runner writes:
 
-- consumes Tier 2 outputs
-- reads Tier 3 formal annotation config
-- runs `CellTypist` when enabled and configured
-- writes formal prediction tables
-- writes an annotated H5AD
-- renders a formal annotation report
+```text
+results/dataset_profile.json
+results/provider_index.json
+```
 
-Current outputs include:
+The JSON contract must represent both successful and unsuccessful providers. A skipped provider is
+still useful because it explains why a method was not run.
 
-- `tier3_formal_annotation/results/adata.annotated.h5ad`
-- `tier3_formal_annotation/results/tables/formal_annotation_predictions.csv`
-- `tier3_formal_annotation/results/tables/formal_annotation_summary.csv`
-- `tier3_formal_annotation/reports/03_formal_annotation.html`
+## Annotation units
 
-Tier 3 is intentionally not the default execution path.
+The schema supports:
 
-## Current method scope
+- `cluster_predictions`
+- `cell_predictions`
 
-The rebuilt template remains intentionally Python-only.
+Cluster-level prediction is the preferred audit unit. Providers that produce cell-level labels
+should aggregate to clusters and record the aggregation rule.
 
-Currently active or scaffolded methods:
+## Label handling
 
-- Tier 1 quick preview scaffold
-- Tier 2 marker-backed refinement scaffold
-- Tier 3 `CellTypist`
+Provider output should preserve:
 
-Still planned for later integration:
+- raw provider label
+- normalized label
+- optional ontology id
 
-- `scANVI`
-- `decoupler` as a richer review layer
-- selected low-setup quick-preview tools when operationally justified
+String comparison alone is not enough because tools may emit labels such as `CD4 T cell`,
+`CD4+ T-cell`, or `T helper cell`.
 
-Still intentionally out of scope:
+## Score handling
 
-- `scmap`
-- `scPred`
+Provider scores are not comparable across methods.
 
-Those remain excluded because they would pull the template back into a
-mixed-language runtime before the Python-first rebuild is stable.
+The schema therefore records:
 
-## Default input preference
+- `provider_score`
+- `provider_score_name`
+- `confidence_bucket`
 
-The rebuilt workflow still assumes that the most natural upstream source is the
-latest `scrna_prep` output.
+The audit layer may compare rank and confidence bucket, but should not compare numeric values
+across CellTypist probabilities, marker overlap scores, SingleR deltas, and foundation-model
+softmax scores as though they were the same.
 
-Reason:
+## Foundation model rules
 
-- preview and formal annotation both benefit from the broader feature space in a
-  prep-stage object
+Foundation-model providers such as scGPT and scTab should stay disabled by default.
 
-Using an integration-stage object is still possible, but should remain an
-intentional user choice rather than a silent default.
+They must record:
 
-## CellTypist assumptions still matter
+- model path or name
+- model revision or checkpoint hash
+- vocabulary path or hash
+- gene vocabulary overlap
+- expression layer and normalization assumption
+- hardware mode
+- label space
 
-Although the workflow has been redesigned, the `CellTypist` backend still has
-the same biological and technical constraints:
+Low vocabulary overlap should become a provider warning and later a visible `scrna_audit` warning.
 
-- a relevant reference model is critical
-- the method expects usable gene symbols
-- the expression view should be compatible with log-normalized prediction
+## Recommended milestone
 
-The workflow changes user experience and structure, but it does not make an
-ill-matched reference safer.
+First milestone:
 
-## Output philosophy
+1. dataset profiler
+2. provider manifest reader
+3. JSON schema validation
+4. `mock_provider`
+5. `marker_based`
+6. `provider_index.json`
 
-The rebuild continues to enforce a conservative output policy:
+Second milestone:
 
-- preview labels are not final labels
-- refinement labels are not final labels
-- formal labels should still be reviewable
-- unresolved clusters should remain `Unknown`
+1. `scrna_audit` reader
+2. provider status report
+3. cluster-by-provider comparison
+4. conflict/review table
 
-This is a deliberate design choice and should not be relaxed just because the
-workflow is now easier to run.
+Only then add more real providers.
 
-## Maintenance notes
+## Files
 
-When editing the rebuilt template, treat these as high-sensitivity areas:
-
-- tier-to-tier input and output contracts
-- shared helper modules in `shared/lib/`
-- top-level workflow orchestration in `run.sh`
-- preview marker ranking assumptions
-- formal annotation label naming and final-label write logic
-
-## Related docs
-
-- [scrna_annotate_redesign.md](scrna_annotate_redesign.md)
-- [scrna_annotate_rebuild_plan.md](scrna_annotate_rebuild_plan.md)
-- [scrna_prep.md](scrna_prep.md)
-- [scrna_integrate.md](scrna_integrate.md)
-- [template_outputs.md](template_outputs.md)
+- [Template README](../templates/scrna_annotate/README.md)
+- [Design document](../templates/scrna_annotate/DESIGN.md)
+- [Dataset config draft](../templates/scrna_annotate/config/dataset.toml)
+- [Providers config draft](../templates/scrna_annotate/config/providers.toml)
+- [Annotation result schema](../templates/scrna_annotate/schema/annotation_result.schema.json)
+- [Provider index schema](../templates/scrna_annotate/schema/provider_index.schema.json)
+- [Provider manifests](../templates/scrna_annotate/providers/README.md)

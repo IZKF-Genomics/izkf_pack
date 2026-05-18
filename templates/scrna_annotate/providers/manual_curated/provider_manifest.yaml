@@ -1,0 +1,32 @@
+id: manual_curated
+name: Manual curated labels
+group: manual_curated
+maturity: planned
+default_enabled: false
+experimental: false
+environment:
+  manager: none
+entrypoint:
+  command: python run.py
+input_requirements:
+  input_h5ad: optional
+  cluster_key: required
+  labels_csv: required
+configuration:
+  labels_csv:
+    type: path
+    required: true
+  cluster_column:
+    type: str
+    default: cluster_id
+  label_column:
+    type: str
+    default: label
+  reviewer:
+    type: str
+    default: ""
+outputs:
+  annotation_result: annotation_result.json
+notes:
+  - Treat collaborator or manuscript labels as first-class provider evidence.
+  - Should record file hash and reviewer/date provenance when implemented.

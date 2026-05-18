@@ -1,0 +1,21 @@
+id: mock_provider
+name: Mock provider
+group: mock
+maturity: planned
+default_enabled: false
+experimental: false
+environment:
+  manager: none
+entrypoint:
+  command: python run.py
+input_requirements:
+  input_h5ad: optional
+  cluster_key: optional
+configuration:
+  mode:
+    type: str
+    default: completed
+outputs:
+  annotation_result: annotation_result.json
+notes:
+  - Used to test schemas, provider indexing, and scrna_audit before real providers are implemented.

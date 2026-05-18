@@ -1,0 +1,34 @@
+id: marker_based
+name: Marker-based evidence
+group: marker_based
+maturity: planned
+default_enabled: true
+experimental: false
+environment:
+  manager: pixi
+  lockfile: pixi.lock
+entrypoint:
+  command: pixi run python run.py
+input_requirements:
+  input_h5ad: required
+  organism: recommended
+  tissue: recommended
+  cluster_key: required
+  gene_id_type: gene_symbols_recommended
+  expression:
+    accepted:
+      - normalized_log1p
+      - raw_counts_with_normalization
+  needs_cluster_markers: true
+configuration:
+  top_n_markers:
+    type: int
+    default: 50
+  min_log2fc:
+    type: float
+    default: 0.25
+outputs:
+  annotation_result: annotation_result.json
+notes:
+  - First real provider target because it is interpretable and audit-friendly.
+  - Should preserve matched and missing marker evidence per cluster.

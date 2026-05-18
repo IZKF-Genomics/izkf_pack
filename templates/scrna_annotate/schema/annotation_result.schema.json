@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://izkf-genomics.github.io/izkf_pack/schemas/scrna_annotate/annotation_result.schema.json",
+  "title": "scrna_annotate provider annotation result",
+  "type": "object",
+  "required": ["schema_version", "provider", "input", "status", "cluster_predictions"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "provider": {
+      "type": "object",
+      "required": ["id", "name", "group"],
+      "additionalProperties": true,
+      "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "group": {
+          "type": "string",
+          "enum": [
+            "marker_based",
+            "reference_based",
+            "atlas_model",
+            "foundation_model",
+            "llm_assisted",
+            "manual_curated",
+            "mock"
+          ]
+        },
+        "version": {"type": ["string", "null"]},
+        "environment": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "manager": {"type": ["string", "null"]},
+            "lockfile": {"type": ["string", "null"]},
+            "command": {"type": ["string", "null"]}
+          }
+        },
+        "model": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "name": {"type": ["string", "null"]},
+            "path": {"type": ["string", "null"]},
+            "revision": {"type": ["string", "null"]},
+            "checkpoint_hash": {"type": ["string", "null"]},
+            "vocab_path": {"type": ["string", "null"]},
+            "vocab_hash": {"type": ["string", "null"]}
+          }
+        }
+      }
+    },
+    "input": {
+      "type": "object",
+      "required": ["h5ad", "cluster_key"],
+      "additionalProperties": true,
+      "properties": {
+        "h5ad": {"type": "string"},
+        "input_source_template": {"type": ["string", "null"]},
+        "organism": {"type": ["string", "null"]},
+        "tissue": {"type": ["string", "null"]},
+        "cluster_key": {"type": "string"},
+        "sample_key": {"type": ["string", "null"]},
+        "batch_key": {"type": ["string", "null"]},
+        "condition_key": {"type": ["string", "null"]},
+        "gene_id_type": {"type": ["string", "null"]},
+        "expression_layer": {"type": ["string", "null"]}
+      }
+    },
+    "input_validation": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "state": {"type": ["string", "null"]},
+        "warnings": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "genes_total": {"type": ["integer", "null"]},
+        "genes_usable": {"type": ["integer", "null"]},
+        "genes_in_vocab_fraction": {"type": ["number", "null"]}
+      }
+    },
+    "status": {
+      "type": "object",
+      "required": ["state", "warnings", "errors"],
+      "additionalProperties": true,
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "completed_with_warnings",
+            "skipped",
+            "needs_config",
+            "failed"
+          ]
+        },
+        "missing_config": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "warnings": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "errors": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "aggregation": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "properties": {
+        "from": {"type": ["string", "null"]},
+        "to": {"type": ["string", "null"]},
+        "rule": {"type": ["string", "null"]},
+        "cluster_key": {"type": ["string", "null"]}
+      }
+    },
+    "cluster_predictions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/cluster_prediction"}
+    },
+    "cell_predictions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/cell_prediction"}
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "reports": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/artifact"}
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {"type": "string"},
+              {"$ref": "#/$defs/artifact"}
+            ]
+          }
+        },
+        "figures": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {"type": "string"},
+              {"$ref": "#/$defs/artifact"}
+            ]
+          }
+        },
+        "logs": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {"type": "string"},
+              {"$ref": "#/$defs/artifact"}
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "required": ["path", "type"],
+      "additionalProperties": true,
+      "properties": {
+        "path": {"type": "string"},
+        "type": {
+          "type": "string",
+          "enum": [
+            "quarto_report",
+            "html_report",
+            "table",
+            "figure",
+            "log",
+            "other"
+          ]
+        },
+        "description": {"type": ["string", "null"]},
+        "format": {"type": ["string", "null"]}
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "required": ["label_raw", "rank"],
+      "additionalProperties": true,
+      "properties": {
+        "label_raw": {"type": "string"},
+        "label_normalized": {"type": ["string", "null"]},
+        "ontology_id": {"type": ["string", "null"]},
+        "rank": {"type": "integer"},
+        "provider_score": {"type": ["number", "null"]},
+        "provider_score_name": {"type": ["string", "null"]},
+        "confidence_bucket": {
+          "type": ["string", "null"],
+          "enum": ["high", "medium", "low", "unknown", null]
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "cluster_prediction": {
+      "type": "object",
+      "required": ["cluster_id", "candidates"],
+      "additionalProperties": true,
+      "properties": {
+        "cluster_id": {"type": "string"},
+        "top_label": {"type": ["string", "null"]},
+        "confidence_bucket": {
+          "type": ["string", "null"],
+          "enum": ["high", "medium", "low", "unknown", null]
+        },
+        "n_cells": {"type": ["integer", "null"]},
+        "candidates": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/candidate"}
+        }
+      }
+    },
+    "cell_prediction": {
+      "type": "object",
+      "required": ["cell_id", "candidates"],
+      "additionalProperties": true,
+      "properties": {
+        "cell_id": {"type": "string"},
+        "cluster_id": {"type": ["string", "null"]},
+        "top_label": {"type": ["string", "null"]},
+        "candidates": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/candidate"}
+        }
+      }
+    }
+  }
+}

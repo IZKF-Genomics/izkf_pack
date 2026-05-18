@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://izkf-genomics.github.io/izkf_pack/schemas/scrna_annotate/provider_index.schema.json",
+  "title": "scrna_annotate provider index",
+  "type": "object",
+  "required": ["schema_version", "dataset_profile", "providers"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "dataset_profile": {
+      "type": "string"
+    },
+    "providers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "result", "state"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": ["string", "null"]},
+          "group": {"type": ["string", "null"]},
+          "enabled": {"type": "boolean"},
+          "state": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "completed_with_warnings",
+              "skipped",
+              "needs_config",
+              "failed"
+            ]
+          },
+          "result": {"type": "string"},
+          "manifest": {"type": ["string", "null"]},
+          "warnings": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "errors": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

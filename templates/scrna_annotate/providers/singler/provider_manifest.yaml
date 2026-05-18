@@ -1,0 +1,36 @@
+id: singler
+name: SingleR
+group: reference_based
+maturity: planned
+default_enabled: false
+experimental: false
+environment:
+  manager: pixi
+  lockfile: pixi.lock
+entrypoint:
+  command: pixi run Rscript run.R
+input_requirements:
+  input_h5ad: required
+  organism: required
+  tissue: optional
+  cluster_key: recommended
+  gene_id_type: gene_symbols_recommended
+  expression:
+    accepted:
+      - normalized_log1p
+      - raw_counts_with_normalization
+  reference:
+    type: expression_reference
+    required: true
+configuration:
+  reference:
+    type: str
+    required: true
+  reference_label_key:
+    type: str
+    required: true
+outputs:
+  annotation_result: annotation_result.json
+notes:
+  - Requires explicit reference selection.
+  - R dependencies should remain isolated from Python providers.

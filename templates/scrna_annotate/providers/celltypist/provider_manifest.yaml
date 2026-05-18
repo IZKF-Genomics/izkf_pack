@@ -1,0 +1,35 @@
+id: celltypist
+name: CellTypist
+group: reference_based
+maturity: planned
+default_enabled: false
+experimental: false
+environment:
+  manager: pixi
+  lockfile: pixi.lock
+entrypoint:
+  command: pixi run python run.py
+input_requirements:
+  input_h5ad: required
+  organism: optional
+  tissue: optional
+  cluster_key: recommended
+  gene_id_type: gene_symbols_required
+  expression:
+    accepted:
+      - normalized_log1p
+  reference:
+    type: pretrained_model
+    required: true
+configuration:
+  model:
+    type: str
+    required: true
+  majority_voting:
+    type: bool
+    default: true
+outputs:
+  annotation_result: annotation_result.json
+notes:
+  - Should not silently select a model.
+  - Must record model name, model source, and model version or hash when available.

@@ -536,7 +536,7 @@ If a required parameter cannot be resolved automatically, pass it explicitly wit
 | [`nfcore_scrnaseq`](templates/nfcore_scrnaseq/linkar_template.yaml) | Run the facility-focused `nf-core/scrnaseq` wrapper for single-cell RNA-seq projects. | [README](templates/nfcore_scrnaseq/README.md) |
 | [`scrna_prep`](templates/scrna_prep/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq preprocessing workspace with Quarto QC reporting. | [README](templates/scrna_prep/README.md) |
 | [`scrna_integrate`](templates/scrna_integrate/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq dataset integration workspace with baseline and integrated QC reporting. | [README](templates/scrna_integrate/README.md) |
-| [`scrna_annotate`](templates/scrna_annotate/linkar_template.yaml) | Create and run an editable tiered scverse/Scanpy single-cell RNA-seq annotation workspace with quick preview, semi-automatic marker evidence review, and formal annotation reports. | [README](templates/scrna_annotate/README.md) |
+| [`scrna_annotate`](templates/scrna_annotate/linkar_template.yaml) | Design-only scaffold for a provider-based single-cell RNA-seq annotation runner that will emit standard provider JSON files for a future audit template. | [README](templates/scrna_annotate/README.md) |
 | [`dgea`](templates/dgea/linkar_template.yaml) | Create and run an editable R/Quarto differential expression workspace. | [README](templates/dgea/README.md) |
 | [`ercc`](templates/ercc/linkar_template.yaml) | Create and run an editable ERCC spike-in QC workspace with Quarto reporting. | [README](templates/ercc/README.md) |
 | [`methylation_array_analysis`](templates/methylation_array_analysis/linkar_template.yaml) | Create and run an editable Illumina methylation array study workspace with preprocessing, batch-aware analysis, and ordered Quarto reports. | [README](templates/methylation_array_analysis/README.md) |
@@ -611,7 +611,6 @@ python3 templates/nfcore_3mrnaseq/test.py
 python3 templates/nfcore_scrnaseq/test.py
 python3 templates/scrna_prep/test.py
 python3 templates/scrna_integrate/test.py
-(cd templates/scrna_annotate && pixi run test-rebuild)
 ```
 
 Run discovery tests:

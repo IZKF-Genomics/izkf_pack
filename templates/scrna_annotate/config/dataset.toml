@@ -1,0 +1,20 @@
+[dataset]
+input_h5ad = ""
+input_source_template = ""
+organism = ""
+tissue = ""
+cluster_key = "leiden"
+sample_key = "sample_id"
+batch_key = "batch"
+condition_key = "condition"
+gene_id_type = "gene_symbols"
+expression_layer = "X"
+raw_layer = "counts"
+
+[dataset.validation]
+require_cluster_key = true
+require_umap = false
+min_cells = 1
+min_genes = 1
+warn_if_tissue_missing = true
+warn_if_gene_id_type_auto = true

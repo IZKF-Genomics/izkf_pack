@@ -1,210 +1,240 @@
-# `scrna_annotate`
+# scrna_annotate
 
-`scrna_annotate` is a tiered single-cell annotation workflow built around a
-progressive user experience.
+Status: design-only scaffold. Provider execution code has intentionally not been generated yet.
 
-The new design is intentionally progressive:
+This directory defines the planned architecture for a provider-based single-cell RNA-seq
+annotation runner. The old tiered implementation has been removed so the next implementation can
+start from a clean contract.
 
-- Tier 1: quick preview with the lowest setup burden
-- Tier 2: refinement and marker-backed review
-- Tier 3: formal reference-aware annotation
+The core idea:
 
-The main user experience goal is simple:
+- `scrna_annotate` executes independent annotation providers.
+- Each provider owns its own folder, manifest, environment, and execution script.
+- Each provider writes one standard `annotation_result.json`, even when it is skipped or fails.
+- Each provider may write a method-level Quarto report for human review.
+- `scrna_audit` will read those JSON files and produce comparison, visualization, consensus, and
+  benchmark/review reports that link back to method-level reports.
 
-- let the user see a result first
-- then decide whether refinement is needed
-- only ask for formal models and reference choices later
+This follows the single-cell best-practices view that cell type annotation should expose evidence,
+uncertainty, and reviewable assumptions rather than acting as a one-click source of truth.
 
-This follows the single-cell best-practices view that annotation should be
-treated as a staged review process rather than a one-click source of truth.
+Reference guidance:
 
-Reference:
-- Single-cell best practices, annotation chapter:
-  <https://www.sc-best-practices.org/cellular_structure/annotation.html>
+- <https://www.sc-best-practices.org/cellular_structure/annotation.html>
 
-## New Layout
+## Boundary
+
+`scrna_annotate` is responsible for execution.
+
+It should:
+
+- inspect the input `.h5ad`
+- write `results/dataset_profile.json`
+- read provider manifests
+- validate provider readiness
+- run enabled providers
+- write provider status and provider outputs
+- write provider-level Quarto reports when the provider supports them
+
+It should not:
+
+- decide the final biological label
+- hide provider failures
+- silently guess tissue-specific references
+- run every method by default
+- compare provider results beyond minimal indexing
+- make HTML rendering mandatory for successful annotation
+
+`scrna_audit` is responsible for interpretation.
+
+It should:
+
+- read `provider_index.json`
+- read `results/providers/*/annotation_result.json`
+- normalize labels where possible
+- visualize agreement, disagreement, and uncertainty
+- link to provider-level Quarto/HTML reports
+- produce review tables and report pages
+
+It should not execute annotation providers.
+
+## Planned Layout
 
 ```text
 scrna_annotate/
   README.md
-  run.sh
+  DESIGN.md
+  linkar_template.yaml
+  run.sh                         # design-only placeholder for now
   config/
-    workflow.yaml
-  tier1_quick_preview/
-  tier2_refinement/
-  tier3_formal_annotation/
-  shared/
+    dataset.toml                 # shared dataset contract
+    providers.toml               # provider enablement and provider-specific config
+  schema/
+    annotation_result.schema.json
+    provider_index.schema.json
+  providers/
+    README.md
+    marker_based/provider_manifest.yaml
+    celltypist/provider_manifest.yaml
+    singler/provider_manifest.yaml
+    manual_curated/provider_manifest.yaml
+    mock_provider/provider_manifest.yaml
+    scgpt/provider_manifest.yaml
+    sctab/provider_manifest.yaml
+  results/
+    dataset_profile.json
+    provider_index.json
+    providers/
+      marker_based/
+        annotation_result.json
+        report.qmd
+        report.html
+      celltypist/
+        annotation_result.json
+        report.qmd
+        report.html
 ```
 
-Each tier owns its own:
+Provider code is deliberately absent in this scaffold. Future provider folders should add their
+own `pixi.toml`, runner script, tests, and README only when implementation begins.
 
-- `run.sh`
-- `run.py`
-- `config/`
-- `results/`
-- `reports/`
+## Dataset Contract
 
-The top-level `run.sh` acts as a workflow orchestrator.
+All providers share a minimal dataset-level contract:
 
-## Quick Start
-
-1. Open [config/workflow.yaml](config/workflow.yaml)
-2. Fill in:
-   - `global.input_h5ad`
-   - `global.cluster_key` if your input does not use `leiden`
-3. Run:
-
-```bash
-./run.sh
+```toml
+[dataset]
+input_h5ad = "results/adata.prep.h5ad"
+input_source_template = "scrna_prep"
+organism = "human"
+tissue = "blood"
+cluster_key = "leiden"
+sample_key = "sample_id"
+batch_key = "batch"
+condition_key = "condition"
+gene_id_type = "gene_symbols"
+expression_layer = "X"
+raw_layer = "counts"
 ```
 
-Default behavior:
+This describes the data. It should not contain provider-specific parameters.
 
-- runs Tier 1 only
-- writes Tier 1 outputs to `tier1_quick_preview/results/`
-- renders the first report to `tier1_quick_preview/reports/01_quick_preview.html`
-- updates the workflow overview at `reports/00_overview.html`
+The default Linkar binding may resolve `input_h5ad` from the latest `scrna_prep` output and fall
+back to `scrna_integrate` only when a prep output is unavailable. Tissue should usually remain an
+explicit user decision.
 
-## Workflow Commands
+## Provider Configuration
 
-Run the default entry tier:
+Provider-specific requirements belong under provider-specific config blocks:
 
-```bash
-./run.sh
+```toml
+[providers.marker_based]
+enabled = true
+top_n_markers = 50
+min_log2fc = 0.25
+
+[providers.celltypist]
+enabled = true
+model = "Immune_All_Low.pkl"
+majority_voting = true
+
+[providers.scgpt]
+enabled = false
+model_path = ""
+vocab_path = ""
+use_gpu = false
 ```
 
-Run one specific tier:
+This avoids pretending that marker databases, reference models, and foundation models all need the
+same inputs.
 
-```bash
-./run.sh --tier tier1
-./run.sh --tier tier2
-./run.sh --tier tier3
+## Provider Groups
+
+Planned provider groups:
+
+- `marker_based`: interpretable marker and marker-database methods
+- `reference_based`: label transfer or pretrained reference model methods
+- `atlas_model`: atlas-specific pretrained classifiers and mappers
+- `foundation_model`: scGPT/scTab/Geneformer-style methods
+- `llm_assisted`: explain-only marker interpretation
+- `manual_curated`: user-provided labels or collaborator annotations
+- `mock`: schema and audit test fixture
+
+Default execution should remain conservative. Experimental providers must require explicit
+configuration.
+
+## Provider States
+
+Every enabled or considered provider should write a JSON result with one of these states:
+
+- `completed`
+- `completed_with_warnings`
+- `skipped`
+- `needs_config`
+- `failed`
+
+Failed and skipped providers are part of the audit trail. They should not disappear.
+
+## Standard Output
+
+Each provider writes:
+
+```text
+results/providers/<provider_id>/annotation_result.json
 ```
 
-Run a range:
+Each provider may also write a method-level Quarto report:
 
-```bash
-./run.sh --from tier1 --to tier3
+```text
+results/providers/<provider_id>/report.qmd
 ```
 
-## Tier Summary
+The `.qmd` file is the canonical human-readable report artifact. If Quarto is available in the
+provider environment, the provider may also render:
 
-## Tier 1: Quick Preview
-
-Purpose:
-
-- give the user a first-pass annotation landscape with minimal setup
-
-Current outputs:
-
-- `results/adata.preview.h5ad`
-- `results/tables/preview_consensus.csv`
-- `results/tables/preview_disagreement_summary.csv`
-- `reports/01_quick_preview.html`
-
-Current behavior:
-
-- validates the input
-- checks that `cluster_key` and `X_umap` exist
-- writes conservative placeholder preview labels
-- points the user toward Tier 2 refinement
-
-Current quick-preview default:
-
-- conservative preview labels
-- cluster-level disagreement summary
-- cluster top markers for the next tier
-- marker-ready handoff into Tier 2
-
-## Tier 2: Refinement
-
-Purpose:
-
-- review preview outputs
-- add marker-backed evidence
-- decide whether broad lineage labels are already defensible
-
-Current outputs:
-
-- `results/adata.refined.h5ad`
-- `results/tables/refinement_suggestions.csv`
-- `results/tables/marker_review_summary.csv`
-- `results/tables/cluster_marker_candidates.csv`
-- `reports/02_refinement.html`
-
-Current refinement behavior:
-
-- reads Tier 1 outputs
-- carries cluster top markers into refinement summaries
-- scores marker sets when a marker file is provided
-- writes a refinement-ready AnnData object for Tier 3
-
-## Tier 3: Formal Annotation
-
-Purpose:
-
-- run formal reference-aware methods only after the user is ready
-
-Current outputs:
-
-- `results/run_info.yaml`
-- `results/adata.annotated.h5ad` when enabled
-- `results/tables/formal_annotation_predictions.csv` when enabled
-- `results/tables/formal_annotation_summary.csv` when enabled
-- `reports/03_formal_annotation.html`
-
-Current formal backend:
-
-- `CellTypist`
-
-Planned later backend:
-
-- `scANVI`
-
-## Config Model
-
-The workflow starts from one top-level workflow config:
-
-- [config/workflow.yaml](config/workflow.yaml)
-
-Tier-specific configs live in:
-
-- [tier1_quick_preview/config/00_quick_preview_config.yaml](tier1_quick_preview/config/00_quick_preview_config.yaml)
-- [tier2_refinement/config/00_refinement_config.yaml](tier2_refinement/config/00_refinement_config.yaml)
-- [tier3_formal_annotation/config/00_formal_annotation_config.yaml](tier3_formal_annotation/config/00_formal_annotation_config.yaml)
-
-This keeps first-run setup small while still letting later tiers expose
-specialized parameters.
-
-## Why This Template Uses Tiers
-
-The workflow is organized to keep the first user decision small and safe.
-
-The rebuilt design separates responsibilities:
-
-- Tier 1 should be easy to run
-- Tier 2 should help the user understand uncertainty
-- Tier 3 should only be used when a suitable formal method exists
-
-That means the workflow is organized around decisions, not around tool names.
-
-## Recommended Use Right Now
-
-Use this template when:
-
-- you want to exercise the new tier structure
-- you want a conservative quick preview entrypoint
-- you want a clear preview -> refinement -> formal annotation progression
-
-Keep in mind:
-
-- Tier 1 favors safety and speed over confident final labels
-- Tier 2 is designed to strengthen or challenge the Tier 1 preview
-- Tier 3 should only be enabled when a suitable formal reference exists
-
-## Test command
-
-```bash
-cd templates/scrna_annotate
-python3 test.py
+```text
+results/providers/<provider_id>/report.html
 ```
+
+Missing HTML should not fail an otherwise successful provider. The provider should record a warning
+when `report.qmd` is written but HTML rendering is unavailable.
+
+The provider index records every provider and the location of its result:
+
+```text
+results/provider_index.json
+```
+
+The schema is in [schema/annotation_result.schema.json](schema/annotation_result.schema.json).
+
+Provider reports should be registered in the `artifacts.reports` section of
+`annotation_result.json` so `scrna_audit` can link to them without parsing provider-specific
+report internals.
+
+## First Implementation Milestone
+
+The recommended MVP is:
+
+1. dataset profiler
+2. provider manifest reader
+3. schema validation
+4. `mock_provider`
+5. `marker_based`
+6. `provider_index.json`
+
+After that, implement `scrna_audit` against the JSON contract before adding many real providers.
+
+The first real provider set should probably be:
+
+- `marker_based`
+- `celltypist`
+- `manual_curated`
+
+Then add:
+
+- `singler`
+- `sctype`
+- `sccatch`
+
+Foundation models such as `scgpt` and `sctab` should come later, once model/vocabulary provenance
+and validation warnings are stable.

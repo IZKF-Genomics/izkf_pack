@@ -1,0 +1,47 @@
+[preset]
+name = "default"
+
+[providers.marker_based]
+enabled = true
+top_n_markers = 50
+min_log2fc = 0.25
+expression_layer = "X"
+
+[providers.celltypist]
+enabled = false
+model = ""
+majority_voting = true
+expression_layer = "X"
+
+[providers.singler]
+enabled = false
+reference = ""
+reference_label_key = ""
+
+[providers.manual_curated]
+enabled = false
+labels_csv = ""
+label_column = "label"
+cluster_column = "cluster_id"
+reviewer = ""
+
+[providers.mock_provider]
+enabled = false
+mode = "completed"
+
+[providers.scgpt]
+enabled = false
+model_path = ""
+vocab_path = ""
+use_gpu = false
+expression_layer = "X"
+min_vocab_overlap = 0.70
+
+[providers.sctab]
+enabled = false
+model_path = ""
+vocab_path = ""
+use_gpu = false
+batch_size = 128
+expression_layer = "X"
+min_vocab_overlap = 0.70

@@ -301,54 +301,49 @@ templates:
   scrna_annotate:
     category: downstream_analysis
     publication_relevance: true
-    label: Single-cell RNA-seq cell type annotation
-    summary: Single-cell RNA-seq profiles were annotated in an editable Scanpy/scverse workspace using CellTypist label transfer, cluster-level review, and optional marker-based validation.
-    method_core: Single-cell RNA-seq profiles were annotated in an editable Scanpy/scverse workspace that applies CellTypist-based label transfer, summarizes predictions by cluster, optionally scores user-provided marker sets for review, and records a conservative final label column for unresolved clusters.
+    label: Single-cell RNA-seq provider-based annotation
+    summary: Single-cell RNA-seq annotation is being redesigned around independent provider modules that write standard JSON evidence for downstream audit and reporting.
+    method_core: Single-cell RNA-seq annotation is planned as a provider-based workflow in which each annotation method runs in an isolated environment, records its assumptions and status, and emits a standard JSON result for downstream audit and comparison.
     method_details:
-      - The workspace consumes a prepared or integrated AnnData object together with an existing clustering result and preserves the distinction between per-cell predicted labels, cluster-level suggested labels, and final accepted labels.
-      - CellTypist predictions are generated from a log-normalized expression view of the data using a user-specified built-in or custom reference model.
-      - Prediction confidence is recorded for each cell and is aggregated at the cluster level together with the dominant predicted label fraction.
-      - Cluster-level labels are only accepted automatically when the dominant prediction frequency and the mean confidence exceed the configured review thresholds; otherwise the cluster remains unresolved for manual inspection.
-      - Optional marker sets can be supplied to score candidate labels across clusters as an additional review layer rather than as a silent override of the classifier output.
-      - The annotated AnnData object, cluster review tables, and Quarto report are written as explicit outputs for downstream interpretation and export.
+      - The planned workflow consumes a prepared or integrated AnnData object together with dataset-level metadata such as organism, tissue, cluster key, gene identifier type, and expression layer.
+      - Provider-specific requirements such as CellTypist models, SingleR references, manual label files, or scGPT/scTab checkpoints are declared in provider-specific configuration blocks rather than flattened into one shared parameter set.
+      - Each provider is expected to write a standard annotation JSON file that records status, missing configuration, warnings, input validation, label candidates, confidence buckets, evidence, and artifacts.
+      - Provider failures and skipped providers are part of the audit trail and should remain visible to downstream reporting.
+      - A separate audit template is planned to compare provider outputs, visualize agreement and conflicts, normalize labels where possible, and generate review tables.
     important_params:
-      - annotation_method
-      - celltypist_model
-      - celltypist_mode
-      - celltypist_p_thres
+      - input_h5ad
       - cluster_key
-      - majority_vote_min_fraction
-      - confidence_threshold
-      - unknown_label
-      - predicted_label_key
-      - final_label_key
-      - marker_file
+      - organism
+      - tissue
+      - gene_id_type
+      - provider_preset
+      - dataset_config
+      - providers_config
     param_explanations:
-      annotation_method: Annotation backend used to generate the initial cell identity predictions.
-      celltypist_model: Built-in or custom CellTypist reference model used for label transfer.
-      celltypist_mode: CellTypist prediction mode controlling whether best-match or probability-threshold labeling was used.
-      celltypist_p_thres: Probability threshold used when CellTypist probability-matching mode was selected.
-      cluster_key: Cluster column used for annotation review and cluster-level label consolidation.
-      majority_vote_min_fraction: Minimum fraction of cells within a cluster required before the dominant predicted label is accepted automatically.
-      confidence_threshold: Minimum mean classifier confidence required before a cluster-level label is accepted automatically.
-      unknown_label: Label used for unresolved or review-required cells.
-      predicted_label_key: Observation column containing the raw classifier predictions.
-      final_label_key: Observation column containing the final accepted annotation after review rules.
-      marker_file: Optional marker-set file used for marker-based review summaries.
+      input_h5ad: Prepared or integrated AnnData object used as provider input.
+      cluster_key: Existing clustering column used for cluster-level prediction summaries and audit comparison.
+      organism: Dataset organism used for provider readiness and marker/reference filtering.
+      tissue: Tissue or biological context; this should normally be explicit rather than guessed.
+      gene_id_type: Declared gene identifier type used for provider readiness checks.
+      provider_preset: Planned preset controlling which provider groups are enabled.
+      dataset_config: Dataset-level contract shared across providers.
+      providers_config: Provider-specific enablement and parameters.
     param_context:
-      - Automated annotation quality depends strongly on how well the reference model matches the query data and how informative the upstream clustering is.
-      - Marker-based review is intended as a validation layer rather than as a substitute for a relevant reference model.
+      - The current template is a design-only scaffold and should not be described as an executed annotation workflow unless provider result files exist.
+      - Provider numeric scores should not be compared directly across methods.
+      - Foundation-model providers require explicit checkpoint and vocabulary provenance before their results should be interpreted.
     command_hints:
-      - When runtime metadata are sparse, prefer the recorded CellTypist model name, cluster key, and review-threshold parameters over generic annotation wording.
-      - Cite CellTypist when annotation_method was `celltypist`.
+      - When provider JSON files exist, describe which providers completed, which were skipped, and what assumptions or warnings were recorded.
+      - If only the design scaffold exists, state that annotation execution has not yet been implemented.
     tools:
       - Scanpy
       - scverse
       - CellTypist
-      - Quarto
+      - SingleR
+      - scGPT
+      - scTab
     citations:
       - scanpy
-      - quarto
 
   nfcore_3mrnaseq:
     category: analysis
