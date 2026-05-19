@@ -114,6 +114,7 @@ def main() -> int:
         prep_dir = project_dir / "scrna_prep"
         integrate_dir = project_dir / "scrna_integrate"
         annotate_dir = project_dir / "scrna_annotate"
+        annotate_zebrafish_dir = project_dir / "scrna_annotate_zebrafish"
         ercc_dir = project_dir / "ercc"
         methods_dir = project_dir / "methods"
         (demux_dir / "results" / "output").mkdir(parents=True)
@@ -132,6 +133,7 @@ def main() -> int:
         (integrate_dir / "reports").mkdir(parents=True)
         (annotate_dir / "results" / "tables").mkdir(parents=True)
         (annotate_dir / "reports").mkdir(parents=True)
+        (annotate_zebrafish_dir / "results" / "tables").mkdir(parents=True)
         (ercc_dir / "results").mkdir(parents=True)
         (methods_dir / "results").mkdir(parents=True)
         (demux_dir / "results" / "output" / "sample.fastq.gz").write_text("fq\n", encoding="utf-8")
@@ -173,6 +175,13 @@ def main() -> int:
         (annotate_dir / "reports" / "03_decoupler_review.html").write_text("<html></html>\n", encoding="utf-8")
         (annotate_dir / "reports" / "04_scdeepsort.html").write_text("<html></html>\n", encoding="utf-8")
         (annotate_dir / "reports" / "05_scgpt.html").write_text("<html></html>\n", encoding="utf-8")
+        (annotate_zebrafish_dir / "results" / "annotation_result.json").write_text('{"template": "scrna_annotate_zebrafish"}\n', encoding="utf-8")
+        (annotate_zebrafish_dir / "results" / "report.html").write_text("<html></html>\n", encoding="utf-8")
+        (annotate_zebrafish_dir / "results" / "report.qmd").write_text("---\ntitle: test\n---\n", encoding="utf-8")
+        (annotate_zebrafish_dir / "results" / "scrna_annotate_zebrafish_results.xlsx").write_text("xlsx\n", encoding="utf-8")
+        (annotate_zebrafish_dir / "results" / "tables" / "cluster_annotation_summary.csv").write_text("cluster,label\n", encoding="utf-8")
+        (annotate_zebrafish_dir / "results" / "tables" / "catalog_matches.csv").write_text("cluster,label\n", encoding="utf-8")
+        (annotate_zebrafish_dir / "results" / "tables" / "differential_markers.csv").write_text("cluster,gene\n", encoding="utf-8")
         (ercc_dir / "results" / "ERCC.html").write_text("<html></html>\n", encoding="utf-8")
         (ercc_dir / "results" / "run_info.yaml").write_text("template: ercc\n", encoding="utf-8")
         (ercc_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
@@ -258,6 +267,15 @@ def main() -> int:
                     },
                 },
                 {
+                    "id": "scrna_annotate_zebrafish",
+                    "path": str(annotate_zebrafish_dir),
+                    "outputs": {
+                        "results_dir": str((annotate_zebrafish_dir / "results").resolve()),
+                        "annotation_result": str((annotate_zebrafish_dir / "results" / "annotation_result.json").resolve()),
+                        "html_report": str((annotate_zebrafish_dir / "results" / "report.html").resolve()),
+                    },
+                },
+                {
                     "id": "ercc",
                     "path": str(ercc_dir),
                     "outputs": {
@@ -310,13 +328,13 @@ def main() -> int:
         )
         assert "Prepare Only Complete" in dry_run.stdout
         assert "Project templates:" in dry_run.stdout
-        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_prep (1), scrna_integrate (1), scrna_annotate (1), ercc (1), methods (2)" in dry_run.stdout
+        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_prep (1), scrna_integrate (1), scrna_annotate (1), scrna_annotate_zebrafish (1), ercc (1), methods (2)" in dry_run.stdout
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
         original_username = spec["username"]
         original_password = spec["password"]
-        assert len(spec["export_list"]) == 16
+        assert len(spec["export_list"]) == 18
         assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
         export_srcs = {entry["src"] for entry in spec["export_list"]}
         export_dests = {entry["dest"] for entry in spec["export_list"]}
@@ -327,6 +345,7 @@ def main() -> int:
         assert "2_Processed_data/methylation_array_analysis/results" in export_dests
         assert "2_Processed_data/scrna_integrate/scrna_integrate/results" in export_dests
         assert "2_Processed_data/scrna_annotate/scrna_annotate/results" in export_dests
+        assert "2_Processed_data/scrna_annotate_zebrafish/scrna_annotate_zebrafish/results" in export_dests
         assert "3_Reports/dgea/DGEA_Liver" in export_dests
         assert "3_Reports/dgea/DGEA_Bile_Duct" in export_dests
         assert "3_Reports/methylation_array_analysis" in export_dests
@@ -334,6 +353,7 @@ def main() -> int:
         assert "3_Reports/scrna_prep" in export_dests
         assert "3_Reports/scrna_integrate/scrna_integrate" in export_dests
         assert "3_Reports/scrna_annotate/scrna_annotate" in export_dests
+        assert "3_Reports/scrna_annotate_zebrafish/scrna_annotate_zebrafish/report.html" in export_dests
         assert "3_Reports/ercc/ercc" in export_dests
         assert "3_Reports/methods" in export_dests
         methods_entries = [entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/methods"]
@@ -396,6 +416,21 @@ def main() -> int:
         assert "03_decoupler_review.html" in annotate_report_paths
         assert "04_scdeepsort.html" in annotate_report_paths
         assert "05_scgpt.html" in annotate_report_paths
+        annotate_zebrafish_entries = [
+            entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/scrna_annotate_zebrafish/scrna_annotate_zebrafish/results"
+        ]
+        assert len(annotate_zebrafish_entries) == 1
+        annotate_zebrafish_paths = {link["path"] for link in annotate_zebrafish_entries[0].get("report_links", [])}
+        assert "." in annotate_zebrafish_paths
+        assert "annotation_result.json" in annotate_zebrafish_paths
+        assert "tables" in annotate_zebrafish_paths
+        assert "scrna_annotate_zebrafish_results.xlsx" in annotate_zebrafish_paths
+        annotate_zebrafish_report_entries = [
+            entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/scrna_annotate_zebrafish/scrna_annotate_zebrafish/report.html"
+        ]
+        assert len(annotate_zebrafish_report_entries) == 1
+        annotate_zebrafish_report_paths = {link["path"] for link in annotate_zebrafish_report_entries[0].get("report_links", [])}
+        assert "." in annotate_zebrafish_report_paths
         assert (export_dir / "results" / "metadata_context.yaml").exists()
         assert (export_dir / "results" / "project_methods.md").exists()
 
