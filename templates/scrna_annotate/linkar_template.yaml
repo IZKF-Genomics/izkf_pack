@@ -1,14 +1,16 @@
 id: scrna_annotate
-version: 0.2.0-design
-description: Design-only scaffold for a provider-based single-cell RNA-seq annotation runner that emits standard annotation JSON files.
+version: 0.3.0
+description: Provider-based single-cell RNA-seq annotation runner with a marker-based evidence MVP and standard provider JSON outputs.
 tools:
   required:
     - bash
+    - python3
+    - pixi
 params:
   input_h5ad:
-    type: path
+    type: str
     default: ""
-    description: Prepared `.h5ad` input. The default binding prefers the latest `scrna_prep` output, then `scrna_integrate` when available.
+    description: Prepared `.h5ad` input path. This is intentionally a string so the template reads the upstream file in place instead of asking Linkar to stage/copy it.
   input_source_template:
     type: str
     default: ""
@@ -32,7 +34,7 @@ params:
   tissue:
     type: str
     default: ""
-    description: Tissue or biological context. This should usually be set explicitly because marker databases and references are tissue-sensitive.
+    description: Optional tissue or biological context. Leave empty for exploratory annotation; tissue-sensitive providers may warn, lower confidence, or require explicit configuration.
   batch_key:
     type: str
     default: "batch"
@@ -67,6 +69,10 @@ outputs:
     glob: results/providers/*/annotation_result.json
   provider_logs:
     glob: results/providers/*/logs/*
+  provider_reports:
+    glob: results/providers/*/report.*
+  provider_tables:
+    glob: results/providers/*/tables/*.csv
 run:
   mode: render
   entry: run.sh

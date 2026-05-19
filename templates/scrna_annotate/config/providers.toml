@@ -7,6 +7,14 @@ top_n_markers = 50
 min_log2fc = 0.25
 expression_layer = "X"
 
+[providers.marker_catalog]
+enabled = false
+resource_id = ""
+catalog_path = ""
+species = ""
+min_log2fc = 0.25
+min_matched_genes = 2
+
 [providers.celltypist]
 enabled = false
 model = ""

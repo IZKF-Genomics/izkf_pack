@@ -1,0 +1,10 @@
+catalog_id	species	organism_id	tissue	stage	cell_type	gene_symbol	source	citation	evidence
+zebrafish_local	zebrafish	NCBITaxon:7955		larval	T cell	cd3d	user_curated	Replace with project citation	example
+zebrafish_local	zebrafish	NCBITaxon:7955		larval	T cell	cd3e	user_curated	Replace with project citation	example
+zebrafish_local	zebrafish	NCBITaxon:7955		larval	T cell	trac	user_curated	Replace with project citation	example
+zebrafish_local	zebrafish	NCBITaxon:7955		larval	Macrophage	mpeg1.1	user_curated	Replace with project citation	example
+zebrafish_local	zebrafish	NCBITaxon:7955		larval	Macrophage	mpeg1	user_curated	Replace with project citation	example
+zebrafish_local	zebrafish	NCBITaxon:7955		larval	Macrophage	lyz	user_curated	Replace with project citation	example
+zebrafish_local	zebrafish	NCBITaxon:7955		larval	Fibroblast	col1a1a	user_curated	Replace with project citation	example
+zebrafish_local	zebrafish	NCBITaxon:7955		larval	Fibroblast	dcn	user_curated	Replace with project citation	example
+zebrafish_local	zebrafish	NCBITaxon:7955		larval	Fibroblast	lum	user_curated	Replace with project citation	example

@@ -302,12 +302,14 @@ templates:
     category: downstream_analysis
     publication_relevance: true
     label: Single-cell RNA-seq provider-based annotation
-    summary: Single-cell RNA-seq annotation is being redesigned around independent provider modules that write standard JSON evidence for downstream audit and reporting.
-    method_core: Single-cell RNA-seq annotation is planned as a provider-based workflow in which each annotation method runs in an isolated environment, records its assumptions and status, and emits a standard JSON result for downstream audit and comparison.
+    summary: Single-cell RNA-seq annotation was organized as independent provider modules that write standard JSON evidence and method-level Quarto reports for downstream audit and comparison.
+    method_core: Single-cell RNA-seq annotation was performed or prepared as a provider-based workflow in which each annotation method records its assumptions and status, emits a standard JSON result, and writes method-specific artifacts for downstream audit and comparison. The current implemented provider is marker-based differential gene evidence with built-in broad marker signature scoring.
     method_details:
       - The planned workflow consumes a prepared or integrated AnnData object together with dataset-level metadata such as organism, tissue, cluster key, gene identifier type, and expression layer.
-      - Provider-specific requirements such as CellTypist models, SingleR references, manual label files, or scGPT/scTab checkpoints are declared in provider-specific configuration blocks rather than flattened into one shared parameter set.
+      - The marker-based provider computes cluster marker genes with Scanpy and scores broad built-in marker signatures as reviewable evidence rather than final biological truth.
+      - Provider-specific requirements such as CellTypist models, SingleR references, manual label files, marker databases, or scGPT/scTab checkpoints are declared in provider-specific configuration blocks rather than flattened into one shared parameter set.
       - Each provider is expected to write a standard annotation JSON file that records status, missing configuration, warnings, input validation, label candidates, confidence buckets, evidence, and artifacts.
+      - Method-level Quarto reports are written as human-readable provider artifacts when supported.
       - Provider failures and skipped providers are part of the audit trail and should remain visible to downstream reporting.
       - A separate audit template is planned to compare provider outputs, visualize agreement and conflicts, normalize labels where possible, and generate review tables.
     important_params:
@@ -329,12 +331,12 @@ templates:
       dataset_config: Dataset-level contract shared across providers.
       providers_config: Provider-specific enablement and parameters.
     param_context:
-      - The current template is a design-only scaffold and should not be described as an executed annotation workflow unless provider result files exist.
+      - The marker-based provider is implemented; other provider manifests may still be disabled or marked as planned.
       - Provider numeric scores should not be compared directly across methods.
       - Foundation-model providers require explicit checkpoint and vocabulary provenance before their results should be interpreted.
     command_hints:
       - When provider JSON files exist, describe which providers completed, which were skipped, and what assumptions or warnings were recorded.
-      - If only the design scaffold exists, state that annotation execution has not yet been implemented.
+      - For marker-based runs, report marker evidence as candidate support requiring biological review, not as final annotation.
     tools:
       - Scanpy
       - scverse
@@ -344,6 +346,73 @@ templates:
       - scTab
     citations:
       - scanpy
+
+  scrna_annotate_zebrafish:
+    category: downstream_analysis
+    publication_relevance: true
+    label: Zebrafish single-cell RNA-seq marker catalog annotation
+    summary: Zebrafish single-cell RNA-seq clusters were reviewed in a focused Scanpy/Quarto workspace using ranked cluster marker genes, FDR-controlled enrichment against a zebrafish marker catalog, and publication-oriented evidence reporting.
+    method_core: Zebrafish single-cell RNA-seq annotation was performed in a dedicated editable workspace that ranks cluster marker genes with Scanpy, tests informative marker overlap against a zebrafish marker catalog with hypergeometric enrichment and Benjamini-Hochberg FDR correction, and writes cluster-level candidate labels, evidence tables, an Excel workbook, standard JSON output, and a Quarto HTML review report.
+    method_details:
+      - The workflow consumes a prepared AnnData object and requires the organism setting to resolve to zebrafish or Danio rerio.
+      - Cluster marker genes are ranked with Scanpy using the configured cluster key and expression layer; the input is read in place rather than copied into the template workspace.
+      - Informative markers are filtered by the configured log2 fold-change and adjusted p-value thresholds before catalog matching.
+      - Candidate cluster labels are generated by hypergeometric marker-set enrichment against an explicit zebrafish marker catalog, with Benjamini-Hochberg FDR correction applied within each cluster.
+      - The default marker catalog is `download:zcl_2_marker_list`, which downloads and caches the ZCL 2.0 marker list before converting it to the local marker-catalog schema.
+      - Project-local TSV catalogs remain supported for FishSCT-derived or manually curated markers when a study-specific catalog is preferred.
+      - The report includes cluster-level candidate tables, per-cluster candidate evidence, catalog score heatmaps, marker evidence figures, UMAPs by cluster and candidate label, a sample-faceted UMAP colored by candidate label, and downloadable CSV/Excel outputs.
+      - Catalog-derived labels are review candidates rather than classifier probabilities or final labels; tissue, stage, and biological plausibility should be checked before freezing labels.
+      - Human, mouse, or implicit ortholog marker catalogs are not applied by this focused zebrafish workflow.
+    important_params:
+      - input_h5ad
+      - input_source_template
+      - organism
+      - cluster_key
+      - sample_id_key
+      - expression_layer
+      - marker_catalog
+      - top_n_markers
+      - min_log2fc
+      - fdr_threshold
+      - tissue
+      - stage
+    param_explanations:
+      input_h5ad: Prepared AnnData object used as the annotation input.
+      input_source_template: Optional provenance label for the upstream template that produced the input AnnData object.
+      organism: Organism setting; this template expects zebrafish/Danio rerio.
+      cluster_key: Existing clustering column used to rank markers and summarize candidate labels.
+      sample_id_key: Optional observation column used to draw sample-faceted UMAP views.
+      expression_layer: AnnData expression layer or `X` used for marker ranking; it should be normalized/log-transformed for interpretable marker statistics.
+      marker_catalog: Zebrafish marker catalog source. The default is `download:zcl_2_marker_list`; local TSV paths and built-in smoke-test catalogs are also supported.
+      top_n_markers: Number of ranked marker genes retained per cluster for evidence tables and catalog matching.
+      min_log2fc: Minimum log2 fold-change used to define informative markers for catalog enrichment.
+      fdr_threshold: FDR threshold used for marker filtering and catalog-enrichment candidate reporting.
+      tissue: Optional tissue context for marker interpretation.
+      stage: Optional developmental stage context for marker interpretation.
+    param_context:
+      - The `download:zcl_2_marker_list` catalog is the recommended default for whole-fish and 72 hpf/3 dpf-style zebrafish datasets because it provides broad zebrafish single-cell marker context.
+      - Downloaded catalogs are cached under `SCRNA_ANNOTATE_CATALOG_CACHE` when set, otherwise under the user cache directory for this template.
+      - The small built-in catalog is intended for offline smoke tests only and should not be used for biological interpretation.
+      - Project-local marker catalogs must be curated for zebrafish and should include source and citation fields before biological interpretation.
+      - Missing tissue or stage should be reported as reduced context rather than inferred automatically.
+      - Candidate count and matched-gene count are evidence summaries, not hard filters or probabilities.
+    command_hints:
+      - Report the marker catalog identifier, source, cached path, row count, and checksum when available.
+      - Describe catalog-derived labels as candidate annotations requiring biological review.
+      - Mention the configured cluster key, expression layer, marker thresholds, and FDR threshold when writing methods text.
+      - For whole-fish 3 dpf-style data, state when the ZCL 2.0 marker list was used as the default baseline catalog.
+      - Mention Excel and CSV outputs when describing user-review artifacts.
+    tools:
+      - Scanpy
+      - SciPy
+      - pandas
+      - Plotly
+      - Quarto
+    citations:
+      - scanpy
+      - umap
+      - zcl_2_marker_list
+      - quarto
 
   nfcore_3mrnaseq:
     category: analysis
@@ -478,6 +547,9 @@ references:
   scanpy:
     text: "Wolf FA, Angerer P, Theis FJ. Scanpy: large-scale single-cell gene expression data analysis. Genome Biology. 2018."
     url: "https://doi.org/10.1186/s13059-017-1382-0"
+  zcl_2_marker_list:
+    text: "ZCL 2.0 zebrafish single-cell landscape marker list."
+    url: "https://bis.zju.edu.cn/ZCL/data/zclmarkerlist.csv"
   scrublet:
     text: "Wolock SL, Lopez R, Klein AM. Scrublet: computational identification of cell doublets in single-cell transcriptomic data. Cell Systems. 2019."
     url: "https://doi.org/10.1016/j.cels.2018.11.005"

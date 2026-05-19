@@ -1,0 +1,824 @@
+---
+title: "Zebrafish scRNA-seq Annotation Review"
+subtitle: "Cluster markers and zebrafish marker catalog overlap"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    page-layout: full
+    embed-resources: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{=html}
+<style>
+.warning-list {
+  border-left: 4px solid #c2410c;
+  background: #fff7ed;
+  padding: 0.85rem 1rem;
+  margin: 0.7rem 0 1rem;
+}
+.note-box {
+  border-left: 4px solid #2563eb;
+  background: #eff6ff;
+  padding: 0.85rem 1rem;
+  margin: 0.7rem 0 1rem;
+}
+.catalog-note {
+  border-left: 4px solid #7c3aed;
+  background: #f5f3ff;
+  padding: 0.85rem 1rem;
+  margin: 0.7rem 0 1rem;
+}
+.muted {
+  color: #64748b;
+  font-size: 0.94rem;
+}
+main.content {
+  max-width: none;
+}
+.cell-output-display {
+  overflow-x: auto;
+}
+.dataTables_wrapper {
+  max-width: none;
+}
+.dataTables_wrapper table.dataTable {
+  width: auto !important;
+  table-layout: auto !important;
+}
+.dataTables_wrapper table.dataTable th,
+.dataTables_wrapper table.dataTable td {
+  white-space: nowrap;
+  vertical-align: top;
+}
+.dataTables_wrapper table.dataTable td.dt-compact-number,
+.dataTables_wrapper table.dataTable th.dt-compact-number {
+  min-width: 2.8rem;
+  max-width: 4.8rem;
+  text-align: right;
+}
+.dataTables_wrapper table.dataTable th.dt-compact-number input,
+.dataTables_wrapper table.dataTable th.dt-compact-number select {
+  width: 3.8rem !important;
+  min-width: 0 !important;
+  max-width: 3.8rem !important;
+  box-sizing: border-box;
+}
+.dataTables_wrapper table.dataTable td.dt-short-text,
+.dataTables_wrapper table.dataTable th.dt-short-text {
+  min-width: 4rem;
+  max-width: 8rem;
+}
+.dataTables_wrapper table.dataTable th.dt-short-text input,
+.dataTables_wrapper table.dataTable th.dt-short-text select {
+  width: 7rem !important;
+  min-width: 0 !important;
+  max-width: 7rem !important;
+  box-sizing: border-box;
+}
+.dataTables_wrapper table.dataTable th.dt-medium-text input,
+.dataTables_wrapper table.dataTable th.dt-medium-text select {
+  width: 11rem !important;
+  min-width: 0 !important;
+  max-width: 11rem !important;
+  box-sizing: border-box;
+}
+.dataTables_wrapper table.dataTable td.dt-long-text {
+  white-space: normal;
+  min-width: 9rem;
+  max-width: 18rem;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.25;
+}
+.dataTables_wrapper table.dataTable td.dt-medium-text {
+  white-space: normal;
+  min-width: 8rem;
+  max-width: 14rem;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+.status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin: 0.5rem 0 1rem;
+}
+.status-pill {
+  border: 1px solid #dbe4ef;
+  background: #f8fafc;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.94rem;
+}
+.status-pill strong {
+  color: #0f172a;
+}
+.cluster-tabs {
+  margin-top: 0.8rem;
+}
+.cluster-tabs details {
+  border: 1px solid #dbe4ef;
+  border-radius: 6px;
+  margin: 0.45rem 0;
+  background: #fff;
+}
+.cluster-tabs summary {
+  cursor: pointer;
+  padding: 0.65rem 0.8rem;
+  font-weight: 600;
+}
+.cluster-tabs .cluster-tab-body {
+  border-top: 1px solid #e5e7eb;
+  padding: 0.7rem 0.8rem 0.9rem;
+}
+.candidate-table {
+  width: auto;
+  max-width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.candidate-table th,
+.candidate-table td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0.35rem 0.55rem;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.candidate-table td.long {
+  white-space: normal;
+  max-width: 32rem;
+}
+.candidate-table td.compact {
+  max-width: 5rem;
+  text-align: right;
+}
+.candidate-table td.medium {
+  white-space: normal;
+  max-width: 16rem;
+}
+.candidate-table th {
+  background: #f8fafc;
+}
+</style>
+```
+
+```{python}
+from html import escape
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+from IPython.display import HTML, display
+
+try:
+    import plotly.express as px
+except ImportError:
+    px = None
+
+try:
+    import anndata as ad
+except ImportError:
+    ad = None
+
+try:
+    from itables import show
+    import itables.options as itable_options
+    itable_options.showIndex = False
+    itable_options.classes = "display compact stripe hover"
+    itable_options.layout = {
+        "topStart": "pageLength",
+        "topEnd": "search",
+        "bottomStart": "info",
+        "bottomEnd": "paging",
+    }
+    itable_options.maxBytes = "1MB"
+except ImportError:
+    show = None
+
+results_dir = Path(".")
+payload = json.loads((results_dir / "annotation_result.json").read_text())
+markers = pd.read_csv(results_dir / "tables" / "differential_markers.csv")
+matches = pd.read_csv(results_dir / "tables" / "catalog_matches.csv")
+summary = pd.read_csv(results_dir / "tables" / "cluster_annotation_summary.csv")
+status = payload.get("status", {})
+run_input = payload.get("input", {})
+catalog = payload.get("catalog", {})
+warnings = status.get("warnings", [])
+catalog_id = str(catalog.get("id") or "")
+catalog_path = str(catalog.get("path") or "")
+catalog_label = catalog_id or Path(catalog_path).name
+is_zcl_catalog = "zcl_2_marker_list" in catalog_id or "zcl_2_marker_list" in catalog_path
+is_builtin_catalog = "default_catalogs" in catalog_path
+methods = payload.get("methods", [])
+catalog_method = next((method for method in methods if "catalog" in str(method.get("step", "")).lower()), {})
+catalog_params = catalog_method.get("parameters", {})
+UMAP_HEIGHT = 650
+UMAP_WIDTH = 980
+UMAP_FACET_PANEL_HEIGHT = 360
+
+def clip_text(value, limit=110):
+    text = "" if pd.isna(value) else str(value)
+    return text if len(text) <= limit else text[: limit - 1] + "..."
+
+def display_static_table(df):
+    display(HTML(df.reset_index(drop=True).to_html(index=False, escape=False)))
+
+def display_table(
+    df,
+    *,
+    caption=None,
+    page_length=10,
+    order=None,
+    long_text_columns=None,
+    medium_text_columns=None,
+    compact_columns=None,
+    short_text_columns=None,
+    scroll_x=True,
+):
+    df = df.reset_index(drop=True)
+    if show is None:
+        display_static_table(df)
+        return
+    long_text_columns = set(long_text_columns or [])
+    medium_text_columns = set(medium_text_columns or [])
+    compact_columns = set(compact_columns or [])
+    short_text_columns = set(short_text_columns or [])
+    compact_name_hints = {
+        "cluster_id", "rank", "n_cells", "n_candidates", "n_matched", "n_genes",
+        "n_marker_genes", "n_catalog_genes", "top_score", "score", "pval", "pval_adj",
+        "log2fc", "pct_in_cluster", "pct_out_cluster",
+    }
+    compact_columns |= {column for column in df.columns if column in compact_name_hints}
+    for column in df.columns:
+        series = df[column].dropna().astype(str)
+        if len(series) and series.map(len).max() <= 8 and column not in long_text_columns and column not in medium_text_columns:
+            compact_columns.add(column)
+    column_defs = []
+    compact_targets = [index for index, column in enumerate(df.columns) if column in compact_columns]
+    short_targets = [index for index, column in enumerate(df.columns) if column in short_text_columns]
+    long_targets = [index for index, column in enumerate(df.columns) if column in long_text_columns]
+    medium_targets = [index for index, column in enumerate(df.columns) if column in medium_text_columns]
+    if compact_targets:
+        column_defs.append({"targets": compact_targets, "className": "dt-compact-number", "width": "4.8rem"})
+    if short_targets:
+        column_defs.append({"targets": short_targets, "className": "dt-short-text", "width": "8rem"})
+    if long_targets:
+        column_defs.append({"targets": long_targets, "className": "dt-long-text", "width": "18rem"})
+    if medium_targets:
+        column_defs.append({"targets": medium_targets, "className": "dt-medium-text", "width": "14rem"})
+    show(
+        df,
+        caption=caption,
+        showIndex=False,
+        scrollX=scroll_x,
+        column_filters="header",
+        pageLength=page_length,
+        lengthMenu=[10, 25, 50, 100],
+        order=order or [],
+        autoWidth=True,
+        autoWidthMode="fit",
+        columnDefs=column_defs,
+        deferRender=True,
+        classes="display compact stripe hover",
+    )
+
+def plot_unavailable(reason):
+    display(HTML(f"<div class='note-box'>{escape(reason)}</div>"))
+
+def polish_umap(fig, *, height=UMAP_HEIGHT, width=UMAP_WIDTH, legend_title=None, fixed_single_panel=False):
+    fig.update_traces(marker={"size": 3, "opacity": 0.72})
+    fig.update_yaxes(scaleanchor="x", scaleratio=1)
+    fig.update_layout(
+        width=width,
+        height=height,
+        margin={"l": 35, "r": 25, "t": 70, "b": 45},
+        legend_title_text=legend_title,
+    )
+    if fixed_single_panel:
+        fig.update_xaxes(domain=[0.0, 0.72])
+        fig.update_layout(
+            legend={
+                "x": 0.76,
+                "xanchor": "left",
+                "y": 1.0,
+                "yanchor": "top",
+                "itemsizing": "constant",
+            },
+            margin={"l": 35, "r": 10, "t": 70, "b": 45},
+        )
+    return fig
+
+def artifact_path(name):
+    artifacts = payload.get("artifacts", {})
+    value = artifacts.get(name, "")
+    if str(value).startswith("results/"):
+        return str(value).replace("results/", "", 1)
+    return str(value)
+
+def cluster_sort_key(value):
+    text = str(value)
+    return (0, int(text)) if text.isdigit() else (1, text)
+
+def candidate_details_html(matches_df, summary_df):
+    if not len(matches_df):
+        return "<div class='note-box'>No catalog-supported candidate labels were produced.</div>"
+    summary_lookup = summary_df.assign(cluster_id=summary_df["cluster_id"].astype(str)).set_index("cluster_id").to_dict("index")
+    html = ["<div class='cluster-tabs'>"]
+    for cluster_id in sorted(matches_df["cluster_id"].astype(str).unique(), key=cluster_sort_key):
+        cluster_matches = matches_df[matches_df["cluster_id"].astype(str) == cluster_id].copy()
+        cluster_matches = cluster_matches.sort_values(["rank", "pval_adj", "score"], ascending=[True, True, False]).head(8)
+        top = summary_lookup.get(cluster_id, {})
+        top_label = top.get("top_label", "no catalog match")
+        n_cells = top.get("n_cells", "")
+        html.append(
+            "<details>"
+            f"<summary>Cluster {escape(cluster_id)} | {escape(str(top_label))} | {escape(str(n_cells))} cells | {len(cluster_matches)} candidates</summary>"
+            "<div class='cluster-tab-body'>"
+            "<table class='candidate-table'>"
+            "<thead><tr>"
+            "<th>rank</th><th>candidate label</th><th>confidence</th><th>FDR</th><th>score</th><th>n matched</th><th>matched genes</th>"
+            "</tr></thead><tbody>"
+        )
+        for row in cluster_matches.itertuples(index=False):
+            matched = clip_text(getattr(row, "matched_genes", ""), 150)
+            html.append(
+                "<tr>"
+                f"<td class='compact'>{escape(str(getattr(row, 'rank', '')))}</td>"
+                f"<td class='medium'>{escape(str(getattr(row, 'cell_type', '')))}</td>"
+                f"<td>{escape(str(getattr(row, 'confidence_bucket', '')))}</td>"
+                f"<td class='compact'>{escape(str(getattr(row, 'pval_adj', '')))}</td>"
+                f"<td class='compact'>{escape(str(getattr(row, 'score', '')))}</td>"
+                f"<td class='compact'>{escape(str(getattr(row, 'n_matched', '')))}</td>"
+                f"<td class='long'>{escape(str(matched))}</td>"
+                "</tr>"
+            )
+        html.append("</tbody></table></div></details>")
+    html.append("</div>")
+    return "".join(html)
+
+def load_umap_table():
+    if ad is None:
+        return pd.DataFrame(), "anndata is not available, so UMAP figures were not rendered."
+    h5ad = run_input.get("h5ad")
+    if not h5ad:
+        return pd.DataFrame(), "No input h5ad path was recorded."
+    try:
+        adata = ad.read_h5ad(h5ad, backed="r")
+    except Exception as exc:
+        return pd.DataFrame(), f"Could not read input h5ad for UMAP figures: {exc}"
+    if "X_umap" not in adata.obsm:
+        return pd.DataFrame(), "The input h5ad does not contain obsm['X_umap']."
+    cluster_key = run_input.get("cluster_key") or "leiden"
+    if cluster_key not in adata.obs:
+        return pd.DataFrame(), f"Cluster key '{cluster_key}' was not found in adata.obs."
+    coords = np.asarray(adata.obsm["X_umap"])
+    obs = adata.obs[[cluster_key]].copy()
+    obs["cluster_id"] = obs[cluster_key].astype(str).values
+    sample_key = run_input.get("sample_key")
+    if sample_key and sample_key in adata.obs:
+        obs["sample"] = adata.obs[sample_key].astype(str).values
+    else:
+        obs["sample"] = ""
+    obs["UMAP1"] = coords[:, 0]
+    obs["UMAP2"] = coords[:, 1]
+    label_map = summary.assign(cluster_id=summary["cluster_id"].astype(str)).set_index("cluster_id")
+    obs = obs.reset_index(names="cell_id").merge(
+        label_map[["top_label", "confidence_bucket", "review_status", "n_candidates"]],
+        on="cluster_id",
+        how="left",
+    )
+    obs["top_label"] = obs["top_label"].fillna("no catalog match")
+    obs["confidence_bucket"] = obs["confidence_bucket"].fillna("unknown")
+    obs["review_status"] = obs["review_status"].fillna("no catalog-supported candidate")
+    obs["n_candidates"] = obs["n_candidates"].fillna(0).astype(int)
+    return obs, ""
+```
+
+## Summary
+
+This template is focused on zebrafish scRNA-seq annotation. It ranks cluster markers, tests those
+markers against an explicit zebrafish marker catalog, and produces review-oriented tables and
+figures. The catalog enrichment score is evidence for review, not a classifier probability or final
+cell type assignment.
+
+```{python}
+display_static_table(
+    pd.DataFrame(
+        [
+            {"field": "state", "value": status.get("state", "unknown")},
+            {"field": "organism", "value": run_input.get("organism", "")},
+            {"field": "tissue", "value": run_input.get("tissue") or "not provided"},
+            {"field": "stage", "value": run_input.get("stage") or "not provided"},
+            {"field": "cluster key", "value": run_input.get("cluster_key", "")},
+            {"field": "expression layer", "value": run_input.get("expression_layer", "")},
+            {"field": "catalog", "value": catalog_label},
+            {"field": "clusters", "value": len(summary)},
+            {"field": "clusters with candidate labels", "value": int((summary["top_label"].fillna("") != "no catalog match").sum()) if len(summary) else 0},
+        ]
+    )
+)
+```
+
+```{python}
+if is_zcl_catalog:
+    display(HTML(
+        "<div class='catalog-note'><strong>Catalog note.</strong> "
+        "This run uses the ZCL 2.0 marker list converted into the template schema. "
+        "This is the recommended automatic baseline for whole-fish zebrafish annotation, "
+        "including 72 hpf/3 dpf-style context.</div>"
+    ))
+elif is_builtin_catalog:
+    display(HTML(
+        "<div class='catalog-note'><strong>Catalog note.</strong> "
+        "This run uses the bundled starter catalog. Replace it with a project-specific "
+        "curated zebrafish marker catalog before making biological claims.</div>"
+    ))
+```
+
+## How to Read This Report
+
+- Start with **Cluster Annotation Candidates** for the current best catalog-supported label per
+  cluster.
+- Use **Catalog Match Score** to see whether a cluster has one strong candidate or several weak
+  alternatives.
+- Use **Top Marker Evidence** to check whether the candidate label is supported by strong ranked
+  markers.
+- `score` is `-log10(FDR-adjusted enrichment p-value)`, not a probability.
+- `confidence_bucket` is a heuristic review aid.
+- Missing tissue or stage means the interpretation is context-light.
+
+## Database Used
+
+```{python}
+database_rows = [
+    {"field": "catalog id", "value": catalog.get("id", "")},
+    {"field": "catalog type", "value": "ZCL 2.0 marker-list download" if is_zcl_catalog else "local or built-in TSV catalog"},
+    {"field": "catalog species", "value": catalog.get("species", "")},
+    {"field": "catalog rows", "value": catalog.get("n_rows", "")},
+    {"field": "catalog sources", "value": ", ".join(catalog.get("sources", []))},
+    {"field": "FDR threshold", "value": catalog_params.get("fdr_threshold", "")},
+    {"field": "minimum log2FC", "value": catalog_params.get("min_log2fc", "")},
+]
+display_static_table(pd.DataFrame(database_rows))
+```
+
+## Download Results
+
+```{python}
+excel_path = artifact_path("excel_workbook") or "scrna_annotate_zebrafish_results.xlsx"
+if Path(excel_path).exists():
+    display(HTML(
+        f"<div class='note-box'><strong>Excel workbook.</strong> "
+        f"<a href='{escape(excel_path)}' download>Download all annotation tables</a>. "
+        "Sheets: cluster_summary, catalog_matches, differential_markers.</div>"
+    ))
+else:
+    display(HTML("<div class='note-box'>Excel workbook was not found for this run.</div>"))
+```
+
+```{python}
+if is_zcl_catalog:
+    display(HTML(
+        "<div class='catalog-note'><strong>Database interpretation.</strong> "
+        "ZCL 2.0 markers are single-cell landscape markers. They are appropriate as an automatic "
+        "baseline for whole-fish data, but final labels should still be reviewed against marker genes, "
+        "stage, tissue context, and any FishSCT or literature-derived project markers.</div>"
+    ))
+```
+
+## Warnings
+
+```{python}
+if warnings:
+    html = "<div class='warning-list'>" + "".join(
+        f"<p><strong>Warning {i}.</strong> {escape(str(warning))}</p>"
+        for i, warning in enumerate(warnings, start=1)
+    ) + "</div>"
+else:
+    html = "<div class='note-box'>No warnings were recorded.</div>"
+display(HTML(html))
+```
+
+## Cluster Annotation Candidates
+
+This table is the main review table. `no catalog match` means the catalog did not produce a
+candidate for that cluster under the current enrichment threshold. The full candidate evidence is
+kept in **Catalog Matches** and in the downloadable Excel workbook.
+
+```{python}
+summary_columns = ["cluster_id", "n_cells", "top_label", "confidence_bucket", "top_score", "matched_genes"]
+summary_table = summary[[column for column in summary_columns if column in summary]].copy()
+summary_table = summary_table.fillna("")
+if "top_score" in summary_table:
+    summary_table["top_score"] = pd.to_numeric(summary_table["top_score"], errors="coerce").round(3)
+for column in ["matched_genes"]:
+    if column in summary_table:
+        summary_table[column] = summary_table[column].map(lambda value: clip_text(value, 80))
+summary_table = summary_table.rename(columns={"matched_genes": "matched gene evidence"})
+display_table(
+    summary_table,
+    caption="Cluster annotation summary",
+    page_length=10,
+    order=[[0, "asc"]],
+    long_text_columns=["matched gene evidence"],
+    medium_text_columns=["top_label"],
+    scroll_x=False,
+)
+```
+
+### Review Overview
+
+```{python}
+status_counts = summary["review_status"].fillna("unknown").value_counts().reset_index()
+status_counts.columns = ["review_status", "n_clusters"]
+candidate_counts = summary["n_candidates"].fillna(0).astype(int).value_counts().sort_index().reset_index()
+candidate_counts.columns = ["n_candidates", "n_clusters"]
+pill_html = "<div class='status-strip'>" + "".join(
+    f"<span class='status-pill'><strong>{escape(str(row.n_clusters))}</strong> {escape(str(row.review_status))}</span>"
+    for row in status_counts.itertuples(index=False)
+) + "</div>"
+display(HTML(pill_html))
+```
+
+### Candidate Details by Cluster
+
+Cluster IDs are kept exactly as produced by Scanpy/Leiden in `adata.obs`; for this dataset they are
+0-based (`0` to `31`). Keeping the original IDs avoids mismatch with UMAP, CSV/Excel outputs, and
+downstream project files.
+
+```{python}
+display(HTML(candidate_details_html(matches, summary)))
+```
+
+### Match Diagnostics
+
+```{python}
+diagnostics = pd.DataFrame(
+    [
+        {"metric": "clusters total", "value": len(summary)},
+        {"metric": "clusters with catalog candidates", "value": int((summary["top_label"].fillna("") != "no catalog match").sum()) if len(summary) else 0},
+        {"metric": "clusters without catalog candidates", "value": int((summary["top_label"].fillna("") == "no catalog match").sum()) if len(summary) else 0},
+        {"metric": "catalog match rows", "value": len(matches)},
+        {"metric": "ranked marker rows", "value": len(markers)},
+    ]
+)
+display_static_table(diagnostics)
+```
+
+```{python}
+unmatched = summary.loc[summary["top_label"].fillna("") == "no catalog match", ["cluster_id", "n_cells"]].copy()
+if len(unmatched):
+    top_unmatched_markers = (
+        markers[markers["cluster_id"].astype(str).isin(unmatched["cluster_id"].astype(str))]
+        .sort_values(["cluster_id", "rank"])
+        .groupby("cluster_id")
+        .head(8)
+        .groupby("cluster_id")["gene"]
+        .apply(lambda values: ", ".join(map(str, values)))
+        .reset_index(name="top ranked markers")
+    )
+    unmatched = unmatched.merge(top_unmatched_markers, on="cluster_id", how="left")
+    display_table(
+        unmatched,
+        caption="Clusters without catalog-supported candidates",
+        page_length=10,
+        order=[[0, "asc"]],
+        long_text_columns=["top ranked markers"],
+    )
+else:
+    display(HTML("<div class='note-box'>All clusters have at least one catalog-supported candidate label.</div>"))
+```
+
+## Figures
+
+### UMAP Overview
+
+```{python}
+umap, umap_message = load_umap_table()
+if px is None:
+    plot_unavailable("Plotly is not available, so UMAP figures were not rendered.")
+elif len(umap):
+    fig = px.scatter(
+        umap,
+        x="UMAP1",
+        y="UMAP2",
+        color="cluster_id",
+        hover_data=["cell_id", "cluster_id", "top_label", "confidence_bucket", "sample"],
+        title="UMAP by cluster",
+        template="plotly_white",
+        render_mode="webgl",
+    )
+    polish_umap(fig, legend_title="Cluster", fixed_single_panel=True).show()
+
+    fig = px.scatter(
+        umap,
+        x="UMAP1",
+        y="UMAP2",
+        color="top_label",
+        hover_data=["cell_id", "cluster_id", "top_label", "confidence_bucket", "review_status", "sample"],
+        title="UMAP by top catalog-supported label",
+        template="plotly_white",
+        render_mode="webgl",
+    )
+    polish_umap(fig, legend_title="Top label", fixed_single_panel=True).show()
+
+    if "sample" in umap and (umap["sample"].astype(str) != "").any():
+        sample_count = int(umap["sample"].astype(str).nunique())
+        facet_height = max(UMAP_HEIGHT, UMAP_FACET_PANEL_HEIGHT * int(np.ceil(sample_count / 2)))
+        fig = px.scatter(
+            umap,
+            x="UMAP1",
+            y="UMAP2",
+            color="top_label",
+            facet_col="sample",
+            facet_col_wrap=2,
+            hover_data=["cell_id", "sample", "cluster_id", "top_label", "confidence_bucket"],
+            title="UMAP by sample, colored by top catalog-supported label",
+            template="plotly_white",
+            render_mode="webgl",
+        )
+        fig.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.replace("sample=", "")))
+        polish_umap(fig, height=facet_height, legend_title="Top label").show()
+else:
+    plot_unavailable(umap_message or "UMAP figures were not available.")
+```
+
+### Catalog Match Score
+
+Higher scores indicate stronger FDR-controlled enrichment between informative cluster markers and a catalog label.
+Rows with broadly expressed genes or anatomy-level labels should be interpreted conservatively.
+
+```{python}
+if px is None:
+    plot_unavailable("Plotly is not available, so the catalog score figure was not rendered.")
+elif len(matches):
+    top = matches.query("rank <= 5").copy()
+    matrix = top.pivot_table(index="cell_type", columns="cluster_id", values="score", aggfunc="max", fill_value=0)
+    row_stats = pd.DataFrame(
+        {
+            "cell_type": matrix.index.astype(str),
+            "best_cluster": matrix.idxmax(axis=1).astype(str).values,
+            "best_score": matrix.max(axis=1).values,
+        }
+    )
+    row_stats["best_cluster_sort"] = row_stats["best_cluster"].map(cluster_sort_key)
+    row_order = (
+        row_stats
+        .sort_values(["best_cluster_sort", "best_score", "cell_type"], ascending=[True, False, True])
+        ["cell_type"]
+    )
+    matrix = matrix.loc[row_order]
+    matrix = matrix.reindex(sorted(matrix.columns, key=lambda value: cluster_sort_key(str(value))), axis=1)
+    fig = px.imshow(
+        matrix,
+        aspect="auto",
+        color_continuous_scale="Viridis",
+        labels={"x": "Cluster", "y": "Catalog cell type", "color": "Score"},
+        title="Zebrafish marker catalog enrichment score",
+        template="plotly_white",
+    )
+    fig.update_layout(height=max(420, 28 * len(matrix.index)), margin={"l": 130, "r": 30, "t": 70, "b": 50})
+    fig.show()
+else:
+    plot_unavailable("No catalog matches were produced.")
+```
+
+### Top Marker Evidence
+
+This figure shows the strongest few ranked markers per cluster. It is intentionally compact; use the
+differential marker table for exhaustive review.
+
+```{python}
+if px is None:
+    plot_unavailable("Plotly is not available, so the top-marker figure was not rendered.")
+elif len(markers):
+    plot_markers = markers.copy()
+    plot_markers["pval_adj_num"] = pd.to_numeric(plot_markers["pval_adj"], errors="coerce")
+    plot_markers["log2fc_num"] = pd.to_numeric(plot_markers["log2fc"], errors="coerce")
+    plot_markers = plot_markers.sort_values(["cluster_id", "rank"]).groupby("cluster_id").head(5)
+    plot_markers = plot_markers.sort_values(["cluster_id", "rank"]).reset_index(drop=True)
+    plot_markers["neg_log10_padj"] = plot_markers["pval_adj_num"].clip(lower=1e-300).map(lambda value: -np.log10(value) if pd.notna(value) else None)
+    plot_markers["cluster_marker"] = plot_markers.apply(lambda row: f"C{row['cluster_id']} | {row['gene']}", axis=1)
+    plot_markers["cluster_marker"] = pd.Categorical(plot_markers["cluster_marker"], categories=list(reversed(plot_markers["cluster_marker"])), ordered=True)
+    fig = px.scatter(
+        plot_markers,
+        x="log2fc_num",
+        y="cluster_marker",
+        size=plot_markers["log2fc_num"].clip(lower=0),
+        color="neg_log10_padj",
+        hover_data=["cluster_id", "gene", "rank", "score", "log2fc", "pval_adj", "strength"],
+        labels={"log2fc_num": "log2 fold change", "cluster_marker": "Cluster | marker gene", "color": "-log10 adjusted p-value"},
+        title="Top marker evidence per cluster",
+        template="plotly_white",
+    )
+    fig.update_layout(height=min(760, max(420, 24 * len(plot_markers) + 120)), margin={"l": 155, "r": 30, "t": 70, "b": 50})
+    fig.show()
+else:
+    plot_unavailable("No differential markers were produced.")
+```
+
+### Full Marker Evidence
+
+This interactive figure shows all retained marker rows. Gene labels are hidden on the axis to keep
+the plot compact; hover over points to inspect the cluster, gene, rank, log2FC, and adjusted p-value.
+
+```{python}
+if px is None:
+    plot_unavailable("Plotly is not available, so the full-marker figure was not rendered.")
+elif len(markers):
+    full_markers = markers.copy()
+    full_markers["pval_adj_num"] = pd.to_numeric(full_markers["pval_adj"], errors="coerce")
+    full_markers["log2fc_num"] = pd.to_numeric(full_markers["log2fc"], errors="coerce")
+    full_markers = full_markers.sort_values(["cluster_id", "rank"]).reset_index(drop=True)
+    full_markers["neg_log10_padj"] = full_markers["pval_adj_num"].clip(lower=1e-300).map(lambda value: -np.log10(value) if pd.notna(value) else None)
+    full_markers["marker_row"] = full_markers.apply(lambda row: f"C{row['cluster_id']} r{int(row['rank'])} | {row['gene']}", axis=1)
+    full_markers["marker_row"] = pd.Categorical(full_markers["marker_row"], categories=list(reversed(full_markers["marker_row"])), ordered=True)
+    fig = px.scatter(
+        full_markers,
+        x="log2fc_num",
+        y="marker_row",
+        size=full_markers["log2fc_num"].clip(lower=0),
+        color="neg_log10_padj",
+        hover_data=["cluster_id", "gene", "rank", "score", "log2fc", "pval_adj", "strength"],
+        labels={"log2fc_num": "log2 fold change", "marker_row": "Marker rows", "color": "-log10 adjusted p-value"},
+        title="Full marker evidence, hover for gene labels",
+        template="plotly_white",
+    )
+    fig.update_yaxes(showticklabels=False, title="Marker rows, ordered by cluster and rank")
+    fig.update_traces(marker={"opacity": 0.72})
+    fig.update_layout(height=min(900, max(460, 0.32 * len(full_markers) + 180)), margin={"l": 40, "r": 30, "t": 70, "b": 50})
+    fig.show()
+else:
+    plot_unavailable("No differential markers were produced.")
+```
+
+## Evidence Tables
+
+### Catalog Matches
+
+This preview shows the strongest catalog matches only. The full table is available in
+`tables/catalog_matches.csv` and the Excel workbook.
+
+```{python}
+match_table = matches.sort_values(["cluster_id", "rank"]).groupby("cluster_id").head(3).copy()
+for column in ["matched_genes", "missing_genes", "citation"]:
+    if column in match_table:
+        match_table[column] = match_table[column].map(lambda value: clip_text(value, 90))
+display_table(
+    match_table,
+    caption="Zebrafish catalog matches, top 3 per cluster",
+    page_length=8,
+    order=[[0, "asc"], [1, "asc"]],
+    long_text_columns=["matched_genes", "missing_genes", "citation"],
+)
+```
+
+### Differential Markers
+
+```{python}
+marker_preview = markers.sort_values(["cluster_id", "rank"]).groupby("cluster_id").head(5).copy()
+display_table(
+    marker_preview,
+    caption="Differential markers, top 5 per cluster",
+    page_length=10,
+    order=[[0, "asc"], [1, "asc"]],
+)
+```
+
+## Provenance
+
+```{python}
+provenance = pd.DataFrame(
+    [
+        {"field": "input h5ad", "value": run_input.get("h5ad", "")},
+        {"field": "input source template", "value": run_input.get("input_source_template") or "not provided"},
+        {"field": "catalog id", "value": catalog.get("id", "")},
+        {"field": "catalog path", "value": catalog.get("path", "")},
+        {"field": "catalog sha256", "value": catalog.get("sha256", "")},
+        {"field": "catalog species", "value": catalog.get("species", "")},
+        {"field": "catalog rows", "value": catalog.get("n_rows", "")},
+        {"field": "catalog sources", "value": ", ".join(catalog.get("sources", []))},
+    ]
+)
+display_static_table(provenance)
+```
+
+## Interpretation Notes
+
+- This report uses zebrafish catalog evidence only.
+- Replace the example marker catalog before interpreting biological labels.
+- Treat catalog matches as review candidates, especially when tissue or developmental stage is not provided.
+- ZCL 2.0 is the default automatic baseline for whole-fish zebrafish data.
+- Add FishSCT-derived project-local markers when a cluster needs more tissue or dataset-specific support.
+- Compare marker genes, catalog matches, and UMAP/cluster biology before freezing final labels.
+
+## References
+
+- Wolf FA, Angerer P, Theis FJ. 2018. [SCANPY: large-scale single-cell gene expression data analysis](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-017-1382-0). *Genome Biology*.
+- Heumos L et al. [Single-cell best practices: cell type annotation](https://www.sc-best-practices.org/cellular_structure/annotation.html).

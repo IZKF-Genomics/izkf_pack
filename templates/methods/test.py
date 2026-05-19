@@ -881,7 +881,7 @@ def test_scrna_integrate_citations_and_short_sentence() -> None:
     assert "[1, 2, 3, 4, 5, 6, 7]" in sentence
 
 
-def test_scrna_annotate_design_scaffold_short_sentence() -> None:
+def test_scrna_annotate_marker_provider_short_sentence() -> None:
     module = load_run_module()
     catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
     entry = catalog["templates"]["scrna_annotate"]
@@ -903,8 +903,9 @@ def test_scrna_annotate_design_scaffold_short_sentence() -> None:
         ],
         citation_map,
     )
-    assert "Cell identity annotation was planned" in sentence
+    assert "Cell identity annotation evidence was generated or organized" in sentence
     assert "provider-based" in sentence
+    assert "marker-gene evidence" in sentence
     assert "standard JSON contract" in sentence
     assert "[1]" in sentence
 
@@ -929,7 +930,7 @@ def main() -> int:
     test_scrna_prep_catalog_entry_matches_current_input_model()
     test_scrna_prep_settings_include_resolved_leiden_resolution()
     test_scrna_integrate_citations_and_short_sentence()
-    test_scrna_annotate_design_scaffold_short_sentence()
+    test_scrna_annotate_marker_provider_short_sentence()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     catalog_text = (TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8")

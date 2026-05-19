@@ -1,0 +1,15 @@
+[dataset]
+input_h5ad = ""
+input_source_template = ""
+organism = "zebrafish"
+tissue = ""
+stage = ""
+cluster_key = "leiden"
+sample_key = "sample_id"
+expression_layer = "X"
+
+[analysis]
+marker_catalog = "download:zcl_2_marker_list"
+top_n_markers = 50
+min_log2fc = 0.25
+fdr_threshold = 0.05

@@ -1,0 +1,5 @@
+/.quarto/
+**/*.quarto_ipynb
+/input.h5ad
+/results/
+/__pycache__/

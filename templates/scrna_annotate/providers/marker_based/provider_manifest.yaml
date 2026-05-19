@@ -1,18 +1,19 @@
 id: marker_based
 name: Marker-based evidence
 group: marker_based
-maturity: planned
+maturity: mvp
 default_enabled: true
 experimental: false
 environment:
   manager: pixi
   lockfile: pixi.lock
 entrypoint:
-  command: pixi run python run.py
+  command: pixi run python providers/marker_based/run.py
+  cwd: template_root
 input_requirements:
   input_h5ad: required
   organism: recommended
-  tissue: recommended
+  tissue: optional_context
   cluster_key: required
   gene_id_type: gene_symbols_recommended
   expression:
@@ -27,8 +28,21 @@ configuration:
   min_log2fc:
     type: float
     default: 0.25
+  expression_layer:
+    type: str
+    default: X
 outputs:
   annotation_result: annotation_result.json
+  quarto_report: report.qmd
+  html_report: report.html
+  tables:
+    - tables/differential_markers.csv
+    - tables/marker_signatures.csv
+    - tables/marker_strength_summary.csv
 notes:
   - First real provider target because it is interpretable and audit-friendly.
   - Should preserve matched and missing marker evidence per cluster.
+  - Tissue is useful context but not required; missing tissue should produce context-light evidence rather than blocking exploratory annotation.
+  - The first MVP uses broad built-in human marker signatures as heuristic evidence only for human datasets.
+  - For zebrafish, built-in human signature scoring is skipped; use species-specific marker databases or an explicit ortholog-mapped marker catalog.
+  - Curated external marker databases should be split into separate providers.

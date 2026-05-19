@@ -1,0 +1,451 @@
+---
+title: "Marker-based annotation evidence"
+subtitle: "Differential markers and broad marker signature overlap"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    embed-resources: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{=html}
+<style>
+.warning-list {
+  border-left: 4px solid #c2410c;
+  background: #fff7ed;
+  padding: 0.85rem 1rem;
+  margin: 0.7rem 0 1rem;
+}
+.warning-list p {
+  margin: 0.35rem 0;
+}
+.note-box {
+  border-left: 4px solid #2563eb;
+  background: #eff6ff;
+  padding: 0.85rem 1rem;
+  margin: 0.7rem 0 1rem;
+}
+.compact-table-note {
+  color: #475569;
+  font-size: 0.92rem;
+}
+.dataTables_wrapper table.dataTable {
+  width: auto !important;
+}
+.dataTables_wrapper table.dataTable th,
+.dataTables_wrapper table.dataTable td {
+  white-space: normal;
+  width: auto !important;
+  max-width: 28rem;
+  vertical-align: top;
+}
+.dataTables_wrapper table.dataTable td.dt-nowrap,
+.dataTables_wrapper table.dataTable th.dt-nowrap {
+  white-space: nowrap;
+}
+.dataTables_wrapper .dataTables_scrollBody {
+  overflow-x: auto !important;
+}
+</style>
+```
+
+```{python}
+from pathlib import Path
+from html import escape
+import json
+import numpy as np
+import pandas as pd
+from IPython.display import HTML, display
+
+try:
+    import plotly.express as px
+except ImportError:
+    px = None
+
+try:
+    from itables import show
+except ImportError:
+    show = None
+
+provider_dir = Path(".")
+payload = json.loads((provider_dir / "annotation_result.json").read_text())
+markers = pd.read_csv(provider_dir / "tables" / "differential_markers.csv")
+signatures = pd.read_csv(provider_dir / "tables" / "marker_signatures.csv")
+strength = pd.read_csv(provider_dir / "tables" / "marker_strength_summary.csv")
+run_input = payload.get("input", {})
+status = payload.get("status", {})
+methods = payload.get("methods", [])
+cluster_predictions = payload.get("cluster_predictions", [])
+warnings = status.get("warnings", [])
+
+if show is not None:
+    import itables.options as itable_options
+
+    itable_options.showIndex = False
+    itable_options.classes = "display compact stripe hover"
+    itable_options.layout = {
+        "topStart": "pageLength",
+        "topEnd": "search",
+        "bottomStart": "info",
+        "bottomEnd": "paging",
+    }
+    itable_options.maxBytes = "1MB"
+
+PLOT_TEMPLATE = "plotly_white"
+STRENGTH_COLORS = {"strong": "#1b9e77", "moderate": "#d95f02", "weak": "#7570b3"}
+
+def empty_to_unknown(value):
+    return value if value not in {"", None} else "not provided"
+
+def clip_text(value, limit=110):
+    text = "" if pd.isna(value) else str(value)
+    return text if len(text) <= limit else text[: limit - 1] + "..."
+
+def compact_table(df, columns, n=50, text_columns=()):
+    available = [column for column in columns if column in df.columns]
+    if not available:
+        return pd.DataFrame(columns=columns)
+    out = df.loc[:, available].head(n).copy()
+    for column in text_columns:
+        if column in out.columns:
+            out[column] = out[column].map(clip_text)
+    return out.reset_index(drop=True)
+
+def display_static_table(df):
+    display(HTML(df.reset_index(drop=True).to_html(index=False, escape=False)))
+
+def display_interactive_table(df, *, caption=None, page_length=10, order=None):
+    df = df.reset_index(drop=True)
+    if show is None:
+        display_static_table(df)
+        return
+    show(
+        df,
+        caption=caption,
+        showIndex=False,
+        scrollX=True,
+        column_filters="footer",
+        pageLength=page_length,
+        lengthMenu=[10, 25, 50, 100],
+        order=order or [],
+        autoWidth=True,
+        autoWidthMode="fit",
+        deferRender=True,
+        classes="display compact stripe hover",
+    )
+
+def candidate_rows(max_candidates=3):
+    rows = []
+    for pred in cluster_predictions:
+        cluster_id = str(pred.get("cluster_id", ""))
+        candidates = pred.get("candidates", [])
+        if not candidates:
+            rows.append(
+                {
+                    "cluster": cluster_id,
+                    "rank": "",
+                    "candidate": "no marker signature match",
+                    "confidence": "unknown",
+                    "score": "",
+                    "matched genes": "",
+                    "top markers": "",
+                }
+            )
+            continue
+        for candidate in candidates[:max_candidates]:
+            evidence = candidate.get("evidence", {})
+            rows.append(
+                {
+                    "cluster": cluster_id,
+                    "rank": candidate.get("rank", ""),
+                    "candidate": candidate.get("label_raw", ""),
+                    "confidence": candidate.get("confidence_bucket", ""),
+                    "score": candidate.get("provider_score", ""),
+                    "matched genes": ", ".join(evidence.get("matched_genes", [])),
+                    "top markers": ", ".join(str(item.get("gene", "")) for item in evidence.get("top_markers", [])[:8]),
+                }
+            )
+    return pd.DataFrame(rows).reset_index(drop=True)
+
+def plot_unavailable(reason):
+    display(HTML(f"<div class='note-box'>{escape(reason)}</div>"))
+
+context_mode = "context-light" if empty_to_unknown(run_input.get("tissue")) == "not provided" else "context-aware"
+```
+
+## Summary
+
+This report is provider-level evidence for reviewing cluster identities. It is not a final cell
+type assignment. The provider first ranks cluster markers with `scanpy.tl.rank_genes_groups`. For
+human datasets, it also compares informative markers with broad built-in human marker signatures.
+For non-human organisms such as zebrafish, human signature scoring is skipped unless a
+species-specific or explicit ortholog-mapped catalog is added.
+
+```{python}
+summary_table = pd.DataFrame(
+    [
+        {"field": "provider state", "value": status.get("state", "unknown")},
+        {"field": "context mode", "value": context_mode},
+        {"field": "input h5ad", "value": run_input.get("h5ad", "")},
+        {"field": "cluster key", "value": run_input.get("cluster_key", "")},
+        {"field": "organism", "value": empty_to_unknown(run_input.get("organism"))},
+        {"field": "tissue", "value": empty_to_unknown(run_input.get("tissue"))},
+        {"field": "gene id type", "value": empty_to_unknown(run_input.get("gene_id_type"))},
+        {"field": "expression layer", "value": empty_to_unknown(run_input.get("expression_layer"))},
+        {"field": "clusters reported", "value": len(cluster_predictions)},
+    ]
+)
+display_static_table(summary_table)
+```
+
+If tissue is not provided, the report remains useful for exploration, but all labels should be
+treated as context-light hypotheses. Tissue-specific marker databases, references, or atlas models
+should be configured explicitly before making final biological claims.
+
+## Warnings
+
+```{python}
+if warnings:
+    warning_html = "<div class='warning-list'>" + "".join(
+        f"<p><strong>Warning {index}.</strong> {escape(str(warning))}</p>"
+        for index, warning in enumerate(warnings, start=1)
+    ) + "</div>"
+else:
+    warning_html = "<div class='note-box'>No provider warnings were recorded.</div>"
+display(HTML(warning_html))
+```
+
+## Cluster Review
+
+Use this table as the first manual review surface. It is searchable, sortable, filterable, and
+paginated. Long gene lists are shortened here so the table stays usable; the full CSV artifacts are
+kept in `tables/`.
+
+```{python}
+review = candidate_rows(max_candidates=3)
+for column in ["matched genes", "top markers"]:
+    if column in review:
+        review[column] = review[column].map(lambda value: clip_text(value, 120))
+display_interactive_table(review, caption="Candidate labels by cluster", page_length=10, order=[[0, "asc"], [1, "asc"]])
+```
+
+## Figures
+
+### Marker Strength by Cluster
+
+Strong and moderate markers are more useful for manual review than weak markers. A cluster with few
+informative markers may need re-clustering, QC review, or a different annotation method.
+
+```{python}
+if px is None:
+    plot_unavailable("Plotly is not available, so the marker-strength figure was not rendered.")
+elif len(strength):
+    long_strength = strength.melt(
+        id_vars=["cluster_id", "n_cells", "n_markers"],
+        value_vars=["strong", "moderate", "weak"],
+        var_name="marker_strength",
+        value_name="marker_count",
+    )
+    fig = px.bar(
+        long_strength,
+        x="cluster_id",
+        y="marker_count",
+        color="marker_strength",
+        color_discrete_map=STRENGTH_COLORS,
+        hover_data=["n_cells", "n_markers"],
+        category_orders={"marker_strength": ["strong", "moderate", "weak"]},
+        labels={
+            "cluster_id": "Cluster",
+            "marker_count": "Number of ranked markers",
+            "marker_strength": "Marker strength",
+            "n_cells": "Cells",
+            "n_markers": "Ranked markers",
+        },
+        title="Ranked marker strength per cluster",
+        template=PLOT_TEMPLATE,
+    )
+    fig.update_layout(height=460, legend_title_text="Strength", bargap=0.22)
+    fig.update_xaxes(type="category")
+    fig.show()
+else:
+    plot_unavailable("No marker strength table was produced.")
+```
+
+### Signature Score Heatmap
+
+This heatmap helps distinguish strong broad-lineage patterns from weak scattered hits. It shows the
+top signature matches per cluster, with darker color indicating stronger heuristic overlap.
+
+```{python}
+if px is None:
+    plot_unavailable("Plotly is not available, so the signature heatmap was not rendered.")
+elif len(signatures):
+    top = signatures.query("rank <= 5").copy()
+    matrix = top.pivot_table(index="label", columns="cluster_id", values="score", aggfunc="max", fill_value=0)
+    matrix = matrix.loc[matrix.max(axis=1).sort_values(ascending=False).index]
+    fig = px.imshow(
+        matrix,
+        aspect="auto",
+        color_continuous_scale="Viridis",
+        labels={"x": "Cluster", "y": "Candidate label", "color": "Score"},
+        title="Marker-signature overlap score",
+        template=PLOT_TEMPLATE,
+    )
+    fig.update_layout(height=max(420, 28 * len(matrix.index)), margin={"l": 120, "r": 30, "t": 70, "b": 50})
+    fig.show()
+else:
+    plot_unavailable("No built-in marker signatures matched the differential markers.")
+```
+
+### Top Marker Evidence
+
+This compact plot shows the strongest few marker genes per cluster. Color tracks adjusted p-value
+and point size tracks log2 fold change. The complete marker list is better reviewed in the
+searchable table below.
+
+```{python}
+if px is None:
+    plot_unavailable("Plotly is not available, so the marker evidence figure was not rendered.")
+elif len(markers):
+    marker_plot = markers.copy()
+    marker_plot["pval_adj_num"] = pd.to_numeric(marker_plot["pval_adj"], errors="coerce")
+    marker_plot["log2fc_num"] = pd.to_numeric(marker_plot["log2fc"], errors="coerce")
+    marker_plot = marker_plot.sort_values(["cluster_id", "rank"]).groupby("cluster_id").head(5)
+    marker_plot = marker_plot.sort_values(["cluster_id", "rank"]).reset_index(drop=True)
+    marker_plot["neg_log10_padj"] = marker_plot["pval_adj_num"].clip(lower=1e-300).map(lambda value: -np.log10(value) if pd.notna(value) else None)
+    marker_plot["log2fc_size"] = marker_plot["log2fc_num"].clip(lower=0)
+    marker_plot["marker"] = marker_plot["gene"].map(str)
+    marker_plot["cluster_marker"] = marker_plot.apply(lambda row: f"C{row['cluster_id']} | {row['marker']}", axis=1)
+    marker_plot["cluster_marker"] = pd.Categorical(
+        marker_plot["cluster_marker"],
+        categories=list(reversed(marker_plot["cluster_marker"])),
+        ordered=True,
+    )
+    fig = px.scatter(
+        marker_plot,
+        x="log2fc_num",
+        y="cluster_marker",
+        size="log2fc_size",
+        color="neg_log10_padj",
+        hover_data={
+            "cluster_id": True,
+            "gene": True,
+            "rank": True,
+            "score": ":.3f",
+            "log2fc": ":.3f",
+            "pval_adj": True,
+            "strength": True,
+            "cluster_marker": False,
+            "log2fc_size": False,
+            "log2fc_num": False,
+            "pval_adj_num": False,
+            "marker": False,
+        },
+        labels={
+            "log2fc_num": "log2 fold change",
+            "cluster_marker": "Cluster | marker gene",
+            "log2fc_size": "log2FC",
+            "neg_log10_padj": "-log10 adjusted p-value",
+        },
+        title="Top marker evidence per cluster",
+        template=PLOT_TEMPLATE,
+    )
+    plot_height = min(760, max(420, 24 * len(marker_plot) + 120))
+    fig.update_layout(height=plot_height, margin={"l": 155, "r": 30, "t": 70, "b": 50})
+    fig.show()
+else:
+    plot_unavailable("No differential markers were produced.")
+```
+
+## Evidence Tables
+
+Tables in this section are searchable, sortable, filterable, and paginated. For long tables, use the
+search box or column filters first; then export or inspect the full CSV files under `tables/` when
+you need every row.
+
+### Top Signature Matches
+
+```{python}
+signature_table = compact_table(
+    signatures,
+    [
+        "cluster_id",
+        "rank",
+        "label",
+        "score",
+        "confidence_bucket",
+        "n_matched",
+        "coverage",
+        "jaccard",
+        "matched_genes",
+        "signature_species",
+        "signature_scope",
+    ],
+    n=200,
+    text_columns=["matched_genes", "signature_species", "signature_scope"],
+)
+display_interactive_table(signature_table, caption="Top marker-signature matches", page_length=10, order=[[0, "asc"], [1, "asc"]])
+```
+
+### Differential Markers
+
+The table below shows the highest-ranked marker genes per cluster. It is capped for report
+performance; the full CSV is available in `tables/differential_markers.csv`.
+
+```{python}
+marker_table = compact_table(
+    markers,
+    ["cluster_id", "rank", "gene", "score", "log2fc", "pval_adj", "strength"],
+    n=500,
+)
+display_interactive_table(marker_table, caption="Differential markers", page_length=25, order=[[0, "asc"], [1, "asc"]])
+```
+
+## Method Details
+
+```{python}
+method_table = pd.DataFrame(
+    [
+        {
+            "step": method.get("step", ""),
+            "tool": method.get("tool", ""),
+            "parameters": json.dumps(method.get("parameters", {}), sort_keys=True),
+            "interpretation": method.get("interpretation", ""),
+        }
+        for method in methods
+    ]
+)
+display_interactive_table(method_table, caption="Provider methods", page_length=10)
+```
+
+The marker-signature score is computed as:
+
+```text
+score = 0.65 * coverage + 0.35 * jaccard
+```
+
+where coverage is the fraction of genes from a built-in signature recovered among informative
+cluster markers, and Jaccard is the overlap between informative cluster markers and the signature.
+This weighting favors recovering known marker signatures while still penalizing overly broad
+matches.
+
+## Interpretation Guidance
+
+- Treat high-confidence matches as candidate labels for review, not as final annotations.
+- Review matched genes and the top differential markers together.
+- If tissue is unknown, keep broad lineage labels and defer fine labels until a tissue-specific
+  reference, marker database, or expert review is available.
+- For zebrafish or other non-human organisms, use species-specific marker databases or an explicit
+  ortholog-mapped marker catalog. Human built-in signatures are not automatically applied across
+  species.
+- Compare this report with future reference-based, foundation-model, and manual-curated providers in
+  `scrna_audit` before freezing final labels.
+
+## References
+
+- Wolf FA, Angerer P, Theis FJ. 2018. [SCANPY: large-scale single-cell gene expression data analysis](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-017-1382-0). *Genome Biology*.
+- Heumos L et al. [Single-cell best practices: cell type annotation](https://www.sc-best-practices.org/cellular_structure/annotation.html).

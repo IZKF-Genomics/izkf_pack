@@ -1754,11 +1754,11 @@ def short_downstream_sentence(runs: list[dict[str, Any]], citation_map: dict[str
         params = merged_run_params(annotate_runs[0])
         cluster_key = normalize_id_value(params.get("cluster_key")) or "leiden"
         sentence = (
-            "Cell identity annotation was planned using a provider-based Scanpy/scverse annotation scaffold "
-            f"with cluster-level evidence keyed on {cluster_key}"
+            "Cell identity annotation evidence was generated or organized using a provider-based Scanpy/scverse annotation workspace "
+            f"with marker-gene evidence keyed on {cluster_key}"
         )
         citation_ids = ["scanpy"]
-        sentence += ", independent provider outputs, and a standard JSON contract for downstream audit and review"
+        sentence += ", independent provider outputs, method-level Quarto reports, and a standard JSON contract for downstream audit and review"
         parts.append(sentence + inline_citations(citation_ids, citation_map) + ".")
     return " ".join(parts)
 

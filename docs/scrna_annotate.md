@@ -1,11 +1,15 @@
 # scrna_annotate design notes
 
-The [`scrna_annotate`](../templates/scrna_annotate/README.md) template has been reset to a
-design-only scaffold for a provider-based annotation architecture.
+The [`scrna_annotate`](../templates/scrna_annotate/README.md) template is now a provider-based
+annotation architecture with a marker-based MVP.
 
-No annotation provider code is implemented in this scaffold yet. The purpose of the current
-directory is to define the interface, output schema, provider manifest model, and implementation
-sequence before writing execution code.
+The current implementation runs `marker_based` and can optionally run `marker_catalog`. The
+remaining providers are explicit planned interfaces. This lets real datasets produce standard
+provider JSON now while the broader annotation ecosystem is added incrementally.
+
+The template intentionally treats `input_h5ad` as a string parameter that is resolved to a path at
+runtime. This keeps large upstream outputs from `scrna_prep` or `scrna_integrate` in place while
+still recording the resolved input path in provider JSON.
 
 ## Architecture
 
@@ -45,7 +49,7 @@ Planned provider groups:
 
 | Group | Examples | Default? | Notes |
 | --- | --- | --- | --- |
-| `marker_based` | marker overlap, scType, scCATCH, SCINA, Garnett, CellAssign | yes, conservative | Best first target because evidence is inspectable. |
+| `marker_based` | differential markers, organism-aware marker catalog overlap, future scType/scCATCH/SCINA/Garnett/CellAssign | yes, conservative | MVP implemented for differential markers, human-only built-in signatures, and optional local marker catalogs. |
 | `reference_based` | CellTypist, SingleR, CHETAH, scmap, scPred, Seurat label transfer | optional | Requires explicit model/reference provenance. |
 | `atlas_model` | Azimuth, Symphony, scArches, custom atlas classifier | optional | Needs atlas version and label-space metadata. |
 | `foundation_model` | scGPT, scTab, Geneformer, UCE, scFoundation, scBERT | experimental | Requires model checkpoint, vocabulary, preprocessing, and hardware provenance. |
@@ -76,8 +80,14 @@ The dataset contract describes the data:
 - `expression_layer`
 - `raw_layer`
 
+`tissue` is optional at the template level. Missing tissue should not block exploratory providers.
+Instead, providers should report context-light evidence and make the reduced confidence visible.
+Tissue-specific marker databases, reference atlases, or pretrained tissue models should require an
+explicit tissue or explicit model/reference configuration.
+
 Provider-specific config describes the method:
 
+- local marker catalog path and species
 - CellTypist model
 - SingleR reference
 - marker database settings
@@ -91,6 +101,10 @@ The resolver should inspect the `.h5ad`, check provider manifests, and classify 
 - `skipped`
 - `needs_config`
 - `failed`
+
+Provider methods can be organism-independent, but resources must be organism-aware. If a dataset is
+zebrafish, a human marker catalog should not run unless a future explicit ortholog-mapped catalog
+provider records the mapping source and version.
 
 ## Output contract
 
@@ -122,6 +136,45 @@ The top-level runner writes:
 results/dataset_profile.json
 results/provider_index.json
 ```
+
+The top-level `run.py` is intentionally thin. Shared configuration, dataset profiling, JSON/CSV
+writing, report rendering, and provider indexing live under `templates/scrna_annotate/lib/`.
+Provider-specific computation and report sources live in each provider folder.
+
+The current `marker_based` provider writes:
+
+```text
+results/providers/marker_based/annotation_result.json
+results/providers/marker_based/report.qmd
+results/providers/marker_based/report.html
+results/providers/marker_based/tables/differential_markers.csv
+results/providers/marker_based/tables/marker_signatures.csv
+results/providers/marker_based/tables/marker_strength_summary.csv
+```
+
+When enabled, the current `marker_catalog` provider reads an explicit local TSV catalog and writes:
+
+```text
+results/providers/marker_catalog/annotation_result.json
+results/providers/marker_catalog/tables/catalog_matches.csv
+```
+
+Catalog resources are described separately from provider execution in
+`templates/scrna_annotate/config/catalog_resources.toml`. The provider consumes a resolved TSV
+catalog; future downloaders should download/cache/convert/verify resources before annotation.
+
+The rendered marker report is intended as the first manual review surface. It includes full warning
+messages, interactive Plotly figures when available, compact review tables, top signature matches,
+differential markers, method details, and citations. Report tables are rendered with sorting,
+search, column filters, and pagination when itables is available. If Plotly or itables is missing,
+the report should still render with text or static-table fallbacks.
+
+Long tables should not be dumped unbounded into the report. The provider report should:
+
+- show review-friendly columns first
+- clip long gene-list cells for readability
+- paginate large tables
+- keep full CSV artifacts for exhaustive inspection
 
 The JSON contract must represent both successful and unsuccessful providers. A skipped provider is
 still useful because it explains why a method was not run.
@@ -179,23 +232,67 @@ Low vocabulary overlap should become a provider warning and later a visible `scr
 
 ## Recommended milestone
 
-First milestone:
+Completed first milestone:
 
 1. dataset profiler
-2. provider manifest reader
-3. JSON schema validation
-4. `mock_provider`
-5. `marker_based`
-6. `provider_index.json`
+2. marker-based provider execution
+3. standard provider JSON
+4. provider-level Quarto report
+5. provider index
 
-Second milestone:
+Next implementation milestone:
 
 1. `scrna_audit` reader
 2. provider status report
 3. cluster-by-provider comparison
 4. conflict/review table
+5. `user_markers` provider
+6. cached external marker database providers
 
 Only then add more real providers.
+
+## Test run
+
+From the rendered template workspace:
+
+```bash
+INPUT_H5AD=/path/to/adata.prep.h5ad \
+ORGANISM=human \
+CLUSTER_KEY=leiden \
+./run.sh
+```
+
+Unknown tissue is supported:
+
+```bash
+INPUT_H5AD=/path/to/adata.prep.h5ad \
+ORGANISM=zebrafish \
+CLUSTER_KEY=leiden \
+./run.sh
+```
+
+The second example should run in context-light mode and record warnings instead of failing. For
+zebrafish, built-in human marker signatures are skipped to avoid cross-species misannotation.
+Zebrafish annotation should use a species-specific marker database, a zebrafish reference atlas, or
+an explicit ortholog-mapped marker catalog.
+
+Local zebrafish marker catalog scoring can be enabled with:
+
+```toml
+[providers.marker_catalog]
+enabled = true
+resource_id = "zebrafish_example"
+catalog_path = "config/marker_catalogs/zebrafish.example.tsv"
+species = "zebrafish"
+min_matched_genes = 2
+```
+
+The example catalog is only a schema/example fixture. Replace it with project-specific markers and
+citations before interpreting biological labels.
+
+Future downloadable catalogs should use `SCRNA_ANNOTATE_CACHE_DIR`, defaulting to
+`~/.cache/izkf_pack/scrna_annotate/catalogs`, and should record source URL, release/version,
+converted TSV checksum, species, and citation.
 
 ## Files
 

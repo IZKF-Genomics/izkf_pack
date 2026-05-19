@@ -1,0 +1,41 @@
+id: marker_catalog
+name: Marker catalog scoring
+group: marker_based
+maturity: mvp
+default_enabled: false
+experimental: false
+environment:
+  manager: pixi
+  lockfile: pixi.lock
+entrypoint:
+  command: pixi run python providers/marker_catalog/run.py
+  cwd: template_root
+input_requirements:
+  input_h5ad: optional
+  organism: required
+  cluster_key: required
+  ranked_markers: required
+  catalog_path: required
+  catalog_species: must_match_dataset_organism
+configuration:
+  catalog_path:
+    type: path
+    default: ""
+  species:
+    type: str
+    default: ""
+  min_log2fc:
+    type: float
+    default: 0.25
+  min_matched_genes:
+    type: int
+    default: 2
+outputs:
+  annotation_result: annotation_result.json
+  tables:
+    - tables/catalog_matches.csv
+notes:
+  - Scores ranked cluster markers against an explicit local marker catalog.
+  - The catalog must declare species and must match the dataset organism.
+  - Cross-species use is refused unless a future explicit ortholog-mapped catalog provider is added.
+  - This provider consumes marker_based differential marker output instead of recomputing differential expression.

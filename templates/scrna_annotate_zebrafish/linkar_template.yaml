@@ -1,0 +1,70 @@
+id: scrna_annotate_zebrafish
+version: 0.1.0
+description: Focused zebrafish scRNA-seq annotation workspace using cluster markers, an explicit zebrafish marker catalog, and a Quarto review report.
+tools:
+  required:
+    - bash
+    - python3
+    - pixi
+params:
+  input_h5ad:
+    type: str
+    default: ""
+    description: Prepared `.h5ad` input path. The template reads the upstream file in place.
+  input_source_template:
+    type: str
+    default: ""
+    description: Optional provenance label for the upstream template that produced `input_h5ad`.
+  organism:
+    type: str
+    default: "zebrafish"
+    description: Must resolve to zebrafish/Danio rerio. Other organisms are rejected by this focused template.
+  tissue:
+    type: str
+    default: ""
+    description: Optional tissue or biological context used for report context and marker interpretation.
+  stage:
+    type: str
+    default: ""
+    description: Optional zebrafish developmental stage used for report context and catalog review.
+  cluster_key:
+    type: str
+    default: "leiden"
+    description: Cluster column in `adata.obs`.
+  sample_id_key:
+    type: str
+    default: "sample_id"
+    description: Optional sample identifier column in `adata.obs`.
+  expression_layer:
+    type: str
+    default: "X"
+    description: Expression layer/view used for marker ranking. Use a normalized/log-transformed layer when available.
+  marker_catalog:
+    type: str
+    default: "download:zcl_2_marker_list"
+    description: Zebrafish marker catalog TSV path, builtin catalog id, or downloadable catalog id. Defaults to `download:zcl_2_marker_list`; use a project-local FishSCT-derived TSV when available.
+  top_n_markers:
+    type: int
+    default: 50
+    description: Number of ranked marker genes to keep per cluster.
+  min_log2fc:
+    type: str
+    default: "0.25"
+    description: Minimum log2 fold-change for informative marker/catalog matching.
+  fdr_threshold:
+    type: str
+    default: "0.05"
+    description: FDR threshold for hypergeometric marker-set enrichment after BH correction within each cluster.
+outputs:
+  results_dir: {}
+  annotation_result:
+    path: results/annotation_result.json
+  html_report:
+    path: results/report.html
+  quarto_report:
+    path: results/report.qmd
+  tables:
+    glob: results/tables/*.csv
+run:
+  mode: render
+  entry: run.sh

@@ -1,0 +1,32 @@
+[cache]
+env_var = "SCRNA_ANNOTATE_CACHE_DIR"
+default_dir = "~/.cache/izkf_pack/scrna_annotate/catalogs"
+refresh_policy = "explicit"
+
+[resources.zebrafish_example]
+kind = "local_marker_catalog"
+format = "marker_catalog_tsv"
+species = "zebrafish"
+organism_id = "NCBITaxon:7955"
+path = "config/marker_catalogs/zebrafish.example.tsv"
+source = "example"
+citation = "Example fixture only; replace before biological interpretation."
+description = "Small zebrafish marker catalog example used to test marker_catalog schema and provider behavior."
+download_url = ""
+download_sha256 = ""
+version = "example"
+
+# Future downloadable resources should follow the same shape:
+#
+# [resources.fishsct_zebrafish]
+# kind = "downloaded_marker_catalog"
+# format = "marker_catalog_tsv"
+# species = "zebrafish"
+# organism_id = "NCBITaxon:7955"
+# path = ""
+# source = "FishSCT"
+# citation = ""
+# description = "Fish/zebrafish single-cell marker catalog after conversion to marker_catalog_tsv."
+# download_url = ""
+# download_sha256 = ""
+# version = ""

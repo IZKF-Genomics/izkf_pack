@@ -24,12 +24,15 @@ The design therefore uses:
 
 The dataset contract describes the input object and common biological context.
 
-Required or strongly recommended fields:
+Required fields:
 
 - `input_h5ad`
+- `cluster_key`
+
+Recommended context fields:
+
 - `organism`
 - `tissue`
-- `cluster_key`
 - `sample_key`
 - `batch_key`
 - `condition_key`
@@ -50,6 +53,13 @@ The resolver should inspect the `.h5ad` and write `results/dataset_profile.json`
 - `gene_id_guess`
 - `warnings`
 
+Unknown tissue is a supported state. The resolver should not fail the template only because
+`tissue` is empty. Instead, provider readiness should depend on the method:
+
+- exploratory methods may run and record context-light warnings
+- tissue-specific reference or marker-database methods may become `needs_config`
+- reports should make clear that missing tissue lowers interpretability and confidence
+
 ## Provider Manifest
 
 Each provider declares its own requirements in `provider_manifest.yaml`.
@@ -69,6 +79,43 @@ The manifest should include:
 
 The resolver uses manifests to decide whether a provider is `ready`, `needs_config`, `skipped`, or
 `failed`.
+
+Provider methods may be organism-independent, but resources are organism-aware. A marker catalog,
+reference atlas, or model must declare its organism/species. A provider must not silently apply a
+resource across organisms; mismatches should become `needs_config` unless a future provider has an
+explicit ortholog-mapped catalog with recorded provenance.
+
+## Dependency Boundary
+
+The top-level template may provide a small shared environment for common Python/scverse utilities,
+but provider-specific dependencies should stay provider-owned when they become heavy or conflicting.
+
+The intended pattern is:
+
+```text
+run.py                         # generic orchestration
+lib/                           # shared config, IO, profiling, report rendering
+providers/<provider_id>/       # provider computation, optional provider pixi.toml, report.qmd
+```
+
+The top-level runner should not grow direct imports for every annotation tool. New providers should
+be added through a provider runner registry and their own provider folder.
+
+## Cache Boundary
+
+The first marker-based MVP does not use external database cache.
+
+Future database-backed providers must treat cached files as provider data artifacts, not project
+outputs. Cache provenance should be recorded in `annotation_result.json`, including source URL,
+local cache path, checksum, and refresh/download metadata when available.
+
+Recommended policy:
+
+- explicit user files are read in place and not cached
+- public databases may be downloaded to a user-level cache
+- cached public databases are reused by default
+- remote refresh is explicit
+- provider output records the exact database checksum used
 
 ## Requirement Types
 
@@ -93,7 +140,7 @@ Gene requirements:
 Metadata requirements:
 
 - organism
-- tissue
+- tissue, optional for exploratory methods and required only when a provider is tissue-specific
 - cluster key
 - sample key
 - batch key
@@ -122,6 +169,7 @@ Hardware requirements:
 Examples:
 
 - internal marker scoring
+- local organism-aware marker catalog scoring
 - scType
 - scCATCH
 - SCINA
