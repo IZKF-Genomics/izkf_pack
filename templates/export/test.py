@@ -334,7 +334,7 @@ def main() -> int:
         assert spec["authors"] == ["Example User, Example Org"]
         original_username = spec["username"]
         original_password = spec["password"]
-        assert len(spec["export_list"]) == 18
+        assert len(spec["export_list"]) == 17
         assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
         export_srcs = {entry["src"] for entry in spec["export_list"]}
         export_dests = {entry["dest"] for entry in spec["export_list"]}
@@ -345,7 +345,6 @@ def main() -> int:
         assert "2_Processed_data/methylation_array_analysis/results" in export_dests
         assert "2_Processed_data/scrna_integrate/scrna_integrate/results" in export_dests
         assert "2_Processed_data/scrna_annotate/scrna_annotate/results" in export_dests
-        assert "2_Processed_data/scrna_annotate_zebrafish/scrna_annotate_zebrafish/results" in export_dests
         assert "3_Reports/dgea/DGEA_Liver" in export_dests
         assert "3_Reports/dgea/DGEA_Bile_Duct" in export_dests
         assert "3_Reports/methylation_array_analysis" in export_dests
@@ -416,15 +415,6 @@ def main() -> int:
         assert "03_decoupler_review.html" in annotate_report_paths
         assert "04_scdeepsort.html" in annotate_report_paths
         assert "05_scgpt.html" in annotate_report_paths
-        annotate_zebrafish_entries = [
-            entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/scrna_annotate_zebrafish/scrna_annotate_zebrafish/results"
-        ]
-        assert len(annotate_zebrafish_entries) == 1
-        annotate_zebrafish_paths = {link["path"] for link in annotate_zebrafish_entries[0].get("report_links", [])}
-        assert "." in annotate_zebrafish_paths
-        assert "annotation_result.json" in annotate_zebrafish_paths
-        assert "tables" in annotate_zebrafish_paths
-        assert "scrna_annotate_zebrafish_results.xlsx" in annotate_zebrafish_paths
         annotate_zebrafish_report_entries = [
             entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/scrna_annotate_zebrafish/scrna_annotate_zebrafish/report.html"
         ]
