@@ -13,3 +13,6 @@ marker_catalog = "download:zcl_2_marker_list"
 top_n_markers = 50
 min_log2fc = 0.25
 fdr_threshold = 0.05
+
+[outputs]
+write_h5ad = true

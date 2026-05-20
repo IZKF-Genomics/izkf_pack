@@ -305,11 +305,11 @@ def main() -> int:
         }
         (project_dir / "project.yaml").write_text(yaml.safe_dump(project_yaml, sort_keys=False), encoding="utf-8")
 
-        dry_run = subprocess.run(
+        prepare_only = subprocess.run(
             [
                 "python3",
                 str(TEMPLATE_DIR / "run.py"),
-                "--dry-run",
+                "--prepare-only",
                 "true",
                 "--export-engine-api-url",
                 "http://127.0.0.1:9",
@@ -326,9 +326,9 @@ def main() -> int:
             capture_output=True,
             text=True,
         )
-        assert "Prepare Only Complete" in dry_run.stdout
-        assert "Project templates:" in dry_run.stdout
-        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_prep (1), scrna_integrate (1), scrna_annotate (1), scrna_annotate_zebrafish (1), ercc (1), methods (2)" in dry_run.stdout
+        assert "Prepare Only Complete" in prepare_only.stdout
+        assert "Project templates:" in prepare_only.stdout
+        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_prep (1), scrna_integrate (1), scrna_annotate (1), scrna_annotate_zebrafish (1), ercc (1), methods (2)" in prepare_only.stdout
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
@@ -428,7 +428,7 @@ def main() -> int:
             [
                 "python3",
                 str(TEMPLATE_DIR / "run.py"),
-                "--dry-run",
+                "--prepare-only",
                 "true",
                 "--reuse-credentials",
                 "true",
@@ -456,7 +456,7 @@ def main() -> int:
             [
                 "python3",
                 str(TEMPLATE_DIR / "run.py"),
-                "--dry-run",
+                "--prepare-only",
                 "true",
                 "--export-engine-api-url",
                 "http://127.0.0.1:9",
@@ -535,7 +535,7 @@ def main() -> int:
                 [
                     "python3",
                     str(TEMPLATE_DIR / "run.py"),
-                    "--dry-run",
+                    "--prepare-only",
                     "true",
                     "--reuse-credentials",
                     "true",

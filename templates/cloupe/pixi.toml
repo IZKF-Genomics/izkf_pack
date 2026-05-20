@@ -1,0 +1,22 @@
+[workspace]
+name = "cloupe"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+run = { cmd = ["python", "run.py"] }
+test = { cmd = ["python", "test.py"] }
+clean = { cmd = ["bash", "-lc", "rm -rf results .quarto"] }
+
+[dependencies]
+python = ">=3.11,<3.13"
+anndata = ">=0.12,<1"
+scanpy = ">=1.10,<2"
+numpy = ">=2.0,<3"
+pandas = ">=2.2,<3"
+scipy = ">=1.14,<2"
+python-tzdata = ">=2024.1"
+
+[pypi-dependencies]
+loupepy = ">=1.1.1,<2"

@@ -44,6 +44,11 @@ main.content {
 .cell-output-display {
   overflow-x: auto;
 }
+.cell-output-display img,
+.cell-output-display svg {
+  max-width: 100%;
+  height: auto;
+}
 .dataTables_wrapper {
   max-width: none;
 }
@@ -64,9 +69,9 @@ main.content {
 }
 .dataTables_wrapper table.dataTable th.dt-compact-number input,
 .dataTables_wrapper table.dataTable th.dt-compact-number select {
-  width: 3.8rem !important;
+  width: 2.9rem !important;
   min-width: 0 !important;
-  max-width: 3.8rem !important;
+  max-width: 2.9rem !important;
   box-sizing: border-box;
 }
 .dataTables_wrapper table.dataTable td.dt-short-text,
@@ -76,13 +81,20 @@ main.content {
 }
 .dataTables_wrapper table.dataTable th.dt-short-text input,
 .dataTables_wrapper table.dataTable th.dt-short-text select {
-  width: 7rem !important;
+  width: 5.2rem !important;
   min-width: 0 !important;
-  max-width: 7rem !important;
+  max-width: 5.2rem !important;
   box-sizing: border-box;
 }
 .dataTables_wrapper table.dataTable th.dt-medium-text input,
 .dataTables_wrapper table.dataTable th.dt-medium-text select {
+  width: 8rem !important;
+  min-width: 0 !important;
+  max-width: 8rem !important;
+  box-sizing: border-box;
+}
+.dataTables_wrapper table.dataTable th.dt-long-text input,
+.dataTables_wrapper table.dataTable th.dt-long-text select {
   width: 11rem !important;
   min-width: 0 !important;
   max-width: 11rem !important;
@@ -177,6 +189,16 @@ import pandas as pd
 from IPython.display import HTML, display
 
 try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
+
+try:
+    from scipy import sparse
+except ImportError:
+    sparse = None
+
+try:
     import plotly.express as px
 except ImportError:
     px = None
@@ -219,8 +241,13 @@ methods = payload.get("methods", [])
 catalog_method = next((method for method in methods if "catalog" in str(method.get("step", "")).lower()), {})
 catalog_params = catalog_method.get("parameters", {})
 UMAP_HEIGHT = 650
-UMAP_WIDTH = 980
+UMAP_WIDTH = 900
 UMAP_FACET_PANEL_HEIGHT = 360
+STATIC_PALETTE = [
+    "#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2",
+    "#be123c", "#4f46e5", "#65a30d", "#c026d3", "#0f766e", "#a16207",
+    "#475569", "#db2777", "#0284c7", "#7c3aed",
+]
 
 def clip_text(value, limit=110):
     text = "" if pd.isna(value) else str(value)
@@ -291,6 +318,19 @@ def display_table(
 def plot_unavailable(reason):
     display(HTML(f"<div class='note-box'>{escape(reason)}</div>"))
 
+def static_plot_ready():
+    if plt is None:
+        plot_unavailable("Matplotlib is not available, so this static figure was not rendered.")
+        return False
+    return True
+
+def finish_static_plot(fig):
+    fig.patch.set_facecolor("white")
+    for ax in fig.axes:
+        ax.grid(False)
+    fig.tight_layout()
+    plt.show()
+
 def polish_umap(fig, *, height=UMAP_HEIGHT, width=UMAP_WIDTH, legend_title=None, fixed_single_panel=False):
     fig.update_traces(marker={"size": 3, "opacity": 0.72})
     fig.update_yaxes(scaleanchor="x", scaleratio=1)
@@ -301,10 +341,10 @@ def polish_umap(fig, *, height=UMAP_HEIGHT, width=UMAP_WIDTH, legend_title=None,
         legend_title_text=legend_title,
     )
     if fixed_single_panel:
-        fig.update_xaxes(domain=[0.0, 0.72])
+        fig.update_xaxes(domain=[0.0, 0.68])
         fig.update_layout(
             legend={
-                "x": 0.76,
+                "x": 0.72,
                 "xanchor": "left",
                 "y": 1.0,
                 "yanchor": "top",
@@ -324,6 +364,113 @@ def artifact_path(name):
 def cluster_sort_key(value):
     text = str(value)
     return (0, int(text)) if text.isdigit() else (1, text)
+
+def sorted_cluster_values(values):
+    return sorted([str(value) for value in values], key=cluster_sort_key)
+
+def ordered_label_values(values):
+    cleaned = [str(value) for value in values if str(value) and str(value) != "nan"]
+    if "no catalog match" in cleaned:
+        cleaned = [value for value in cleaned if value != "no catalog match"] + ["no catalog match"]
+    return cleaned
+
+def infer_treatment(sample):
+    text = str(sample).lower()
+    if "control" in text or text.startswith("ctrl") or "_ctrl" in text:
+        return "Control"
+    if "cut" in text:
+        return "Cut"
+    return None
+
+def infer_genotype(sample):
+    text = str(sample).lower()
+    if "wt" in text or "wildtype" in text or "wild_type" in text:
+        return "WT"
+    if "ko" in text or "knockout" in text or "mut" in text:
+        return "KO"
+    return None
+
+def palette_for(values):
+    return {value: STATIC_PALETTE[i % len(STATIC_PALETTE)] for i, value in enumerate(values)}
+
+def parse_gene_list(value):
+    if pd.isna(value) or not str(value).strip():
+        return []
+    return [gene.strip() for gene in str(value).split(",") if gene.strip()]
+
+def selected_dotplot_genes(summary_df, matches_df, markers_df, max_genes=36):
+    genes = []
+    if len(matches_df):
+        top_matches = matches_df.sort_values(["cluster_id", "rank"]).groupby("cluster_id").head(1)
+        for value in top_matches.get("matched_genes", []):
+            genes.extend(parse_gene_list(value)[:2])
+    if len(markers_df):
+        top_markers = markers_df.sort_values(["cluster_id", "rank"]).groupby("cluster_id").head(1)
+        genes.extend([str(gene) for gene in top_markers.get("gene", []) if str(gene)])
+    seen = set()
+    ordered = []
+    for gene in genes:
+        if gene not in seen:
+            seen.add(gene)
+            ordered.append(gene)
+        if len(ordered) >= max_genes:
+            break
+    return ordered
+
+def load_marker_expression_summary(genes):
+    if ad is None:
+        return pd.DataFrame(), "anndata is not available, so marker expression was not summarized."
+    if sparse is None:
+        return pd.DataFrame(), "scipy.sparse is not available, so marker expression was not summarized."
+    h5ad = run_input.get("h5ad")
+    if not h5ad:
+        return pd.DataFrame(), "No input h5ad path was recorded."
+    cluster_key = run_input.get("cluster_key") or "leiden"
+    layer = run_input.get("expression_layer") or "X"
+    try:
+        adata = ad.read_h5ad(h5ad, backed="r")
+    except Exception as exc:
+        return pd.DataFrame(), f"Could not read input h5ad for marker expression: {exc}"
+    try:
+        if cluster_key not in adata.obs:
+            return pd.DataFrame(), f"Cluster key '{cluster_key}' was not found in adata.obs."
+        present_genes = [gene for gene in genes if gene in adata.var_names]
+        if not present_genes:
+            return pd.DataFrame(), "None of the selected marker genes were found in adata.var_names."
+        view = adata[:, present_genes]
+        if layer and layer != "X":
+            if layer not in view.layers:
+                return pd.DataFrame(), f"Expression layer '{layer}' was not found in adata.layers."
+            matrix = view.layers[layer]
+        else:
+            matrix = view.X
+        if sparse.issparse(matrix):
+            matrix = matrix.toarray()
+        else:
+            matrix = np.asarray(matrix)
+        clusters = adata.obs[cluster_key].astype(str).values
+        rows = []
+        for cluster_id in sorted_cluster_values(pd.unique(clusters)):
+            mask = clusters == cluster_id
+            values = matrix[mask, :]
+            if values.size == 0:
+                continue
+            for gene_index, gene in enumerate(present_genes):
+                gene_values = values[:, gene_index]
+                rows.append(
+                    {
+                        "cluster_id": cluster_id,
+                        "gene": gene,
+                        "mean_expression": float(np.nanmean(gene_values)),
+                        "pct_expressing": float(np.nanmean(gene_values > 0) * 100),
+                    }
+                )
+        return pd.DataFrame(rows), ""
+    finally:
+        try:
+            adata.file.close()
+        except Exception:
+            pass
 
 def candidate_details_html(matches_df, summary_df):
     if not len(matches_df):
@@ -472,6 +619,7 @@ display_static_table(pd.DataFrame(database_rows))
 
 ```{python}
 excel_path = artifact_path("excel_workbook") or "scrna_annotate_zebrafish_results.xlsx"
+annotated_h5ad_path = artifact_path("annotated_h5ad") or "adata.annotated.h5ad"
 if Path(excel_path).exists():
     display(HTML(
         f"<div class='note-box'><strong>Excel workbook.</strong> "
@@ -480,6 +628,14 @@ if Path(excel_path).exists():
     ))
 else:
     display(HTML("<div class='note-box'>Excel workbook was not found for this run.</div>"))
+if Path(annotated_h5ad_path).exists():
+    display(HTML(
+        f"<div class='note-box'><strong>Annotated H5AD.</strong> "
+        f"<a href='{escape(annotated_h5ad_path)}' download>Download annotated AnnData</a>. "
+        "Annotation review columns are stored in adata.obs.</div>"
+    ))
+else:
+    display(HTML("<div class='note-box'>Annotated H5AD was not found for this run.</div>"))
 ```
 
 ```{python}
@@ -645,8 +801,203 @@ elif len(umap):
         )
         fig.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.replace("sample=", "")))
         polish_umap(fig, height=facet_height, legend_title="Top label").show()
+
+        design_umap = umap.copy()
+        design_umap["treatment"] = design_umap["sample"].map(infer_treatment)
+        design_umap["genotype"] = design_umap["sample"].map(infer_genotype)
+        design_umap = design_umap.dropna(subset=["treatment", "genotype"])
+        if len(design_umap):
+            design_umap["treatment"] = pd.Categorical(design_umap["treatment"], categories=["Control", "Cut"], ordered=True)
+            design_umap["genotype"] = pd.Categorical(design_umap["genotype"], categories=["WT", "KO"], ordered=True)
+            fig = px.scatter(
+                design_umap,
+                x="UMAP1",
+                y="UMAP2",
+                color="top_label",
+                facet_col="treatment",
+                facet_row="genotype",
+                category_orders={"treatment": ["Control", "Cut"], "genotype": ["WT", "KO"]},
+                hover_data=["cell_id", "sample", "genotype", "treatment", "cluster_id", "top_label", "confidence_bucket"],
+                title="UMAP by genotype and treatment, colored by top catalog-supported label",
+                template="plotly_white",
+                render_mode="webgl",
+            )
+            fig.for_each_annotation(
+                lambda annotation: annotation.update(
+                    text=annotation.text.replace("treatment=", "").replace("genotype=", "")
+                )
+            )
+            polish_umap(fig, height=760, legend_title="Top label").show()
+        else:
+            plot_unavailable("Treatment/genotype UMAP was not rendered because Control/Cut and WT/KO could not be inferred from sample names.")
 else:
     plot_unavailable(umap_message or "UMAP figures were not available.")
+```
+
+### Sample Composition
+
+This static composition plot is intended for quick sample and condition review. It shows whether
+candidate annotations are broadly represented across samples.
+
+```{python}
+if not static_plot_ready():
+    pass
+elif not len(umap):
+    plot_unavailable(umap_message or "UMAP data were not available for sample composition plots.")
+elif "sample" not in umap or not (umap["sample"].astype(str) != "").any():
+    plot_unavailable("No sample column was available for sample composition plots.")
+else:
+    composition = umap.copy()
+    composition["sample"] = composition["sample"].astype(str)
+    composition["top_label"] = composition["top_label"].fillna("no catalog match").astype(str)
+    label_order = ordered_label_values(composition["top_label"].value_counts().index)
+    sample_order = list(composition["sample"].value_counts().sort_index().index)
+    label_counts = composition.groupby(["sample", "top_label"]).size().unstack(fill_value=0).reindex(sample_order)
+    label_counts = label_counts.reindex(label_order, axis=1, fill_value=0)
+    label_props = label_counts.div(label_counts.sum(axis=1), axis=0).fillna(0)
+    colors = palette_for(label_props.columns)
+    fig, ax = plt.subplots(figsize=(10.2, max(4.2, 0.48 * len(label_props.index) + 2.2)))
+    left = np.zeros(len(label_props.index))
+    y = np.arange(len(label_props.index))
+    for label in label_props.columns:
+        values = label_props[label].values
+        ax.barh(y, values, left=left, color=colors[label], label=label, height=0.72)
+        left += values
+    ax.set_yticks(y)
+    ax.set_yticklabels(label_props.index)
+    ax.invert_yaxis()
+    ax.set_xlim(0, 1)
+    ax.set_xlabel("Fraction of cells")
+    ax.set_title("Candidate label composition by sample")
+    ax.legend(loc="center left", bbox_to_anchor=(1.01, 0.5), frameon=False, title="Top label")
+    finish_static_plot(fig)
+```
+
+### Candidate Ranking
+
+This static bubble plot shows the top three catalog-supported candidate tiers per cluster. Color is
+the within-cluster candidate tier: rank 1, 2, or 3. Candidate rows are sorted by the cluster where
+they have their strongest support, so the plot reads from cluster 0 toward the final cluster.
+
+```{python}
+if not static_plot_ready():
+    pass
+elif not len(matches):
+    plot_unavailable("No catalog-supported candidates were available for the candidate ranking plot.")
+else:
+    candidate_plot = matches.copy()
+    candidate_plot["cluster_id"] = candidate_plot["cluster_id"].astype(str)
+    candidate_plot["cell_type"] = candidate_plot["cell_type"].astype(str)
+    candidate_plot["score_num"] = pd.to_numeric(candidate_plot["score"], errors="coerce").fillna(0)
+    candidate_plot["pval_adj_num"] = pd.to_numeric(candidate_plot["pval_adj"], errors="coerce").fillna(1)
+    candidate_plot = candidate_plot.sort_values(["cluster_id", "pval_adj_num", "score_num", "cell_type"], ascending=[True, True, False, True])
+    ranked_parts = []
+    for cluster_id, cluster_df in candidate_plot.groupby("cluster_id", sort=False):
+        cluster_df = cluster_df.copy()
+        score_key = cluster_df["score_num"].round(10)
+        pval_key = cluster_df["pval_adj_num"].round(12)
+        tier_key = list(zip(pval_key, score_key))
+        tier_lookup = {}
+        display_ranks = []
+        for key in tier_key:
+            if key not in tier_lookup:
+                tier_lookup[key] = len(tier_lookup) + 1
+            display_ranks.append(tier_lookup[key])
+        cluster_df["display_rank"] = display_ranks
+        ranked_parts.append(cluster_df)
+    candidate_plot = pd.concat(ranked_parts, ignore_index=True)
+    candidate_plot = candidate_plot[candidate_plot["display_rank"] <= 3].copy()
+    row_stats = (
+        candidate_plot.sort_values(["cell_type", "display_rank", "pval_adj_num", "score_num"], ascending=[True, True, True, False])
+        .groupby("cell_type")
+        .agg(best_cluster=("cluster_id", "first"), best_rank=("display_rank", "min"), best_score=("score_num", "max"))
+        .reset_index()
+    )
+    row_stats["best_cluster_sort"] = row_stats["best_cluster"].map(cluster_sort_key)
+    label_order = row_stats.sort_values(["best_cluster_sort", "best_rank", "best_score", "cell_type"], ascending=[True, True, False, True])["cell_type"].tolist()
+    cluster_order = sorted_cluster_values(candidate_plot["cluster_id"].unique())
+    x_lookup = {cluster_id: i for i, cluster_id in enumerate(cluster_order)}
+    y_lookup = {label: i for i, label in enumerate(label_order)}
+    fig, ax = plt.subplots(figsize=(min(10.2, max(7.8, 0.22 * len(cluster_order) + 4.8)), max(5.5, 0.22 * len(label_order) + 2.2)))
+    rank_colors = {1: "#2563eb", 2: "#f59e0b", 3: "#94a3b8"}
+    for display_rank in [3, 2, 1]:
+        subset = candidate_plot[candidate_plot["display_rank"] == display_rank]
+        if not len(subset):
+            continue
+        sizes = 18 + 7 * subset["score_num"].clip(lower=0, upper=12)
+        ax.scatter(
+            subset["cluster_id"].map(x_lookup),
+            subset["cell_type"].map(y_lookup),
+            s=sizes,
+            color=rank_colors[display_rank],
+            alpha=0.82,
+            edgecolor="white",
+            linewidth=0.35,
+            label=f"Rank {display_rank}",
+        )
+    ax.set_xticks(range(len(cluster_order)))
+    ax.set_xticklabels(cluster_order)
+    ax.set_yticks(range(len(label_order)))
+    ax.set_yticklabels(label_order)
+    ax.invert_yaxis()
+    ax.set_xlabel("Cluster")
+    ax.set_ylabel("Catalog candidate label")
+    ax.set_title("Top catalog candidate tiers per cluster")
+    ax.legend(loc="center left", bbox_to_anchor=(1.01, 0.5), frameon=False, title="Candidate tier")
+    finish_static_plot(fig)
+```
+
+### Marker Expression Dot Plot
+
+The dot plot summarizes a compact set of marker genes selected from top catalog matches and top
+ranked cluster markers. Dot size is the percentage of cells expressing the gene; color is mean
+expression in the configured expression layer.
+
+```{python}
+if not static_plot_ready():
+    pass
+else:
+    selected_genes = selected_dotplot_genes(summary, matches, markers)
+    expression_summary, expression_message = load_marker_expression_summary(selected_genes)
+    if not len(expression_summary):
+        plot_unavailable(expression_message or "No marker expression summary was available.")
+    else:
+        expression_summary["cluster_id"] = expression_summary["cluster_id"].astype(str)
+        expression_summary["gene"] = expression_summary["gene"].astype(str)
+        cluster_order = sorted_cluster_values(expression_summary["cluster_id"].unique())
+        gene_order = list(dict.fromkeys(selected_genes))
+        gene_order = [gene for gene in gene_order if gene in set(expression_summary["gene"])]
+        x_lookup = {cluster_id: i for i, cluster_id in enumerate(cluster_order)}
+        y_lookup = {gene: i for i, gene in enumerate(gene_order)}
+        expression_summary = expression_summary[expression_summary["gene"].isin(gene_order)].copy()
+        fig, ax = plt.subplots(figsize=(min(10.2, max(7.8, 0.22 * len(cluster_order) + 4.8)), max(5.5, 0.22 * len(gene_order) + 2.4)))
+        sizes = 10 + 1.65 * expression_summary["pct_expressing"].clip(lower=0, upper=100)
+        scatter = ax.scatter(
+            expression_summary["cluster_id"].map(x_lookup),
+            expression_summary["gene"].map(y_lookup),
+            s=sizes,
+            c=expression_summary["mean_expression"],
+            cmap="magma",
+            alpha=0.82,
+            edgecolor="white",
+            linewidth=0.35,
+        )
+        ax.set_xticks(range(len(cluster_order)))
+        ax.set_xticklabels(cluster_order)
+        ax.set_yticks(range(len(gene_order)))
+        ax.set_yticklabels(gene_order)
+        ax.invert_yaxis()
+        ax.set_xlabel("Cluster")
+        ax.set_ylabel("Marker gene")
+        ax.set_title("Selected marker expression by cluster")
+        cbar = fig.colorbar(scatter, ax=ax, pad=0.01)
+        cbar.set_label("Mean expression")
+        size_handles = [
+            ax.scatter([], [], s=10 + 1.65 * pct, color="#94a3b8", alpha=0.75, edgecolor="white", linewidth=0.35, label=f"{pct}%")
+            for pct in [25, 50, 75]
+        ]
+        ax.legend(handles=size_handles, title="% expressing", loc="center left", bbox_to_anchor=(1.12, 0.5), frameon=False)
+        finish_static_plot(fig)
 ```
 
 ### Catalog Match Score
@@ -718,6 +1069,8 @@ elif len(markers):
         template="plotly_white",
     )
     fig.update_layout(height=min(760, max(420, 24 * len(plot_markers) + 120)), margin={"l": 155, "r": 30, "t": 70, "b": 50})
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(showgrid=False)
     fig.show()
 else:
     plot_unavailable("No differential markers were produced.")
@@ -751,6 +1104,8 @@ elif len(markers):
         template="plotly_white",
     )
     fig.update_yaxes(showticklabels=False, title="Marker rows, ordered by cluster and rank")
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(showgrid=False)
     fig.update_traces(marker={"opacity": 0.72})
     fig.update_layout(height=min(900, max(460, 0.32 * len(full_markers) + 180)), margin={"l": 40, "r": 30, "t": 70, "b": 50})
     fig.show()

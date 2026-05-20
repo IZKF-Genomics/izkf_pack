@@ -1,0 +1,38 @@
+id: cloupe
+version: 0.1.0
+description: Convert an H5AD object into a 10x Genomics Loupe Browser .cloupe file.
+tools:
+  required:
+    - bash
+    - python3
+    - pixi
+params:
+  input:
+    type: path
+    default: ""
+    description: Input H5AD file. This is the short command-line alias for `input_h5ad`.
+  input_h5ad:
+    type: path
+    default: ""
+    description: Input H5AD file. Used when `input` is not supplied.
+  counts_layer:
+    type: str
+    default: counts
+    description: AnnData layer used as the Loupe count matrix. Use `X` only when `adata.X` is count-like.
+  embedding_key:
+    type: str
+    default: X_umap
+    description: AnnData `obsm` key used as the Loupe embedding.
+  obs_keys:
+    type: str
+    default: ""
+    description: Comma-separated additional `adata.obs` columns to export as Loupe categories.
+outputs:
+  results_dir: {}
+  cloupe_file:
+    path: results/output.cloupe
+  export_metadata:
+    path: results/cloupe_export.json
+run:
+  mode: render
+  entry: run.sh

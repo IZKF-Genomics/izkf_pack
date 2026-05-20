@@ -32,6 +32,7 @@ fi
 
 say "outputs:"
 say "  ${results_dir}/annotation_result.json"
+say "  ${results_dir}/adata.annotated.h5ad"
 say "  ${results_dir}/report.html"
 say "  ${results_dir}/tables/differential_markers.csv"
 say "  ${results_dir}/tables/catalog_matches.csv"

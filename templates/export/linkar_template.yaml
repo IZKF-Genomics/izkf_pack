@@ -5,10 +5,6 @@ tools:
   required:
     - python3
 params:
-  dry_run:
-    type: bool
-    default: false
-    description: Backward-compatible alias for prepare_only.
   prepare_only:
     type: bool
     default: false
@@ -127,7 +123,6 @@ run:
       --results-dir "${LINKAR_RESULTS_DIR}" \
       --project-dir "${LINKAR_PROJECT_DIR:-..}" \
       --template-dir "." \
-      --dry-run "${param:dry_run}" \
       --prepare-only "${param:prepare_only}" \
       --refresh "${param:refresh}" \
       --job-id "${param:job_id}" \

@@ -23,6 +23,7 @@ RESULTS_DIR = Path(os.environ.get("LINKAR_RESULTS_DIR", TEMPLATE_DIR / "results"
 TABLES_DIR = RESULTS_DIR / "tables"
 CONFIG_DIR = TEMPLATE_DIR / "config"
 EXCEL_RESULT = RESULTS_DIR / "scrna_annotate_zebrafish_results.xlsx"
+ANNOTATED_H5AD = RESULTS_DIR / "adata.annotated.h5ad"
 CATALOG_REQUIRED_FIELDS = [
     "catalog_id",
     "species",
@@ -172,6 +173,25 @@ def main() -> int:
             "differential_markers": marker_rows,
         },
     )
+    artifact_payload: dict[str, Any] = {
+        "report_html": "results/report.html",
+        "report_qmd": "results/report.qmd",
+        "excel_workbook": "results/scrna_annotate_zebrafish_results.xlsx",
+        "tables": [
+            "results/tables/differential_markers.csv",
+            "results/tables/catalog_matches.csv",
+            "results/tables/cluster_annotation_summary.csv",
+        ],
+    }
+    if bool_param(params["write_h5ad"]):
+        progress("writing annotated h5ad")
+        write_annotated_h5ad(
+            input_h5ad=input_h5ad,
+            output_h5ad=ANNOTATED_H5AD,
+            cluster_predictions=cluster_predictions,
+            params=params,
+        )
+        artifact_payload["annotated_h5ad"] = "results/adata.annotated.h5ad"
 
     state = "failed" if errors else "completed_with_warnings" if warnings else "completed"
     payload = {
@@ -225,16 +245,7 @@ def main() -> int:
                 "interpretation": "Hypergeometric marker-set enrichment with BH/FDR correction; evidence for review, not classifier probability or final annotation.",
             },
         ],
-        "artifacts": {
-            "report_html": "results/report.html",
-            "report_qmd": "results/report.qmd",
-            "excel_workbook": "results/scrna_annotate_zebrafish_results.xlsx",
-            "tables": [
-                "results/tables/differential_markers.csv",
-                "results/tables/catalog_matches.csv",
-                "results/tables/cluster_annotation_summary.csv",
-            ],
-        },
+        "artifacts": artifact_payload,
     }
     write_json(RESULTS_DIR / "annotation_result.json", payload)
     render_report()
@@ -247,6 +258,7 @@ def load_params() -> dict[str, Any]:
     config = read_toml(CONFIG_DIR / "dataset.toml")
     dataset = dict(config.get("dataset", {}))
     analysis = dict(config.get("analysis", {}))
+    outputs = dict(config.get("outputs", {}))
     params = {
         "input_h5ad": dataset.get("input_h5ad", ""),
         "input_source_template": dataset.get("input_source_template", ""),
@@ -260,6 +272,7 @@ def load_params() -> dict[str, Any]:
         "top_n_markers": analysis.get("top_n_markers", 50),
         "min_log2fc": analysis.get("min_log2fc", 0.25),
         "fdr_threshold": analysis.get("fdr_threshold", 0.05),
+        "write_h5ad": outputs.get("write_h5ad", True),
     }
     overrides = {
         "input_h5ad": env("INPUT_H5AD"),
@@ -274,11 +287,23 @@ def load_params() -> dict[str, Any]:
         "top_n_markers": env("TOP_N_MARKERS"),
         "min_log2fc": env("MIN_LOG2FC"),
         "fdr_threshold": env("FDR_THRESHOLD"),
+        "write_h5ad": env("WRITE_H5AD"),
     }
     for key, value in overrides.items():
         if value not in {"", None}:
             params[key] = value
     return params
+
+
+def bool_param(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    text = str(value or "").strip().lower()
+    if text in {"1", "true", "yes", "y", "on"}:
+        return True
+    if text in {"0", "false", "no", "n", "off", ""}:
+        return False
+    raise SystemExit(f"Expected a boolean value, got: {value!r}")
 
 
 def read_toml(path: Path) -> dict[str, Any]:
@@ -734,6 +759,82 @@ def summary_rows_from_predictions(predictions: list[dict[str, Any]]) -> list[dic
             }
         )
     return rows
+
+
+def write_annotated_h5ad(
+    *,
+    input_h5ad: Path,
+    output_h5ad: Path,
+    cluster_predictions: list[dict[str, Any]],
+    params: dict[str, Any],
+) -> None:
+    import pandas as pd
+    import scanpy as sc
+
+    adata = sc.read_h5ad(input_h5ad)
+    cluster_key = str(params["cluster_key"])
+    if cluster_key not in adata.obs:
+        raise SystemExit(f"cluster_key '{cluster_key}' was not found in adata.obs")
+    prediction_map = {str(pred["cluster_id"]): pred for pred in cluster_predictions}
+    cluster_values = adata.obs[cluster_key].astype(str)
+    labels = []
+    confidences = []
+    review_statuses = []
+    n_candidates = []
+    top_scores = []
+    matched_genes = []
+    for cluster_id in cluster_values:
+        pred = prediction_map.get(str(cluster_id), {})
+        candidates = pred.get("candidates") or []
+        top = candidates[0] if candidates else None
+        evidence = top.get("evidence", {}) if top else {}
+        labels.append(pred.get("top_label") or "no catalog match")
+        confidences.append(pred.get("confidence_bucket") or "unknown")
+        review_statuses.append("review candidate" if top else "no catalog-supported candidate")
+        n_candidates.append(len(candidates))
+        top_scores.append(top.get("provider_score") if top else float("nan"))
+        matched_genes.append(", ".join(evidence.get("matched_genes", [])) if top else "")
+
+    adata.obs["scrna_annotate_zebrafish_label"] = pd.Categorical(labels)
+    adata.obs["scrna_annotate_zebrafish_confidence"] = pd.Categorical(confidences)
+    adata.obs["scrna_annotate_zebrafish_review_status"] = pd.Categorical(review_statuses)
+    adata.obs["scrna_annotate_zebrafish_n_candidates"] = n_candidates
+    adata.obs["scrna_annotate_zebrafish_top_score"] = top_scores
+    adata.obs["scrna_annotate_zebrafish_matched_genes"] = matched_genes
+
+    sample_key = str(params.get("sample_key") or "")
+    if sample_key and sample_key in adata.obs:
+        samples = adata.obs[sample_key].astype(str)
+        adata.obs["scrna_annotate_zebrafish_treatment"] = pd.Categorical(samples.map(infer_treatment).fillna("unknown"))
+        adata.obs["scrna_annotate_zebrafish_genotype"] = pd.Categorical(samples.map(infer_genotype).fillna("unknown"))
+
+    adata.uns["scrna_annotate_zebrafish"] = {
+        "schema_version": 1,
+        "cluster_key": cluster_key,
+        "label_column": "scrna_annotate_zebrafish_label",
+        "confidence_column": "scrna_annotate_zebrafish_confidence",
+        "cluster_predictions_json": json.dumps(cluster_predictions, sort_keys=True),
+    }
+    output_h5ad.parent.mkdir(parents=True, exist_ok=True)
+    adata.write_h5ad(output_h5ad)
+
+
+def infer_treatment(sample: Any) -> str | None:
+    text = str(sample).lower()
+    if "control" in text or text.startswith("ctrl") or "_ctrl" in text:
+        return "Control"
+    if "cut" in text:
+        return "Cut"
+    return None
+
+
+def infer_genotype(sample: Any) -> str | None:
+    text = str(sample).lower()
+    if "wt" in text or "wildtype" in text or "wild_type" in text:
+        return "WT"
+    if "ko" in text or "knockout" in text or "mut" in text:
+        return "KO"
+    return None
 
 
 def render_report() -> None:

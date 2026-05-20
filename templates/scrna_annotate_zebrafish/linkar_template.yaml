@@ -55,10 +55,16 @@ params:
     type: str
     default: "0.05"
     description: FDR threshold for hypergeometric marker-set enrichment after BH correction within each cluster.
+  write_h5ad:
+    type: bool
+    default: true
+    description: Write `results/adata.annotated.h5ad` with cluster-level annotation columns added to `adata.obs`.
 outputs:
   results_dir: {}
   annotation_result:
     path: results/annotation_result.json
+  annotated_h5ad:
+    path: results/adata.annotated.h5ad
   html_report:
     path: results/report.html
   quarto_report:

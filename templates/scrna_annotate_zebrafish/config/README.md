@@ -54,3 +54,10 @@ Rules:
 - Use `tissue` and `stage` when a marker is context-specific.
 - Candidate labels are filtered by hypergeometric enrichment with BH/FDR correction, not by a
   minimum matched-gene count.
+
+Output settings live in `dataset.toml` under `[outputs]`.
+
+- `write_h5ad = true` writes `results/adata.annotated.h5ad` with annotation review columns in
+  `adata.obs`.
+
+Loupe Browser export is handled by the separate `cloupe` template.

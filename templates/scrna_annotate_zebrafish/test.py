@@ -6,6 +6,11 @@ import sys
 import tempfile
 from pathlib import Path
 
+import anndata as ad
+import numpy as np
+import pandas as pd
+from scipy import sparse
+
 
 TEMPLATE_DIR = Path(__file__).resolve().parent
 
@@ -66,10 +71,59 @@ def test_safe_excel_sheet_name() -> None:
     assert len(run.safe_excel_sheet_name("x" * 40)) == 31
 
 
+def test_write_annotated_h5ad() -> None:
+    run = load_run_module()
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        input_h5ad = tmp_path / "input.h5ad"
+        output_h5ad = tmp_path / "annotated.h5ad"
+        adata = ad.AnnData(
+            X=sparse.csr_matrix(np.array([[1, 0], [0, 2], [3, 0]], dtype=np.float32)),
+            obs=pd.DataFrame(
+                {
+                    "leiden": ["0", "0", "1"],
+                    "sample_id": ["Control_WT_1", "Cut_Mut_1", "Cut_WT_2"],
+                },
+                index=["cell1", "cell2", "cell3"],
+            ),
+            var=pd.DataFrame(index=["gene_a", "gene_b"]),
+        )
+        adata.layers["counts"] = adata.X.copy()
+        adata.obsm["X_umap"] = np.array([[0, 0], [1, 1], [2, 2]], dtype=np.float32)
+        adata.write_h5ad(input_h5ad)
+        predictions = [
+            {
+                "cluster_id": "0",
+                "top_label": "neuron",
+                "confidence_bucket": "medium",
+                "candidates": [
+                    {
+                        "provider_score": 10.0,
+                        "evidence": {"matched_genes": ["gene_a", "gene_b"]},
+                    }
+                ],
+            },
+            {"cluster_id": "1", "top_label": None, "confidence_bucket": "unknown", "candidates": []},
+        ]
+        run.write_annotated_h5ad(
+            input_h5ad=input_h5ad,
+            output_h5ad=output_h5ad,
+            cluster_predictions=predictions,
+            params={"cluster_key": "leiden", "sample_key": "sample_id"},
+        )
+        result = ad.read_h5ad(output_h5ad)
+        assert list(result.obs["scrna_annotate_zebrafish_label"].astype(str)) == ["neuron", "neuron", "no catalog match"]
+        assert list(result.obs["scrna_annotate_zebrafish_genotype"].astype(str)) == ["WT", "KO", "WT"]
+        assert list(result.obs["scrna_annotate_zebrafish_treatment"].astype(str)) == ["Control", "Cut", "Cut"]
+        assert result.uns["scrna_annotate_zebrafish"]["label_column"] == "scrna_annotate_zebrafish_label"
+        assert "cluster_predictions_json" in result.uns["scrna_annotate_zebrafish"]
+
+
 def main() -> int:
     test_catalog_scoring()
     test_read_catalog_requires_columns()
     test_safe_excel_sheet_name()
+    test_write_annotated_h5ad()
     print("scrna_annotate_zebrafish tests passed")
     return 0
 

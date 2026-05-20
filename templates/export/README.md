@@ -79,7 +79,7 @@ Credential reuse looks for a complete username/password pair in this order:
 You can also prepare without submission:
 
 ```bash
-python3 run.py --project-dir "${LINKAR_PROJECT_DIR:-..}" --template-dir . --results-dir ./results --dry-run true --export-engine-api-url http://127.0.0.1:9500
+python3 run.py --project-dir "${LINKAR_PROJECT_DIR:-..}" --template-dir . --results-dir ./results --prepare-only true --export-engine-api-url http://127.0.0.1:9500
 ```
 
 Generated artifacts include:

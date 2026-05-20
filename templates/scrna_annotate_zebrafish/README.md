@@ -8,7 +8,7 @@ This template intentionally avoids the generic provider architecture. It does on
 2. check that the organism is zebrafish/Danio rerio
 3. rank cluster markers with Scanpy
 4. test cluster marker enrichment against an explicit zebrafish marker catalog
-5. write CSV/JSON outputs
+5. write CSV/JSON/Excel outputs and an annotated `.h5ad`
 6. render a Quarto review report
 
 It is meant for practical zebrafish testing and report iteration. Once the catalog schema and
@@ -51,11 +51,38 @@ CLUSTER_KEY=leiden \
 
 ```text
 results/annotation_result.json
+results/adata.annotated.h5ad
 results/report.qmd
 results/report.html
+results/scrna_annotate_zebrafish_results.xlsx
 results/tables/differential_markers.csv
 results/tables/catalog_matches.csv
 results/tables/cluster_annotation_summary.csv
+```
+
+The annotated H5AD is written by default and adds review columns to `adata.obs`, including:
+
+```text
+scrna_annotate_zebrafish_label
+scrna_annotate_zebrafish_confidence
+scrna_annotate_zebrafish_review_status
+scrna_annotate_zebrafish_n_candidates
+scrna_annotate_zebrafish_top_score
+scrna_annotate_zebrafish_matched_genes
+scrna_annotate_zebrafish_treatment
+scrna_annotate_zebrafish_genotype
+```
+
+## Loupe Browser Export
+
+Loupe Browser export is intentionally handled by the separate `cloupe` template because it depends
+on `loupepy`, the 10x Genomics Loupe converter setup, and EULA acceptance. Use the annotated H5AD
+from this template as the input to `cloupe`.
+
+Example:
+
+```bash
+linkar run cloupe --input scrna_annotate_zebrafish/results/adata.annotated.h5ad
 ```
 
 ## Marker Catalog

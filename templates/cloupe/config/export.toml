@@ -1,0 +1,7 @@
+[input]
+h5ad = ""
+
+[export]
+counts_layer = "counts"
+embedding_key = "X_umap"
+obs_keys = ""

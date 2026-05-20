@@ -1,0 +1,5 @@
+results/
+.pixi/
+.quarto/
+__pycache__/
+*.pyc

@@ -17,7 +17,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--results-dir", default="./results")
     parser.add_argument("--project-dir", default="..")
     parser.add_argument("--template-dir", default=".")
-    parser.add_argument("--dry-run", default="false")
     parser.add_argument("--prepare-only", default="false")
     parser.add_argument("--refresh", default="false")
     parser.add_argument("--job-id", default="")
@@ -151,7 +150,7 @@ def main() -> int:
     submit_script = template_dir / "submit_export.py"
     reuse_spec = parse_bool(args.reuse_spec)
     refresh = parse_bool(args.refresh)
-    prepare_only = parse_bool(args.prepare_only) or parse_bool(args.dry_run)
+    prepare_only = parse_bool(args.prepare_only)
     reuse_credentials = parse_bool(args.reuse_credentials) or refresh
 
     print_section("Prepare Export Bundle")
