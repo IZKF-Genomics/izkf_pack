@@ -1,0 +1,553 @@
+---
+title: "ScType scRNA-seq Annotation Review"
+subtitle: "Cluster markers and ScType positive/negative marker scoring"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    page-layout: full
+    embed-resources: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{=html}
+<style>
+.warning-list{border-left:4px solid #c2410c;background:#fff7ed;padding:.85rem 1rem;margin:.7rem 0 1rem}
+.note-box{border-left:4px solid #2563eb;background:#eff6ff;padding:.85rem 1rem;margin:.7rem 0 1rem}
+.catalog-note{border-left:4px solid #7c3aed;background:#f5f3ff;padding:.85rem 1rem;margin:.7rem 0 1rem}
+main.content{max-width:none}.cell-output-display{overflow-x:auto}.cell-output-display img,.cell-output-display svg{max-width:100%;height:auto}
+.dataTables_wrapper{max-width:none}.dataTables_wrapper table.dataTable{width:auto!important;table-layout:auto!important}
+.dataTables_wrapper table.dataTable th,.dataTables_wrapper table.dataTable td{white-space:nowrap;vertical-align:top}
+.dataTables_wrapper table.dataTable td.dt-compact-number,.dataTables_wrapper table.dataTable th.dt-compact-number{min-width:2.8rem;max-width:4.8rem;text-align:right}
+.dataTables_wrapper table.dataTable td.dt-long-text{white-space:normal;min-width:9rem;max-width:18rem;overflow-wrap:anywhere;line-height:1.25}
+.dataTables_wrapper table.dataTable td.dt-medium-text{white-space:normal;min-width:8rem;max-width:14rem;overflow-wrap:anywhere;line-height:1.25}
+.status-strip{display:flex;flex-wrap:wrap;gap:.55rem;margin:.5rem 0 1rem}.status-pill{border:1px solid #dbe4ef;background:#f8fafc;border-radius:999px;padding:.35rem .7rem;font-size:.94rem}.status-pill strong{color:#0f172a}
+.cluster-tabs{margin-top:.8rem}.cluster-tabs details{border:1px solid #dbe4ef;border-radius:6px;margin:.45rem 0;background:#fff}.cluster-tabs summary{cursor:pointer;padding:.65rem .8rem;font-weight:600}.cluster-tabs .cluster-tab-body{border-top:1px solid #e5e7eb;padding:.7rem .8rem .9rem}
+.candidate-table{width:auto;max-width:100%;border-collapse:collapse;font-size:.92rem}.candidate-table th,.candidate-table td{border-bottom:1px solid #e5e7eb;padding:.35rem .55rem;vertical-align:top;white-space:nowrap}.candidate-table td.long{white-space:normal;max-width:32rem}.candidate-table td.compact{max-width:5rem;text-align:right}.candidate-table td.medium{white-space:normal;max-width:16rem}.candidate-table th{background:#f8fafc}
+</style>
+```
+
+```{python}
+from html import escape
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+from IPython.display import HTML, display
+
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
+try:
+    from scipy import sparse
+except ImportError:
+    sparse = None
+try:
+    import plotly.express as px
+except ImportError:
+    px = None
+try:
+    import anndata as ad
+except ImportError:
+    ad = None
+try:
+    from itables import show
+    import itables.options as itable_options
+    itable_options.showIndex = False
+    itable_options.classes = "display compact stripe hover"
+    itable_options.layout = {"topStart": "pageLength", "topEnd": "search", "bottomStart": "info", "bottomEnd": "paging"}
+    itable_options.maxBytes = "1MB"
+except ImportError:
+    show = None
+
+results_dir = Path(".")
+payload = json.loads((results_dir / "annotation_result.json").read_text())
+markers = pd.read_csv(results_dir / "tables" / "differential_markers.csv")
+sctype_candidates = pd.read_csv(results_dir / "tables" / "sctype_candidates.csv")
+summary = pd.read_csv(results_dir / "tables" / "cluster_annotation_summary.csv")
+run_status = payload.get("run", {})
+run_input = payload.get("input", {})
+method = payload.get("method", {})
+resources = payload.get("resources", [])
+warnings = run_status.get("warnings", [])
+primary_resource = next((resource for resource in resources if resource.get("role") == "primary_catalog"), {})
+UMAP_HEIGHT = 650
+UMAP_WIDTH = 900
+STATIC_PALETTE = ["#2563eb","#dc2626","#16a34a","#9333ea","#ea580c","#0891b2","#be123c","#4f46e5","#65a30d","#c026d3","#0f766e","#a16207","#475569","#db2777","#0284c7","#7c3aed"]
+
+def clip_text(value, limit=110):
+    text = "" if pd.isna(value) else str(value)
+    return text if len(text) <= limit else text[:limit - 1] + "..."
+
+def display_static_table(df):
+    display(HTML(df.reset_index(drop=True).to_html(index=False, escape=False)))
+
+def display_table(df, *, caption=None, page_length=10, order=None, long_text_columns=None, medium_text_columns=None, compact_columns=None, scroll_x=True):
+    df = df.reset_index(drop=True)
+    if show is None:
+        display_static_table(df)
+        return
+    long_text_columns = set(long_text_columns or [])
+    medium_text_columns = set(medium_text_columns or [])
+    compact_columns = set(compact_columns or [])
+    compact_columns |= {c for c in df.columns if c in {"cluster_id","rank","n_cells","n_candidates","n_positive_matched","n_negative_matched","top_score","score","log2fc","pval_adj","positive_coverage","negative_coverage"}}
+    column_defs = []
+    compact_targets = [i for i,c in enumerate(df.columns) if c in compact_columns]
+    long_targets = [i for i,c in enumerate(df.columns) if c in long_text_columns]
+    medium_targets = [i for i,c in enumerate(df.columns) if c in medium_text_columns]
+    if compact_targets:
+        column_defs.append({"targets": compact_targets, "className": "dt-compact-number", "width": "4.8rem"})
+    if long_targets:
+        column_defs.append({"targets": long_targets, "className": "dt-long-text", "width": "18rem"})
+    if medium_targets:
+        column_defs.append({"targets": medium_targets, "className": "dt-medium-text", "width": "14rem"})
+    show(df, caption=caption, showIndex=False, scrollX=scroll_x, column_filters="header", pageLength=page_length, lengthMenu=[10,25,50,100], order=order or [], autoWidth=True, autoWidthMode="fit", columnDefs=column_defs, deferRender=True, classes="display compact stripe hover")
+
+def plot_unavailable(reason):
+    display(HTML(f"<div class='note-box'>{escape(reason)}</div>"))
+
+def static_plot_ready():
+    if plt is None:
+        plot_unavailable("Matplotlib is not available, so this static figure was not rendered.")
+        return False
+    return True
+
+def finish_static_plot(fig):
+    fig.patch.set_facecolor("white")
+    for ax in fig.axes:
+        ax.grid(False)
+    fig.tight_layout()
+    plt.show()
+
+def artifact_path(name):
+    value = payload.get("artifacts", {}).get(name, "")
+    if str(value).startswith("results/"):
+        return str(value).replace("results/", "", 1)
+    return str(value)
+
+def cluster_sort_key(value):
+    text = str(value)
+    return (0, int(text)) if text.isdigit() else (1, text)
+
+def sorted_cluster_values(values):
+    return sorted([str(v) for v in values], key=cluster_sort_key)
+
+def palette_for(values):
+    return {v: STATIC_PALETTE[i % len(STATIC_PALETTE)] for i, v in enumerate(values)}
+
+def parse_gene_list(value):
+    if pd.isna(value) or not str(value).strip():
+        return []
+    return [gene.strip() for gene in str(value).split(",") if gene.strip()]
+
+def selected_dotplot_genes(max_genes=36):
+    genes = []
+    if len(sctype_candidates):
+        top_candidates = sctype_candidates.sort_values(["cluster_id", "rank"]).groupby("cluster_id").head(1)
+        for value in top_candidates.get("matched_positive_genes", []):
+            genes.extend(parse_gene_list(value)[:3])
+    if len(markers):
+        top_markers = markers.sort_values(["cluster_id", "rank"]).groupby("cluster_id").head(1)
+        genes.extend([str(gene) for gene in top_markers.get("gene", []) if str(gene)])
+    seen, ordered = set(), []
+    for gene in genes:
+        if gene not in seen:
+            seen.add(gene)
+            ordered.append(gene)
+        if len(ordered) >= max_genes:
+            break
+    return ordered
+
+def load_marker_expression_summary(genes):
+    if ad is None or sparse is None:
+        return pd.DataFrame(), "anndata/scipy is not available, so marker expression was not summarized."
+    h5ad = run_input.get("h5ad")
+    cluster_key = run_input.get("cluster_key") or "leiden"
+    layer = run_input.get("expression_layer") or "X"
+    try:
+        adata = ad.read_h5ad(h5ad, backed="r")
+    except Exception as exc:
+        return pd.DataFrame(), f"Could not read input h5ad for marker expression: {exc}"
+    try:
+        lookup = {str(g).lower(): str(g) for g in adata.var_names}
+        present = []
+        for gene in genes:
+            exact = gene if gene in adata.var_names else lookup.get(str(gene).lower())
+            if exact and exact not in present:
+                present.append(exact)
+        if not present:
+            return pd.DataFrame(), "None of the selected marker genes were found in adata.var_names."
+        view = adata[:, present]
+        matrix = view.layers[layer] if layer and layer != "X" and layer in view.layers else view.X
+        matrix = matrix.toarray() if sparse.issparse(matrix) else np.asarray(matrix)
+        clusters = adata.obs[cluster_key].astype(str).values
+        rows = []
+        for cluster_id in sorted_cluster_values(pd.unique(clusters)):
+            mask = clusters == cluster_id
+            values = matrix[mask, :]
+            for i, gene in enumerate(present):
+                gene_values = values[:, i]
+                rows.append({"cluster_id": cluster_id, "gene": gene, "mean_expression": float(np.nanmean(gene_values)), "pct_expressing": float(np.nanmean(gene_values > 0) * 100)})
+        return pd.DataFrame(rows), ""
+    finally:
+        try:
+            adata.file.close()
+        except Exception:
+            pass
+
+def candidate_details_html(candidates_df, summary_df):
+    if not len(candidates_df):
+        return "<div class='note-box'>No ScType-supported candidate labels were produced.</div>"
+    summary_lookup = summary_df.assign(cluster_id=summary_df["cluster_id"].astype(str)).set_index("cluster_id").to_dict("index")
+    html = ["<div class='cluster-tabs'>"]
+    for cluster_id in sorted(candidates_df["cluster_id"].astype(str).unique(), key=cluster_sort_key):
+        cluster_candidates = candidates_df[candidates_df["cluster_id"].astype(str) == cluster_id].copy()
+        cluster_candidates = cluster_candidates.sort_values(["rank", "score"], ascending=[True, False]).head(8)
+        top = summary_lookup.get(cluster_id, {})
+        html.append("<details>" f"<summary>Cluster {escape(cluster_id)} | {escape(str(top.get('top_label','no ScType match')))} | {escape(str(top.get('n_cells','')))} cells | {len(cluster_candidates)} candidates</summary>" "<div class='cluster-tab-body'><table class='candidate-table'><thead><tr><th>rank</th><th>candidate label</th><th>confidence</th><th>score</th><th>positive genes</th><th>negative genes</th></tr></thead><tbody>")
+        for row in cluster_candidates.itertuples(index=False):
+            html.append("<tr>" f"<td class='compact'>{escape(str(getattr(row,'rank','')))}</td>" f"<td class='medium'>{escape(str(getattr(row,'cell_type','')))}</td>" f"<td>{escape(str(getattr(row,'confidence_bucket','')))}</td>" f"<td class='compact'>{escape(str(getattr(row,'score','')))}</td>" f"<td class='long'>{escape(clip_text(getattr(row,'matched_positive_genes',''),150))}</td>" f"<td class='long'>{escape(clip_text(getattr(row,'matched_negative_genes',''),110))}</td>" "</tr>")
+        html.append("</tbody></table></div></details>")
+    html.append("</div>")
+    return "".join(html)
+
+def load_umap_table():
+    if ad is None:
+        return pd.DataFrame(), "anndata is not available, so UMAP figures were not rendered."
+    h5ad = run_input.get("h5ad")
+    try:
+        adata = ad.read_h5ad(h5ad, backed="r")
+    except Exception as exc:
+        return pd.DataFrame(), f"Could not read input h5ad for UMAP figures: {exc}"
+    if "X_umap" not in adata.obsm:
+        return pd.DataFrame(), "The input h5ad does not contain obsm['X_umap']."
+    cluster_key = run_input.get("cluster_key") or "leiden"
+    if cluster_key not in adata.obs:
+        return pd.DataFrame(), f"Cluster key '{cluster_key}' was not found in adata.obs."
+    coords = np.asarray(adata.obsm["X_umap"])
+    obs = adata.obs[[cluster_key]].copy()
+    obs["cluster_id"] = obs[cluster_key].astype(str).values
+    sample_key = run_input.get("sample_key")
+    obs["sample"] = adata.obs[sample_key].astype(str).values if sample_key and sample_key in adata.obs else ""
+    obs["UMAP1"] = coords[:, 0]
+    obs["UMAP2"] = coords[:, 1]
+    label_map = summary.assign(cluster_id=summary["cluster_id"].astype(str)).set_index("cluster_id")
+    obs = obs.reset_index(names="cell_id").merge(label_map[["top_label","confidence_bucket","review_status","n_candidates"]], on="cluster_id", how="left")
+    obs["top_label"] = obs["top_label"].fillna("no ScType match")
+    obs["confidence_bucket"] = obs["confidence_bucket"].fillna("unknown")
+    obs["review_status"] = obs["review_status"].fillna("no catalog-supported candidate")
+    obs["n_candidates"] = obs["n_candidates"].fillna(0).astype(int)
+    return obs, ""
+```
+
+## Summary
+
+This report reviews ScType-style marker-based annotation. It ranks cluster markers and scores each
+cluster against ScType positive and negative marker sets. Scores are review evidence, not calibrated
+probabilities.
+
+```{python}
+display_static_table(pd.DataFrame([
+    {"field": "state", "value": run_status.get("state", "unknown")},
+    {"field": "schema", "value": payload.get("schema_version", "")},
+    {"field": "organism", "value": run_input.get("organism", "")},
+    {"field": "tissue", "value": run_input.get("tissue") or "not provided"},
+    {"field": "cluster key", "value": run_input.get("cluster_key", "")},
+    {"field": "expression layer", "value": run_input.get("expression_layer", "")},
+    {"field": "primary catalog", "value": primary_resource.get("id", "")},
+    {"field": "clusters", "value": len(summary)},
+    {"field": "clusters with ScType labels", "value": int((summary["top_label"].fillna("") != "no ScType match").sum()) if len(summary) else 0},
+]))
+```
+
+```{python}
+if str(primary_resource.get("id", "")).startswith("download:sctype"):
+    display(HTML("<div class='catalog-note'><strong>Catalog note.</strong> This run uses the public ScType marker database converted into a local TSV schema. Both human and mouse entries are generated from ScType gene symbols; no implicit ortholog conversion is performed during annotation.</div>"))
+elif "default_catalogs" in str(primary_resource.get("path", "")):
+    display(HTML("<div class='catalog-note'><strong>Catalog note.</strong> This run uses the bundled smoke-test catalog. Use the downloadable ScType catalog before interpreting labels biologically.</div>"))
+```
+
+## How to Read This Report
+
+- Start with **Cluster Annotation Candidates** for the current best ScType-supported label.
+- Use **Candidate Details by Cluster** to inspect positive and negative marker evidence.
+- `score` is positive marker matches minus negative marker matches, not a probability.
+- `confidence_bucket` is a heuristic review aid.
+- Missing tissue means ScType entries from all tissues for the selected species were considered.
+- Use `scrna_annotate_manual_markers` for project-defined manual marker gene annotation.
+
+## Database Used
+
+```{python}
+resource_rows = []
+for resource in resources:
+    resource_rows.append({
+        "role": resource.get("role", ""),
+        "id": resource.get("id", ""),
+        "species": ", ".join(resource.get("species", [])),
+        "rows used": resource.get("n_rows", ""),
+        "sources": ", ".join(resource.get("sources", [])),
+        "sha256": clip_text(resource.get("sha256", ""), 18),
+    })
+display_static_table(pd.DataFrame(resource_rows))
+```
+
+## Download Results
+
+```{python}
+excel_path = artifact_path("excel_workbook") or "scrna_annotate_sctype_results.xlsx"
+annotated_h5ad_path = artifact_path("annotated_h5ad") or "adata.annotated.h5ad"
+if Path(excel_path).exists():
+    display(HTML(f"<div class='note-box'><strong>Excel workbook.</strong> <a href='{escape(excel_path)}' download>Download all annotation tables</a>. Sheets: cluster_summary, sctype_candidates, differential_markers.</div>"))
+else:
+    display(HTML("<div class='note-box'>Excel workbook was not found for this run.</div>"))
+if Path(annotated_h5ad_path).exists():
+    display(HTML(f"<div class='note-box'><strong>Annotated H5AD.</strong> <a href='{escape(annotated_h5ad_path)}' download>Download annotated AnnData</a>. ScType annotation review columns are stored in adata.obs.</div>"))
+else:
+    display(HTML("<div class='note-box'>Annotated H5AD was not found for this run.</div>"))
+```
+
+## Warnings
+
+```{python}
+if warnings:
+    display(HTML("<div class='warning-list'>" + "".join(f"<p><strong>Warning {i}.</strong> {escape(str(w))}</p>" for i, w in enumerate(warnings, start=1)) + "</div>"))
+else:
+    display(HTML("<div class='note-box'>No warnings were recorded.</div>"))
+```
+
+## Cluster Annotation Candidates
+
+```{python}
+summary_columns = ["cluster_id","n_cells","top_label","confidence_bucket","top_score","matched_positive_genes","matched_negative_genes","n_candidates","review_status"]
+summary_table = summary[[c for c in summary_columns if c in summary]].copy().fillna("")
+if "top_score" in summary_table:
+    summary_table["top_score"] = pd.to_numeric(summary_table["top_score"], errors="coerce").round(3)
+for column in ["matched_positive_genes", "matched_negative_genes"]:
+    if column in summary_table:
+        summary_table[column] = summary_table[column].map(lambda value: clip_text(value, 80))
+display_table(summary_table, caption="Cluster annotation summary", page_length=10, order=[[0, "asc"]], long_text_columns=["matched_positive_genes","matched_negative_genes"], medium_text_columns=["top_label"], scroll_x=False)
+```
+
+### Review Overview
+
+```{python}
+status_counts = summary["review_status"].fillna("unknown").value_counts().reset_index()
+status_counts.columns = ["review_status", "n_clusters"]
+display(HTML("<div class='status-strip'>" + "".join(f"<span class='status-pill'><strong>{escape(str(row.n_clusters))}</strong> {escape(str(row.review_status))}</span>" for row in status_counts.itertuples(index=False)) + "</div>"))
+```
+
+### Candidate Details by Cluster
+
+```{python}
+display(HTML(candidate_details_html(sctype_candidates, summary)))
+```
+
+### Match Diagnostics
+
+```{python}
+diagnostics = pd.DataFrame([
+    {"metric": "clusters total", "value": len(summary)},
+    {"metric": "clusters with ScType candidates", "value": int((summary["top_label"].fillna("") != "no ScType match").sum()) if len(summary) else 0},
+    {"metric": "clusters without ScType candidates", "value": int((summary["top_label"].fillna("") == "no ScType match").sum()) if len(summary) else 0},
+    {"metric": "ScType candidate rows", "value": len(sctype_candidates)},
+    {"metric": "ranked marker rows", "value": len(markers)},
+])
+display_static_table(diagnostics)
+```
+
+## Figures
+
+### UMAP Overview
+
+```{python}
+umap, umap_message = load_umap_table()
+if px is None:
+    plot_unavailable("Plotly is not available, so UMAP figures were not rendered.")
+elif len(umap):
+    fig = px.scatter(umap, x="UMAP1", y="UMAP2", color="cluster_id", hover_data=["cell_id","cluster_id","top_label","confidence_bucket","sample"], title="UMAP by cluster", template="plotly_white", render_mode="webgl")
+    fig.update_traces(marker={"size":3,"opacity":.72}); fig.update_yaxes(scaleanchor="x", scaleratio=1); fig.update_layout(width=UMAP_WIDTH,height=UMAP_HEIGHT,legend_title_text="Cluster").show()
+    fig = px.scatter(umap, x="UMAP1", y="UMAP2", color="top_label", hover_data=["cell_id","cluster_id","top_label","confidence_bucket","review_status","sample"], title="UMAP by top ScType-supported label", template="plotly_white", render_mode="webgl")
+    fig.update_traces(marker={"size":3,"opacity":.72}); fig.update_yaxes(scaleanchor="x", scaleratio=1); fig.update_layout(width=UMAP_WIDTH,height=UMAP_HEIGHT,legend_title_text="Top label").show()
+    if "sample" in umap and (umap["sample"].astype(str) != "").any():
+        fig = px.scatter(umap, x="UMAP1", y="UMAP2", color="top_label", facet_col="sample", facet_col_wrap=2, hover_data=["cell_id","sample","cluster_id","top_label","confidence_bucket"], title="UMAP by sample, colored by top ScType-supported label", template="plotly_white", render_mode="webgl")
+        fig.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.replace("sample=", "")))
+        fig.update_traces(marker={"size":3,"opacity":.72}); fig.update_yaxes(scaleanchor="x", scaleratio=1); fig.update_layout(height=max(UMAP_HEIGHT, 360 * int(np.ceil(umap["sample"].nunique() / 2))), legend_title_text="Top label").show()
+else:
+    plot_unavailable(umap_message or "UMAP figures were not available.")
+```
+
+### Sample Composition
+
+```{python}
+if not static_plot_ready():
+    pass
+elif not len(umap):
+    plot_unavailable(umap_message or "UMAP data were not available for sample composition plots.")
+elif "sample" not in umap or not (umap["sample"].astype(str) != "").any():
+    plot_unavailable("No sample column was available for sample composition plots.")
+else:
+    composition = umap.copy()
+    composition["sample"] = composition["sample"].astype(str)
+    composition["top_label"] = composition["top_label"].fillna("no ScType match").astype(str)
+    sample_order = list(composition["sample"].value_counts().sort_index().index)
+    label_counts = composition.groupby(["sample", "top_label"]).size().unstack(fill_value=0).reindex(sample_order)
+    label_props = label_counts.div(label_counts.sum(axis=1), axis=0).fillna(0)
+    colors = palette_for(label_props.columns)
+    fig, ax = plt.subplots(figsize=(10.2, max(4.2, .48 * len(label_props.index) + 2.2)))
+    left = np.zeros(len(label_props.index)); y = np.arange(len(label_props.index))
+    for label in label_props.columns:
+        values = label_props[label].values
+        ax.barh(y, values, left=left, color=colors[label], label=label, height=.72); left += values
+    ax.set_yticks(y); ax.set_yticklabels(label_props.index); ax.invert_yaxis(); ax.set_xlim(0,1)
+    ax.set_xlabel("Fraction of cells"); ax.set_title("ScType label composition by sample")
+    ax.legend(loc="center left", bbox_to_anchor=(1.01,.5), frameon=False, title="Top label")
+    finish_static_plot(fig)
+```
+
+### ScType Candidate Ranking
+
+```{python}
+if not static_plot_ready():
+    pass
+elif not len(sctype_candidates):
+    plot_unavailable("No ScType candidates were available for the candidate ranking plot.")
+else:
+    candidate_plot = sctype_candidates.copy()
+    candidate_plot["cluster_id"] = candidate_plot["cluster_id"].astype(str)
+    candidate_plot["cell_type"] = candidate_plot["cell_type"].astype(str)
+    candidate_plot["score_num"] = pd.to_numeric(candidate_plot["score"], errors="coerce").fillna(0)
+    candidate_plot = candidate_plot.sort_values(["cluster_id","rank","score_num"], ascending=[True,True,False])
+    candidate_plot = candidate_plot[candidate_plot["rank"] <= 3].copy()
+    label_order = candidate_plot.groupby("cell_type")["score_num"].max().sort_values(ascending=False).index.tolist()
+    cluster_order = sorted_cluster_values(candidate_plot["cluster_id"].unique())
+    x_lookup = {cluster_id:i for i,cluster_id in enumerate(cluster_order)}
+    y_lookup = {label:i for i,label in enumerate(label_order)}
+    fig, ax = plt.subplots(figsize=(min(10.2, max(7.8, .22 * len(cluster_order) + 4.8)), max(5.5, .22 * len(label_order) + 2.2)))
+    rank_colors = {1:"#2563eb",2:"#f59e0b",3:"#94a3b8"}
+    for rank in [3,2,1]:
+        subset = candidate_plot[candidate_plot["rank"] == rank]
+        if len(subset):
+            ax.scatter(subset["cluster_id"].map(x_lookup), subset["cell_type"].map(y_lookup), s=28 + 16 * subset["score_num"].clip(lower=0, upper=8), color=rank_colors[rank], alpha=.82, edgecolor="white", linewidth=.35, label=f"Rank {rank}")
+    ax.set_xticks(range(len(cluster_order))); ax.set_xticklabels(cluster_order); ax.set_yticks(range(len(label_order))); ax.set_yticklabels(label_order); ax.invert_yaxis()
+    ax.set_xlabel("Cluster"); ax.set_ylabel("ScType candidate label"); ax.set_title("Top ScType candidate tiers per cluster")
+    ax.legend(loc="center left", bbox_to_anchor=(1.01,.5), frameon=False, title="Candidate tier")
+    finish_static_plot(fig)
+```
+
+### Marker Expression Dot Plot
+
+```{python}
+if not static_plot_ready():
+    pass
+else:
+    expression_summary, expression_message = load_marker_expression_summary(selected_dotplot_genes())
+    if not len(expression_summary):
+        plot_unavailable(expression_message or "No marker expression summary was available.")
+    else:
+        cluster_order = sorted_cluster_values(expression_summary["cluster_id"].unique())
+        gene_order = list(dict.fromkeys(expression_summary["gene"]))
+        x_lookup = {cluster_id:i for i,cluster_id in enumerate(cluster_order)}
+        y_lookup = {gene:i for i,gene in enumerate(gene_order)}
+        fig, ax = plt.subplots(figsize=(min(10.2, max(7.8, .22 * len(cluster_order) + 4.8)), max(5.5, .22 * len(gene_order) + 2.4)))
+        scatter = ax.scatter(expression_summary["cluster_id"].map(x_lookup), expression_summary["gene"].map(y_lookup), s=10 + 1.65 * expression_summary["pct_expressing"].clip(lower=0, upper=100), c=expression_summary["mean_expression"], cmap="magma", alpha=.82, edgecolor="white", linewidth=.35)
+        ax.set_xticks(range(len(cluster_order))); ax.set_xticklabels(cluster_order); ax.set_yticks(range(len(gene_order))); ax.set_yticklabels(gene_order); ax.invert_yaxis()
+        ax.set_xlabel("Cluster"); ax.set_ylabel("Marker gene"); ax.set_title("Selected ScType marker expression by cluster")
+        cbar = fig.colorbar(scatter, ax=ax, pad=.01); cbar.set_label("Mean expression")
+        finish_static_plot(fig)
+```
+
+### ScType Score Heatmap
+
+```{python}
+if px is None:
+    plot_unavailable("Plotly is not available, so the ScType score heatmap was not rendered.")
+elif len(sctype_candidates):
+    matrix = sctype_candidates.query("rank <= 5").pivot_table(index="cell_type", columns="cluster_id", values="score", aggfunc="max", fill_value=0)
+    matrix = matrix.reindex(sorted(matrix.columns, key=lambda value: cluster_sort_key(str(value))), axis=1)
+    fig = px.imshow(matrix, aspect="auto", color_continuous_scale="Viridis", labels={"x":"Cluster","y":"ScType cell type","color":"Score"}, title="ScType positive-minus-negative marker score", template="plotly_white")
+    fig.update_layout(height=max(420, 28 * len(matrix.index)), margin={"l":130,"r":30,"t":70,"b":50})
+    fig.show()
+else:
+    plot_unavailable("No ScType candidates were produced.")
+```
+
+### Top Marker Evidence
+
+```{python}
+if px is None:
+    plot_unavailable("Plotly is not available, so the top-marker figure was not rendered.")
+elif len(markers):
+    plot_markers = markers.copy()
+    plot_markers["pval_adj_num"] = pd.to_numeric(plot_markers["pval_adj"], errors="coerce")
+    plot_markers["log2fc_num"] = pd.to_numeric(plot_markers["log2fc"], errors="coerce")
+    plot_markers = plot_markers.sort_values(["cluster_id","rank"]).groupby("cluster_id").head(5).reset_index(drop=True)
+    plot_markers["neg_log10_padj"] = plot_markers["pval_adj_num"].clip(lower=1e-300).map(lambda value: -np.log10(value) if pd.notna(value) else None)
+    plot_markers["cluster_marker"] = plot_markers.apply(lambda row: f"C{row['cluster_id']} | {row['gene']}", axis=1)
+    plot_markers["cluster_marker"] = pd.Categorical(plot_markers["cluster_marker"], categories=list(reversed(plot_markers["cluster_marker"])), ordered=True)
+    fig = px.scatter(plot_markers, x="log2fc_num", y="cluster_marker", size=plot_markers["log2fc_num"].clip(lower=0), color="neg_log10_padj", hover_data=["cluster_id","gene","rank","score","log2fc","pval_adj","strength"], labels={"log2fc_num":"log2 fold change","cluster_marker":"Cluster | marker gene","color":"-log10 adjusted p-value"}, title="Top marker evidence per cluster", template="plotly_white")
+    fig.update_layout(height=min(760, max(420, 24 * len(plot_markers) + 120)), margin={"l":155,"r":30,"t":70,"b":50})
+    fig.show()
+else:
+    plot_unavailable("No differential markers were produced.")
+```
+
+## Evidence Tables
+
+### ScType Candidates
+
+```{python}
+sctype_table = sctype_candidates.sort_values(["cluster_id", "rank"]).groupby("cluster_id").head(5).copy()
+for column in ["matched_positive_genes", "matched_negative_genes", "missing_positive_genes", "citation"]:
+    if column in sctype_table:
+        sctype_table[column] = sctype_table[column].map(lambda value: clip_text(value, 90))
+display_table(sctype_table, caption="ScType candidates, top 5 per cluster", page_length=8, order=[[0, "asc"], [1, "asc"]], long_text_columns=["matched_positive_genes","matched_negative_genes","missing_positive_genes","citation"])
+```
+
+### Differential Markers
+
+```{python}
+marker_preview = markers.sort_values(["cluster_id", "rank"]).groupby("cluster_id").head(5).copy()
+display_table(marker_preview, caption="Differential markers, top 5 per cluster", page_length=10, order=[[0, "asc"], [1, "asc"]])
+```
+
+## Provenance
+
+```{python}
+provenance_rows = [
+    {"field": "input h5ad", "value": run_input.get("h5ad", "")},
+    {"field": "input source template", "value": run_input.get("input_source_template") or "not provided"},
+    {"field": "method", "value": method.get("name", "")},
+    {"field": "annotation level", "value": method.get("annotation_level", "")},
+    {"field": "top_n_markers", "value": method.get("parameters", {}).get("top_n_markers", "")},
+    {"field": "min_log2fc", "value": method.get("parameters", {}).get("min_log2fc", "")},
+]
+for resource in resources:
+    prefix = resource.get("role", "resource")
+    provenance_rows.extend([
+        {"field": f"{prefix} id", "value": resource.get("id", "")},
+        {"field": f"{prefix} path", "value": resource.get("path", "")},
+        {"field": f"{prefix} sha256", "value": resource.get("sha256", "")},
+        {"field": f"{prefix} rows", "value": resource.get("n_rows", "")},
+    ])
+display_table(pd.DataFrame(provenance_rows), caption="Run provenance", page_length=20, long_text_columns=["value"], scroll_x=False)
+```
+
+## Interpretation Notes
+
+- This report is ScType-specific and uses positive/negative marker evidence.
+- Treat scores as review signals, not probabilities.
+- Review cluster markers, negative marker conflicts, UMAP location, sample composition, and project biology before freezing labels.
+- Use `scrna_annotate_manual_markers` for user-defined marker gene annotation.
+- Do not use this template for implicit cross-species ortholog mapping.
+
+## References
+
+- Ianevski A et al. 2022. [Fully-automated and ultra-fast cell-type identification using specific marker combinations from single-cell transcriptomic data](https://www.nature.com/articles/s41467-022-28803-w). *Nature Communications*.
+- Wolf FA, Angerer P, Theis FJ. 2018. [SCANPY: large-scale single-cell gene expression data analysis](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-017-1382-0). *Genome Biology*.
+- Heumos L et al. [Single-cell best practices: cell type annotation](https://www.sc-best-practices.org/cellular_structure/annotation.html).

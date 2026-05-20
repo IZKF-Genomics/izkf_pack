@@ -1,0 +1,37 @@
+Hematopoietic stem cells,F10,feature_8692,Gene Expression
+Hematopoietic stem cells,Gnaz,feature_10988,Gene Expression
+Hematopoietic stem cells,Tmem40,feature_6544,Gene Expression
+Hematopoietic stem cells,Pf4,feature_5185,Gene Expression
+Erythrocytes,Klf1,feature_9163,Gene Expression
+Erythrocytes,Gypa,feature_9110,Gene Expression
+Erythrocytes,Alas2,feature_18929,Gene Expression
+Immune cells,C1qa,feature_4490,Gene Expression
+Immune cells,Cd14,feature_17362,Gene Expression
+Immune cells,Lgals3,feature_14517,Gene Expression
+Immune cells,Cd74,feature_17531,Gene Expression
+Immune cells,Itgam,feature_8418,Gene Expression
+Immune cells,Ptprc,feature_688,Gene Expression
+Immune cells,Spn,feature_8376,Gene Expression
+Epicardial cells,Upk1b,feature_16026,Gene Expression
+Epicardial cells,Wt1,feature_1973,Gene Expression
+Epicardial cells,Podxl,feature_5955,Gene Expression
+Mesenchymal stem cells-1,Sox9,feature_12820,Gene Expression
+Mesenchymal stem cells-1,Twist1,feature_13128,Gene Expression
+Mesenchymal stem cells-1,Postn,feature_2883,Gene Expression
+Mesenchymal stem cells-1,Tbx20,feature_9731,Gene Expression
+Mesenchymal stem cells-2,Cxcl12,feature_6566,Gene Expression
+Mesenchymal stem cells-2,Col26a1,feature_5631,Gene Expression
+Endocardial cells,Cdh5,feature_9275,Gene Expression
+Endocardial cells,Emcn,feature_3516,Gene Expression
+Endocardial cells,Icam2,feature_12783,Gene Expression
+Endocardial cells,Ecscr,feature_17345,Gene Expression
+Neural crest cells,Sox10,feature_15318,Gene Expression
+Neural crest cells,Dlx2,feature_1580,Gene Expression
+Neural crest cells,Igfbp2,feature_300,Gene Expression
+Neural crest cells,Isl1,feature_14293,Gene Expression
+Neural crest cells,Six1,feature_13253,Gene Expression
+Neural crest cells,Sox8,feature_16508,Gene Expression
+Neural crest cells,Tfap2b,feature_56,Gene Expression
+Cardiac myocytes,Myh7,feature_14639,Gene Expression
+Cardiac myocytes,Myl2,feature_5471,Gene Expression
+Cardiac myocytes,Myh6,feature_14638,Gene Expression

@@ -1,0 +1,20 @@
+[dataset]
+input_h5ad = ""
+input_source_template = ""
+organism = "mouse"
+organism_id = ""
+tissue = ""
+cluster_key = "leiden"
+sample_key = "sample_id"
+expression_layer = "X"
+
+[analysis]
+marker_catalog = "config/marker_genes.csv"
+score_layer = "X"
+score_method = "scanpy_score_genes"
+top_n_markers = 50
+min_log2fc = 0.25
+min_score_margin = 0.15
+
+[outputs]
+write_h5ad = true

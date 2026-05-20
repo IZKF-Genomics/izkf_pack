@@ -1,0 +1,18 @@
+[dataset]
+input_h5ad = ""
+input_source_template = ""
+organism = "mouse"
+organism_id = ""
+tissue = ""
+cluster_key = "leiden"
+sample_key = "sample_id"
+expression_layer = "X"
+
+[analysis]
+primary_catalog = "download:sctype"
+top_n_markers = 50
+min_log2fc = 0.25
+fdr_threshold = 0.05
+
+[outputs]
+write_h5ad = true

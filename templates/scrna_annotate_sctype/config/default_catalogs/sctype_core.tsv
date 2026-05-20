@@ -1,0 +1,13 @@
+catalog_id	species	organism_id	tissue	cell_type	gene_symbol	marker_role	source	citation	evidence
+sctype_core	mouse	NCBITaxon:10090	Immune system	Macrophages	Lyz2	positive	builtin_fixture	ScType-style smoke-test fixture	example
+sctype_core	mouse	NCBITaxon:10090	Immune system	Macrophages	Csf1r	positive	builtin_fixture	ScType-style smoke-test fixture	example
+sctype_core	mouse	NCBITaxon:10090	Immune system	Macrophages	Cd3e	negative	builtin_fixture	ScType-style smoke-test fixture	example
+sctype_core	mouse	NCBITaxon:10090	Immune system	T cells	Cd3d	positive	builtin_fixture	ScType-style smoke-test fixture	example
+sctype_core	mouse	NCBITaxon:10090	Immune system	T cells	Cd3e	positive	builtin_fixture	ScType-style smoke-test fixture	example
+sctype_core	mouse	NCBITaxon:10090	Immune system	T cells	Lyz2	negative	builtin_fixture	ScType-style smoke-test fixture	example
+sctype_core	human	NCBITaxon:9606	Immune system	Macrophages	LYZ	positive	builtin_fixture	ScType-style smoke-test fixture	example
+sctype_core	human	NCBITaxon:9606	Immune system	Macrophages	CSF1R	positive	builtin_fixture	ScType-style smoke-test fixture	example
+sctype_core	human	NCBITaxon:9606	Immune system	Macrophages	CD3E	negative	builtin_fixture	ScType-style smoke-test fixture	example
+sctype_core	human	NCBITaxon:9606	Immune system	T cells	CD3D	positive	builtin_fixture	ScType-style smoke-test fixture	example
+sctype_core	human	NCBITaxon:9606	Immune system	T cells	CD3E	positive	builtin_fixture	ScType-style smoke-test fixture	example
+sctype_core	human	NCBITaxon:9606	Immune system	T cells	LYZ	negative	builtin_fixture	ScType-style smoke-test fixture	example

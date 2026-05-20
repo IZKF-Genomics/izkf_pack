@@ -1,0 +1,4 @@
+.pixi/
+.quarto/
+__pycache__/
+results/

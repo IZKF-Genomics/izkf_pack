@@ -19,37 +19,37 @@ from typing import Any
 
 
 TEMPLATE_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = Path(os.environ.get("LINKAR_PROJECT_DIR", TEMPLATE_DIR.parent)).resolve()
 RESULTS_DIR = Path(os.environ.get("LINKAR_RESULTS_DIR", TEMPLATE_DIR / "results")).resolve()
 TABLES_DIR = RESULTS_DIR / "tables"
 CONFIG_DIR = TEMPLATE_DIR / "config"
-EXCEL_RESULT = RESULTS_DIR / "scrna_annotate_zebrafish_results.xlsx"
+EXCEL_RESULT = RESULTS_DIR / "scrna_annotate_sctype_results.xlsx"
 ANNOTATED_H5AD = RESULTS_DIR / "adata.annotated.h5ad"
 SCHEMA_VERSION = "izkf_annotation_result.v1"
-TEMPLATE_NAME = "scrna_annotate_zebrafish"
+TEMPLATE_NAME = "scrna_annotate_sctype"
 CATALOG_REQUIRED_FIELDS = [
     "catalog_id",
     "species",
     "organism_id",
     "tissue",
-    "stage",
     "cell_type",
     "gene_symbol",
+    "marker_role",
     "source",
     "citation",
     "evidence",
 ]
 BUILTIN_CATALOGS = {
-    "builtin:zebrafish_core": "config/default_catalogs/zebrafish_core.tsv",
-    "zebrafish_core": "config/default_catalogs/zebrafish_core.tsv",
+    "builtin:sctype_core": "config/default_catalogs/sctype_core.tsv",
+    "sctype_core": "config/default_catalogs/sctype_core.tsv",
 }
 DOWNLOAD_CATALOGS = {
-    "download:zcl_2_marker_list": "zcl_2_marker_list",
-    "zcl_2_marker_list": "zcl_2_marker_list",
-    "download:zcl_marker_list": "zcl_2_marker_list",
-    "zcl_marker_list": "zcl_2_marker_list",
+    "download:sctype": "sctype",
+    "sctype": "sctype",
+    "download:sctype_db": "sctype",
 }
 MARKER_FIELDS = ["cluster_id", "rank", "gene", "score", "log2fc", "pval_adj", "strength"]
-MATCH_FIELDS = [
+CANDIDATE_FIELDS = [
     "cluster_id",
     "rank",
     "cell_type",
@@ -57,21 +57,18 @@ MATCH_FIELDS = [
     "species",
     "organism_id",
     "tissue",
-    "stage",
     "source",
-    "citation",
-    "n_matched",
-    "n_cluster_markers",
-    "n_catalog_genes",
-    "n_background_genes",
-    "coverage",
-    "jaccard",
-    "pval",
-    "pval_adj",
+    "n_positive_matched",
+    "n_negative_matched",
+    "n_positive_catalog_genes",
+    "n_negative_catalog_genes",
+    "positive_coverage",
+    "negative_coverage",
     "score",
     "confidence_bucket",
-    "matched_genes",
-    "missing_genes",
+    "matched_positive_genes",
+    "matched_negative_genes",
+    "missing_positive_genes",
 ]
 SUMMARY_FIELDS = [
     "cluster_id",
@@ -79,7 +76,8 @@ SUMMARY_FIELDS = [
     "top_label",
     "confidence_bucket",
     "top_score",
-    "matched_genes",
+    "matched_positive_genes",
+    "matched_negative_genes",
     "n_candidates",
     "review_status",
 ]
@@ -101,16 +99,16 @@ class CatalogEntry:
     species: str
     organism_id: str
     tissue: str
-    stage: str
     cell_type: str
     gene_symbol: str
+    marker_role: str
     source: str
     citation: str
     evidence: str
 
 
 def progress(message: str) -> None:
-    print(f"[scrna_annotate_zebrafish] {message}", flush=True)
+    print(f"[{TEMPLATE_NAME}] {message}", flush=True)
 
 
 def main() -> int:
@@ -123,25 +121,24 @@ def main() -> int:
     TABLES_DIR.mkdir(parents=True, exist_ok=True)
 
     organism = normalize_species(params["organism"])
-    if organism != "zebrafish":
-        raise SystemExit(f"scrna_annotate_zebrafish requires ORGANISM=zebrafish/Danio rerio, got: {params['organism']!r}")
+    if organism not in {"mouse", "human"}:
+        raise SystemExit(f"{TEMPLATE_NAME} supports organism=mouse or organism=human, got: {params['organism']!r}")
+    organism_id = params.get("organism_id") or default_organism_id(organism)
+    params["organism"] = organism
+    params["organism_id"] = organism_id
 
-    input_h5ad = resolve_path(params["input_h5ad"], base=TEMPLATE_DIR, required_name="INPUT_H5AD")
-    catalog_path = resolve_catalog_path(params["marker_catalog"], warnings)
+    input_h5ad = resolve_input_h5ad(params)
+    primary_catalog_path = resolve_catalog_path(params["primary_catalog"], warnings)
+
     progress(f"input h5ad: {input_h5ad}")
-    progress(f"marker catalog: {catalog_path}")
-    if not params.get("tissue"):
-        progress("tissue is not set; report will use context-light interpretation")
-    if not params.get("stage"):
-        progress("stage is not set; stage-specific catalog interpretation should be reviewed")
+    progress(f"primary ScType catalog: {primary_catalog_path}")
 
-    catalog_entries = read_catalog(catalog_path)
-    catalog_species = {normalize_species(entry.species) for entry in catalog_entries if entry.species}
-    if catalog_species != {"zebrafish"}:
-        raise SystemExit(f"marker catalog must contain only zebrafish entries; found: {sorted(catalog_species)}")
+    primary_entries = entries_for_context(read_catalog(primary_catalog_path), organism=organism, tissue=params.get("tissue"), warnings=warnings)
+    if not primary_entries:
+        raise SystemExit(f"primary catalog has no usable {organism} entries for the requested context")
 
     progress("ranking cluster markers with Scanpy")
-    markers, cluster_sizes, background_genes = compute_cluster_markers(
+    markers, cluster_sizes, _background_genes = compute_cluster_markers(
         input_h5ad=input_h5ad,
         cluster_key=params["cluster_key"],
         top_n=int(params["top_n_markers"]),
@@ -149,39 +146,40 @@ def main() -> int:
         warnings=warnings,
     )
     marker_rows = marker_table_rows(markers, min_log2fc=float(params["min_log2fc"]))
-    match_rows = score_catalog(
+    primary_rows = score_marker_catalog(
         marker_rows,
-        catalog_entries,
+        primary_entries,
         min_log2fc=float(params["min_log2fc"]),
-        fdr_threshold=float(params["fdr_threshold"]),
-        background_genes=background_genes,
+        catalog_role="primary_sctype",
+        top_n=5,
     )
-    cluster_predictions = cluster_predictions_from_matches(match_rows, cluster_sizes)
+    cluster_predictions = cluster_predictions_from_candidates(primary_rows, cluster_sizes)
     summary_rows = summary_rows_from_predictions(cluster_predictions)
 
     if not marker_rows:
         warnings.append("No differential markers were produced.")
-    if marker_rows and not match_rows:
-        warnings.append("Differential markers were produced, but no zebrafish catalog entries matched.")
+    if marker_rows and not primary_rows:
+        warnings.append("Differential markers were produced, but no ScType candidates scored above zero.")
 
     write_csv(TABLES_DIR / "differential_markers.csv", marker_rows, MARKER_FIELDS)
-    write_csv(TABLES_DIR / "catalog_matches.csv", match_rows, MATCH_FIELDS)
+    write_csv(TABLES_DIR / "sctype_candidates.csv", primary_rows, CANDIDATE_FIELDS)
     write_csv(TABLES_DIR / "cluster_annotation_summary.csv", summary_rows, SUMMARY_FIELDS)
     write_excel_workbook(
         EXCEL_RESULT,
         {
             "cluster_summary": summary_rows,
-            "catalog_matches": match_rows,
+            "sctype_candidates": primary_rows,
             "differential_markers": marker_rows,
         },
     )
-    artifact_payload: dict[str, Any] = {
+
+    artifacts: dict[str, Any] = {
         "report_html": "results/report.html",
         "report_qmd": "results/report.qmd",
-        "excel_workbook": "results/scrna_annotate_zebrafish_results.xlsx",
+        "excel_workbook": "results/scrna_annotate_sctype_results.xlsx",
         "tables": [
             "results/tables/differential_markers.csv",
-            "results/tables/catalog_matches.csv",
+            "results/tables/sctype_candidates.csv",
             "results/tables/cluster_annotation_summary.csv",
         ],
     }
@@ -193,7 +191,7 @@ def main() -> int:
             cluster_predictions=cluster_predictions,
             params=params,
         )
-        artifact_payload["annotated_h5ad"] = "results/adata.annotated.h5ad"
+        artifacts["annotated_h5ad"] = "results/adata.annotated.h5ad"
 
     state = "failed" if errors else "completed_with_warnings" if warnings else "completed"
     payload = {
@@ -212,19 +210,17 @@ def main() -> int:
         "input": {
             "h5ad": str(input_h5ad),
             "input_source_template": params.get("input_source_template") or None,
-            "organism": "zebrafish",
-            "organism_id": "NCBITaxon:7955",
+            "organism": organism,
+            "organism_id": organism_id,
             "tissue": params.get("tissue") or None,
-            "stage": params.get("stage") or None,
             "cluster_key": params["cluster_key"],
             "sample_key": params.get("sample_key") or None,
             "expression_layer": params["expression_layer"],
         },
         "method": {
-            "name": "Zebrafish marker catalog scoring",
+            "name": "ScType-style marker-set scoring",
             "annotation_level": "cluster",
             "parameters": {
-                "marker_catalog": params["marker_catalog"],
                 "top_n_markers": int(params["top_n_markers"]),
                 "min_log2fc": float(params["min_log2fc"]),
                 "fdr_threshold": float(params["fdr_threshold"]),
@@ -242,30 +238,19 @@ def main() -> int:
                 },
             },
             {
-                "step": "Zebrafish marker catalog scoring",
-                "tool": "local TSV marker catalog overlap",
+                "step": "ScType marker scoring",
+                "tool": "local Python ScType-style positive/negative marker overlap",
                 "parameters": {
+                    "primary_catalog": params["primary_catalog"],
                     "min_log2fc": float(params["min_log2fc"]),
-                    "fdr_threshold": float(params["fdr_threshold"]),
                 },
-                "interpretation": "Hypergeometric marker-set enrichment with BH/FDR correction; evidence for review, not classifier probability or final annotation.",
+                "interpretation": "Positive marker matches support a candidate; negative marker matches penalize it. Scores are review evidence, not calibrated probabilities.",
             },
         ],
-        "resources": [
-            {
-                "role": "zebrafish_marker_catalog",
-                "id": catalog_id_from_value(params["marker_catalog"], catalog_path),
-                "path": str(catalog_path),
-                "sha256": sha256_file(catalog_path),
-                "species": "zebrafish",
-                "organism_id": "NCBITaxon:7955",
-                "n_rows": len(catalog_entries),
-                "sources": sorted({entry.source for entry in catalog_entries if entry.source}),
-            }
-        ],
+        "resources": resource_payload(primary_catalog_path, primary_entries, params["primary_catalog"], "primary_catalog"),
         "cluster_predictions": cluster_predictions,
         "cell_predictions": None,
-        "artifacts": artifact_payload,
+        "artifacts": artifacts,
     }
     write_json(RESULTS_DIR / "annotation_result.json", payload)
     render_report()
@@ -283,13 +268,13 @@ def load_params() -> dict[str, Any]:
     params = {
         "input_h5ad": dataset.get("input_h5ad", ""),
         "input_source_template": dataset.get("input_source_template", ""),
-        "organism": dataset.get("organism", "zebrafish"),
+        "organism": dataset.get("organism", "mouse"),
+        "organism_id": dataset.get("organism_id", ""),
         "tissue": dataset.get("tissue", ""),
-        "stage": dataset.get("stage", ""),
         "cluster_key": dataset.get("cluster_key", "leiden"),
         "sample_key": dataset.get("sample_key", "sample_id"),
         "expression_layer": dataset.get("expression_layer", "X"),
-        "marker_catalog": analysis.get("marker_catalog", "config/marker_catalog.tsv"),
+        "primary_catalog": analysis.get("primary_catalog", "download:sctype"),
         "top_n_markers": analysis.get("top_n_markers", 50),
         "min_log2fc": analysis.get("min_log2fc", 0.25),
         "fdr_threshold": analysis.get("fdr_threshold", 0.05),
@@ -299,12 +284,12 @@ def load_params() -> dict[str, Any]:
         "input_h5ad": env("INPUT_H5AD"),
         "input_source_template": env("INPUT_SOURCE_TEMPLATE"),
         "organism": env("ORGANISM"),
+        "organism_id": env("ORGANISM_ID"),
         "tissue": env("TISSUE"),
-        "stage": env("STAGE"),
         "cluster_key": env("CLUSTER_KEY"),
         "sample_key": env("SAMPLE_ID_KEY") or env("SAMPLE_KEY"),
         "expression_layer": env("EXPRESSION_LAYER"),
-        "marker_catalog": env("MARKER_CATALOG"),
+        "primary_catalog": env("PRIMARY_CATALOG") or env("MARKER_CATALOG"),
         "top_n_markers": env("TOP_N_MARKERS"),
         "min_log2fc": env("MIN_LOG2FC"),
         "fdr_threshold": env("FDR_THRESHOLD"),
@@ -341,7 +326,7 @@ def env(name: str) -> str:
 def resolve_path(value: Any, *, base: Path, required_name: str) -> Path:
     text = str(value or "").strip()
     if not text:
-        raise SystemExit(f"Set {required_name} before running scrna_annotate_zebrafish.")
+        raise SystemExit(f"Set {required_name} before running {TEMPLATE_NAME}.")
     path = Path(text).expanduser()
     if not path.is_absolute():
         path = (base / path).resolve()
@@ -350,10 +335,33 @@ def resolve_path(value: Any, *, base: Path, required_name: str) -> Path:
     return path
 
 
+def resolve_input_h5ad(params: dict[str, Any]) -> Path:
+    value = str(params.get("input_h5ad") or "").strip()
+    if value:
+        return resolve_path(value, base=TEMPLATE_DIR, required_name="INPUT_H5AD")
+
+    candidates = [
+        PROJECT_DIR / "scrna_prep" / "results" / "adata.prep.h5ad",
+        TEMPLATE_DIR.parent / "scrna_prep" / "results" / "adata.prep.h5ad",
+    ]
+    for candidate in candidates:
+        candidate = candidate.expanduser().resolve()
+        if candidate.exists():
+            params["input_h5ad"] = str(candidate)
+            if not str(params.get("input_source_template") or "").strip():
+                params["input_source_template"] = "scrna_prep"
+            progress(f"INPUT_H5AD not set; using scrna_prep output: {candidate}")
+            return candidate
+
+    expected = candidates[0].expanduser().resolve()
+    raise SystemExit(
+        "Set INPUT_H5AD before running scrna_annotate_sctype, or run scrna_prep first. "
+        f"Expected default prep output at: {expected}"
+    )
+
+
 def resolve_catalog_path(value: Any, warnings: list[str]) -> Path:
-    text = str(value or "").strip()
-    if not text:
-        text = "builtin:zebrafish_core"
+    text = str(value or "").strip() or "download:sctype"
     if text in BUILTIN_CATALOGS:
         path = (TEMPLATE_DIR / BUILTIN_CATALOGS[text]).resolve()
         if not path.exists():
@@ -361,21 +369,16 @@ def resolve_catalog_path(value: Any, warnings: list[str]) -> Path:
         return path
     if text in DOWNLOAD_CATALOGS:
         return download_catalog(DOWNLOAD_CATALOGS[text])
-
     path = Path(text).expanduser()
     if not path.is_absolute():
         path = (TEMPLATE_DIR / path).resolve()
     if path.exists():
         return path
-
-    fallback = fallback_builtin_catalog_for_missing_path(path)
-    if fallback is not None:
-        warnings.append(
-            f"MARKER_CATALOG was set to '{path}', but the file does not exist. "
-            f"Using built-in zebrafish catalog instead: {fallback}"
-        )
+    fallback = (TEMPLATE_DIR / "config" / "default_catalogs" / "sctype_core.tsv").resolve()
+    if path.name == "sctype_core.tsv" and fallback.exists():
+        warnings.append(f"Primary catalog '{path}' does not exist; using built-in smoke-test fixture: {fallback}")
         return fallback
-    raise SystemExit(f"MARKER_CATALOG does not exist: {path}")
+    raise SystemExit(f"Primary marker catalog does not exist: {path}")
 
 
 def download_catalog(catalog_id: str) -> Path:
@@ -392,24 +395,6 @@ def download_catalog(catalog_id: str) -> Path:
     return path
 
 
-def catalog_id_from_value(value: Any, path: Path) -> str:
-    text = str(value or "").strip()
-    if text in BUILTIN_CATALOGS:
-        return text
-    if text in DOWNLOAD_CATALOGS:
-        return text
-    if "default_catalogs" in path.parts:
-        return "builtin:zebrafish_core"
-    return path.stem
-
-
-def fallback_builtin_catalog_for_missing_path(path: Path) -> Path | None:
-    if path.name not in {"marker_catalog.tsv", "zebrafish_core.tsv"}:
-        return None
-    fallback = (TEMPLATE_DIR / "config" / "default_catalogs" / "zebrafish_core.tsv").resolve()
-    return fallback if fallback.exists() else None
-
-
 def read_catalog(path: Path) -> list[CatalogEntry]:
     with path.open(newline="") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
@@ -423,9 +408,9 @@ def read_catalog(path: Path) -> list[CatalogEntry]:
                 species=row.get("species", "").strip(),
                 organism_id=row.get("organism_id", "").strip(),
                 tissue=row.get("tissue", "").strip(),
-                stage=row.get("stage", "").strip(),
                 cell_type=row.get("cell_type", "").strip(),
                 gene_symbol=row.get("gene_symbol", "").strip(),
+                marker_role=normalize_marker_role(row.get("marker_role", "")),
                 source=row.get("source", "").strip(),
                 citation=row.get("citation", "").strip(),
                 evidence=row.get("evidence", "").strip(),
@@ -433,9 +418,31 @@ def read_catalog(path: Path) -> list[CatalogEntry]:
             for row in reader
             if row.get("cell_type", "").strip() and row.get("gene_symbol", "").strip()
         ]
+    entries = [entry for entry in entries if entry.marker_role in {"positive", "negative"}]
     if not entries:
         raise SystemExit("marker catalog did not contain usable cell_type/gene_symbol rows")
     return entries
+
+
+def entries_for_context(
+    entries: list[CatalogEntry],
+    *,
+    organism: str,
+    tissue: Any,
+    warnings: list[str],
+) -> list[CatalogEntry]:
+    species_entries = [entry for entry in entries if normalize_species(entry.species) == organism]
+    tissue_text = str(tissue or "").strip().lower()
+    if not tissue_text:
+        return species_entries
+    exact = [entry for entry in species_entries if entry.tissue.strip().lower() == tissue_text]
+    if exact:
+        return exact
+    fuzzy = [entry for entry in species_entries if tissue_text in entry.tissue.strip().lower()]
+    if fuzzy:
+        return fuzzy
+    warnings.append(f"No catalog entries matched tissue={tissue!r}; using all {organism} catalog entries.")
+    return species_entries
 
 
 def compute_cluster_markers(
@@ -518,6 +525,287 @@ def markers_from_rank_result(rank_result: Any, *, top_n: int) -> list[MarkerGene
     return markers
 
 
+def score_marker_catalog(
+    marker_rows: list[dict[str, Any]],
+    entries: list[CatalogEntry],
+    *,
+    min_log2fc: float,
+    catalog_role: str,
+    top_n: int = 5,
+) -> list[dict[str, Any]]:
+    markers_by_cluster: dict[str, set[str]] = defaultdict(set)
+    for row in marker_rows:
+        if is_informative_marker_row(row, min_log2fc=min_log2fc):
+            markers_by_cluster[str(row["cluster_id"])].add(normalize_gene(row["gene"]))
+
+    catalog_groups: dict[tuple[str, str, str, str, str, str], dict[str, set[str]]] = defaultdict(
+        lambda: {"positive": set(), "negative": set()}
+    )
+    metadata: dict[tuple[str, str, str, str, str, str], CatalogEntry] = {}
+    for entry in entries:
+        key = (entry.cell_type, entry.catalog_id, entry.species, entry.organism_id, entry.tissue, entry.source)
+        catalog_groups[key][entry.marker_role].add(normalize_gene(entry.gene_symbol))
+        metadata.setdefault(key, entry)
+
+    rows: list[dict[str, Any]] = []
+    for cluster_id, marker_genes in sorted(markers_by_cluster.items(), key=lambda item: item[0]):
+        scored: list[dict[str, Any]] = []
+        for key, gene_sets in catalog_groups.items():
+            cell_type, catalog_id, species, organism_id, tissue, source = key
+            positive = {gene for gene in gene_sets["positive"] if gene}
+            negative = {gene for gene in gene_sets["negative"] if gene}
+            if not positive:
+                continue
+            matched_positive = sorted(marker_genes & positive)
+            matched_negative = sorted(marker_genes & negative)
+            if not matched_positive and not matched_negative:
+                continue
+            positive_coverage = len(matched_positive) / len(positive) if positive else 0.0
+            negative_coverage = len(matched_negative) / len(negative) if negative else 0.0
+            score = len(matched_positive) - len(matched_negative)
+            if catalog_role == "primary_sctype" and score <= 0:
+                continue
+            entry = metadata[key]
+            scored.append(
+                {
+                    "cluster_id": cluster_id,
+                    "cell_type": cell_type,
+                    "catalog_id": catalog_id,
+                    "species": species,
+                    "organism_id": organism_id,
+                    "tissue": tissue,
+                    "source": source,
+                    "citation": entry.citation,
+                    "n_positive_matched": len(matched_positive),
+                    "n_negative_matched": len(matched_negative),
+                    "n_positive_catalog_genes": len(positive),
+                    "n_negative_catalog_genes": len(negative),
+                    "positive_coverage": round(positive_coverage, 4),
+                    "negative_coverage": round(negative_coverage, 4),
+                    "score": round(float(score), 4),
+                    "confidence_bucket": sctype_confidence(score, len(matched_positive), len(matched_negative)),
+                    "matched_positive_genes": ", ".join(matched_positive),
+                    "matched_negative_genes": ", ".join(matched_negative),
+                    "missing_positive_genes": ", ".join(sorted(positive - marker_genes)[:20]),
+                }
+            )
+        scored.sort(
+            key=lambda item: (
+                -float(item["score"]),
+                -int(item["n_positive_matched"]),
+                int(item["n_negative_matched"]),
+                str(item["cell_type"]).lower(),
+            )
+        )
+        for rank, row in enumerate(scored[:top_n], start=1):
+            row["rank"] = rank
+            rows.append(row)
+    return rows
+
+
+def cluster_predictions_from_candidates(
+    primary_rows: list[dict[str, Any]],
+    cluster_sizes: dict[str, int],
+) -> list[dict[str, Any]]:
+    primary_by_cluster: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in primary_rows:
+        primary_by_cluster[str(row["cluster_id"])].append(row)
+
+    predictions: list[dict[str, Any]] = []
+    for cluster_id in sorted(set(cluster_sizes) | set(primary_by_cluster)):
+        candidates = []
+        for row in primary_by_cluster.get(cluster_id, []):
+            evidence_items = [candidate_evidence_item(row, "primary_marker_score", supports_top_label=True)]
+            candidates.append(
+                {
+                    "rank": int(row["rank"]),
+                    "label_raw": row["cell_type"],
+                    "label_normalized": normalize_label(row["cell_type"]),
+                    "ontology_id": None,
+                    "provider_score": float(row["score"]),
+                    "provider_score_name": "sctype_positive_minus_negative_marker_matches",
+                    "confidence_bucket": row["confidence_bucket"],
+                    "evidence_items": evidence_items,
+                }
+            )
+        top = candidates[0] if candidates else None
+        predictions.append(
+            {
+                "cluster_id": cluster_id,
+                "n_cells": cluster_sizes.get(cluster_id),
+                "top_label": top["label_raw"] if top else None,
+                "top_label_normalized": top["label_normalized"] if top else None,
+                "confidence_bucket": top["confidence_bucket"] if top else "unknown",
+                "review_status": "review candidate" if top else "no catalog-supported candidate",
+                "candidates": candidates,
+            }
+        )
+    return predictions
+
+
+def candidate_evidence_item(row: dict[str, Any], evidence_type: str, *, supports_top_label: bool) -> dict[str, Any]:
+    return {
+        "evidence_type": evidence_type,
+        "source": row["source"],
+        "catalog_id": row["catalog_id"],
+        "species": row["species"],
+        "organism_id": row["organism_id"],
+        "tissue": row["tissue"],
+        "citation": row["citation"],
+        "score": float(row["score"]),
+        "supports_top_label": bool(supports_top_label),
+        "matched_positive_genes": split_gene_list(row["matched_positive_genes"]),
+        "matched_negative_genes": split_gene_list(row["matched_negative_genes"]),
+        "missing_positive_genes": split_gene_list(row["missing_positive_genes"]),
+        "n_positive_matched": int(row["n_positive_matched"]),
+        "n_negative_matched": int(row["n_negative_matched"]),
+        "n_positive_catalog_genes": int(row["n_positive_catalog_genes"]),
+        "n_negative_catalog_genes": int(row["n_negative_catalog_genes"]),
+        "positive_coverage": float(row["positive_coverage"]),
+        "negative_coverage": float(row["negative_coverage"]),
+    }
+
+
+def summary_rows_from_predictions(predictions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows = []
+    for pred in predictions:
+        top = pred.get("candidates", [None])[0] if pred.get("candidates") else None
+        evidence_items = top.get("evidence_items", []) if top else []
+        primary = evidence_items[0] if evidence_items else {}
+        rows.append(
+            {
+                "cluster_id": pred["cluster_id"],
+                "n_cells": pred.get("n_cells", ""),
+                "top_label": pred.get("top_label") or "no ScType match",
+                "confidence_bucket": pred.get("confidence_bucket") or "unknown",
+                "top_score": top.get("provider_score", "") if top else "",
+                "matched_positive_genes": ", ".join(primary.get("matched_positive_genes", [])),
+                "matched_negative_genes": ", ".join(primary.get("matched_negative_genes", [])),
+                "n_candidates": len(pred.get("candidates", [])),
+                "review_status": pred.get("review_status", ""),
+            }
+        )
+    return rows
+
+
+def write_annotated_h5ad(
+    *,
+    input_h5ad: Path,
+    output_h5ad: Path,
+    cluster_predictions: list[dict[str, Any]],
+    params: dict[str, Any],
+) -> None:
+    import pandas as pd
+    import scanpy as sc
+
+    adata = sc.read_h5ad(input_h5ad)
+    cluster_key = str(params["cluster_key"])
+    if cluster_key not in adata.obs:
+        raise SystemExit(f"cluster_key '{cluster_key}' was not found in adata.obs")
+    prediction_map = {str(pred["cluster_id"]): pred for pred in cluster_predictions}
+    labels = []
+    confidences = []
+    review_statuses = []
+    n_candidates = []
+    top_scores = []
+    matched_positive = []
+    matched_negative = []
+    for cluster_id in adata.obs[cluster_key].astype(str):
+        pred = prediction_map.get(str(cluster_id), {})
+        candidates = pred.get("candidates") or []
+        top = candidates[0] if candidates else None
+        evidence_items = top.get("evidence_items", []) if top else []
+        primary = evidence_items[0] if evidence_items else {}
+        labels.append(pred.get("top_label") or "no ScType match")
+        confidences.append(pred.get("confidence_bucket") or "unknown")
+        review_statuses.append(pred.get("review_status") or "no catalog-supported candidate")
+        n_candidates.append(len(candidates))
+        top_scores.append(top.get("provider_score") if top else float("nan"))
+        matched_positive.append(", ".join(primary.get("matched_positive_genes", [])) if primary else "")
+        matched_negative.append(", ".join(primary.get("matched_negative_genes", [])) if primary else "")
+
+    adata.obs["scrna_annotate_sctype_label"] = pd.Categorical(labels)
+    adata.obs["scrna_annotate_sctype_confidence"] = pd.Categorical(confidences)
+    adata.obs["scrna_annotate_sctype_review_status"] = pd.Categorical(review_statuses)
+    adata.obs["scrna_annotate_sctype_n_candidates"] = n_candidates
+    adata.obs["scrna_annotate_sctype_top_score"] = top_scores
+    adata.obs["scrna_annotate_sctype_matched_positive_genes"] = matched_positive
+    adata.obs["scrna_annotate_sctype_matched_negative_genes"] = matched_negative
+    adata.uns["scrna_annotate_sctype"] = {
+        "schema_version": SCHEMA_VERSION,
+        "cluster_key": cluster_key,
+        "label_column": "scrna_annotate_sctype_label",
+        "confidence_column": "scrna_annotate_sctype_confidence",
+        "cluster_predictions_json": json.dumps(cluster_predictions, sort_keys=True),
+    }
+    output_h5ad.parent.mkdir(parents=True, exist_ok=True)
+    adata.write_h5ad(output_h5ad)
+
+
+def resource_payload(path: Path | None, entries: list[CatalogEntry], configured_id: Any, role: str) -> list[dict[str, Any]]:
+    if path is None:
+        return []
+    return [
+        {
+            "role": role,
+            "id": str(configured_id or path.stem),
+            "path": str(path),
+            "sha256": sha256_file(path),
+            "species": sorted({normalize_species(entry.species) for entry in entries if entry.species}),
+            "n_rows": len(entries),
+            "sources": sorted({entry.source for entry in entries if entry.source}),
+        }
+    ]
+
+
+def render_report() -> None:
+    report_qmd = RESULTS_DIR / "report.qmd"
+    shutil.copy2(TEMPLATE_DIR / "report.qmd", report_qmd)
+    if shutil.which("quarto") is None:
+        progress("Quarto is not available; report.qmd was written but report.html was not rendered")
+        return
+    subprocess.run(["quarto", "render", str(report_qmd.name), "--to", "html"], cwd=RESULTS_DIR, check=True)
+
+
+def write_csv(path: Path, rows: list[dict[str, Any]], fields: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({field: row.get(field, "") for field in fields})
+
+
+def write_excel_workbook(path: Path, sheets: dict[str, list[dict[str, Any]]]) -> None:
+    try:
+        import pandas as pd
+    except ImportError:
+        progress("pandas is not available; Excel workbook was not written")
+        return
+    try:
+        with pd.ExcelWriter(path, engine="openpyxl") as writer:
+            for sheet_name, rows in sheets.items():
+                pd.DataFrame(rows).to_excel(writer, sheet_name=safe_excel_sheet_name(sheet_name), index=False)
+            workbook = writer.book
+            for worksheet in workbook.worksheets:
+                worksheet.freeze_panes = "A2"
+                worksheet.auto_filter.ref = worksheet.dimensions
+                for column_cells in worksheet.columns:
+                    max_length = max(len(str(cell.value or "")) for cell in column_cells)
+                    worksheet.column_dimensions[column_cells[0].column_letter].width = min(max(max_length + 2, 10), 60)
+    except ImportError:
+        progress("openpyxl is not available; Excel workbook was not written")
+
+
+def safe_excel_sheet_name(value: str) -> str:
+    return str(value).replace("/", "_").replace("\\", "_").replace("*", "_").replace("?", "_")[:31]
+
+
+def write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
 def expression_matrix_looks_raw_counts(matrix: Any, *, adata: Any) -> bool:
     if "log1p" in getattr(adata, "uns", {}):
         return False
@@ -563,358 +851,10 @@ def marker_table_rows(markers: list[MarkerGene], *, min_log2fc: float) -> list[d
     ]
 
 
-def score_catalog(
-    marker_rows: list[dict[str, Any]],
-    entries: list[CatalogEntry],
-    *,
-    min_log2fc: float,
-    fdr_threshold: float,
-    background_genes: set[str],
-    top_n: int = 5,
-) -> list[dict[str, Any]]:
-    markers_by_cluster: dict[str, set[str]] = defaultdict(set)
-    for row in marker_rows:
-        if is_informative_marker_row(row, min_log2fc=min_log2fc):
-            markers_by_cluster[str(row["cluster_id"])].add(normalize_gene(row["gene"]))
-
-    catalog_groups: dict[tuple[str, str, str, str, str, str, str], set[str]] = defaultdict(set)
-    for entry in entries:
-        key = (entry.cell_type, entry.catalog_id, entry.species, entry.organism_id, entry.tissue, entry.stage, entry.source)
-        catalog_groups[key].add(normalize_gene(entry.gene_symbol))
-
-    rows: list[dict[str, Any]] = []
-    background = {gene for gene in background_genes if gene}
-    background_size = len(background)
-    for cluster_id, marker_genes in sorted(markers_by_cluster.items(), key=lambda item: item[0]):
-        if not marker_genes or not background:
-            continue
-        marker_genes = marker_genes & background
-        n_cluster_markers = len(marker_genes)
-        if n_cluster_markers == 0:
-            continue
-        scored: list[dict[str, Any]] = []
-        for (cell_type, catalog_id, species, organism_id, tissue, stage, source), catalog_genes in catalog_groups.items():
-            catalog_genes = catalog_genes & background
-            if not catalog_genes:
-                continue
-            matched = sorted(marker_genes & catalog_genes)
-            if not matched:
-                continue
-            missing = sorted(catalog_genes - marker_genes)
-            coverage = len(matched) / len(catalog_genes) if catalog_genes else 0.0
-            jaccard = len(matched) / len(marker_genes | catalog_genes) if marker_genes or catalog_genes else 0.0
-            pval = hypergeom_overrepresentation_pvalue(
-                overlap=len(matched),
-                population_size=background_size,
-                success_states=len(catalog_genes),
-                draws=n_cluster_markers,
-            )
-            scored.append(
-                {
-                    "cluster_id": cluster_id,
-                    "cell_type": cell_type,
-                    "catalog_id": catalog_id,
-                    "species": species,
-                    "organism_id": organism_id,
-                    "tissue": tissue,
-                    "stage": stage,
-                    "source": source,
-                    "citation": first_citation(entries, cell_type=cell_type, catalog_id=catalog_id, source=source),
-                    "n_matched": len(matched),
-                    "n_cluster_markers": n_cluster_markers,
-                    "n_catalog_genes": len(catalog_genes),
-                    "n_background_genes": background_size,
-                    "coverage": round(coverage, 4),
-                    "jaccard": round(jaccard, 4),
-                    "pval": pval,
-                    "matched_genes": ", ".join(matched),
-                    "missing_genes": ", ".join(missing[:20]),
-                }
-            )
-        scored = add_bh_fdr(scored)
-        scored = [row for row in scored if row["pval_adj"] <= fdr_threshold]
-        for row in scored:
-            row["pval"] = round(row["pval"], 8)
-            row["pval_adj"] = round(row["pval_adj"], 8)
-            row["score"] = round(enrichment_score(row["pval_adj"]), 4)
-            row["confidence_bucket"] = confidence_bucket(float(row["pval_adj"]), int(row["n_matched"]))
-        scored.sort(key=lambda item: (item["pval_adj"], -item["n_matched"], -item["coverage"], item["cell_type"]))
-        for rank, row in enumerate(scored[:top_n], start=1):
-            row["rank"] = rank
-            rows.append(row)
-    return rows
-
-
-def add_bh_fdr(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    if not rows:
-        return rows
-    m = len(rows)
-    order = sorted(range(m), key=lambda index: float(rows[index]["pval"]))
-    adjusted = [1.0] * m
-    running_min = 1.0
-    for reverse_rank, index in enumerate(reversed(order), start=1):
-        rank = m - reverse_rank + 1
-        value = min(1.0, float(rows[index]["pval"]) * m / rank)
-        running_min = min(running_min, value)
-        adjusted[index] = running_min
-    for row, pval_adj in zip(rows, adjusted):
-        row["pval_adj"] = pval_adj
-    return rows
-
-
-def enrichment_score(pval_adj: float) -> float:
-    return -math.log10(max(float(pval_adj), 1e-300))
-
-
-def hypergeom_overrepresentation_pvalue(
-    *,
-    overlap: int,
-    population_size: int,
-    success_states: int,
-    draws: int,
-) -> float:
-    try:
-        from scipy.stats import hypergeom
-
-        return float(hypergeom.sf(overlap - 1, population_size, success_states, draws))
-    except ImportError:
-        return hypergeom_sf_exact(overlap, population_size, success_states, draws)
-
-
-def hypergeom_sf_exact(overlap: int, population_size: int, success_states: int, draws: int) -> float:
-    max_overlap = min(success_states, draws)
-    if overlap <= 0:
-        return 1.0
-    if overlap > max_overlap or population_size <= 0:
-        return 0.0
-    denominator = log_comb(population_size, draws)
-    terms = [
-        log_comb(success_states, observed)
-        + log_comb(population_size - success_states, draws - observed)
-        - denominator
-        for observed in range(overlap, max_overlap + 1)
-        if 0 <= draws - observed <= population_size - success_states
-    ]
-    if not terms:
-        return 0.0
-    largest = max(terms)
-    return min(1.0, math.exp(largest) * sum(math.exp(term - largest) for term in terms))
-
-
-def log_comb(n: int, k: int) -> float:
-    if k < 0 or k > n:
-        return float("-inf")
-    return math.lgamma(n + 1) - math.lgamma(k + 1) - math.lgamma(n - k + 1)
-
-
-try:
-    from pandas.errors import PerformanceWarning
-except ImportError:
-    PerformanceWarning = Warning
-
-
-def cluster_predictions_from_matches(matches: list[dict[str, Any]], cluster_sizes: dict[str, int]) -> list[dict[str, Any]]:
-    by_cluster: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for row in matches:
-        by_cluster[str(row["cluster_id"])].append(row)
-    predictions: list[dict[str, Any]] = []
-    for cluster_id in sorted(set(cluster_sizes) | set(by_cluster)):
-        rows = by_cluster.get(cluster_id, [])
-        candidates = [
-            {
-                "label_raw": row["cell_type"],
-                "label_normalized": row["cell_type"],
-                "rank": int(row["rank"]),
-                "provider_score": float(row["score"]),
-                "provider_score_name": "zebrafish_marker_catalog_enrichment_neg_log10_fdr",
-                "confidence_bucket": row["confidence_bucket"],
-                "evidence": {
-                    "catalog_id": row["catalog_id"],
-                    "species": row["species"],
-                    "organism_id": row["organism_id"],
-                    "tissue": row["tissue"],
-                    "stage": row["stage"],
-                    "source": row["source"],
-                    "citation": row["citation"],
-                    "matched_genes": split_gene_list(row["matched_genes"]),
-                    "missing_genes": split_gene_list(row["missing_genes"]),
-                    "n_cluster_markers": row["n_cluster_markers"],
-                    "n_catalog_genes": row["n_catalog_genes"],
-                    "n_background_genes": row["n_background_genes"],
-                    "coverage": row["coverage"],
-                    "jaccard": row["jaccard"],
-                    "pval": row["pval"],
-                    "pval_adj": row["pval_adj"],
-                },
-            }
-            for row in rows
-        ]
-        top = candidates[0] if candidates else None
-        predictions.append(
-            {
-                "cluster_id": cluster_id,
-                "n_cells": cluster_sizes.get(cluster_id),
-                "top_label": top["label_raw"] if top else None,
-                "confidence_bucket": top["confidence_bucket"] if top else "unknown",
-                "candidates": candidates,
-            }
-        )
-    return predictions
-
-
-def summary_rows_from_predictions(predictions: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    rows = []
-    for pred in predictions:
-        top = pred.get("candidates", [None])[0] if pred.get("candidates") else None
-        evidence = top.get("evidence", {}) if top else {}
-        rows.append(
-            {
-                "cluster_id": pred["cluster_id"],
-                "n_cells": pred.get("n_cells", ""),
-                "top_label": pred.get("top_label") or "no catalog match",
-                "confidence_bucket": pred.get("confidence_bucket") or "unknown",
-                "top_score": top.get("provider_score", "") if top else "",
-                "matched_genes": ", ".join(evidence.get("matched_genes", [])),
-                "n_candidates": len(pred.get("candidates", [])),
-                "review_status": "review candidate" if top else "no catalog-supported candidate",
-            }
-        )
-    return rows
-
-
-def write_annotated_h5ad(
-    *,
-    input_h5ad: Path,
-    output_h5ad: Path,
-    cluster_predictions: list[dict[str, Any]],
-    params: dict[str, Any],
-) -> None:
-    import pandas as pd
-    import scanpy as sc
-
-    adata = sc.read_h5ad(input_h5ad)
-    cluster_key = str(params["cluster_key"])
-    if cluster_key not in adata.obs:
-        raise SystemExit(f"cluster_key '{cluster_key}' was not found in adata.obs")
-    prediction_map = {str(pred["cluster_id"]): pred for pred in cluster_predictions}
-    cluster_values = adata.obs[cluster_key].astype(str)
-    labels = []
-    confidences = []
-    review_statuses = []
-    n_candidates = []
-    top_scores = []
-    matched_genes = []
-    for cluster_id in cluster_values:
-        pred = prediction_map.get(str(cluster_id), {})
-        candidates = pred.get("candidates") or []
-        top = candidates[0] if candidates else None
-        evidence = top.get("evidence", {}) if top else {}
-        labels.append(pred.get("top_label") or "no catalog match")
-        confidences.append(pred.get("confidence_bucket") or "unknown")
-        review_statuses.append("review candidate" if top else "no catalog-supported candidate")
-        n_candidates.append(len(candidates))
-        top_scores.append(top.get("provider_score") if top else float("nan"))
-        matched_genes.append(", ".join(evidence.get("matched_genes", [])) if top else "")
-
-    adata.obs["scrna_annotate_zebrafish_label"] = pd.Categorical(labels)
-    adata.obs["scrna_annotate_zebrafish_confidence"] = pd.Categorical(confidences)
-    adata.obs["scrna_annotate_zebrafish_review_status"] = pd.Categorical(review_statuses)
-    adata.obs["scrna_annotate_zebrafish_n_candidates"] = n_candidates
-    adata.obs["scrna_annotate_zebrafish_top_score"] = top_scores
-    adata.obs["scrna_annotate_zebrafish_matched_genes"] = matched_genes
-
-    sample_key = str(params.get("sample_key") or "")
-    if sample_key and sample_key in adata.obs:
-        samples = adata.obs[sample_key].astype(str)
-        adata.obs["scrna_annotate_zebrafish_treatment"] = pd.Categorical(samples.map(infer_treatment).fillna("unknown"))
-        adata.obs["scrna_annotate_zebrafish_genotype"] = pd.Categorical(samples.map(infer_genotype).fillna("unknown"))
-
-    adata.uns["scrna_annotate_zebrafish"] = {
-        "schema_version": SCHEMA_VERSION,
-        "cluster_key": cluster_key,
-        "label_column": "scrna_annotate_zebrafish_label",
-        "confidence_column": "scrna_annotate_zebrafish_confidence",
-        "cluster_predictions_json": json.dumps(cluster_predictions, sort_keys=True),
-    }
-    output_h5ad.parent.mkdir(parents=True, exist_ok=True)
-    adata.write_h5ad(output_h5ad)
-
-
-def infer_treatment(sample: Any) -> str | None:
-    text = str(sample).lower()
-    if "control" in text or text.startswith("ctrl") or "_ctrl" in text:
-        return "Control"
-    if "cut" in text:
-        return "Cut"
-    return None
-
-
-def infer_genotype(sample: Any) -> str | None:
-    text = str(sample).lower()
-    if "wt" in text or "wildtype" in text or "wild_type" in text:
-        return "WT"
-    if "ko" in text or "knockout" in text or "mut" in text:
-        return "KO"
-    return None
-
-
-def render_report() -> None:
-    report_qmd = RESULTS_DIR / "report.qmd"
-    shutil.copy2(TEMPLATE_DIR / "report.qmd", report_qmd)
-    if shutil.which("quarto") is None:
-        progress("Quarto is not available; report.qmd was written but report.html was not rendered")
-        return
-    subprocess.run(["quarto", "render", str(report_qmd.name), "--to", "html"], cwd=RESULTS_DIR, check=True)
-
-
-def write_csv(path: Path, rows: list[dict[str, Any]], fields: list[str]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields)
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({field: row.get(field, "") for field in fields})
-
-
-def write_excel_workbook(path: Path, sheets: dict[str, list[dict[str, Any]]]) -> None:
-    try:
-        import pandas as pd
-    except ImportError:
-        progress("pandas is not available; Excel workbook was not written")
-        return
-    try:
-        with pd.ExcelWriter(path, engine="openpyxl") as writer:
-            for sheet_name, rows in sheets.items():
-                pd.DataFrame(rows).to_excel(writer, sheet_name=safe_excel_sheet_name(sheet_name), index=False)
-            workbook = writer.book
-            for worksheet in workbook.worksheets:
-                worksheet.freeze_panes = "A2"
-                worksheet.auto_filter.ref = worksheet.dimensions
-                for column_cells in worksheet.columns:
-                    max_length = max(len(str(cell.value or "")) for cell in column_cells)
-                    adjusted = min(max(max_length + 2, 10), 60)
-                    worksheet.column_dimensions[column_cells[0].column_letter].width = adjusted
-    except ImportError:
-        progress("openpyxl is not available; Excel workbook was not written")
-
-
-def safe_excel_sheet_name(value: str) -> str:
-    return str(value).replace("/", "_").replace("\\", "_").replace("*", "_").replace("?", "_")[:31]
-
-
-def write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-
-
-def read_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text())
-
-
 def is_informative_marker_row(row: dict[str, Any], *, min_log2fc: float) -> bool:
-    pval_adj = parse_float(row.get("pval_adj"), default=1.0)
     log2fc = parse_float(row.get("log2fc"), default=0.0)
-    return pval_adj < 0.05 and log2fc >= min_log2fc
+    score = parse_float(row.get("score"), default=0.0)
+    return score > 0 and log2fc >= min_log2fc
 
 
 def marker_strength(marker: MarkerGene, *, min_log2fc: float) -> str:
@@ -928,36 +868,59 @@ def marker_strength(marker: MarkerGene, *, min_log2fc: float) -> str:
     return "weak"
 
 
-def confidence_bucket(pval_adj: float, n_matched: int) -> str:
-    if pval_adj <= 0.01 and n_matched >= 3:
+def sctype_confidence(score: float, n_positive: int, n_negative: int) -> str:
+    if score >= 3 and n_positive >= 3 and n_negative == 0:
         return "high"
-    if pval_adj <= 0.05:
+    if score >= 2 and n_positive >= 2:
         return "medium"
-    if pval_adj <= 0.10:
+    if score > 0:
         return "low"
     return "unknown"
 
 
-def first_citation(entries: list[CatalogEntry], *, cell_type: str, catalog_id: str, source: str) -> str:
-    for entry in entries:
-        if entry.cell_type == cell_type and entry.catalog_id == catalog_id and entry.source == source and entry.citation:
-            return entry.citation
-    return ""
+def normalize_marker_role(value: Any) -> str:
+    text = str(value or "").strip().lower()
+    if text in {"positive", "pos", "+", "marker"}:
+        return "positive"
+    if text in {"negative", "neg", "-", "anti_marker", "exclude"}:
+        return "negative"
+    return text
 
 
 def normalize_species(value: Any) -> str:
     text = str(value or "").strip().lower().replace("_", " ")
     aliases = {
-        "danio rerio": "zebrafish",
-        "drerio": "zebrafish",
-        "dre": "zebrafish",
-        "ncbitaxon:7955": "zebrafish",
+        "mus musculus": "mouse",
+        "mmusculus": "mouse",
+        "mmu": "mouse",
+        "ncbitaxon:10090": "mouse",
+        "homo sapiens": "human",
+        "hsapiens": "human",
+        "hsa": "human",
+        "ncbitaxon:9606": "human",
     }
     return aliases.get(text, text)
 
 
+def default_organism_id(organism: str) -> str:
+    return {"mouse": "NCBITaxon:10090", "human": "NCBITaxon:9606"}[organism]
+
+
 def normalize_gene(value: Any) -> str:
     return str(value or "").strip().lower()
+
+
+def normalize_label(value: Any) -> str:
+    return " ".join(str(value or "").strip().lower().replace("_", " ").split())
+
+
+def labels_match(left: Any, right: Any) -> bool:
+    return normalize_label(left).rstrip("s") == normalize_label(right).rstrip("s")
+
+
+def cluster_sort_key(value: Any) -> tuple[int, int | str]:
+    text = str(value)
+    return (0, int(text)) if text.isdigit() else (1, text)
 
 
 def split_gene_list(value: str) -> list[str]:
@@ -987,6 +950,12 @@ def sha256_file(path: Path) -> str:
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+try:
+    from pandas.errors import PerformanceWarning
+except ImportError:
+    PerformanceWarning = Warning
 
 
 if __name__ == "__main__":

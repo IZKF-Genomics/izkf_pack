@@ -116,6 +116,7 @@ def test_write_annotated_h5ad() -> None:
         assert list(result.obs["scrna_annotate_zebrafish_genotype"].astype(str)) == ["WT", "KO", "WT"]
         assert list(result.obs["scrna_annotate_zebrafish_treatment"].astype(str)) == ["Control", "Cut", "Cut"]
         assert result.uns["scrna_annotate_zebrafish"]["label_column"] == "scrna_annotate_zebrafish_label"
+        assert result.uns["scrna_annotate_zebrafish"]["schema_version"] == "izkf_annotation_result.v1"
         assert "cluster_predictions_json" in result.uns["scrna_annotate_zebrafish"]
 
 
