@@ -1,0 +1,25 @@
+[dataset]
+input_h5ad = ""
+input_source_template = ""
+organism = "mouse"
+organism_id = ""
+tissue = ""
+cluster_key = "leiden"
+sample_key = "sample_id"
+expression_layer = "X"
+
+[celltypist]
+model = "auto"
+model_species = "auto"
+force_update_models = true
+convert_model = "auto"
+ortholog_unique_only = true
+ortholog_collapse = "average"
+majority_voting = true
+mode = "best match"
+p_thres = 0.5
+min_prop = 0.0
+top_n_candidates = 3
+
+[outputs]
+write_h5ad = true

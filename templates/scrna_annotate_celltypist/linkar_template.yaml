@@ -1,0 +1,80 @@
+id: scrna_annotate_celltypist
+version: 0.1.0
+description: CellTypist-based scRNA-seq cell annotation with API model discovery, optional human/mouse conversion, and standardized JSON output.
+tools:
+  required:
+    - bash
+    - python3
+    - pixi
+params:
+  input_h5ad:
+    type: str
+    default: ""
+    description: Prepared `.h5ad` input path. When empty, the default binding and direct runner prefer the upstream `scrna_prep` output.
+  input_source_template:
+    type: str
+    default: ""
+    description: Optional provenance label for the upstream template that produced `input_h5ad`.
+  organism:
+    type: str
+    default: "mouse"
+    description: Query organism. Supported values for automatic cross-species conversion are `mouse` and `human`.
+  organism_id:
+    type: str
+    default: ""
+    description: Optional NCBI Taxon id. Defaults to NCBITaxon:10090 for mouse or NCBITaxon:9606 for human.
+  tissue:
+    type: str
+    default: ""
+    description: Optional tissue keyword used by `model=auto` to rank CellTypist models.
+  cluster_key:
+    type: str
+    default: "leiden"
+    description: Optional cluster column in `adata.obs`, used for majority voting and cluster summaries when present.
+  sample_id_key:
+    type: str
+    default: "sample_id"
+    description: Optional sample identifier column in `adata.obs`.
+  expression_layer:
+    type: str
+    default: "X"
+    description: Expression layer/view passed to CellTypist. Prefer log-normalized gene-symbol expression.
+  model:
+    type: str
+    default: "auto"
+    description: CellTypist model name, local `.pkl` path, or `auto` to query the CellTypist model API and choose by organism/tissue.
+  model_species:
+    type: str
+    default: "auto"
+    description: "Species of the selected model. Use `auto`, `human`, or `mouse`."
+  force_update_models:
+    type: bool
+    default: true
+    description: Fetch the latest CellTypist model index before model selection/download.
+  convert_model:
+    type: str
+    default: "auto"
+    description: "`auto`, `true`, or `false`; convert human/mouse models to the query species when needed."
+  majority_voting:
+    type: bool
+    default: true
+    description: "Use CellTypist majority voting. If `cluster_key` is present, it is used as over-clustering."
+  write_h5ad:
+    type: bool
+    default: true
+    description: Write `results/adata.annotated.h5ad` with CellTypist annotation columns added to `adata.obs`.
+outputs:
+  results_dir: {}
+  annotation_result:
+    path: results/annotation_result.json
+  annotated_h5ad:
+    path: results/adata.annotated.h5ad
+  html_report:
+    path: results/report.html
+  quarto_report:
+    path: results/report.qmd
+  tables:
+    glob: results/tables/*.csv
+run:
+  mode: render
+  entry: run.sh

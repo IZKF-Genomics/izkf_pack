@@ -1,0 +1,356 @@
+---
+title: "CellTypist scRNA-seq Annotation Review"
+subtitle: "API-selected CellTypist model annotation with model provenance and review tables"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    page-layout: full
+    embed-resources: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{=html}
+<style>
+.warning-list{border-left:4px solid #c2410c;background:#fff7ed;padding:.85rem 1rem;margin:.7rem 0 1rem}
+.note-box{border-left:4px solid #2563eb;background:#eff6ff;padding:.85rem 1rem;margin:.7rem 0 1rem}
+.catalog-note{border-left:4px solid #7c3aed;background:#f5f3ff;padding:.85rem 1rem;margin:.7rem 0 1rem}
+main.content{max-width:none}.cell-output-display{overflow-x:auto}.cell-output-display img,.cell-output-display svg{max-width:100%;height:auto}
+.dataTables_wrapper{max-width:none}.dataTables_wrapper table.dataTable{width:auto!important;table-layout:auto!important}
+.dataTables_wrapper table.dataTable th,.dataTables_wrapper table.dataTable td{white-space:nowrap;vertical-align:top}
+.dataTables_wrapper table.dataTable td.dt-compact-number,.dataTables_wrapper table.dataTable th.dt-compact-number{min-width:2.8rem;max-width:5.5rem;text-align:right}
+.dataTables_wrapper table.dataTable td.dt-long-text{white-space:normal;min-width:10rem;max-width:24rem;overflow-wrap:anywhere;line-height:1.25}
+.dataTables_wrapper table.dataTable td.dt-medium-text{white-space:normal;min-width:8rem;max-width:16rem;overflow-wrap:anywhere;line-height:1.25}
+.status-strip{display:flex;flex-wrap:wrap;gap:.55rem;margin:.5rem 0 1rem}.status-pill{border:1px solid #dbe4ef;background:#f8fafc;border-radius:999px;padding:.35rem .7rem;font-size:.94rem}.status-pill strong{color:#0f172a}
+.cluster-tabs{margin-top:.8rem}.cluster-tabs details{border:1px solid #dbe4ef;border-radius:6px;margin:.45rem 0;background:#fff}.cluster-tabs summary{cursor:pointer;padding:.65rem .8rem;font-weight:600}.cluster-tabs .cluster-tab-body{border-top:1px solid #e5e7eb;padding:.7rem .8rem .9rem}
+.candidate-table{width:auto;max-width:100%;border-collapse:collapse;font-size:.92rem}.candidate-table th,.candidate-table td{border-bottom:1px solid #e5e7eb;padding:.35rem .55rem;vertical-align:top;white-space:nowrap}.candidate-table td.long{white-space:normal;max-width:32rem}.candidate-table td.compact{max-width:5rem;text-align:right}.candidate-table td.medium{white-space:normal;max-width:16rem}.candidate-table th{background:#f8fafc}
+</style>
+```
+
+```{python}
+from html import escape
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+from IPython.display import HTML, display
+
+try:
+    import plotly.express as px
+except ImportError:
+    px = None
+try:
+    import anndata as ad
+except ImportError:
+    ad = None
+try:
+    from itables import show
+    import itables.options as itable_options
+    itable_options.showIndex = False
+    itable_options.classes = "display compact stripe hover"
+    itable_options.layout = {"topStart": "pageLength", "topEnd": "search", "bottomStart": "info", "bottomEnd": "paging"}
+    itable_options.maxBytes = "1MB"
+except ImportError:
+    show = None
+
+results_dir = Path(".")
+payload = json.loads((results_dir / "annotation_result.json").read_text())
+predictions = pd.read_csv(results_dir / "tables" / "celltypist_predictions.csv")
+label_summary = pd.read_csv(results_dir / "tables" / "celltypist_label_summary.csv")
+cluster_summary = pd.read_csv(results_dir / "tables" / "celltypist_cluster_summary.csv")
+models = pd.read_csv(results_dir / "tables" / "celltypist_available_models.csv")
+run_status = payload.get("run", {})
+run_input = payload.get("input", {})
+method = payload.get("method", {})
+params = method.get("parameters", {})
+resources = payload.get("resources", [])
+model_resource = next((resource for resource in resources if resource.get("role") == "celltypist_model"), {})
+warnings = run_status.get("warnings", [])
+UMAP_HEIGHT = 650
+UMAP_WIDTH = 900
+STATIC_PALETTE = ["#2563eb","#dc2626","#16a34a","#9333ea","#ea580c","#0891b2","#be123c","#4f46e5","#65a30d","#c026d3","#0f766e","#a16207","#475569","#db2777","#0284c7","#7c3aed"]
+
+def clip_text(value, limit=110):
+    text = "" if pd.isna(value) else str(value)
+    return text if len(text) <= limit else text[:limit - 1] + "..."
+
+def display_static_table(df):
+    display(HTML(df.reset_index(drop=True).to_html(index=False, escape=False)))
+
+def display_table(df, *, caption=None, page_length=10, order=None, long_text_columns=None, medium_text_columns=None, compact_columns=None, scroll_x=True):
+    df = df.reset_index(drop=True)
+    if show is None:
+        display_static_table(df)
+        return
+    long_text_columns = set(long_text_columns or [])
+    medium_text_columns = set(medium_text_columns or [])
+    compact_columns = set(compact_columns or [])
+    compact_columns |= {c for c in df.columns if c in {"cluster_id","n_cells","n_labels","score","top_score","top_probability","fraction_cells","score","selected","rank"}}
+    column_defs = []
+    compact_targets = [i for i,c in enumerate(df.columns) if c in compact_columns]
+    long_targets = [i for i,c in enumerate(df.columns) if c in long_text_columns]
+    medium_targets = [i for i,c in enumerate(df.columns) if c in medium_text_columns]
+    if compact_targets:
+        column_defs.append({"targets": compact_targets, "className": "dt-compact-number", "width": "5.5rem"})
+    if long_targets:
+        column_defs.append({"targets": long_targets, "className": "dt-long-text", "width": "24rem"})
+    if medium_targets:
+        column_defs.append({"targets": medium_targets, "className": "dt-medium-text", "width": "16rem"})
+    show(df, caption=caption, showIndex=False, scrollX=scroll_x, column_filters="header", pageLength=page_length, lengthMenu=[10,25,50,100], order=order or [], autoWidth=True, autoWidthMode="fit", columnDefs=column_defs, deferRender=True, classes="display compact stripe hover")
+
+def plot_unavailable(reason):
+    display(HTML(f"<div class='note-box'>{escape(reason)}</div>"))
+
+def artifact_path(name):
+    value = payload.get("artifacts", {}).get(name, "")
+    if str(value).startswith("results/"):
+        return str(value).replace("results/", "", 1)
+    return str(value)
+
+def cluster_sort_key(value):
+    text = str(value)
+    return (0, int(text)) if text.isdigit() else (1, text)
+
+def sorted_cluster_values(values):
+    return sorted([str(v) for v in values], key=cluster_sort_key)
+
+def load_umap_table():
+    if ad is None:
+        return pd.DataFrame(), "anndata is not available, so UMAP figures were not rendered."
+    h5ad = run_input.get("h5ad")
+    if not h5ad:
+        return pd.DataFrame(), "No input h5ad path was recorded."
+    try:
+        adata = ad.read_h5ad(h5ad, backed="r")
+    except Exception as exc:
+        return pd.DataFrame(), f"Could not read input h5ad for UMAP figures: {exc}"
+    try:
+        if "X_umap" not in adata.obsm:
+            return pd.DataFrame(), "The input h5ad does not contain obsm['X_umap']."
+        coords = np.asarray(adata.obsm["X_umap"])
+        obs = pd.DataFrame(index=adata.obs_names.astype(str))
+        cluster_key = run_input.get("cluster_key") or ""
+        sample_key = run_input.get("sample_key") or ""
+        obs["cluster_id"] = adata.obs[cluster_key].astype(str).values if cluster_key and cluster_key in adata.obs else ""
+        obs["sample"] = adata.obs[sample_key].astype(str).values if sample_key and sample_key in adata.obs else ""
+        obs["UMAP1"] = coords[:, 0]
+        obs["UMAP2"] = coords[:, 1]
+        pred = predictions.assign(cell_id=predictions["cell_id"].astype(str))
+        obs = obs.reset_index(names="cell_id").merge(pred[["cell_id","top_label","confidence_bucket","top_probability","predicted_label","majority_label"]], on="cell_id", how="left")
+        obs["top_label"] = obs["top_label"].fillna("unassigned")
+        obs["confidence_bucket"] = obs["confidence_bucket"].fillna("unknown")
+        return obs, ""
+    finally:
+        try:
+            adata.file.close()
+        except Exception:
+            pass
+
+def cluster_details_html(cluster_df):
+    if not len(cluster_df):
+        return "<div class='note-box'>No cluster-level summary was generated.</div>"
+    html = ["<div class='cluster-tabs'>"]
+    for row in cluster_df.sort_values("cluster_id", key=lambda col: col.astype(str).map(cluster_sort_key)).itertuples(index=False):
+        cluster_id = getattr(row, "cluster_id", "")
+        label_counts = str(getattr(row, "label_counts", ""))
+        counts = [item.strip() for item in label_counts.split(";") if item.strip()]
+        html.append("<details>" f"<summary>Cluster {escape(str(cluster_id))} | {escape(str(getattr(row,'top_label','')))} | {escape(str(getattr(row,'n_cells','')))} cells | {escape(str(getattr(row,'confidence_bucket','')))} confidence</summary>" "<div class='cluster-tab-body'><table class='candidate-table'><thead><tr><th>label</th><th>cells</th></tr></thead><tbody>")
+        for item in counts:
+            if ":" in item:
+                label, count = item.rsplit(":", 1)
+            else:
+                label, count = item, ""
+            html.append("<tr>" f"<td class='medium'>{escape(label)}</td><td class='compact'>{escape(count)}</td>" "</tr>")
+        html.append("</tbody></table></div></details>")
+    html.append("</div>")
+    return "".join(html)
+```
+
+## Summary
+
+This report annotates cells with CellTypist using a model selected or downloaded through the
+CellTypist Python API. When the selected model species differs from the query organism, the run can
+convert human/mouse models using CellTypist's built-in ortholog mapping; cross-species labels should
+be reviewed against tissue-specific markers.
+
+```{python}
+display_static_table(pd.DataFrame([
+    {"field": "state", "value": run_status.get("state", "unknown")},
+    {"field": "schema", "value": payload.get("schema_version", "")},
+    {"field": "organism", "value": run_input.get("organism") or "not provided"},
+    {"field": "tissue", "value": run_input.get("tissue") or "not provided"},
+    {"field": "cluster key", "value": run_input.get("cluster_key") or "not provided"},
+    {"field": "expression layer", "value": run_input.get("expression_layer", "")},
+    {"field": "model", "value": params.get("model", "")},
+    {"field": "model species", "value": params.get("model_species", "")},
+    {"field": "converted model", "value": params.get("converted_model", "")},
+    {"field": "annotated cells", "value": len(predictions)},
+    {"field": "labels", "value": len(label_summary)},
+]))
+```
+
+## How to Read This Report
+
+- Start with **Label Summary** and **Cluster Review** to see whether predicted labels are coherent.
+- Check **Model Selection** to confirm that the selected model is appropriate for the organism and tissue.
+- If `converted_model = True`, treat CellTypist labels as supporting evidence and confirm them with marker-based annotation.
+- Use UMAP figures to inspect whether labels follow coherent neighborhoods rather than scattered low-confidence cells.
+
+## Download Results
+
+```{python}
+annotated_h5ad_path = artifact_path("annotated_h5ad") or "adata.annotated.h5ad"
+if Path(annotated_h5ad_path).exists():
+    display(HTML(f"<div class='note-box'><strong>Annotated H5AD.</strong> <a href='{escape(annotated_h5ad_path)}' download>Download annotated AnnData</a>. CellTypist annotation columns are stored in adata.obs.</div>"))
+else:
+    display(HTML("<div class='note-box'>Annotated H5AD was not found for this run.</div>"))
+display(HTML("<div class='note-box'><strong>Tables.</strong> Cell predictions, label summaries, cluster summaries, and available model records are stored in <code>tables/</code>.</div>"))
+```
+
+## Warnings
+
+```{python}
+if warnings:
+    display(HTML("<div class='warning-list'>" + "".join(f"<p><strong>Warning {i}.</strong> {escape(str(w))}</p>" for i, w in enumerate(warnings, start=1)) + "</div>"))
+else:
+    display(HTML("<div class='note-box'>No warnings were recorded.</div>"))
+```
+
+## Model Selection
+
+```{python}
+display_static_table(pd.DataFrame([
+    {"field": "model id", "value": model_resource.get("id", "")},
+    {"field": "model path", "value": model_resource.get("path", "")},
+    {"field": "sha256", "value": clip_text(model_resource.get("sha256", ""), 18)},
+    {"field": "species", "value": model_resource.get("species", "")},
+    {"field": "converted to query species", "value": model_resource.get("converted_to_query_species", "")},
+    {"field": "description", "value": clip_text(model_resource.get("description", ""), 180)},
+]))
+```
+
+```{python}
+model_table = models.sort_values(["selected", "score"], ascending=[False, False]).copy()
+model_table["description"] = model_table["description"].map(lambda value: clip_text(value, 160))
+display_table(model_table, caption="CellTypist model index returned by the API", page_length=15, order=[[4, "desc"]], long_text_columns=["description"], medium_text_columns=["model"], scroll_x=False)
+```
+
+## Label Summary
+
+```{python}
+label_table = label_summary.copy()
+display_table(label_table, caption="CellTypist labels by cell count", page_length=15, order=[[1, "desc"]], medium_text_columns=["label"], scroll_x=False)
+```
+
+```{python}
+if px is None:
+    plot_unavailable("Plotly is not available, so label figures were not rendered.")
+elif len(label_summary):
+    fig = px.bar(label_summary.head(30), x="n_cells", y="label", orientation="h", template="plotly_white", title="Top CellTypist labels")
+    fig.update_layout(yaxis={"categoryorder": "total ascending"}, height=max(420, min(900, 24 * min(len(label_summary), 30))), margin={"l":150,"r":30,"t":70,"b":50})
+    fig.show()
+```
+
+### Confidence Overview
+
+```{python}
+confidence_counts = predictions["confidence_bucket"].fillna("unknown").value_counts().reset_index()
+confidence_counts.columns = ["confidence_bucket", "n_cells"]
+display(HTML("<div class='status-strip'>" + "".join(f"<span class='status-pill'><strong>{escape(str(row.n_cells))}</strong> {escape(str(row.confidence_bucket))}</span>" for row in confidence_counts.itertuples(index=False)) + "</div>"))
+```
+
+```{python}
+if px is None:
+    plot_unavailable("Plotly is not available, so the confidence figure was not rendered.")
+elif "top_probability" in predictions and len(predictions):
+    plot_df = predictions.copy()
+    plot_df["top_probability"] = pd.to_numeric(plot_df["top_probability"], errors="coerce")
+    fig = px.histogram(plot_df, x="top_probability", color="confidence_bucket", nbins=40, template="plotly_white", title="CellTypist top-label probability distribution")
+    fig.update_layout(height=460, xaxis_title="Top-label probability", yaxis_title="Cells")
+    fig.show()
+```
+
+## Cluster Review
+
+If `cluster_key` was present in `adata.obs`, this table summarizes the dominant CellTypist label per
+cluster. Heterogeneous clusters should be reviewed manually.
+
+```{python}
+if cluster_summary.empty:
+    display(HTML("<div class='note-box'>No cluster summary was generated because the configured cluster key was absent.</div>"))
+else:
+    cluster_table = cluster_summary.copy()
+    cluster_table["label_counts"] = cluster_table["label_counts"].map(lambda value: clip_text(value, 140))
+    display_table(cluster_table, caption="Cluster-level CellTypist review summary", page_length=10, order=[[0, "asc"]], long_text_columns=["label_counts"], medium_text_columns=["top_label","review_status"], scroll_x=False)
+```
+
+### Review Overview
+
+```{python}
+if not cluster_summary.empty:
+    status_counts = cluster_summary["review_status"].fillna("unknown").value_counts().reset_index()
+    status_counts.columns = ["review_status", "n_clusters"]
+    display(HTML("<div class='status-strip'>" + "".join(f"<span class='status-pill'><strong>{escape(str(row.n_clusters))}</strong> {escape(str(row.review_status))}</span>" for row in status_counts.itertuples(index=False)) + "</div>"))
+```
+
+### Label Details by Cluster
+
+```{python}
+display(HTML(cluster_details_html(cluster_summary)))
+```
+
+## Figures
+
+### UMAP Overview
+
+```{python}
+umap, umap_message = load_umap_table()
+if px is None:
+    plot_unavailable("Plotly is not available, so UMAP figures were not rendered.")
+elif len(umap):
+    fig = px.scatter(umap, x="UMAP1", y="UMAP2", color="cluster_id", hover_data=["cell_id","cluster_id","top_label","confidence_bucket","sample"], title="UMAP by cluster", template="plotly_white", render_mode="webgl")
+    fig.update_traces(marker={"size":3,"opacity":.72}); fig.update_yaxes(scaleanchor="x", scaleratio=1); fig.update_layout(width=UMAP_WIDTH,height=UMAP_HEIGHT,legend_title_text="Cluster").show()
+    fig = px.scatter(umap, x="UMAP1", y="UMAP2", color="top_label", hover_data=["cell_id","cluster_id","top_label","confidence_bucket","top_probability","sample"], title="UMAP by CellTypist label", template="plotly_white", render_mode="webgl")
+    fig.update_traces(marker={"size":3,"opacity":.72}); fig.update_yaxes(scaleanchor="x", scaleratio=1); fig.update_layout(width=UMAP_WIDTH,height=UMAP_HEIGHT,legend_title_text="CellTypist label").show()
+    fig = px.scatter(umap, x="UMAP1", y="UMAP2", color="confidence_bucket", hover_data=["cell_id","cluster_id","top_label","top_probability","sample"], title="UMAP by CellTypist confidence", template="plotly_white", render_mode="webgl", category_orders={"confidence_bucket":["high","medium","low","unknown"]})
+    fig.update_traces(marker={"size":3,"opacity":.72}); fig.update_yaxes(scaleanchor="x", scaleratio=1); fig.update_layout(width=UMAP_WIDTH,height=UMAP_HEIGHT,legend_title_text="Confidence").show()
+    if "sample" in umap and (umap["sample"].astype(str) != "").any():
+        fig = px.scatter(umap, x="UMAP1", y="UMAP2", color="top_label", facet_col="sample", facet_col_wrap=2, hover_data=["cell_id","sample","cluster_id","top_label","confidence_bucket"], title="UMAP by sample, colored by CellTypist label", template="plotly_white", render_mode="webgl")
+        fig.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.replace("sample=", "")))
+        fig.update_traces(marker={"size":3,"opacity":.72}); fig.update_yaxes(scaleanchor="x", scaleratio=1); fig.update_layout(height=max(UMAP_HEIGHT, 360 * int(np.ceil(umap["sample"].nunique() / 2))), legend_title_text="CellTypist label").show()
+else:
+    plot_unavailable(umap_message or "UMAP figures were not available.")
+```
+
+### Cluster Label Composition
+
+```{python}
+if px is None:
+    plot_unavailable("Plotly is not available, so cluster composition figures were not rendered.")
+elif len(predictions) and "cluster_id" in predictions and (predictions["cluster_id"].astype(str) != "").any():
+    comp = predictions.copy()
+    comp["cluster_id"] = comp["cluster_id"].astype(str)
+    comp = comp[comp["cluster_id"] != ""]
+    counts = comp.groupby(["cluster_id","top_label"], dropna=False).size().reset_index(name="n_cells")
+    counts["cluster_id"] = pd.Categorical(counts["cluster_id"], categories=sorted_cluster_values(counts["cluster_id"].unique()), ordered=True)
+    fig = px.bar(counts, x="cluster_id", y="n_cells", color="top_label", template="plotly_white", title="CellTypist label composition by cluster")
+    fig.update_layout(height=520, xaxis_title="Cluster", yaxis_title="Cells", legend_title_text="CellTypist label")
+    fig.show()
+```
+
+## Reproducibility
+
+```{python}
+method_rows = []
+for entry in payload.get("methods", []):
+    method_rows.append({
+        "step": entry.get("step", ""),
+        "tool": entry.get("tool", ""),
+        "parameters": json.dumps(entry.get("parameters", {}), sort_keys=True),
+    })
+display_table(pd.DataFrame(method_rows), caption="Recorded CellTypist workflow steps", page_length=10, long_text_columns=["parameters"], medium_text_columns=["step","tool"], scroll_x=False)
+```
