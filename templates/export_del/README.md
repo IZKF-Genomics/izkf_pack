@@ -1,34 +1,35 @@
 # export_del
 
-`export_del` is a direct Linkar action template that cleans an export job
-from the facility export engine.
+`export_del` is a direct Linkar action template that deletes an exported web
+project from the facility export engine, including configured web backends such
+as Apache, OwnCloud, and SFTP.
 
 ## Usage
 
 ```bash
 linkar run export_del \
-  --job-id job-123 \
-  --confirm-delete true
+  --project-id project-123
 ```
 
 Optional API override:
 
 ```bash
 linkar run export_del \
-  --job-id job-123 \
-  --confirm-delete true \
+  --project-id project-123 \
   --export-engine-api-url http://genomics.rwth-aachen.de:9500/export
 ```
 
-The older project-name cleanup endpoint is deprecated by the export API. If you
-must use it for a legacy active export, make that explicit:
+To clean a specific export engine job instead of deleting by project name, pass
+`--job-id`:
 
 ```bash
 linkar run export_del \
-  --project-id project-123 \
-  --legacy-project-delete true \
-  --confirm-delete true
+  --job-id job-123
 ```
+
+Deletion is enabled by default because invoking this template is already an
+explicit delete action. To deliberately block execution in a rendered command,
+set `--confirm-delete false`.
 
 If your current directory is not using the active global pack, use `--project` or `--binding` according to your Linkar setup rather than `--pack`.
 

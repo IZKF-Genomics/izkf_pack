@@ -41,8 +41,10 @@ def main() -> int:
                 str(TEMPLATE_DIR / "run.py"),
                 "--results-dir",
                 str(results_dir),
-                "--job-id",
-                "job-123",
+                "--project-id",
+                "project-123",
+                "--confirm-delete",
+                "false",
             ],
             capture_output=True,
             text=True,
@@ -62,8 +64,6 @@ def main() -> int:
                     str(results_dir),
                     "--job-id",
                     "job-123",
-                    "--confirm-delete",
-                    "true",
                     "--export-engine-api-url",
                     f"http://127.0.0.1:{server.server_port}",
                 ],
@@ -77,7 +77,7 @@ def main() -> int:
             assert (results_dir / "export_job_id.txt").read_text(encoding="utf-8").strip() == "job-123"
 
             legacy_results_dir = Path(tmpdir) / "legacy-results"
-            legacy = subprocess.run(
+            project = subprocess.run(
                 [
                     "python3",
                     str(TEMPLATE_DIR / "run.py"),
@@ -85,9 +85,28 @@ def main() -> int:
                     str(legacy_results_dir),
                     "--project-id",
                     "project-123",
+                    "--export-engine-api-url",
+                    f"http://127.0.0.1:{server.server_port}",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            assert "deleted" in project.stdout
+            legacy_payload = json.loads((legacy_results_dir / "delete_response.json").read_text(encoding="utf-8"))
+            assert legacy_payload["project_id"] == "project-123"
+            assert (legacy_results_dir / "export_project_id.txt").read_text(encoding="utf-8").strip() == "project-123"
+
+            legacy_flag_results_dir = Path(tmpdir) / "legacy-flag-results"
+            legacy_flag = subprocess.run(
+                [
+                    "python3",
+                    str(TEMPLATE_DIR / "run.py"),
+                    "--results-dir",
+                    str(legacy_flag_results_dir),
+                    "--project-id",
+                    "project-123",
                     "--legacy-project-delete",
-                    "true",
-                    "--confirm-delete",
                     "true",
                     "--export-engine-api-url",
                     f"http://127.0.0.1:{server.server_port}",
@@ -96,10 +115,7 @@ def main() -> int:
                 capture_output=True,
                 text=True,
             )
-            assert "deleted" in legacy.stdout
-            legacy_payload = json.loads((legacy_results_dir / "delete_response.json").read_text(encoding="utf-8"))
-            assert legacy_payload["project_id"] == "project-123"
-            assert (legacy_results_dir / "export_project_id.txt").read_text(encoding="utf-8").strip() == "project-123"
+            assert "project cleanup" in legacy_flag.stdout
         finally:
             server.shutdown()
             thread.join(timeout=5)

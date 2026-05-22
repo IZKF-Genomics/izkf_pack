@@ -1,6 +1,6 @@
 id: export_del
-version: 0.1.1
-description: Delete an export job from the facility export engine.
+version: 0.2.0
+description: Delete an exported web project from the facility export engine.
 tools:
   required:
     - python3
@@ -8,23 +8,23 @@ params:
   job_id:
     type: str
     default: ""
-    description: Export engine job id to clean up.
+    description: Optional export engine job id to clean up instead of deleting by project id.
   project_id:
     type: str
     default: ""
-    description: Deprecated project-name cleanup target. Prefer job_id.
+    description: Export project id/name to delete from the configured web backends.
   export_engine_api_url:
     type: str
     default: http://genomics.rwth-aachen.de:9500/export
     description: Export engine base URL. If it does not end with /export, the suffix is appended automatically.
   confirm_delete:
     type: bool
-    default: false
-    description: Must be set to true to perform the deletion request.
+    default: true
+    description: Must remain true to perform the deletion request. Set false to block accidental execution.
   legacy_project_delete:
     type: bool
     default: false
-    description: Allow the deprecated project-name cleanup endpoint when project_id is provided.
+    description: Backward-compatible no-op. Project deletion is the default when project_id is provided.
 outputs:
   results_dir: {}
   delete_response:

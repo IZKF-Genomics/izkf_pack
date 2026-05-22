@@ -11,12 +11,12 @@ from urllib.request import Request, urlopen
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Delete an export job from the facility export engine.")
+    parser = argparse.ArgumentParser(description="Delete an exported web project from the facility export engine.")
     parser.add_argument("--results-dir", required=True)
     parser.add_argument("--job-id", default="")
     parser.add_argument("--project-id", default="")
     parser.add_argument("--export-engine-api-url", default="http://genomics.rwth-aachen.de:9500/export")
-    parser.add_argument("--confirm-delete", default="false")
+    parser.add_argument("--confirm-delete", default="true")
     parser.add_argument("--legacy-project-delete", default="false")
     return parser.parse_args()
 
@@ -66,10 +66,10 @@ def print_key_value(label: str, value: str, *, tone: str = BLUE) -> None:
     print(f"{color(label + ':', tone, bold=True)} {value}")
 
 
-def normalize_delete_endpoint(base_url: str, target_id: str, *, legacy_project_delete: bool) -> str:
+def normalize_delete_endpoint(base_url: str, target_id: str, *, mode: str) -> str:
     api_clean = base_url.rstrip("/")
     root = api_clean if api_clean.endswith("/export") else f"{api_clean}/export"
-    if legacy_project_delete:
+    if mode == "project":
         return f"{root}/{target_id}"
     return f"{root}/jobs/{target_id}"
 
@@ -90,21 +90,19 @@ def main() -> int:
     results_dir.mkdir(parents=True, exist_ok=True)
     job_id = args.job_id.strip()
     project_id = args.project_id.strip()
-    legacy_project_delete = parse_bool(args.legacy_project_delete, False)
     if job_id and project_id:
         raise SystemExit("Provide either --job-id or --project-id, not both.")
-    if project_id and not legacy_project_delete:
-        raise SystemExit("--project-id uses a deprecated cleanup endpoint. Prefer --job-id, or add --legacy-project-delete true.")
+    mode = "job" if job_id else "project"
     target_id = job_id or project_id
     if not target_id:
-        raise SystemExit("job_id must be provided.")
+        raise SystemExit("project_id must be provided. Use --project-id PROJECT_ID, or --job-id JOB_ID for job cleanup.")
     if not parse_bool(args.confirm_delete, False):
         raise SystemExit("Deletion is destructive. Re-run with --confirm-delete true.")
 
     endpoint = normalize_delete_endpoint(
         args.export_engine_api_url,
         target_id,
-        legacy_project_delete=legacy_project_delete,
+        mode=mode,
     )
     req = Request(endpoint, headers={"Accept": "application/json"}, method="DELETE")
 
@@ -126,14 +124,14 @@ def main() -> int:
         raise SystemExit("Delete API returned a non-object response")
 
     write_json(results_dir / "delete_response.json", parsed)
-    if legacy_project_delete:
+    if mode == "project":
         write_text(results_dir / "export_project_id.txt", target_id + "\n")
     else:
         write_text(results_dir / "export_job_id.txt", target_id + "\n")
 
     print_section("Export Deletion Request", BLUE)
     print_key_value("Endpoint", endpoint)
-    print_key_value("Mode", "legacy project cleanup" if legacy_project_delete else "job cleanup")
+    print_key_value("Mode", "project cleanup" if mode == "project" else "job cleanup")
     print_key_value("Target", target_id)
 
     print_section("Deletion Result", GREEN)

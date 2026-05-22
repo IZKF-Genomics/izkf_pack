@@ -484,18 +484,16 @@ linkar run export_status \
   --verbose
 ```
 
-Clean an export job only when you are certain:
+Delete an exported web project from the export engine and configured web
+backends:
 
 ```bash
 linkar run export_del \
-  --job-id EXAMPLE_JOB_ID \
-  --confirm-delete true \
+  --project-id EXAMPLE_PROJECT_ID \
   --verbose
 ```
 
-The older project-name cleanup endpoint is deprecated by the export engine. Use
-`export_del --project-id ... --legacy-project-delete true` only for legacy active
-exports that cannot be addressed by job id.
+To clean a specific export engine job instead, pass `--job-id EXAMPLE_JOB_ID`.
 
 ## Troubleshooting
 
@@ -549,7 +547,7 @@ If a required parameter cannot be resolved automatically, pass it explicitly wit
 | [`export_demux`](templates/export_demux/linkar_template.yaml) | Export an ad hoc demultiplexing run outside a full Linkar project. | [README](templates/export_demux/README.md) |
 | [`export_bcl`](templates/export_bcl/linkar_template.yaml) | Export a raw sequencing run without writing metadata into the source folder. | [README](templates/export_bcl/README.md) |
 | [`export_status`](templates/export_status/linkar_template.yaml) | Query the export engine status for an existing export job. | [README](templates/export_status/README.md) |
-| [`export_del`](templates/export_del/linkar_template.yaml) | Clean an export job from the export engine after explicit confirmation. | [README](templates/export_del/README.md) |
+| [`export_del`](templates/export_del/linkar_template.yaml) | Delete an exported web project from the export engine and configured web backends. | [README](templates/export_del/README.md) |
 | [`archive_raw`](templates/archive_raw/linkar_template.yaml) | Archive raw sequencing run folders with a manifest log. | [README](templates/archive_raw/README.md) |
 | [`archive_fastq`](templates/archive_fastq/linkar_template.yaml) | Archive processed sequencing run folders with a manifest log and optional cleanup. | [README](templates/archive_fastq/README.md) |
 | [`archive_projects`](templates/archive_projects/linkar_template.yaml) | Archive project folders with a manifest log and optional cleanup. | [README](templates/archive_projects/README.md) |
