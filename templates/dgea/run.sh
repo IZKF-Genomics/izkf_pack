@@ -44,3 +44,6 @@ pixi run Rscript DGEA_constructor.R
 python3 "${pack_root}/functions/software_versions.py" \
   --spec "${script_dir}/software_versions_spec.yaml" \
   --output "${LINKAR_RESULTS_DIR}/software_versions.json"
+
+# Record outputs in Linkar after successful manual execution.
+linkar collect "${script_dir}"

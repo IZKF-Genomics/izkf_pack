@@ -20,3 +20,6 @@ pixi run quarto render ERCC.runtime.qmd --to html --output-dir "${results_dir}" 
 python3 "${pack_root}/functions/software_versions.py" \
   --spec "${script_dir}/software_versions_spec.yaml" \
   --output "${results_dir}/software_versions.json"
+
+# Record outputs in Linkar after successful manual execution.
+linkar collect "${script_dir}"

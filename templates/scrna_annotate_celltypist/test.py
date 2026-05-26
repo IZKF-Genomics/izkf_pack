@@ -98,6 +98,7 @@ def test_software_versions_contract() -> None:
     assert "path: results/software_versions.json" in template_text
     assert 'python3 "${pack_root}/functions/software_versions.py"' in run_sh_text
     assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
+    assert 'linkar collect "${script_dir}"' in run_sh_text
     assert "celltypist_model" in spec_text
 
 

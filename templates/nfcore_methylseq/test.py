@@ -77,6 +77,9 @@ def make_fake_runtime_bin(root: Path) -> Path:
     docker = bin_dir / "docker"
     docker.write_text("#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n", encoding="utf-8")
     docker.chmod(0o755)
+    linkar = bin_dir / "linkar"
+    linkar.write_text("#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n", encoding="utf-8")
+    linkar.chmod(0o755)
     return bin_dir
 
 
@@ -218,7 +221,8 @@ def main() -> None:
     assert "entry: run.sh" in template_text
     assert "- pixi" in template_text
     assert "default: true" in template_text
-    assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
+    assert 'python3 "${script_dir}/run.py"' in run_sh_text
+    assert 'linkar collect "${script_dir}"' in run_sh_text
     assert 'LINKAR_NEXTFLOW_RESUME=true' in run_sh_text
     assert 'subprocess.run(["pixi", "install"], check=True)' in run_py_text
     assert '["pixi", "run", "nextflow", "-version"]' in run_py_text

@@ -34,3 +34,6 @@ say "  ${results_dir}/adata.annotated.h5ad"
 say "  ${results_dir}/report.html"
 say "  ${results_dir}/tables/celltypist_predictions.csv"
 say "  ${results_dir}/tables/celltypist_available_models.csv"
+
+# Record outputs in Linkar after successful manual execution.
+linkar collect "${script_dir}"

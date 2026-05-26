@@ -238,7 +238,8 @@ PY""",
     spec_text = (TEMPLATE_DIR / "assets" / "software_versions_spec.yaml").read_text(encoding="utf-8")
 
     assert "id: scrna_integrate" in template_text
-    assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
+    assert 'python3 "${script_dir}/run.py"' in run_sh_text
+    assert 'linkar collect "${script_dir}"' in run_sh_text
     assert "quarto" in run_py_text
     assert "scrna_integrate.qmd" in run_py_text
     assert 'title: "scRNA Integration QC"' in qmd_text

@@ -39,3 +39,6 @@ say "  ${results_dir}/report.html"
 say "  ${results_dir}/tables/differential_markers.csv"
 say "  ${results_dir}/tables/sctype_candidates.csv"
 say "  ${results_dir}/tables/cluster_annotation_summary.csv"
+
+# Record outputs in Linkar after successful manual execution.
+linkar collect "${script_dir}"

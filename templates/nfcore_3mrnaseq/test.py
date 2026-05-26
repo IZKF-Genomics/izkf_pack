@@ -82,6 +82,9 @@ def make_fake_runtime_bin(root: Path) -> Path:
     docker = bin_dir / "docker"
     docker.write_text("#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n", encoding="utf-8")
     docker.chmod(0o755)
+    linkar = bin_dir / "linkar"
+    linkar.write_text("#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n", encoding="utf-8")
+    linkar.chmod(0o755)
     return bin_dir
 
 
@@ -145,7 +148,7 @@ def test_rendered_run_script() -> None:
         assert runtime_payload["template"] == "nfcore_3mrnaseq"
         assert runtime_payload["engine"] == "nextflow"
         assert runtime_payload["pipeline"] == "nf-core/rnaseq"
-        assert runtime_payload["pipeline_version"] == "3.22.2"
+        assert runtime_payload["pipeline_version"] == "3.25.0"
         assert runtime_payload["command"][:4] == ["pixi", "run", "nextflow", "run"]
         assert runtime_payload["params"]["genome"] == "GRCh38"
         assert runtime_payload["params"]["effective_genome"] == "GRCh38_with_ERCC"
@@ -159,7 +162,7 @@ def test_rendered_run_script() -> None:
         versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
         versions = {entry["name"]: entry for entry in versions_payload["software"]}
         assert versions["nextflow"]["version"] == "nextflow version 24.10.0"
-        assert versions["nf-core/rnaseq"]["version"] == "3.22.2"
+        assert versions["nf-core/rnaseq"]["version"] == "3.25.0"
         assert versions["execution_profile"]["version"] == "docker"
         assert versions["genome"]["version"] == "GRCh38_with_ERCC"
         assert versions["umi"]["version"] == UMI_KIT
@@ -364,7 +367,8 @@ def main() -> None:
     assert "- pixi" in template_text
     assert "- python3" in template_text
     assert 'resolved_run.sh' in run_sh_text
-    assert 'exec python3 "${script_dir}/run.py" --run-script "${script_dir}/resolved_run.sh"' in run_sh_text
+    assert 'python3 "${script_dir}/run.py" --run-script "${script_dir}/resolved_run.sh"' in run_sh_text
+    assert 'linkar collect "${script_dir}"' in run_sh_text
     assert 'subprocess.run(["pixi", "install"], check=True)' in run_py_text
     assert 'pixi install' in run_py_text
     assert 'runtime_command.json' in run_py_text

@@ -340,8 +340,14 @@ def test_run_sh_resolves_project_dir_from_linkar_runtime_copy() -> None:
         shutil.copy2(TEMPLATE_DIR / "run.sh", runtime_dir / "run.sh")
         shutil.copy2(TEMPLATE_DIR / "methods_catalog.yaml", runtime_dir / "methods_catalog.yaml")
         (runtime_dir / "run.sh").chmod(0o755)
+        bin_dir = root / "bin"
+        bin_dir.mkdir()
+        linkar = bin_dir / "linkar"
+        linkar.write_text("#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n", encoding="utf-8")
+        linkar.chmod(0o755)
 
         env = os.environ.copy()
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
         env["LINKAR_RESULTS_DIR"] = str(results_dir)
         env["PROJECT_DIR"] = str(root)
         env["USE_LLM"] = "false"
@@ -961,7 +967,8 @@ def main() -> int:
     assert "scanorama:" in catalog_text
     assert "scib:" in catalog_text
     assert "celltypist:" in catalog_text
-    assert 'exec python3 "${script_dir}/run.py"' in run_sh_text
+    assert 'python3 "${script_dir}/run.py"' in run_sh_text
+    assert 'linkar collect "${script_dir}"' in run_sh_text
     assert '--metadata-api-url "${METADATA_API_URL:-}"' in run_sh_text
     assert 'run-local = "python3 run.py"' in pixi_text
     assert 'test = "python3 test.py"' in pixi_text

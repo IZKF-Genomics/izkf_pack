@@ -68,6 +68,7 @@ def main() -> int:
         assert run_info["params"]["sample_count"] == 2
         assert run_info["params"]["authors"] == "A, B"
         assert '--output "${results_dir}/software_versions.json"' in run_sh
+        assert 'linkar collect "${script_dir}"' in run_sh
         assert "default pack bindings" in readme
         assert "quarto" in spec
     return 0

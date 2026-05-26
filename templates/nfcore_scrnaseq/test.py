@@ -86,6 +86,9 @@ def make_fake_runtime_bin(root: Path) -> Path:
     docker = bin_dir / "docker"
     docker.write_text("#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n", encoding="utf-8")
     docker.chmod(0o755)
+    linkar = bin_dir / "linkar"
+    linkar.write_text("#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n", encoding="utf-8")
+    linkar.chmod(0o755)
     return bin_dir
 
 
@@ -432,7 +435,8 @@ def main() -> None:
     assert "- python3" in template_text
     assert "selected_matrix_h5ad" in template_text
     assert 'resolved_run.sh' in run_sh_text
-    assert 'exec python3 "${script_dir}/run.py" --run-script "${script_dir}/resolved_run.sh"' in run_sh_text
+    assert 'python3 "${script_dir}/run.py" --run-script "${script_dir}/resolved_run.sh"' in run_sh_text
+    assert 'linkar collect "${script_dir}"' in run_sh_text
     assert 'runtime_command.json' in run_py_text
     assert 'params.yaml' in run_py_text
     assert 'SUPPORTED_ALIGNERS' in run_py_text

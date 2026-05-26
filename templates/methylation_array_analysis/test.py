@@ -94,6 +94,7 @@ def main() -> None:
     assert "build_dnam_inputs.py" in run_sh_text
     assert "software:" in spec_text
     assert "command: pixi --version" in spec_text
+    assert 'linkar collect "${script_dir}"' in run_sh_text
     assert 'source("dnam_inputs.R")' in constructor_text
     assert "default_comparisons_from_samples" in constructor_text
     assert "comparison_report.qmd" in (TEMPLATE_DIR / "DNAm_functions.R").read_text(encoding="utf-8")

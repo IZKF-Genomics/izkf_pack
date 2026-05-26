@@ -49,6 +49,9 @@ say "  ${results_dir}/adata.final_annotated.h5ad"
 say "  ${results_dir}/report.html"
 say "  ${results_dir}/tables/final_annotation_decisions_draft.csv"
 
+# Record outputs in Linkar after successful manual execution.
+linkar collect "${script_dir}"
+
 if [[ "${render_only}" == "1" ]]; then
   say "render-only mode; temporary local API was not started"
   exit 0

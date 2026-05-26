@@ -20,4 +20,7 @@ for arg in "$@"; do
   esac
 done
 
-exec python3 "${script_dir}/run.py"
+python3 "${script_dir}/run.py"
+
+# Record outputs in Linkar after successful manual execution.
+linkar collect "${script_dir}"

@@ -13,3 +13,6 @@ pixi run quarto render "scrna_prep.qmd" --to html --output-dir "reports" --no-cl
 python3 "${pack_root}/functions/software_versions.py" \
   --spec "assets/software_versions_spec.yaml" \
   --output "${results_dir}/software_versions.json"
+
+# Record outputs in Linkar after successful manual execution.
+linkar collect "${script_dir}"

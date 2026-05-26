@@ -31,3 +31,6 @@ python3 "${pack_root}/functions/software_versions.py" \
 say "outputs:"
 say "  ${results_dir}/output.cloupe"
 say "  ${results_dir}/cloupe_export.json"
+
+# Record outputs in Linkar after successful manual execution.
+linkar collect "${script_dir}"

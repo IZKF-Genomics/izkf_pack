@@ -15,7 +15,7 @@ else
   project_dir="${derived_project_dir}"
 fi
 
-exec python3 "${script_dir}/run.py" \
+python3 "${script_dir}/run.py" \
   --results-dir "${LINKAR_RESULTS_DIR}" \
   --project-dir "${project_dir}" \
   --style "${STYLE:-publication}" \
@@ -25,3 +25,6 @@ exec python3 "${script_dir}/run.py" \
   --llm-base-url "${LLM_BASE_URL:-}" \
   --llm-model "${LLM_MODEL:-}" \
   --llm-temperature "${LLM_TEMPERATURE:-0.2}"
+
+# Record outputs in Linkar after successful manual execution.
+linkar collect "${script_dir}"

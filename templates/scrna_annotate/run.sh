@@ -43,3 +43,6 @@ else
   say "  ${results_dir}/providers/marker_based/report.qmd"
 fi
 say "review marker evidence before treating labels as final annotations"
+
+# Record outputs in Linkar after successful manual execution.
+linkar collect "${script_dir}"

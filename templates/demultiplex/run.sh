@@ -52,3 +52,6 @@ fi
 python3 "${script_dir}/build_project_views.py" --results-dir "${results_dir}"
 
 rm -rf .pixi
+
+# Record outputs in Linkar after successful manual execution.
+linkar collect "${script_dir}"

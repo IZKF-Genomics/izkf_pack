@@ -145,6 +145,18 @@ def make_fake_demux_bin(root: Path) -> Path:
             "exit 0\n"
         )
         path.chmod(0o755)
+    linkar = bin_dir / "linkar"
+    linkar.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        "if [[ \"${1:-}\" == \"collect\" ]]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "echo \"unsupported fake linkar invocation: $*\" >&2\n"
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    linkar.chmod(0o755)
     return bin_dir
 
 
@@ -328,6 +340,7 @@ def main() -> None:
         assert 'python3 "${pack_root}/functions/software_versions.py"' in template_run_sh
         assert '--spec "${script_dir}/software_versions_spec.yaml"' in template_run_sh
         assert 'export UPSTREAM_COMMIT="${upstream_commit}"' in template_run_sh
+        assert 'linkar collect "${script_dir}"' in template_run_sh
         assert not (TEMPLATE_DIR / "demux_pipeline" / "cli.py").exists()
         assert not (TEMPLATE_DIR / "pixi.toml").exists()
         assert not (TEMPLATE_DIR / "pixi.lock").exists()
