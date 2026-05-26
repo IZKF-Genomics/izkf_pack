@@ -1,0 +1,16 @@
+raw_label,normalized_label,broad_label
+T cells,T cell,T/NK cell
+T cell,T cell,T/NK cell
+CD4+ T cells,CD4 T cell,T/NK cell
+CD4 T cells,CD4 T cell,T/NK cell
+CD8+ T cells,CD8 T cell,T/NK cell
+CD8 T cells,CD8 T cell,T/NK cell
+NK cells,NK cell,T/NK cell
+B cells,B cell,B cell
+Plasma cells,Plasma cell,B cell
+Monocytes,Monocyte,Myeloid
+Macrophages,Macrophage,Myeloid
+Dendritic cells,Dendritic cell,Myeloid
+Endothelial cells,Endothelial cell,Endothelial
+Fibroblasts,Fibroblast,Stromal
+Epithelial cells,Epithelial cell,Epithelial

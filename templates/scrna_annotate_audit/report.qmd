@@ -1,0 +1,1268 @@
+---
+title: "scRNA-seq Annotation Audit"
+subtitle: "Cluster-level comparison, review decisions, and final annotation output"
+format:
+  dashboard:
+    orientation: rows
+    scrolling: true
+    embed-resources: true
+    theme: cosmo
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{=html}
+<style>
+.warning-list{border-left:4px solid #c2410c;background:#fff7ed;padding:.85rem 1rem;margin:.7rem 0 1rem;max-height:9rem;overflow:auto}
+.compact-warning{border-left:3px solid #c2410c;background:#fff7ed;padding:.45rem .65rem;margin:0 0 .65rem;font-size:.86rem;line-height:1.35}.compact-warning strong{font-weight:700}.compact-warning details{margin-top:.2rem}.compact-warning summary{cursor:pointer;color:#7c2d12;font-weight:700}
+.note-box{border-left:4px solid #2563eb;background:#eff6ff;padding:.85rem 1rem;margin:.7rem 0 1rem}
+.review-box{border-left:4px solid #c9600a;background:#fff7ed;padding:.85rem 1rem;margin:.7rem 0 1rem}
+.decision-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));gap:.75rem;margin:1rem 0 1.2rem}
+.decision-card{border:1px solid #dbe4ef;background:#fff;border-radius:6px;padding:.8rem .9rem}
+.decision-card .number{font-size:1.65rem;font-weight:700;line-height:1;color:#0f172a}.decision-card .label{color:#475569;margin-top:.25rem}
+.workflow{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:.7rem;margin:.8rem 0 1rem}.workflow div{border:1px solid #dbe4ef;background:#f8fafc;border-radius:6px;padding:.7rem .8rem}.workflow strong{display:block;color:#0f172a}
+.cluster-explorer{border:0;border-radius:0;background:#fff;margin:0;padding:.25rem;min-height:0;--audit-left-fr:1.05fr;--audit-right-fr:.95fr;--audit-umap-height:calc(100vh - 15rem);font-size:14px;line-height:1.35;color:#334155}
+.cluster-explorer label{display:block;font-weight:700;margin-bottom:.18rem;color:#334155;font-size:.78rem;line-height:1.2}
+.cluster-explorer select{width:100%;max-width:100%;min-height:2rem;padding:.22rem .42rem;border:1px solid #cbd5e1;border-radius:4px;background:#fff;font:inherit}
+.audit-workbench{display:grid;grid-template-columns:minmax(24rem,var(--audit-left-fr)) .65rem minmax(26rem,var(--audit-right-fr));gap:.45rem;align-items:start}
+.audit-resizer{align-self:stretch;min-height:24rem;border-radius:999px;background:linear-gradient(90deg,transparent 0,#cbd5e1 45%,#cbd5e1 55%,transparent 100%);cursor:col-resize;touch-action:none;position:relative}
+.audit-resizer:after{content:"";position:absolute;left:50%;top:50%;width:.26rem;height:2.6rem;border-radius:999px;background:#94a3b8;transform:translate(-50%,-50%)}
+.audit-resizer:hover:after,.audit-resizer.dragging:after{background:#2563eb}
+.audit-controlbar{display:grid;grid-template-columns:minmax(10rem,16rem) minmax(11rem,1fr) minmax(11rem,1fr) minmax(6rem,8rem);gap:.5rem;align-items:end;margin:.15rem 0 .7rem}
+.audit-controlbar>div{min-width:0}
+.audit-controlbar .control-card{background:transparent;border:0;border-left:1px solid #e2e8f0;border-radius:0;padding:.1rem .55rem;min-width:0;min-height:2rem}
+.audit-controlbar .control-card strong{display:block;color:#334155;font-size:.74rem;line-height:1.1;margin-bottom:.12rem}
+.audit-controlbar .control-card span{display:block;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.92rem;line-height:1.25}
+.cluster-explorer-main{min-width:0;overflow:auto}
+.cluster-explorer-map{border:0;border-radius:0;background:#f8fafc;padding:.35rem;min-width:0}
+.cluster-explorer-map canvas{display:block;width:100%;background:#f8fafc;border:0;border-radius:4px}
+#cluster-audit-umap{height:var(--audit-umap-height);min-height:18rem;max-height:70vh}
+.audit-map-height-resizer{height:.7rem;margin:.22rem 0 .12rem;border-radius:999px;background:linear-gradient(180deg,transparent 0,#cbd5e1 45%,#cbd5e1 55%,transparent 100%);cursor:row-resize;touch-action:none;position:relative}
+.audit-map-height-resizer:after{content:"";position:absolute;left:50%;top:50%;width:3rem;height:.24rem;border-radius:999px;background:#94a3b8;transform:translate(-50%,-50%)}
+.audit-map-height-resizer:hover:after,.audit-map-height-resizer.dragging:after{background:#2563eb}
+.cluster-explorer-map .map-meta{display:flex;justify-content:space-between;gap:.6rem;color:#64748b;font-size:.8rem;margin-top:.32rem}
+.final-label-overview{border-top:1px solid #e2e8f0;margin-top:.75rem;padding-top:.65rem}
+.final-label-overview-head{display:flex;justify-content:space-between;gap:.6rem;align-items:baseline;margin-bottom:.35rem}
+.final-label-overview-title{font-weight:700;color:#0f172a;font-size:.9rem}
+.final-label-overview-meta{color:#64748b;font-size:.78rem;text-align:right}
+#cluster-final-label-umap{height:340px;min-height:240px;max-height:520px;background:#f8fafc}
+.final-label-body{display:block}
+.cluster-explorer .cluster-summary{display:none}
+.cluster-explorer .provider-col{width:10rem;white-space:nowrap}
+.cluster-explorer .stat-col{width:6.2rem;white-space:nowrap}
+.cluster-explorer .label-cell strong{overflow-wrap:anywhere}
+.map-placeholder{color:#166534;font-size:.8rem;padding:.3rem 0 0}
+.audit-compact-status{color:#166534;font-size:.78rem;padding:.05rem 0 .35rem}
+@media (max-width:1050px){.audit-workbench{grid-template-columns:1fr}.audit-resizer{display:none}.cluster-explorer{--audit-umap-height:24rem}.audit-controlbar{grid-template-columns:minmax(12rem,1fr) repeat(3,minmax(7rem,1fr))}}
+@media (max-width:900px){.audit-controlbar{grid-template-columns:1fr 1fr}.cluster-explorer{--audit-umap-height:20rem}}
+main.content{max-width:none}.cell-output-display{overflow-x:auto}.cell-output-display img,.cell-output-display svg{max-width:100%;height:auto}
+.table-wrap{overflow-x:auto;border:0;border-radius:0;background:#fff;margin:.8rem 0 1.1rem}
+.cluster-list{display:grid;gap:.8rem;margin:.9rem 0 1.1rem}.cluster-row{border:0;border-top:1px solid #edf2f7;border-radius:0;background:#fff;padding:.75rem .2rem}.cluster-row-head{display:grid;grid-template-columns:minmax(7rem,auto) minmax(12rem,1fr) auto;gap:.7rem;align-items:start}.cluster-id{font-weight:700;color:#0f172a}.cluster-id span{display:block;font-weight:400;color:#64748b;font-size:.84rem}.cluster-label strong{display:block;color:#0f172a;overflow-wrap:anywhere}.cluster-label span{display:block;color:#64748b;font-size:.86rem}.cluster-badges{display:flex;flex-wrap:wrap;gap:.3rem;justify-content:flex-end}.compact-note{color:#64748b;font-size:.9rem;margin:.3rem 0 .8rem}
+.grid-table{display:grid;width:100%;font-size:.88rem;margin-top:.55rem}.grid-table.provider-grid{grid-template-columns:minmax(8rem,12rem) minmax(11rem,1fr) minmax(5.5rem,8rem)}.grid-table.marker-grid{grid-template-columns:minmax(7rem,1fr) repeat(4,minmax(4.5rem,5.8rem))}.grid-table.decision-grid-table{grid-template-columns:minmax(4.5rem,5rem) minmax(10rem,1fr) minmax(7rem,8rem) minmax(7rem,8rem) minmax(10rem,1.4fr)}.grid-cell{border-top:1px solid #edf2f7;padding:.32rem .42rem;min-width:0;overflow-wrap:anywhere}.grid-head{color:#475569;font-weight:700;font-size:.83rem}.grid-cell strong{display:block;color:#0f172a;overflow-wrap:anywhere;font-weight:700}.grid-cell span{display:block;color:#64748b;font-size:.8rem;overflow:hidden;text-overflow:ellipsis}.grid-cell.num{text-align:right;white-space:nowrap}.grid-cell.missing{color:#94a3b8}.grid-cell.wrap{white-space:normal;overflow-wrap:anywhere}
+.dataTables_wrapper{max-width:none}.dataTables_wrapper table.dataTable{width:auto!important;table-layout:auto!important}
+.dataTables_wrapper table.dataTable th,.dataTables_wrapper table.dataTable td{white-space:nowrap;vertical-align:top}
+.dataTables_wrapper table.dataTable td.dt-compact-number,.dataTables_wrapper table.dataTable th.dt-compact-number{min-width:3rem;max-width:6rem;text-align:right}
+.dataTables_wrapper table.dataTable td.dt-long-text{white-space:normal;min-width:12rem;max-width:28rem;overflow-wrap:anywhere;line-height:1.25}
+.decision-editor{border:0;border-top:1px solid #edf2f7;background:#fff;border-radius:0;margin-top:.55rem;padding:.55rem 0 0}.decision-editor h3{display:none}.decision-editor-grid{display:grid;grid-template-columns:repeat(3,minmax(8rem,1fr));gap:.5rem}.decision-editor label{display:block;font-weight:700;color:#334155;font-size:.78rem;margin:0}.decision-editor input,.decision-editor select,.decision-editor textarea{width:100%;box-sizing:border-box;margin-top:.16rem;border:1px solid #cbd5e1;border-radius:4px;background:#fff;padding:.32rem .48rem;font:inherit;min-height:2rem}.decision-editor textarea{min-height:3.4rem;resize:vertical}.decision-editor-actions{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem}.decision-editor button{border:1px solid #cbd5e1;background:#fff;border-radius:4px;padding:.36rem .55rem;font-weight:700;cursor:pointer;font-size:.84rem;line-height:1.2}.decision-editor button.primary{background:#2563eb;border-color:#2563eb;color:#fff}.decision-editor .status{color:#475569;font-size:.8rem;align-self:center}.reasoning-details{margin-top:.45rem;color:#334155;font-size:.84rem;border-top:1px solid #edf2f7;padding-top:.35rem}.reasoning-details summary{cursor:pointer;font-weight:700;color:#475569;outline:0}.reasoning-details summary:focus-visible{box-shadow:0 0 0 2px #bfdbfe;border-radius:3px}.reasoning-details p{margin:.26rem 0 0}
+.marker-panel{border:0;border-top:1px solid #edf2f7;background:#fff;border-radius:0;margin-top:.55rem;padding:.6rem 0 0}.marker-panel-head{display:grid;grid-template-columns:minmax(10rem,1fr) auto;gap:.65rem;align-items:end;margin-bottom:.35rem}.marker-panel-title{font-weight:700;color:#0f172a;font-size:.98rem;line-height:1.2}.marker-panel-controls{display:grid;grid-template-columns:5.6rem minmax(12rem,18rem);gap:.35rem;align-items:end;justify-content:end;min-width:0}.marker-panel-controls label{font-size:.72rem;color:#475569;margin:0;font-weight:700}.marker-panel input{width:100%;border:1px solid #cbd5e1;border-radius:4px;padding:.3rem .45rem;min-height:2rem;font:inherit}.marker-panel select{width:100%;min-width:0;border:1px solid #cbd5e1;border-radius:4px;padding:.3rem .45rem;min-height:2rem;font:inherit}.marker-panel .gene-col{width:8rem;font-weight:700}.marker-panel .num-col{width:5.5rem;text-align:right;white-space:nowrap}.marker-panel .marker-empty{color:#64748b;font-size:.84rem;margin:.25rem 0 0}
+.api-panel{border:1px solid #dbe4ef;background:#f8fafc;border-radius:6px;padding:.8rem;margin:.7rem 0}.api-panel strong{display:block;color:#0f172a}.api-panel span{color:#475569}
+.cluster-explorer.html-fill-container,.cluster-explorer .html-fill-container,.compact-warning.html-fill-container,.audit-workbench.html-fill-container,.decision-editor.html-fill-container,.api-panel.html-fill-container{height:auto!important;min-height:0!important;flex:0 0 auto!important}
+.cluster-explorer .audit-controlbar.html-fill-container,.cluster-explorer .audit-workbench.html-fill-container{display:grid!important}
+.cluster-explorer .cluster-explorer-map.html-fill-container,.cluster-explorer .decision-editor.html-fill-container,.cluster-explorer .control-card.html-fill-container,.cluster-explorer .map-meta.html-fill-container,.cluster-explorer .audit-resizer.html-fill-container,.cluster-explorer .audit-map-height-resizer.html-fill-container{display:block!important}
+.cluster-explorer .final-label-overview.html-fill-container{display:block!important}
+.cluster-explorer .final-label-overview-head.html-fill-container{display:flex!important}
+.cluster-explorer .final-label-body.html-fill-container{display:block!important}
+#cluster-audit-umap{cursor:crosshair}
+.badge{display:inline-block;border-radius:999px;padding:.18rem .55rem;font-size:.82rem;border:1px solid #dbe4ef;background:#f8fafc}.badge-high{background:#dcfce7;color:#166534}.badge-medium{background:#fef3c7;color:#92400e}.badge-low{background:#fee2e2;color:#991b1b}.badge-review{background:#fff7ed;color:#c2410c}
+</style>
+```
+
+```{python}
+from html import escape
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+from IPython.display import HTML, display
+
+try:
+    import plotly.express as px
+except ImportError:
+    px = None
+try:
+    import anndata as ad
+except ImportError:
+    ad = None
+try:
+    from itables import show
+    import itables.options as itable_options
+    itable_options.showIndex = False
+    itable_options.classes = "display compact stripe hover"
+    itable_options.layout = {"topStart": "pageLength", "topEnd": "search", "bottomStart": "info", "bottomEnd": "paging"}
+    itable_options.maxBytes = "2MB"
+except ImportError:
+    show = None
+
+results_dir = Path(".")
+payload = json.loads((results_dir / "annotation_audit.json").read_text())
+cards = json.loads((results_dir / "annotation_audit_cards.json").read_text())
+comparison = pd.read_csv(results_dir / "tables" / "annotation_method_comparison.csv")
+candidates = pd.read_csv(results_dir / "tables" / "annotation_candidates_long.csv")
+draft_decisions = pd.read_csv(results_dir / "tables" / "final_annotation_decisions_draft.csv")
+applied_decisions = pd.read_csv(results_dir / "tables" / "final_annotation_decisions_applied.csv")
+marker_expression_path = results_dir / "tables" / "marker_expression_summary.csv"
+marker_expression = pd.read_csv(marker_expression_path) if marker_expression_path.exists() else pd.DataFrame()
+cluster_markers_path = results_dir / "tables" / "cluster_marker_genes.csv"
+cluster_markers = pd.read_csv(cluster_markers_path) if cluster_markers_path.exists() else pd.DataFrame()
+run_status = payload.get("run", {})
+run_input = payload.get("input", {})
+warnings = run_status.get("warnings", [])
+resources = payload.get("resources", [])
+method_params = payload.get("method", {}).get("parameters", {})
+
+provider_resources = [r for r in resources if r.get("role") == "annotation_result"]
+provider_meta = []
+for provider_id in method_params.get("providers") or []:
+    match = next((r for r in provider_resources if str(r.get("id")) == str(provider_id)), {})
+    provider_meta.append({
+        "id": str(provider_id),
+        "label": str(match.get("display_name") or str(provider_id).replace("_", " ").title()),
+        "family": str(match.get("method_family") or ""),
+    })
+for resource in provider_resources:
+    provider_id = str(resource.get("id") or "")
+    if provider_id and provider_id not in {p["id"] for p in provider_meta}:
+        provider_meta.append({
+            "id": provider_id,
+            "label": str(resource.get("display_name") or provider_id.replace("_", " ").title()),
+            "family": str(resource.get("method_family") or ""),
+        })
+provider_ids = [p["id"] for p in provider_meta]
+provider_labels = {p["id"]: p["label"] for p in provider_meta}
+
+decision_cols = ["cluster_id", "final_label", "final_broad_label", "review_status", "reviewer_note"]
+review_matrix = comparison.copy()
+if "cluster_id" in review_matrix:
+    review_matrix["cluster_id"] = review_matrix["cluster_id"].astype(str)
+if len(applied_decisions):
+    review_matrix = review_matrix.merge(
+        applied_decisions[[c for c in decision_cols if c in applied_decisions.columns]].assign(cluster_id=lambda d: d["cluster_id"].astype(str)),
+        on="cluster_id",
+        how="left",
+    )
+for column in ["final_label", "final_broad_label", "review_status", "reviewer_note"]:
+    if column not in review_matrix:
+        review_matrix[column] = ""
+compact_columns = [
+    "cluster_id", "n_cells", "review_priority", "decision", "confidence", "agreement_level",
+    "suggested_label", "final_label", "review_status",
+]
+for provider_id in provider_ids:
+    compact_columns.extend([f"{provider_id}_label", f"{provider_id}_confidence"])
+compact_review = review_matrix[[c for c in compact_columns if c in review_matrix.columns]].copy()
+priority_order = {"high": 0, "medium": 1, "low": 2, "": 3}
+if len(compact_review):
+    compact_review["_priority_sort"] = compact_review["review_priority"].astype(str).map(lambda x: priority_order.get(x, 3))
+    compact_review = compact_review.sort_values(["_priority_sort", "cluster_id"], key=lambda s: s.astype(str)).drop(columns=["_priority_sort"])
+
+def display_static_table(df):
+    display(HTML(df.reset_index(drop=True).to_html(index=False, escape=False)))
+
+def display_table(df, *, page_length=10, order=None, long_text_columns=None):
+    df = df.reset_index(drop=True)
+    if show is None:
+        display_static_table(df)
+        return
+    long_text_columns = set(long_text_columns or [])
+    compact_columns = {c for c in df.columns if c in {"cluster_id","n_cells","rank","score","mean_expression","pct_expressing"}}
+    column_defs = []
+    compact_targets = [i for i,c in enumerate(df.columns) if c in compact_columns]
+    long_targets = [i for i,c in enumerate(df.columns) if c in long_text_columns]
+    if compact_targets:
+        column_defs.append({"targets": compact_targets, "className": "dt-compact-number", "width": "6rem"})
+    if long_targets:
+        column_defs.append({"targets": long_targets, "className": "dt-long-text", "width": "28rem"})
+    show(df, showIndex=False, scrollX=True, column_filters="header", pageLength=page_length, lengthMenu=[10,25,50,100], order=order or [], autoWidth=True, autoWidthMode="fit", columnDefs=column_defs, deferRender=True, classes="display compact stripe hover")
+
+def cluster_sort_key(value):
+    text = str(value)
+    return (0, int(text)) if text.isdigit() else (1, text)
+
+def badge(text):
+    cls = "badge"
+    lower = str(text).lower()
+    if "high" in lower or lower == "accepted":
+        cls += " badge-high"
+    elif "medium" in lower or "lineage" in lower:
+        cls += " badge-medium"
+    elif "low" in lower or "conflict" in lower or "ambiguous" in lower:
+        cls += " badge-low"
+    elif "review" in lower:
+        cls += " badge-review"
+    return f"<span class='{cls}'>{escape(str(text))}</span>"
+
+def artifact_path(name):
+    value = payload.get("artifacts", {}).get(name, "")
+    if str(value).startswith("results/"):
+        return str(value).replace("results/", "", 1)
+    return str(value)
+
+def count_value(df, column, value):
+    if column not in df or not len(df):
+        return 0
+    return int((df[column].astype(str) == value).sum())
+
+def dashboard_html():
+    final_sources = [str((card.get("final") or {}).get("label_source") or "") for card in cards]
+    reviewed = sum(1 for value in final_sources if value == "reviewed")
+    items = [
+        ("Clusters", len(comparison)),
+        ("High priority", count_value(comparison, "review_priority", "high")),
+        ("Method conflicts", count_value(comparison, "agreement_level", "method_conflict")),
+        ("Accepted suggestions", count_value(comparison, "decision", "Accepted")),
+        ("Reviewed finals", reviewed),
+        ("Provider results", len([r for r in resources if r.get("role") == "annotation_result"])),
+    ]
+    return "<div class='decision-grid'>" + "".join(
+        f"<div class='decision-card'><div class='number'>{escape(str(value))}</div><div class='label'>{escape(label)}</div></div>"
+        for label, value in items
+    ) + "</div>"
+
+def provider_status_table():
+    rows = []
+    for resource in provider_resources:
+        rows.append({
+            "provider": resource.get("display_name") or resource.get("id"),
+            "provider_id": resource.get("id"),
+            "method_family": resource.get("method_family", ""),
+            "source_template": resource.get("source_template", ""),
+            "status": "found",
+            "run_state": resource.get("run_state", ""),
+            "path": resource.get("path", ""),
+        })
+    return pd.DataFrame(rows)
+
+def provider_row_html(method, record):
+    label = str(record.get("label") or "").strip()
+    confidence = str(record.get("confidence") or "").strip()
+    provider_label = provider_labels.get(method, str(method).replace("_", " ").title())
+    if not label:
+        return (
+            f"<div class='grid-cell'><strong>{escape(provider_label)}</strong><span>{escape(str(method))}</span></div>"
+            "<div class='grid-cell missing'>missing<span>no result</span></div>"
+            "<div class='grid-cell missing'>n/a</div>"
+        )
+    return (
+        f"<div class='grid-cell'><strong>{escape(provider_label)}</strong><span>{escape(str(method))}</span></div>"
+        f"<div class='grid-cell'><strong>{escape(label)}</strong><span>{escape(str(record.get('broad_label') or ''))}</span></div>"
+        f"<div class='grid-cell'>{escape(confidence or 'n/a')}</div>"
+    )
+
+def cluster_provider_tables_html(cards, *, priority_filter=None, limit=None):
+    selected_cards = []
+    for card in sorted(cards, key=lambda c: cluster_sort_key(c.get("cluster_id", ""))):
+        if priority_filter and str(card.get("review_priority") or "") not in priority_filter:
+            continue
+        selected_cards.append(card)
+    if limit:
+        selected_cards = selected_cards[:limit]
+    if not selected_cards:
+        return "<div class='note-box'>No clusters matched this view.</div>"
+    rows = []
+    for card in selected_cards:
+        cluster = str(card.get("cluster_id", ""))
+        n_cells = str(card.get("n_cells", "") or "")
+        final = card.get("final") or {}
+        final_label = str(final.get("label") or "").strip()
+        suggested = str(card.get("suggested_label") or "").strip()
+        final_text = final_label or suggested or "Unknown"
+        final_meta = str(final.get("review_status") or final.get("label_source") or "draft")
+        method_rows = "".join(
+            provider_row_html(method, card.get("methods", {}).get(method, {}))
+            for method in provider_ids
+        )
+        if not method_rows:
+            method_rows = "<div class='grid-cell missing' style='grid-column:1/-1'>No provider results were loaded.</div>"
+        rows.append(
+            "<article class='cluster-row'>"
+            "<div class='cluster-row-head'>"
+            f"<div class='cluster-id'>Cluster {escape(cluster)}<span>{escape(n_cells)} cells</span></div>"
+            f"<div class='cluster-label'><strong>{escape(final_text)}</strong><span>{escape(final_meta)}</span></div>"
+            f"<div class='cluster-badges'>{badge(card.get('review_priority',''))}{badge(card.get('decision',''))}{badge(card.get('agreement_level',''))}</div>"
+            "</div>"
+            "<div class='grid-table provider-grid'>"
+            "<div class='grid-cell grid-head'>Provider</div><div class='grid-cell grid-head'>Annotation</div><div class='grid-cell grid-head'>Confidence</div>"
+            f"{method_rows}</div>"
+            "</article>"
+        )
+    return "<div class='cluster-list'>" + "".join(rows) + "</div>"
+
+def final_decisions_compact_html(df):
+    if not len(df):
+        return "<div class='note-box'>No final decision rows were generated.</div>"
+    rows = []
+    for row in df.to_dict(orient="records"):
+        note = row.get("reviewer_note")
+        note = "" if pd.isna(note) else str(note or "")
+        rows.append(
+            f"<div class='grid-cell'><strong>{escape(str(row.get('cluster_id','')))}</strong></div>"
+            f"<div class='grid-cell'><strong>{escape(str(row.get('final_label') or row.get('suggested_label') or ''))}</strong><span>{escape(str(row.get('final_broad_label') or row.get('suggested_broad_label') or ''))}</span></div>"
+            f"<div class='grid-cell'>{badge(row.get('review_status',''))}</div>"
+            f"<div class='grid-cell'>{badge(row.get('decision',''))}{badge(row.get('confidence',''))}</div>"
+            f"<div class='grid-cell wrap'>{escape(note)}</div>"
+        )
+    return (
+        "<div class='table-wrap'><div class='grid-table decision-grid-table'>"
+        "<div class='grid-cell grid-head'>Cluster</div><div class='grid-cell grid-head'>Final label</div><div class='grid-cell grid-head'>Review</div><div class='grid-cell grid-head'>Audit</div><div class='grid-cell grid-head'>Note</div>"
+        + "".join(rows) + "</div></div>"
+    )
+
+def workflow_html():
+    return """
+    <div class='workflow'>
+      <div><strong>1. Review priorities</strong> Start with high-priority clusters and method conflicts.</div>
+      <div><strong>2. Check biology</strong> Use provider labels, marker evidence, and UMAP structure.</div>
+      <div><strong>3. Edit decisions</strong> Use the cluster editor, then save decisions through the local API.</div>
+      <div><strong>4. Generate h5ad</strong> Click <code>Save + generate h5ad</code>, or run <code>bash run.sh</code> again later.</div>
+    </div>
+    """
+
+def umap_canvas_payload(obs):
+    if obs is None or not len(obs):
+        return None
+    required = {"UMAP1", "UMAP2", "cluster_id"}
+    if not required.issubset(set(obs.columns)):
+        return None
+    umap = obs[["UMAP1", "UMAP2", "cluster_id"]].replace([np.inf, -np.inf], np.nan).dropna().copy()
+    if not len(umap):
+        return None
+    x = umap["UMAP1"].astype(float)
+    y = umap["UMAP2"].astype(float)
+    x_min, x_max = float(x.min()), float(x.max())
+    y_min, y_max = float(y.min()), float(y.max())
+    x_span = x_max - x_min or 1.0
+    y_span = y_max - y_min or 1.0
+    umap["x"] = x.round(5)
+    umap["y"] = y.round(5)
+    return {
+        "points": umap[["x", "y", "cluster_id"]].astype({"cluster_id": str}).values.tolist(),
+        "bounds": {
+            "x_min": x_min,
+            "x_max": x_max,
+            "y_min": y_min,
+            "y_max": y_max,
+            "x_span": x_span,
+            "y_span": y_span,
+        },
+        "n": int(len(umap)),
+    }
+
+def safe_json_script(value):
+    return json.dumps(value).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+
+def warning_banner_html():
+    if not warnings:
+        return ""
+    short = "No final decisions file found. Draft labels are active." if any("Final decision table not found" in str(w) for w in warnings) else f"{len(warnings)} warning(s) recorded."
+    details = "".join(f"<p><strong>Warning {i}.</strong> {escape(str(w))}</p>" for i, w in enumerate(warnings, start=1))
+    return f"<div class='compact-warning'><strong>{escape(short)}</strong><details><summary>Details</summary>{details}</details></div>"
+
+def cluster_explorer_html(cards, umap=None, markers=None):
+    if not cards:
+        return "<div class='note-box'>No cluster audit cards were generated. Run annotation provider templates first, then rerun this audit.</div>"
+    markers_by_cluster = {}
+    if markers is not None and len(markers):
+        for cluster_id, group in markers.fillna("").groupby(markers["cluster_id"].astype(str), sort=False):
+            markers_by_cluster[str(cluster_id)] = group.sort_values("rank").to_dict(orient="records")
+    payload_cards = []
+    for card in sorted(cards, key=lambda c: cluster_sort_key(c.get("cluster_id", ""))):
+        methods = []
+        for method, record in card.get("methods", {}).items():
+            candidates_text = []
+            for item in record.get("candidates") or []:
+                label = str(item.get("label") or "")
+                if not label:
+                    continue
+                score = item.get("score")
+                score_name = item.get("score_name") or "score"
+                text = f"{item.get('rank')}. {label}"
+                if score != "":
+                    text += f" ({score_name}={score})"
+                evidence = item.get("evidence")
+                if evidence:
+                    text += f" - {evidence}"
+                candidates_text.append(text)
+            methods.append({
+                "method": method,
+                "label": record.get("label") or "",
+                "confidence": record.get("confidence") or "",
+                "score": record.get("score") if record.get("score") != "" else "",
+                "score_name": record.get("score_name") or "",
+                "candidates": "; ".join(candidates_text),
+            })
+        payload_cards.append({
+            "cluster_id": str(card.get("cluster_id", "")),
+            "n_cells": card.get("n_cells", ""),
+            "suggested_label": card.get("suggested_label", ""),
+            "suggested_broad_label": card.get("suggested_broad_label", ""),
+            "decision": card.get("decision", ""),
+            "confidence": card.get("confidence", ""),
+            "agreement_level": card.get("agreement_level", ""),
+            "review_priority": card.get("review_priority", ""),
+            "final": card.get("final", {}),
+            "methods": methods,
+            "markers": markers_by_cluster.get(str(card.get("cluster_id", "")), []),
+            "reasoning": card.get("reasoning", {}),
+            "decision_row": {
+                "cluster_id": str(card.get("cluster_id", "")),
+                "suggested_label": card.get("suggested_label", ""),
+                "suggested_broad_label": card.get("suggested_broad_label", ""),
+                "decision": card.get("decision", ""),
+                "confidence": card.get("confidence", ""),
+                "agreement_level": card.get("agreement_level", ""),
+                "review_priority": card.get("review_priority", ""),
+                "review_status": (card.get("final") or {}).get("review_status", "not_reviewed"),
+                "final_label": (card.get("final") or {}).get("label", ""),
+                "final_broad_label": (card.get("final") or {}).get("broad_label", ""),
+                "reviewer_note": (card.get("final") or {}).get("reviewer_note", ""),
+            },
+        })
+    options = "".join(f"<option value='{escape(card['cluster_id'])}'>Cluster {escape(card['cluster_id'])}</option>" for card in payload_cards)
+    data = safe_json_script(payload_cards)
+    umap_data = safe_json_script(umap or {"points": [], "n": 0})
+    warning_banner = warning_banner_html()
+    return f"""
+    <div class='cluster-explorer'>
+      <div class='audit-compact-status' id='audit-js-status'>Initializing dashboard...</div>
+      <div class='audit-workbench'>
+        <div id='cluster-audit-view' class='cluster-explorer-main'></div>
+        <div id='audit-resizer' class='audit-resizer' role='separator' aria-orientation='vertical' aria-label='Resize cluster details and UMAP panels' tabindex='0'></div>
+        <div class='cluster-explorer-map'>
+          <canvas id='cluster-audit-umap' width='900' height='900'></canvas>
+          <div id='audit-map-height-resizer' class='audit-map-height-resizer' role='separator' aria-orientation='horizontal' aria-label='Resize UMAP height' tabindex='0'></div>
+          <div class='map-meta'><span id='cluster-audit-map-label'>UMAP</span><span id='cluster-audit-map-legend'>Reviewed: green</span><span id='cluster-audit-map-count'></span></div>
+          <div class='final-label-overview'>
+            <div class='final-label-overview-head'>
+              <div class='final-label-overview-title'>Final label overview</div>
+              <div id='cluster-final-label-meta' class='final-label-overview-meta'>Colored by final label</div>
+            </div>
+            <div class='final-label-body'>
+              <canvas id='cluster-final-label-umap' width='1200' height='900'></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <template id='audit-warning-template'>{warning_banner}</template>
+    <script type='application/json' id='cluster-audit-data'>{data}</script>
+    <script type='application/json' id='cluster-audit-umap-data'>{umap_data}</script>
+    <script>
+    (function() {{
+      var decisionFields = ['cluster_id','suggested_label','suggested_broad_label','decision','confidence','agreement_level','review_priority','review_status','final_label','final_broad_label','reviewer_note'];
+      var storageKey = 'scrna_annotate_audit_decisions:' + window.location.pathname;
+      var splitStorageKey = 'scrna_annotate_audit_split:' + window.location.pathname;
+      var umapHeightStorageKey = 'scrna_annotate_audit_umap_height:' + window.location.pathname;
+      var markerLimitStorageKey = 'scrna_annotate_audit_marker_limit:' + window.location.pathname;
+      var decisions = {{}};
+      var initialized = false;
+      var data = [];
+      var umap = {{points: [], n: 0}};
+      var markerLimit = localStorage.getItem(markerLimitStorageKey) || '5';
+      var currentClusterId = null;
+      var select = null;
+      var view = null;
+      var canvas = null;
+      var finalLabelCanvas = null;
+      var explorer = null;
+      var workbench = null;
+      var resizer = null;
+      var mapHeightResizer = null;
+      var mapLabel = null;
+      var mapLegend = null;
+      var mapCount = null;
+      var finalLabelMeta = null;
+      var lastMapHits = [];
+      var lastMapClusterCounts = {{}};
+      var hoverClusterId = null;
+      function esc(x) {{
+        return String(x == null ? '' : x).replace(/[&<>"']/g, function(c) {{
+          return {{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}}[c];
+        }});
+      }}
+      function setJsStatus(message, isError) {{
+        var status = document.getElementById('audit-js-status');
+        if (status) {{
+          status.textContent = message || '';
+          status.style.color = isError ? '#991b1b' : '#166534';
+        }}
+      }}
+      function csvEscape(x) {{
+        var text = String(x == null ? '' : x);
+        return /[",\\n\\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+      }}
+      function saveLocal() {{
+        try {{ window.localStorage.setItem(storageKey, JSON.stringify(decisions)); }} catch (e) {{}}
+      }}
+      function decisionCsv() {{
+        var rows = data.map(function(card) {{
+          var row = decisions[String(card.cluster_id)] || card.decision_row || {{}};
+          return decisionFields.map(function(field) {{ return csvEscape(row[field] || ''); }}).join(',');
+        }});
+        return decisionFields.join(',') + '\\n' + rows.join('\\n') + '\\n';
+      }}
+      function downloadCsv() {{
+        var blob = new Blob([decisionCsv()], {{type: 'text/csv;charset=utf-8'}});
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'final_annotation_decisions.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }}
+      function apiPost(path, payload) {{
+        return fetch(path, {{
+          method: 'POST',
+          headers: {{'Content-Type': 'application/json'}},
+          body: JSON.stringify(payload || {{}})
+        }}).then(function(response) {{
+          return response.json().then(function(body) {{
+            if (!response.ok || !body.ok) throw new Error(body.error || response.statusText);
+            return body;
+          }});
+        }});
+      }}
+      function currentDecisionPayload() {{
+        return {{decisions: data.map(function(card) {{ return decisions[String(card.cluster_id)] || card.decision_row || {{}}; }})}};
+      }}
+      function setEditorStatus(message, isError) {{
+        var status = document.getElementById('audit-editor-status');
+        if (status) {{
+          status.textContent = message || '';
+          status.style.color = isError ? '#991b1b' : '#166534';
+        }}
+      }}
+      function applySplitRatio(ratio) {{
+        ratio = Math.max(0.28, Math.min(0.72, Number(ratio) || 0.52));
+        if (explorer) {{
+          explorer.style.setProperty('--audit-left-fr', ratio + 'fr');
+          explorer.style.setProperty('--audit-right-fr', (1 - ratio) + 'fr');
+        }}
+        try {{ window.localStorage.setItem(splitStorageKey, String(ratio)); }} catch (e) {{}}
+        if (initialized && currentClusterId) window.requestAnimationFrame(function() {{ drawMap(currentClusterId); drawFinalLabelMap(); }});
+      }}
+      function initSplitControl() {{
+        if (!workbench || !resizer) return;
+        try {{
+          var savedRatio = parseFloat(window.localStorage.getItem(splitStorageKey) || '0.52');
+          applySplitRatio(savedRatio);
+        }} catch (e) {{
+          applySplitRatio(0.52);
+        }}
+        var dragging = false;
+        function ratioFromEvent(event) {{
+          var rect = workbench.getBoundingClientRect();
+          if (!rect.width) return 0.52;
+          return (event.clientX - rect.left) / rect.width;
+        }}
+        function move(event) {{
+          if (!dragging) return;
+          event.preventDefault();
+          applySplitRatio(ratioFromEvent(event));
+        }}
+        function stop() {{
+          dragging = false;
+          resizer.classList.remove('dragging');
+          document.removeEventListener('pointermove', move);
+          document.removeEventListener('pointerup', stop);
+        }}
+        resizer.addEventListener('pointerdown', function(event) {{
+          dragging = true;
+          resizer.classList.add('dragging');
+          resizer.setPointerCapture && resizer.setPointerCapture(event.pointerId);
+          document.addEventListener('pointermove', move);
+          document.addEventListener('pointerup', stop);
+        }});
+        resizer.addEventListener('keydown', function(event) {{
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+          event.preventDefault();
+          var current = parseFloat((getComputedStyle(explorer).getPropertyValue('--audit-left-fr') || '0.52').replace('fr','')) || 0.52;
+          applySplitRatio(current + (event.key === 'ArrowLeft' ? -0.04 : 0.04));
+        }});
+      }}
+      function applyUmapHeight(heightPx) {{
+        heightPx = Math.max(260, Math.min(1100, Number(heightPx) || 420));
+        if (explorer) explorer.style.setProperty('--audit-umap-height', heightPx + 'px');
+        try {{ window.localStorage.setItem(umapHeightStorageKey, String(heightPx)); }} catch (e) {{}}
+        if (initialized && currentClusterId) window.requestAnimationFrame(function() {{ drawMap(currentClusterId); }});
+      }}
+      function initUmapHeightControl() {{
+        if (!canvas || !mapHeightResizer) return;
+        try {{
+          var savedHeight = parseFloat(window.localStorage.getItem(umapHeightStorageKey) || '');
+          if (savedHeight) applyUmapHeight(savedHeight);
+        }} catch (e) {{}}
+        var dragging = false;
+        var startY = 0;
+        var startHeight = 0;
+        function move(event) {{
+          if (!dragging) return;
+          event.preventDefault();
+          applyUmapHeight(startHeight + event.clientY - startY);
+        }}
+        function stop() {{
+          dragging = false;
+          mapHeightResizer.classList.remove('dragging');
+          document.removeEventListener('pointermove', move);
+          document.removeEventListener('pointerup', stop);
+        }}
+        mapHeightResizer.addEventListener('pointerdown', function(event) {{
+          dragging = true;
+          startY = event.clientY;
+          startHeight = canvas.getBoundingClientRect().height || canvas.clientHeight || 420;
+          mapHeightResizer.classList.add('dragging');
+          mapHeightResizer.setPointerCapture && mapHeightResizer.setPointerCapture(event.pointerId);
+          document.addEventListener('pointermove', move);
+          document.addEventListener('pointerup', stop);
+        }});
+        mapHeightResizer.addEventListener('keydown', function(event) {{
+          if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+          event.preventDefault();
+          var current = canvas.getBoundingClientRect().height || canvas.clientHeight || 420;
+          applyUmapHeight(current + (event.key === 'ArrowUp' ? -32 : 32));
+        }});
+      }}
+      function uniqueValues(values) {{
+        var seen = {{}};
+        return values.filter(function(value) {{
+          value = String(value || '').trim();
+          if (!value || seen[value]) return false;
+          seen[value] = true;
+          return true;
+        }});
+      }}
+      function fmtNumber(value, digits) {{
+        var number = Number(value);
+        if (!isFinite(number)) return '';
+        return number.toFixed(digits);
+      }}
+      function markerRowsHtml(markers, query, limitValue) {{
+        query = String(query || '').trim().toLowerCase();
+        var filtered = (markers || []).filter(function(row) {{
+          return !query || String(row.gene || '').toLowerCase().indexOf(query) !== -1;
+        }});
+        if (!filtered.length) {{
+          return '<p class="marker-empty">' + (query ? 'No matching top marker genes for this cluster.' : 'No cluster-specific marker genes were generated.') + '</p>';
+        }}
+        var limit = limitValue === 'all' ? filtered.length : parseInt(limitValue || '5', 10);
+        if (!isFinite(limit) || limit < 1) limit = 5;
+        return '<div class="grid-table marker-grid">' +
+          '<div class="grid-cell grid-head">Gene</div><div class="grid-cell grid-head num">log2FC</div><div class="grid-cell grid-head num">Mean</div><div class="grid-cell grid-head num">% cells</div><div class="grid-cell grid-head num">Score</div>' +
+          filtered.slice(0, limit).map(function(row) {{
+            return '<div class="grid-cell"><strong>' + esc(row.gene || '') + '</strong></div>' +
+              '<div class="grid-cell num">' + esc(fmtNumber(row.log2_fold_change, 2)) + '</div>' +
+              '<div class="grid-cell num">' + esc(fmtNumber(row.mean_expression, 2)) + '</div>' +
+              '<div class="grid-cell num">' + esc(fmtNumber(row.pct_expressing, 1)) + '</div>' +
+              '<div class="grid-cell num">' + esc(fmtNumber(row.score, 2)) + '</div>';
+          }}).join('') +
+          '</div>';
+      }}
+      function cardForCluster(clusterId) {{
+        return data.find(function(item) {{ return String(item.cluster_id) === String(clusterId); }}) || null;
+      }}
+      function clusterDecision(clusterId) {{
+        var key = String(clusterId);
+        var card = cardForCluster(key);
+        return decisions[key] || (card ? card.decision_row : null) || {{}};
+      }}
+      function isReviewedCluster(clusterId) {{
+        var row = clusterDecision(clusterId);
+        var status = String(row.review_status || '').toLowerCase();
+        return !!String(row.final_label || '').trim() && (status === 'accepted' || status === 'changed');
+      }}
+      function finalLabelForCluster(clusterId) {{
+        var row = clusterDecision(clusterId);
+        var card = cardForCluster(clusterId);
+        return String((row && row.final_label) || (card && card.suggested_label) || '').trim();
+      }}
+      function clusterOptionText(card) {{
+        var id = String(card.cluster_id);
+        var row = clusterDecision(id);
+        var status = String((row && row.review_status) || '').toLowerCase();
+        var finalLabel = String((row && row.final_label) || '').trim();
+        var isFinalized = finalLabel && (status === 'accepted' || status === 'changed');
+        var label = finalLabel || String(card.suggested_label || '').trim();
+        var prefix = isFinalized ? '✓' : '○';
+        var suffix = label ? ' · ' + label : ' · not finalized';
+        if (!isFinalized && finalLabel) suffix += ' · ' + status;
+        return prefix + ' Cluster ' + id + suffix;
+      }}
+      function colorForLabel(label) {{
+        if (!label) return '#94a3b8';
+        var hash = 0;
+        for (var i = 0; i < label.length; i++) hash = ((hash << 5) - hash + label.charCodeAt(i)) | 0;
+        var hue = ((Math.abs(hash) * 137.508) % 360);
+        return 'hsl(' + hue.toFixed(1) + ', 72%, 46%)';
+      }}
+      function resizeCanvas() {{
+        if (!canvas) return {{w: 900, h: 900, dpr: 1}};
+        var dpr = window.devicePixelRatio || 1;
+        var rect = canvas.getBoundingClientRect();
+        var cssW = Math.max(320, Math.round(rect.width || canvas.clientWidth || 900));
+        var cssH = Math.max(260, Math.round(rect.height || canvas.clientHeight || 600));
+        var targetW = Math.round(cssW * dpr);
+        var targetH = Math.round(cssH * dpr);
+        if (canvas.width !== targetW || canvas.height !== targetH) {{
+          canvas.width = targetW;
+          canvas.height = targetH;
+        }}
+        return {{w: targetW, h: targetH, dpr: dpr}};
+      }}
+      function umapBounds(points) {{
+        points = points || [];
+        var bounds = umap.bounds || {{}};
+        var xMin = Number(bounds.x_min), xMax = Number(bounds.x_max);
+        var yMin = Number(bounds.y_min), yMax = Number(bounds.y_max);
+        if (!isFinite(xMin) || !isFinite(xMax) || !isFinite(yMin) || !isFinite(yMax)) {{
+          xMin = Math.min.apply(null, points.map(function(p) {{ return Number(p[0]); }}));
+          xMax = Math.max.apply(null, points.map(function(p) {{ return Number(p[0]); }}));
+          yMin = Math.min.apply(null, points.map(function(p) {{ return Number(p[1]); }}));
+          yMax = Math.max.apply(null, points.map(function(p) {{ return Number(p[1]); }}));
+        }}
+        return {{xMin: xMin, xMax: xMax, yMin: yMin, yMax: yMax}};
+      }}
+      function plotFromBounds(size, bounds, pad) {{
+        var w = size.w, h = size.h;
+        var xSpan = Math.max(bounds.xMax - bounds.xMin, 1e-9);
+        var ySpan = Math.max(bounds.yMax - bounds.yMin, 1e-9);
+        var scale = Math.min((w - pad * 2) / xSpan, (h - pad * 2) / ySpan);
+        var plotW = xSpan * scale;
+        var plotH = ySpan * scale;
+        return {{
+          xMin: bounds.xMin,
+          yMax: bounds.yMax,
+          scale: scale,
+          left: (w - plotW) / 2,
+          top: (h - plotH) / 2
+        }};
+      }}
+      function resizeFinalLabelCanvas(points) {{
+        if (!finalLabelCanvas) return {{w: 1200, h: 900, dpr: 2}};
+        var rect = finalLabelCanvas.getBoundingClientRect();
+        var cssW = Math.max(320, Math.round(rect.width || finalLabelCanvas.clientWidth || 760));
+        var bounds = umapBounds(points || []);
+        var ratio = isFinite(bounds.xMax - bounds.xMin) && isFinite(bounds.yMax - bounds.yMin)
+          ? Math.max(0.35, Math.min(1.15, (bounds.yMax - bounds.yMin) / Math.max(bounds.xMax - bounds.xMin, 1e-9)))
+          : 0.75;
+        var cssH = Math.round(Math.max(240, Math.min(520, cssW * ratio)));
+        finalLabelCanvas.style.height = cssH + 'px';
+        var dpr = Math.min(4, Math.max(2, (window.devicePixelRatio || 1) * 2));
+        var targetW = Math.round(cssW * dpr);
+        var targetH = Math.round(cssH * dpr);
+        if (finalLabelCanvas.width !== targetW || finalLabelCanvas.height !== targetH) {{
+          finalLabelCanvas.width = targetW;
+          finalLabelCanvas.height = targetH;
+        }}
+        return {{w: targetW, h: targetH, dpr: dpr}};
+      }}
+      function pointPosition(point, plot) {{
+        return [
+          plot.left + (point[0] - plot.xMin) * plot.scale,
+          plot.top + (plot.yMax - point[1]) * plot.scale
+        ];
+      }}
+      function nearestMapCluster(event) {{
+        if (!canvas || !lastMapHits.length) return null;
+        var rect = canvas.getBoundingClientRect();
+        var dpr = window.devicePixelRatio || 1;
+        var mx = (event.clientX - rect.left) * dpr;
+        var my = (event.clientY - rect.top) * dpr;
+        var best = null;
+        var bestD2 = Infinity;
+        var radius = 10 * dpr;
+        var radius2 = radius * radius;
+        for (var i = 0; i < lastMapHits.length; i++) {{
+          var hit = lastMapHits[i];
+          var dx = hit.x - mx;
+          var dy = hit.y - my;
+          var d2 = dx * dx + dy * dy;
+          if (d2 < bestD2 && d2 <= radius2) {{
+            best = hit;
+            bestD2 = d2;
+          }}
+        }}
+        return best;
+      }}
+      function updateMapHover(event) {{
+        var hit = nearestMapCluster(event);
+        hoverClusterId = hit ? String(hit.cluster) : null;
+        if (canvas) canvas.style.cursor = hit ? 'pointer' : 'crosshair';
+        if (!hit) {{
+          if (currentClusterId && mapLabel) mapLabel.textContent = 'Highlighted cluster ' + currentClusterId;
+          if (currentClusterId && mapCount) {{
+            var selectedCount = lastMapClusterCounts[String(currentClusterId)] || 0;
+            mapCount.textContent = selectedCount + ' / ' + ((umap.points || []).length) + ' cells';
+          }}
+          return;
+        }}
+        if (mapLabel) mapLabel.textContent = 'Hover cluster ' + hoverClusterId + ' - click to select';
+        if (mapCount) mapCount.textContent = (lastMapClusterCounts[hoverClusterId] || 0) + ' / ' + ((umap.points || []).length) + ' cells';
+      }}
+      function clickMapCluster(event) {{
+        var hit = nearestMapCluster(event);
+        if (!hit) return;
+        var cluster = String(hit.cluster);
+        if (currentClusterId !== cluster) {{
+          currentClusterId = cluster;
+          render();
+        }}
+      }}
+      function drawMap(clusterId) {{
+        if (!canvas || !canvas.getContext) return;
+        var size = resizeCanvas();
+        var ctx = canvas.getContext('2d');
+        var w = size.w, h = size.h, pad = 24 * size.dpr;
+        lastMapHits = [];
+        lastMapClusterCounts = {{}};
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        var points = umap.points || [];
+        if (!points.length) {{
+          ctx.fillStyle = '#64748b';
+          ctx.font = (14 * size.dpr) + 'px sans-serif';
+          ctx.fillText('No UMAP coordinates available', 32 * size.dpr, 52 * size.dpr);
+          if (mapLabel) mapLabel.textContent = 'UMAP unavailable';
+          if (mapCount) mapCount.textContent = '';
+          return;
+        }}
+        var plot = plotFromBounds(size, umapBounds(points), pad);
+        var reviewedClusters = {{}};
+        var dotSize = 1.8 * size.dpr;
+        var dotOffset = dotSize / 2;
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = '#64748b';
+        for (var i = 0; i < points.length; i++) {{
+          var p = points[i];
+          var xy = pointPosition(p, plot);
+          var cluster = String(p[2]);
+          lastMapClusterCounts[cluster] = (lastMapClusterCounts[cluster] || 0) + 1;
+          lastMapHits.push({{x: xy[0], y: xy[1], cluster: cluster}});
+          if (isReviewedCluster(cluster)) {{
+            reviewedClusters[cluster] = true;
+            continue;
+          }}
+          ctx.fillRect(xy[0] - dotOffset, xy[1] - dotOffset, dotSize, dotSize);
+        }}
+        ctx.globalAlpha = 0.45;
+        ctx.fillStyle = '#059669';
+        for (var r = 0; r < points.length; r++) {{
+          var rp = points[r];
+          var rCluster = String(rp[2]);
+          if (rCluster === String(clusterId) || !isReviewedCluster(rCluster)) continue;
+          var rxy = pointPosition(rp, plot);
+          ctx.fillRect(rxy[0] - dotOffset, rxy[1] - dotOffset, dotSize, dotSize);
+        }}
+        var selected = 0;
+        ctx.globalAlpha = 0.72;
+        ctx.fillStyle = '#2563eb';
+        for (var j = 0; j < points.length; j++) {{
+          var q = points[j];
+          if (String(q[2]) !== String(clusterId)) continue;
+          selected += 1;
+          var hxy = pointPosition(q, plot);
+          ctx.fillRect(hxy[0] - dotOffset, hxy[1] - dotOffset, dotSize, dotSize);
+        }}
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = Math.max(1, size.dpr);
+        ctx.strokeRect(size.dpr / 2, size.dpr / 2, w - size.dpr, h - size.dpr);
+        if (mapLabel) mapLabel.textContent = 'Highlighted cluster ' + clusterId;
+        if (mapLegend) mapLegend.textContent = Object.keys(reviewedClusters).length + ' reviewed clusters shown in green';
+        if (mapCount) mapCount.textContent = selected + ' / ' + points.length + ' cells';
+      }}
+      function drawFinalLabelMap() {{
+        if (!finalLabelCanvas || !finalLabelCanvas.getContext) return;
+        var points = umap.points || [];
+        var size = resizeFinalLabelCanvas(points);
+        var ctx = finalLabelCanvas.getContext('2d');
+        var w = size.w, h = size.h, pad = 18 * size.dpr;
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(0, 0, w, h);
+        if (!points.length) {{
+          ctx.fillStyle = '#64748b';
+          ctx.font = (12 * size.dpr) + 'px sans-serif';
+          ctx.fillText('No UMAP coordinates available', 24 * size.dpr, 42 * size.dpr);
+          if (finalLabelMeta) finalLabelMeta.textContent = 'UMAP unavailable';
+          return;
+        }}
+        var labelCounts = {{}};
+        for (var c = 0; c < data.length; c++) {{
+          var label = finalLabelForCluster(data[c].cluster_id);
+          if (label) labelCounts[label] = (labelCounts[label] || 0) + Number(data[c].n_cells || 0);
+        }}
+        var labels = Object.keys(labelCounts).sort(function(a, b) {{
+          return (labelCounts[b] - labelCounts[a]) || a.localeCompare(b);
+        }});
+        var legendWidth = Math.min(Math.max(178 * size.dpr, w * 0.22), 260 * size.dpr);
+        var legendGap = 16 * size.dpr;
+        var mapSize = {{w: Math.max(320 * size.dpr, w - legendWidth - legendGap), h: h, dpr: size.dpr}};
+        var plot = plotFromBounds(mapSize, umapBounds(points), pad);
+        var dotSize = 1.7 * size.dpr;
+        var dotOffset = dotSize / 2;
+        ctx.globalAlpha = 0.72;
+        for (var i = 0; i < points.length; i++) {{
+          var p = points[i];
+          var labelForPoint = finalLabelForCluster(String(p[2]));
+          var xy = pointPosition(p, plot);
+          ctx.fillStyle = colorForLabel(labelForPoint);
+          ctx.fillRect(xy[0] - dotOffset, xy[1] - dotOffset, dotSize, dotSize);
+        }}
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = Math.max(1, size.dpr);
+        ctx.strokeRect(size.dpr / 2, size.dpr / 2, w - size.dpr, h - size.dpr);
+        ctx.fillStyle = '#ffffff';
+        ctx.globalAlpha = 0.9;
+        ctx.fillRect(w - legendWidth - 8 * size.dpr, 8 * size.dpr, legendWidth, h - 16 * size.dpr);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.strokeRect(w - legendWidth - 8 * size.dpr, 8 * size.dpr, legendWidth, h - 16 * size.dpr);
+        var lx = w - legendWidth + 4 * size.dpr;
+        var ly = 25 * size.dpr;
+        var lineHeight = 16 * size.dpr;
+        var swatch = 8 * size.dpr;
+        ctx.font = (10.5 * size.dpr) + 'px sans-serif';
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText('Final labels', lx, ly);
+        ly += 16 * size.dpr;
+        var maxItems = Math.max(1, Math.floor((h - 56 * size.dpr) / lineHeight));
+        labels.slice(0, maxItems).forEach(function(label) {{
+          ctx.fillStyle = colorForLabel(label);
+          ctx.fillRect(lx, ly - swatch + 1 * size.dpr, swatch, swatch);
+          ctx.strokeStyle = 'rgba(15,23,42,0.18)';
+          ctx.strokeRect(lx, ly - swatch + 1 * size.dpr, swatch, swatch);
+          ctx.fillStyle = '#334155';
+          var text = label;
+          var maxTextWidth = legendWidth - 30 * size.dpr;
+          while (ctx.measureText(text).width > maxTextWidth && text.length > 4) text = text.slice(0, -2);
+          if (text !== label) text += '…';
+          ctx.fillText(text, lx + 13 * size.dpr, ly);
+          ly += lineHeight;
+        }});
+        if (labels.length > maxItems) {{
+          ctx.fillStyle = '#64748b';
+          ctx.fillText('+' + (labels.length - maxItems) + ' more', lx, ly);
+        }}
+        if (finalLabelMeta) finalLabelMeta.textContent = labels.length + ' final labels · legend inside figure';
+      }}
+      function render() {{
+        if (!currentClusterId && data.length) currentClusterId = String(data[0].cluster_id);
+        var card = data.find(function(item) {{ return String(item.cluster_id) === String(currentClusterId); }}) || data[0];
+        if (!card) {{ view.innerHTML = '<p>No clusters available.</p>'; return; }}
+        currentClusterId = String(card.cluster_id);
+        var sidebarLabel = document.getElementById('audit-sidebar-label');
+        var sidebarStatus = document.getElementById('audit-sidebar-status');
+        var sidebarCells = document.getElementById('audit-sidebar-cells');
+        var sidebarPriority = document.getElementById('audit-sidebar-priority');
+        if (sidebarLabel) sidebarLabel.textContent = card.suggested_label || 'Unknown';
+        if (sidebarStatus) sidebarStatus.textContent = (card.decision || '') + ' · ' + (card.agreement_level || '');
+        if (sidebarCells) sidebarCells.textContent = String(card.n_cells || 0) + ' cells';
+        if (sidebarPriority) sidebarPriority.textContent = String(card.review_priority || '') + ' priority';
+        var final = card.final || {{}};
+        var reasoning = card.reasoning || {{}};
+        var summary = [
+          ['Final label', final.label || ''],
+          ['Suggested label', card.suggested_label || ''],
+          ['Decision', card.decision || ''],
+          ['Agreement', card.agreement_level || ''],
+          ['Confidence', card.confidence || ''],
+          ['Review priority', card.review_priority || ''],
+          ['Cells', card.n_cells || ''],
+          ['Label source', final.label_source || '']
+        ].map(function(row) {{ return '<div><strong>' + esc(row[0]) + '</strong>' + esc(row[1]) + '</div>'; }}).join('');
+        var methods = (card.methods || []).map(function(row) {{
+          var label = row.label || 'missing';
+          return '<div class="grid-cell"><strong>' + esc(row.method) + '</strong></div><div class="grid-cell"><strong>' + esc(label) + '</strong></div><div class="grid-cell">' + esc(row.confidence || 'n/a') + '</div>';
+        }}).join('');
+        var markers = card.markers || [];
+        var decision = decisions[String(card.cluster_id)] || card.decision_row || {{}};
+        var providerLabels = uniqueValues([card.suggested_label].concat((card.methods || []).map(function(row) {{ return row.label; }})));
+        var labelOptions = providerLabels.map(function(label) {{
+          var selected = label === decision.final_label ? ' selected' : '';
+          return '<option value="' + esc(label) + '"' + selected + '>' + esc(label) + '</option>';
+        }}).join('') + '<option value="__custom__">Custom label</option>';
+        var statusOptions = ['accepted','changed','uncertain','not_reviewed'].map(function(status) {{
+          return '<option value="' + esc(status) + '"' + (status === decision.review_status ? ' selected' : '') + '>' + esc(status) + '</option>';
+        }}).join('');
+        var supports = (reasoning.supports || []).join(' ');
+        var contradictions = (reasoning.contradictions || []).join(' ');
+        var uncertainties = (reasoning.uncertainties || []).join(' ');
+        var warningTemplate = document.getElementById('audit-warning-template');
+        var warningHtml = warningTemplate ? warningTemplate.innerHTML : '';
+        var clusterOptions = data.map(function(item) {{
+          var id = String(item.cluster_id);
+          return '<option value="' + esc(id) + '"' + (id === currentClusterId ? ' selected' : '') + '>' + esc(clusterOptionText(item)) + '</option>';
+        }}).join('');
+        var markerLimitOptions = ['5','10','20','40','all'].map(function(value) {{
+          var label = value === 'all' ? 'All' : value;
+          return '<option value="' + esc(value) + '"' + (value === markerLimit ? ' selected' : '') + '>' + esc(label) + '</option>';
+        }}).join('');
+        view.innerHTML =
+          warningHtml +
+          '<div class="audit-controlbar">' +
+          '<div><label for="cluster-audit-select">Cluster</label><select id="cluster-audit-select">' + clusterOptions + '</select></div>' +
+          '<div class="control-card"><strong>Label</strong><span id="audit-sidebar-label">' + esc(card.suggested_label || 'Unknown') + '</span></div>' +
+          '<div class="control-card"><strong>Status</strong><span id="audit-sidebar-status">' + esc((card.decision || '') + ' · ' + (card.agreement_level || '')) + '</span></div>' +
+          '<div class="control-card"><strong>Cells</strong><span id="audit-sidebar-cells">' + esc(String(card.n_cells || 0)) + ' cells</span></div>' +
+          '</div>' +
+          '<div class="cluster-summary">' + summary + '</div>' +
+          '<div class="grid-table provider-grid"><div class="grid-cell grid-head">Provider</div><div class="grid-cell grid-head">Annotation</div><div class="grid-cell grid-head">Confidence</div>' + methods + '</div>' +
+          '<div class="marker-panel">' +
+          '<div class="marker-panel-head"><div class="marker-panel-title">Cluster marker genes</div><div class="marker-panel-controls"><label>Rows<select id="audit-marker-limit">' + markerLimitOptions + '</select></label><input id="audit-marker-search" type="search" placeholder="Search gene"></div></div>' +
+          '<div id="audit-marker-table">' + markerRowsHtml(markers, '', markerLimit) + '</div>' +
+          '</div>' +
+          '<div class="decision-editor">' +
+          '<h3>Final annotation</h3>' +
+          '<div class="decision-editor-grid">' +
+          '<label>Use label<select id="audit-label-choice">' + labelOptions + '</select></label>' +
+          '<label>Final label<input id="audit-final-label" value="' + esc(decision.final_label || '') + '"></label>' +
+          '<label>Review status<select id="audit-review-status">' + statusOptions + '</select></label>' +
+          '</div>' +
+          '<label style="margin-top:.65rem">Reviewer note<textarea id="audit-reviewer-note">' + esc(decision.reviewer_note || '') + '</textarea></label>' +
+          '<div class="decision-editor-actions">' +
+          '<button class="primary" id="audit-save-cluster" type="button">Save cluster</button>' +
+          '<button id="audit-save-config" type="button">Save decisions to config</button>' +
+          '<button id="audit-write-h5ad" type="button">Generate final h5ad</button>' +
+          '<button id="audit-save-write-h5ad" type="button">Save + generate h5ad</button>' +
+          '<button id="audit-download-decisions" type="button">Download decisions CSV</button>' +
+          '<span class="status" id="audit-editor-status"></span>' +
+          '</div>' +
+          '</div>' +
+          '<details class="reasoning-details"><summary>Reasoning</summary>' +
+          '<p><strong>Supports.</strong> ' + esc(supports || 'No supporting rationale recorded.') + '</p>' +
+          '<p><strong>Contradictions.</strong> ' + esc(contradictions || 'No contradictions recorded.') + '</p>' +
+          '<p><strong>Uncertainties.</strong> ' + esc(uncertainties || 'No uncertainties recorded.') + '</p>' +
+          '</details>';
+        var labelChoice = document.getElementById('audit-label-choice');
+        select = document.getElementById('cluster-audit-select');
+        if (select) {{
+          select.value = card.cluster_id;
+          select.addEventListener('change', function() {{
+            currentClusterId = select.value;
+            render();
+          }});
+        }}
+        var markerSearch = document.getElementById('audit-marker-search');
+        var markerLimitSelect = document.getElementById('audit-marker-limit');
+        var markerTable = document.getElementById('audit-marker-table');
+        var finalLabel = document.getElementById('audit-final-label');
+        var reviewStatus = document.getElementById('audit-review-status');
+        var reviewerNote = document.getElementById('audit-reviewer-note');
+        var status = document.getElementById('audit-editor-status');
+        if (labelChoice && finalLabel) {{
+          labelChoice.addEventListener('change', function() {{
+            if (labelChoice.value !== '__custom__') {{
+              finalLabel.value = labelChoice.value;
+            }}
+          }});
+        }}
+        function refreshMarkerTable() {{
+          if (!markerTable) return;
+          markerTable.innerHTML = markerRowsHtml(markers, markerSearch ? markerSearch.value : '', markerLimit);
+        }}
+        if (markerLimitSelect) {{
+          markerLimitSelect.value = markerLimit;
+          markerLimitSelect.addEventListener('change', function() {{
+            markerLimit = markerLimitSelect.value || '5';
+            localStorage.setItem(markerLimitStorageKey, markerLimit);
+            refreshMarkerTable();
+          }});
+        }}
+        if (markerSearch) {{
+          markerSearch.addEventListener('input', refreshMarkerTable);
+          markerSearch.addEventListener('search', refreshMarkerTable);
+          markerSearch.addEventListener('keyup', refreshMarkerTable);
+        }}
+        var saveButton = document.getElementById('audit-save-cluster');
+        if (saveButton) {{
+          saveButton.addEventListener('click', function() {{
+            var key = String(card.cluster_id);
+            decisions[key] = Object.assign(decisions[key] || {{}}, {{
+              cluster_id: key,
+              suggested_label: card.suggested_label || '',
+              suggested_broad_label: card.suggested_broad_label || '',
+              decision: card.decision || '',
+              confidence: card.confidence || '',
+              agreement_level: card.agreement_level || '',
+              review_priority: card.review_priority || '',
+              review_status: reviewStatus ? reviewStatus.value : 'not_reviewed',
+              final_label: finalLabel ? finalLabel.value : '',
+              final_broad_label: finalLabel ? finalLabel.value : '',
+              reviewer_note: reviewerNote ? reviewerNote.value : ''
+            }});
+            saveLocal();
+            if (status) status.textContent = 'Saved cluster ' + key + ' in this browser.';
+            drawMap(card.cluster_id);
+            drawFinalLabelMap();
+          }});
+        }}
+        var downloadButton = document.getElementById('audit-download-decisions');
+        if (downloadButton) {{
+          downloadButton.addEventListener('click', function() {{
+            if (saveButton) saveButton.click();
+            downloadCsv();
+          }});
+        }}
+        var saveConfigButton = document.getElementById('audit-save-config');
+        if (saveConfigButton) {{
+          saveConfigButton.addEventListener('click', function() {{
+            if (saveButton) saveButton.click();
+            setEditorStatus('Saving decisions to config...', false);
+            apiPost('/api/save-decisions', currentDecisionPayload()).then(function(body) {{
+              setEditorStatus('Saved ' + body.rows + ' decisions to config.', false);
+            }}).catch(function(error) {{
+              setEditorStatus('Local API unavailable: ' + error.message + '. Use Download decisions CSV instead.', true);
+            }});
+          }});
+        }}
+        var writeH5adButton = document.getElementById('audit-write-h5ad');
+        if (writeH5adButton) {{
+          writeH5adButton.addEventListener('click', function() {{
+            setEditorStatus('Generating final h5ad...', false);
+            apiPost('/api/write-h5ad', {{}}).then(function(body) {{
+              setEditorStatus('Generated final h5ad: ' + body.path, false);
+            }}).catch(function(error) {{
+              setEditorStatus('Could not generate h5ad: ' + error.message, true);
+            }});
+          }});
+        }}
+        var saveWriteButton = document.getElementById('audit-save-write-h5ad');
+        if (saveWriteButton) {{
+          saveWriteButton.addEventListener('click', function() {{
+            if (saveButton) saveButton.click();
+            setEditorStatus('Saving decisions and generating final h5ad...', false);
+            apiPost('/api/save-and-write-h5ad', currentDecisionPayload()).then(function(body) {{
+              setEditorStatus('Saved decisions and generated final h5ad.', false);
+            }}).catch(function(error) {{
+              setEditorStatus('Could not save/generate: ' + error.message, true);
+            }});
+          }});
+        }}
+        drawMap(card.cluster_id);
+        drawFinalLabelMap();
+      }}
+      function initAuditDashboard(attempt) {{
+        if (initialized) return;
+        try {{
+          var dataNode = document.getElementById('cluster-audit-data');
+          var umapNode = document.getElementById('cluster-audit-umap-data');
+          explorer = document.querySelector('.cluster-explorer');
+          workbench = document.querySelector('.audit-workbench');
+          resizer = document.getElementById('audit-resizer');
+          mapHeightResizer = document.getElementById('audit-map-height-resizer');
+          view = document.getElementById('cluster-audit-view');
+          canvas = document.getElementById('cluster-audit-umap');
+          finalLabelCanvas = document.getElementById('cluster-final-label-umap');
+          mapLabel = document.getElementById('cluster-audit-map-label');
+          mapLegend = document.getElementById('cluster-audit-map-legend');
+          mapCount = document.getElementById('cluster-audit-map-count');
+          finalLabelMeta = document.getElementById('cluster-final-label-meta');
+          if (!dataNode || !umapNode || !view || !canvas) {{
+            if ((attempt || 0) < 20) setTimeout(function() {{ initAuditDashboard((attempt || 0) + 1); }}, 100);
+            return;
+          }}
+          data = JSON.parse(dataNode.textContent || '[]');
+          umap = JSON.parse(umapNode.textContent || '{{"points":[],"n":0}}');
+          if (data.length) currentClusterId = String(data[0].cluster_id);
+          data.forEach(function(card) {{
+            var row = card.decision_row || {{}};
+            decisions[String(card.cluster_id)] = Object.assign({{}}, row);
+          }});
+          try {{
+            var saved = JSON.parse(window.localStorage.getItem(storageKey) || '{{}}');
+            Object.keys(saved).forEach(function(key) {{
+              decisions[key] = Object.assign(decisions[key] || {{}}, saved[key] || {{}});
+            }});
+          }} catch (e) {{}}
+          initSplitControl();
+          initUmapHeightControl();
+          canvas.addEventListener('mousemove', updateMapHover);
+          canvas.addEventListener('mouseleave', function() {{
+            hoverClusterId = null;
+            canvas.style.cursor = 'crosshair';
+            if (initialized) drawMap(currentClusterId);
+          }});
+          canvas.addEventListener('click', clickMapCluster);
+          initialized = true;
+          render();
+          setJsStatus('Dashboard ready.', false);
+        }} catch (error) {{
+          setJsStatus('Dashboard initialization failed: ' + error.message, true);
+          if (view) view.innerHTML = '<div class="note-box">Dashboard initialization failed: ' + esc(error.message) + '</div>';
+          if (mapLabel) mapLabel.textContent = 'UMAP unavailable';
+        }}
+      }}
+      document.addEventListener('DOMContentLoaded', function() {{ initAuditDashboard(0); }});
+      window.addEventListener('load', function() {{ initAuditDashboard(0); }});
+      window.addEventListener('resize', function() {{ if (initialized) render(); }});
+      document.addEventListener('shown.bs.tab', function() {{ initAuditDashboard(0); if (initialized) render(); }});
+      setTimeout(function() {{ initAuditDashboard(0); }}, 0);
+    }})();
+    </script>
+    """
+
+def load_umap_table():
+    if ad is None:
+        return pd.DataFrame(), "anndata is not available, so UMAP figures were not rendered."
+    h5ad = run_input.get("h5ad")
+    cluster_key = run_input.get("cluster_key") or ""
+    if not h5ad:
+        return pd.DataFrame(), "No input h5ad path was recorded."
+    try:
+        adata = ad.read_h5ad(h5ad, backed="r")
+    except Exception as exc:
+        return pd.DataFrame(), f"Could not read input h5ad for UMAP figures: {exc}"
+    try:
+        if "X_umap" not in adata.obsm:
+            return pd.DataFrame(), "The input h5ad does not contain obsm['X_umap']."
+        if cluster_key not in adata.obs:
+            return pd.DataFrame(), f"Cluster key '{cluster_key}' was not found in adata.obs."
+        coords = np.asarray(adata.obsm["X_umap"])
+        obs = pd.DataFrame(index=adata.obs_names.astype(str))
+        obs["cell_id"] = obs.index
+        obs["cluster_id"] = adata.obs[cluster_key].astype(str).values
+        sample_key = run_input.get("sample_key")
+        obs["sample"] = adata.obs[sample_key].astype(str).values if sample_key and sample_key in adata.obs else ""
+        obs["UMAP1"] = coords[:, 0]
+        obs["UMAP2"] = coords[:, 1]
+        labels = comparison.assign(cluster_id=comparison["cluster_id"].astype(str))
+        keep = ["suggested_label", "decision", "confidence", "agreement_level", "review_priority"]
+        for provider_id in provider_ids:
+            keep.append(f"{provider_id}_label")
+        obs = obs.reset_index(drop=True).merge(labels[["cluster_id"] + keep], on="cluster_id", how="left")
+        for column in keep:
+            obs[column] = obs[column].fillna("")
+        return obs, ""
+    finally:
+        try:
+            adata.file.close()
+        except Exception:
+            pass
+
+```
+
+# Review
+
+## Review Workbench {height=100%}
+
+```{python}
+obs, reason = load_umap_table()
+if reason:
+    display(HTML(f"<div class='note-box'>{escape(reason)} The cluster explorer will still show annotation tables.</div>"))
+display(HTML(cluster_explorer_html(cards, umap=umap_canvas_payload(obs) if not reason else None, markers=cluster_markers)))
+```

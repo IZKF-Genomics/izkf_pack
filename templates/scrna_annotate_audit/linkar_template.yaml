@@ -1,0 +1,58 @@
+id: scrna_annotate_audit
+version: 0.1.0
+description: Cluster-level audit of multiple scRNA-seq annotation providers with review tables and final h5ad annotation output.
+tools:
+  required:
+    - bash
+    - python3
+    - pixi
+params:
+  input_h5ad:
+    type: str
+    default: ""
+    description: Prepared `.h5ad` input path. When empty, the audit reuses the h5ad recorded by provider annotation results or the upstream `scrna_prep` output.
+  input_source_template:
+    type: str
+    default: ""
+    description: Optional provenance label for the upstream template that produced `input_h5ad`.
+  organism:
+    type: str
+    default: "mouse"
+    description: Dataset organism recorded in audit outputs.
+  tissue:
+    type: str
+    default: ""
+    description: Optional tissue or biological context recorded in audit outputs.
+  cluster_key:
+    type: str
+    default: "leiden"
+    description: Cluster column used for cluster-level audit and final annotation mapping.
+  sample_id_key:
+    type: str
+    default: "sample_id"
+    description: Optional sample identifier column in `adata.obs`.
+  expression_layer:
+    type: str
+    default: "X"
+    description: Expression layer used for marker expression evidence summaries.
+  write_h5ad:
+    type: bool
+    default: true
+    description: Write `results/adata.final_annotated.h5ad` with final or draft audit annotation columns.
+outputs:
+  results_dir: {}
+  annotation_audit:
+    path: results/annotation_audit.json
+  annotation_cards:
+    path: results/annotation_audit_cards.json
+  final_h5ad:
+    path: results/adata.final_annotated.h5ad
+  html_report:
+    path: results/report.html
+  quarto_report:
+    path: results/report.qmd
+  tables:
+    glob: results/tables/*.csv
+run:
+  mode: render
+  entry: run.sh

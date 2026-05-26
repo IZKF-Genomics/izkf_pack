@@ -1,0 +1,25 @@
+[workspace]
+name = "scrna_annotate_audit"
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+run = { cmd = ["python", "run.py"] }
+test = { cmd = ["python", "test.py"] }
+app = { cmd = ["streamlit", "run", "results/review_app.py"] }
+clean = { cmd = ["bash", "-lc", "rm -rf results .quarto"] }
+
+[dependencies]
+python = ">=3.11,<3.13"
+quarto = ">=1.6,<2"
+jupyter = ">=1.1,<2"
+ipykernel = ">=6.29,<7"
+anndata = ">=0.12,<1"
+numpy = ">=2.0,<3"
+pandas = ">=2.2,<3"
+scipy = ">=1.14,<2"
+plotly = ">=6.0,<7"
+itables = ">=2.2,<3"
+streamlit = ">=1.40,<2"
+python-tzdata = ">=2024.1"

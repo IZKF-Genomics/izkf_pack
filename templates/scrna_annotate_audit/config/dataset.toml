@@ -1,0 +1,27 @@
+[dataset]
+input_h5ad = ""
+input_source_template = ""
+organism = "mouse"
+organism_id = ""
+tissue = ""
+cluster_key = "leiden"
+sample_key = "sample_id"
+expression_layer = "X"
+
+[audit]
+annotation_templates = [
+  "scrna_annotate_celltypist",
+  "scrna_annotate_manual_markers",
+  "scrna_annotate_sctype",
+  "scrna_annotate_scanvi_reference",
+]
+annotation_result_paths = []
+label_aliases = "config/label_aliases.csv"
+final_decisions = "config/final_annotation_decisions.csv"
+top_n_candidates = 5
+marker_expression_max_genes = 60
+cluster_marker_top_n = 200
+cluster_marker_min_pct = 10
+
+[outputs]
+write_h5ad = true
