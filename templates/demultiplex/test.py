@@ -284,15 +284,26 @@ def main() -> None:
         assert "project_multiqc_reports" not in project_outputs["outputs"]
         versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
         versions = {entry["name"]: entry for entry in versions_payload["software"]}
-        assert list(versions) == ["bcl-convert"]
+        assert list(versions) == [
+            "bcl-convert",
+            "pixi",
+            "demultiplexing_prefect",
+            "qc_tool",
+            "contamination_tool",
+        ]
         assert versions["bcl-convert"]["version"] == "bcl-convert v4.4.6"
+        assert versions["pixi"]["version"] == "pixi 0.42.1"
+        assert versions["demultiplexing_prefect"]["version"] == "8c2ebab05f9c49487cb01e226c77f27893f84d0b"
+        assert versions["demultiplexing_prefect"]["repository"] == "https://github.com/MoSafi2/demultiplexing_prefect"
+        assert versions["qc_tool"]["version"] == "fastqc,fastp"
+        assert versions["contamination_tool"]["version"] == "kraken"
         assert (tmpdir / "demultiplexing_prefect" / "demux_pipeline" / "__init__.py").exists()
         assert (
             tmpdir / "demultiplexing_prefect" / "CHECKED_OUT_COMMIT.txt"
-        ).read_text(encoding="utf-8").strip() == "commit=c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce"
+        ).read_text(encoding="utf-8").strip() == "commit=8c2ebab05f9c49487cb01e226c77f27893f84d0b"
         assert (
             tmpdir / "demultiplexing_prefect" / "FETCHED_COMMIT.txt"
-        ).read_text(encoding="utf-8").strip() == "fetch=c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce"
+        ).read_text(encoding="utf-8").strip() == "fetch=8c2ebab05f9c49487cb01e226c77f27893f84d0b"
         assert (
             tmpdir / "demultiplexing_prefect" / "CLONED_FROM.txt"
         ).read_text(encoding="utf-8").strip() == "repo=https://github.com/MoSafi2/demultiplexing_prefect"
@@ -306,7 +317,7 @@ def main() -> None:
         assert 'python3 "${script_dir}/build_project_views.py" --results-dir "${results_dir}"' in template_run_sh
         assert 'pixi run demux-pipeline' in template_run_sh
         assert 'find "${results_dir}/output" -type d -exec chmod 775 {} +' in template_run_sh
-        assert 'upstream_commit="c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce"' in template_run_sh
+        assert 'upstream_commit="8c2ebab05f9c49487cb01e226c77f27893f84d0b"' in template_run_sh
         assert 'upstream_repo_url="https://github.com/MoSafi2/demultiplexing_prefect"' in template_run_sh
         assert "results/output/*/qc/contamination/**/*" in template_yaml
         assert "results/output/*/qc/multiqc/multiqc_report.html" in template_yaml
@@ -314,8 +325,9 @@ def main() -> None:
         assert "results/output/*/template_outputs.json" in template_yaml
         assert "results/output/*/qc/fastp_passthrough/**/*.fastq.gz" in template_yaml
         assert "software_versions.json" in template_run_sh
-        assert 'python3 - <<\'PY\'' in template_run_sh
-        assert '"name": "bcl-convert"' in template_run_sh
+        assert 'python3 "${pack_root}/functions/software_versions.py"' in template_run_sh
+        assert '--spec "${script_dir}/software_versions_spec.yaml"' in template_run_sh
+        assert 'export UPSTREAM_COMMIT="${upstream_commit}"' in template_run_sh
         assert not (TEMPLATE_DIR / "demux_pipeline" / "cli.py").exists()
         assert not (TEMPLATE_DIR / "pixi.toml").exists()
         assert not (TEMPLATE_DIR / "pixi.lock").exists()

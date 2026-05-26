@@ -6,7 +6,7 @@ instead of vendoring a snapshot into the pack.
 ## Upstream source
 
 - repo: `https://github.com/MoSafi2/demultiplexing_prefect`
-- pinned commit: `c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce`
+- pinned commit: `8c2ebab05f9c49487cb01e226c77f27893f84d0b`
 
 Each rendered or executed run clones the upstream repository into the run directory, checks out the
 pinned commit above, and launches the pipeline from that staged checkout.
@@ -55,16 +55,17 @@ The template keeps the execution logic in a standalone [run.sh](run.sh):
 
 ```bash
 git clone --depth 1 https://github.com/MoSafi2/demultiplexing_prefect ./demultiplexing_prefect
-git -C ./demultiplexing_prefect fetch --depth 1 origin c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce
-git -C ./demultiplexing_prefect checkout c94cc9652af5d7beb5bd80e01d28bd1ae473e6ce
+git -C ./demultiplexing_prefect fetch --depth 1 origin 8c2ebab05f9c49487cb01e226c77f27893f84d0b
+git -C ./demultiplexing_prefect checkout 8c2ebab05f9c49487cb01e226c77f27893f84d0b
 cd ./demultiplexing_prefect
 pixi run demux-pipeline ...
 ```
 
 `linkar_template.yaml` now points to `run.entry: run.sh`, and Linkar still renders the outer
 launcher for render mode. That keeps the template contract small while the real shell logic stays in
-one script that is easier to test and review. The rendered `run.sh` also writes
-`software_versions.json` inline so it does not depend on helper scripts from the pack checkout.
+one script that is easier to test and review. The rendered `run.sh` writes
+`software_versions.json` through the shared pack helper and the template-level
+`software_versions_spec.yaml`.
 After demultiplexing, it normalizes directory permissions under `results/output` to `775` so
 sample-project subdirectories match the surrounding output directories. When `Sample_Project`
 is present, Linkar captures raw FASTQs from `results/output/<Sample_Project>/` and project-local

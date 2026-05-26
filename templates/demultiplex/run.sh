@@ -6,6 +6,7 @@ upstream_commit="8c2ebab05f9c49487cb01e226c77f27893f84d0b"
 upstream_repo_dir="./demultiplexing_prefect"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+pack_root="${LINKAR_PACK_ROOT:-$(cd "${script_dir}/../.." && pwd)}"
 render_root="$(pwd)"
 results_dir="${LINKAR_RESULTS_DIR:?}"
 samplesheet_path="${SAMPLESHEET:?}"
@@ -24,51 +25,11 @@ git -C "${upstream_repo_dir}" fetch --depth 1 origin "${upstream_commit}"
 git -C "${upstream_repo_dir}" checkout "${upstream_commit}"
 
 mkdir -p "${results_dir}"
-export DEMUX_RESULTS_DIR="${results_dir}"
-python3 - <<'PY'
-from __future__ import annotations
-
-import json
-import os
-import shlex
-import subprocess
-from pathlib import Path
-
-
-def run_version_command(command: list[str]) -> dict[str, object]:
-    try:
-        completed = subprocess.run(
-            command,
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-    except FileNotFoundError as exc:
-        return {
-            "command": " ".join(shlex.quote(part) for part in command),
-            "source": "command",
-            "error": str(exc),
-        }
-    output = "\n".join(
-        part.strip() for part in (completed.stdout, completed.stderr) if part.strip()
-    )
-    return {
-        "version": output.splitlines()[0] if output else "",
-        "raw": output,
-        "command": " ".join(shlex.quote(part) for part in command),
-        "source": "command",
-        "returncode": completed.returncode,
-    }
-
-
-payload = {
-    "software": [
-        {"name": "bcl-convert", **run_version_command(["bcl-convert", "--version"])},
-    ]
-}
-output_path = Path(os.environ["DEMUX_RESULTS_DIR"]) / "software_versions.json"
-output_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-PY
+export UPSTREAM_COMMIT="${upstream_commit}"
+export UPSTREAM_REPO_URL="${upstream_repo_url}"
+python3 "${pack_root}/functions/software_versions.py" \
+  --spec "${script_dir}/software_versions_spec.yaml" \
+  --output "${results_dir}/software_versions.json"
 
 pushd "${upstream_repo_dir}" >/dev/null
 pixi run demux-pipeline \
