@@ -36,9 +36,9 @@ params:
 outputs:
   results_dir: {}
   run_info:
-    path: run_info.yaml
+    path: results/run_info.yaml
   software_versions:
-    path: software_versions.json
+    path: results/software_versions.json
   html_reports:
     glob: "*.html"
   qmd_reports:

@@ -85,9 +85,12 @@ def main() -> int:
         run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
         functions_text = (TEMPLATE_DIR / "DGEA_functions.R").read_text(encoding="utf-8")
         spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
+        linkar_template = yaml.safe_load((TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8"))
         template_text = (TEMPLATE_DIR / "DGEA_template.qmd").read_text(encoding="utf-8")
         install_bioc_text = (TEMPLATE_DIR / "install_bioc_data.sh").read_text(encoding="utf-8")
         assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
+        assert linkar_template["outputs"]["run_info"]["path"] == "results/run_info.yaml"
+        assert linkar_template["outputs"]["software_versions"]["path"] == "results/software_versions.json"
         assert "--configure" in run_sh_text
         assert "pixi run python ./configure_comparisons.py" in run_sh_text
         assert "pixi install --frozen --quiet --no-progress" in run_sh_text
