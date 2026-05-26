@@ -41,6 +41,8 @@ params:
     description: Write `results/adata.final_annotated.h5ad` with final or draft audit annotation columns.
 outputs:
   results_dir: {}
+  software_versions:
+    path: results/software_versions.json
   annotation_audit:
     path: results/annotation_audit.json
   annotation_cards:

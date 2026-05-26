@@ -86,11 +86,14 @@ def main() -> None:
 
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
+    spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
     constructor_text = (TEMPLATE_DIR / "DNAm_constructor.R").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
     assert "id: methylation_array_analysis" in template_text
     assert "study_name" not in template_text
     assert "build_dnam_inputs.py" in run_sh_text
+    assert "software:" in spec_text
+    assert "command: pixi --version" in spec_text
     assert 'source("dnam_inputs.R")' in constructor_text
     assert "default_comparisons_from_samples" in constructor_text
     assert "comparison_report.qmd" in (TEMPLATE_DIR / "DNAm_functions.R").read_text(encoding="utf-8")

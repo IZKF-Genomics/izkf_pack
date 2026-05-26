@@ -109,6 +109,36 @@ def main() -> int:
         assert versions["workflow"]["repository"] == "https://example.test/workflow"
         assert versions["workflow"]["source"] == "static"
 
+        command_spec_path = tmpdir / "software_command_spec.yaml"
+        command_spec_path.write_text(
+            "software:\n"
+            "  - name: pixi_direct\n"
+            "    command: pixi --version\n"
+            "  - name: workflow_direct\n"
+            "    version_env: WORKFLOW_VERSION\n",
+            encoding="utf-8",
+        )
+        command_output_path = tmpdir / "software_command_versions.json"
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(FUNCTIONS_DIR / "software_versions.py"),
+                "--spec",
+                str(command_spec_path),
+                "--output",
+                str(command_output_path),
+            ],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert completed.returncode == 0, completed.stderr
+        command_payload = json.loads(command_output_path.read_text(encoding="utf-8"))
+        command_versions = {entry["name"]: entry for entry in command_payload["software"]}
+        assert command_versions["pixi_direct"]["version"] == "pixi 0.42.1"
+        assert command_versions["workflow_direct"]["version"] == "1.2.3"
+
     print("software_versions function test passed")
     return 0
 

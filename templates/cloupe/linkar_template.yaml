@@ -29,6 +29,8 @@ params:
     description: Comma-separated additional `adata.obs` columns to export as Loupe categories.
 outputs:
   results_dir: {}
+  software_versions:
+    path: results/software_versions.json
   cloupe_file:
     path: results/output.cloupe
   export_metadata:

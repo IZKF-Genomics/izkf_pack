@@ -1,0 +1,21 @@
+tools:
+  - pixi
+  - python
+
+software:
+  - name: celltypist
+    command: pixi run python -c "import celltypist; print(celltypist.__version__)"
+  - name: scanpy
+    command: pixi run python -c "import scanpy; print(scanpy.__version__)"
+  - name: anndata
+    command: pixi run python -c "import anndata; print(anndata.__version__)"
+
+params:
+  - name: organism
+    env: ORGANISM
+  - name: tissue
+    env: TISSUE
+  - name: cluster_key
+    env: CLUSTER_KEY
+  - name: celltypist_model
+    env: CELLTYPIST_MODEL

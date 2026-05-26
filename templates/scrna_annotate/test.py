@@ -222,7 +222,18 @@ def test_marker_catalog_refuses_species_mismatch() -> None:
             results_dir=results_dir,
         )
         assert payload["status"]["state"] == "needs_config"
-        assert any("does not match" in item for item in payload["status"]["missing_config"])
+    assert any("does not match" in item for item in payload["status"]["missing_config"])
+
+
+def test_software_versions_contract() -> None:
+    template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
+    run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
+    spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
+    assert "software_versions:" in template_text
+    assert "path: results/software_versions.json" in template_text
+    assert 'python3 "${pack_root}/functions/software_versions.py"' in run_sh_text
+    assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
+    assert "provider_preset" in spec_text
 
 
 def main() -> int:
@@ -236,6 +247,7 @@ def main() -> int:
         test_provider_runner_marks_unimplemented_enabled_provider,
         test_marker_catalog_scores_matching_zebrafish_catalog,
         test_marker_catalog_refuses_species_mismatch,
+        test_software_versions_contract,
     ]:
         test()
     print("scrna_annotate tests passed")

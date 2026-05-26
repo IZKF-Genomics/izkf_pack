@@ -61,6 +61,8 @@ params:
     description: Write `results/adata.annotated.h5ad` with cluster-level annotation columns added to `adata.obs`.
 outputs:
   results_dir: {}
+  software_versions:
+    path: results/software_versions.json
   annotation_result:
     path: results/annotation_result.json
   annotated_h5ad:

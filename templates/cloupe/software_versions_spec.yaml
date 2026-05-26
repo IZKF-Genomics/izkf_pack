@@ -1,0 +1,17 @@
+tools:
+  - pixi
+  - python
+
+software:
+  - name: loupepy
+    command: pixi run python -c "import loupepy; print(loupepy.__version__)"
+  - name: anndata
+    command: pixi run python -c "import anndata; print(anndata.__version__)"
+
+params:
+  - name: input
+    env: INPUT
+  - name: counts_layer
+    env: COUNTS_LAYER
+  - name: embedding_key
+    env: EMBEDDING_KEY

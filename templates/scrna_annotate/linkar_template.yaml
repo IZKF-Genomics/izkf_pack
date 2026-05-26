@@ -61,6 +61,8 @@ params:
     description: Planned provider preset. `default` should remain conservative; experimental providers such as scGPT/scTab must require explicit configuration.
 outputs:
   results_dir: {}
+  software_versions:
+    path: results/software_versions.json
   dataset_profile:
     path: results/dataset_profile.json
   provider_index:

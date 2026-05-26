@@ -90,6 +90,17 @@ def test_cluster_summary() -> None:
     assert summary[0]["confidence_bucket"] == "medium"
 
 
+def test_software_versions_contract() -> None:
+    template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
+    run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
+    spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
+    assert "software_versions:" in template_text
+    assert "path: results/software_versions.json" in template_text
+    assert 'python3 "${pack_root}/functions/software_versions.py"' in run_sh_text
+    assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
+    assert "celltypist_model" in spec_text
+
+
 def main() -> int:
     test_species_normalization()
     test_model_selection_prefers_matching_tissue_and_species()
@@ -97,6 +108,7 @@ def main() -> int:
     test_model_selection_uses_explicit_model()
     test_resolve_input_h5ad_prefers_scrna_prep()
     test_cluster_summary()
+    test_software_versions_contract()
     print("scrna_annotate_celltypist tests passed")
     return 0
 

@@ -1,0 +1,15 @@
+tools:
+  - pixi
+  - python
+
+software:
+  - name: anndata
+    command: pixi run python -c "import anndata; print(anndata.__version__)"
+
+params:
+  - name: input_results
+    env: INPUT_RESULTS
+  - name: cluster_key
+    env: CLUSTER_KEY
+  - name: final_decisions
+    env: FINAL_DECISIONS

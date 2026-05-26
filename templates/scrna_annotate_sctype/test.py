@@ -126,11 +126,23 @@ def test_write_annotated_h5ad() -> None:
         assert "cluster_predictions_json" in result.uns["scrna_annotate_sctype"]
 
 
+def test_software_versions_contract() -> None:
+    template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
+    run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
+    spec_text = (TEMPLATE_DIR / "software_versions_spec.yaml").read_text(encoding="utf-8")
+    assert "software_versions:" in template_text
+    assert "path: results/software_versions.json" in template_text
+    assert 'python3 "${pack_root}/functions/software_versions.py"' in run_sh_text
+    assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
+    assert "primary_catalog" in spec_text
+
+
 def main() -> int:
     test_sctype_scoring_and_prediction_schema()
     test_read_catalog_requires_columns()
     test_resolve_input_h5ad_from_scrna_prep()
     test_write_annotated_h5ad()
+    test_software_versions_contract()
     print("scrna_annotate_sctype tests passed")
     return 0
 

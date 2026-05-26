@@ -2,6 +2,7 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+pack_root="${LINKAR_PACK_ROOT:-$(cd "${script_dir}/../.." && pwd)}"
 results_dir="${LINKAR_RESULTS_DIR:-${script_dir}/results}"
 render_only=0
 no_browser=0
@@ -36,6 +37,10 @@ else
   say "pixi was not found; using system python3"
   python3 run.py
 fi
+
+python3 "${pack_root}/functions/software_versions.py" \
+  --spec "${script_dir}/software_versions_spec.yaml" \
+  --output "${results_dir}/software_versions.json"
 
 say "outputs:"
 say "  ${results_dir}/annotation_audit.json"

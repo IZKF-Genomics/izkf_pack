@@ -105,6 +105,40 @@ def commands_from_tool_specs(entries: Any) -> dict[str, list[str]]:
     return commands
 
 
+def commands_from_software_specs(entries: Any) -> dict[str, list[str]]:
+    commands: dict[str, list[str]] = {}
+    for entry in normalize_named_entries(entries):
+        name = str(entry.get("name") or "").strip()
+        command = entry.get("command")
+        if not name:
+            raise ValueError("Software spec entries must define a name field.")
+        if command is None:
+            continue
+        if isinstance(command, str):
+            commands[name] = shlex.split(command)
+        elif isinstance(command, list):
+            commands[name] = [str(part) for part in command]
+        else:
+            raise ValueError(f"Software spec entry '{name}' has unsupported command type: {type(command).__name__}")
+    return commands
+
+
+def static_from_software_specs(entries: Any) -> dict[str, dict[str, Any]]:
+    static: dict[str, dict[str, Any]] = {}
+    for raw_entry in normalize_named_entries(entries):
+        if raw_entry.get("command") is not None:
+            continue
+        entry = resolve_env_fields(raw_entry)
+        name = str(entry.pop("name", "")).strip()
+        if not name:
+            raise ValueError("Software spec entries must define a name field.")
+        entry.setdefault("source", "static")
+        if "version" not in entry:
+            raise ValueError(f"Software spec entry '{name}' must define command, version, or version_env.")
+        static[name] = entry
+    return static
+
+
 def static_from_specs(entries: Any, *, source: str) -> dict[str, dict[str, Any]]:
     static: dict[str, dict[str, Any]] = {}
     for raw_entry in normalize_named_entries(entries):
@@ -129,8 +163,10 @@ def load_spec(path: str | Path) -> tuple[dict[str, list[str]], dict[str, dict[st
 
     commands: dict[str, list[str]] = {}
     commands.update(commands_from_tool_specs(raw.get("tools")))
+    commands.update(commands_from_software_specs(raw.get("software")))
 
     static: dict[str, dict[str, Any]] = {}
+    static.update(static_from_software_specs(raw.get("software")))
     static.update(static_from_specs(raw.get("static"), source="static"))
     static.update(static_from_specs(raw.get("params"), source="param"))
     return commands, static
