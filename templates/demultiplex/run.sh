@@ -3,20 +3,19 @@ set -euo pipefail
 
 upstream_repo_url="https://github.com/MoSafi2/demultiplexing_prefect"
 upstream_commit="8c2ebab05f9c49487cb01e226c77f27893f84d0b"
-upstream_repo_dir="./demultiplexing_prefect"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+upstream_repo_dir="${script_dir}/demultiplexing_prefect"
 pack_root="${LINKAR_PACK_ROOT:-$(cd "${script_dir}/../.." && pwd)}"
-render_root="$(pwd)"
 results_dir="${LINKAR_RESULTS_DIR:?}"
 samplesheet_path="${SAMPLESHEET:?}"
 
 if [[ "${samplesheet_path}" != /* ]]; then
-  samplesheet_path="${render_root}/${samplesheet_path#./}"
+  samplesheet_path="${script_dir}/${samplesheet_path#./}"
 fi
 
 if [[ "${results_dir}" != /* ]]; then
-  results_dir="${render_root}/${results_dir#./}"
+  results_dir="${script_dir}/${results_dir#./}"
 fi
 
 rm -rf "${upstream_repo_dir}"
@@ -51,7 +50,8 @@ fi
 
 python3 "${script_dir}/build_project_views.py" --results-dir "${results_dir}"
 
-rm -rf .pixi
+rm -rf "${upstream_repo_dir}"
+rm -rf "${script_dir}/.pixi"
 
 # Record outputs in Linkar after successful manual execution.
 linkar collect "${script_dir}"

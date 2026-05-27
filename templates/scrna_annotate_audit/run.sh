@@ -24,6 +24,11 @@ say() {
   printf '[scrna_annotate_audit] %s\n' "$*"
 }
 
+cleanup_runtime() {
+  rm -rf "${script_dir}/.pixi"
+  rm -rf "${script_dir}/__pycache__"
+}
+
 say "starting annotation audit"
 say "workspace: ${script_dir}"
 say "results: ${results_dir}"
@@ -54,6 +59,7 @@ linkar collect "${script_dir}"
 
 if [[ "${render_only}" == "1" ]]; then
   say "render-only mode; temporary local API was not started"
+  cleanup_runtime
   exit 0
 fi
 
@@ -74,3 +80,5 @@ if command -v pixi >/dev/null 2>&1; then
 else
   python3 audit_server.py --host 127.0.0.1 --port 0
 fi
+
+cleanup_runtime

@@ -555,6 +555,8 @@ PY""",
     assert "pixi install" in run_sh_text
     assert 'pixi run quarto render "scrna_prep.qmd"' in run_sh_text
     assert 'linkar collect "${script_dir}"' in run_sh_text
+    assert 'rm -rf "${script_dir}/.pixi"' in run_sh_text
+    assert 'rm -rf "${script_dir}/__pycache__"' in run_sh_text
     assert "--prepare-only" in run_py_text
     assert "detect_input_format" in run_py_text
     assert "FILTER_PREDICTED_DOUBLETS requires DOUBLET_METHOD=scrublet" in run_py_text

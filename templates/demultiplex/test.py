@@ -107,6 +107,7 @@ def make_fake_git_bin(root: Path) -> Path:
         "set -euo pipefail\n"
         "if [[ \"${1:-}\" == \"clone\" ]]; then\n"
         "  target=\"${@: -1}\"\n"
+        "  printf 'clone=%s\\n' \"${target}\" >> \"${GIT_ARGS_LOG:?}\"\n"
         "  mkdir -p \"${target}/demux_pipeline\"\n"
         "  printf '[tasks]\\ndemux-pipeline = \"python -m demux_pipeline.cli\"\\n' > \"${target}/pixi.toml\"\n"
         "  printf '[project]\\nname = \"demux-pipeline\"\\nversion = \"0.1.0\"\\n' > \"${target}/pyproject.toml\"\n"
@@ -116,10 +117,12 @@ def make_fake_git_bin(root: Path) -> Path:
         "  exit 0\n"
         "fi\n"
         "if [[ \"${1:-}\" == \"-C\" && \"${3:-}\" == \"fetch\" ]]; then\n"
+        "  printf 'fetch=%s:%s\\n' \"${2}\" \"${7:-}\" >> \"${GIT_ARGS_LOG:?}\"\n"
         "  printf 'fetch=%s\\n' \"${7:-}\" > \"${2}/FETCHED_COMMIT.txt\"\n"
         "  exit 0\n"
         "fi\n"
         "if [[ \"${1:-}\" == \"-C\" && \"${3:-}\" == \"checkout\" ]]; then\n"
+        "  printf 'checkout=%s:%s\\n' \"${2}\" \"${4:-}\" >> \"${GIT_ARGS_LOG:?}\"\n"
         "  printf 'commit=%s\\n' \"${4:-}\" > \"${2}/CHECKED_OUT_COMMIT.txt\"\n"
         "  exit 0\n"
         "fi\n"
@@ -210,6 +213,7 @@ def main() -> None:
             "FASTQ_SCREEN_CONF": "",
             "LINKAR_OUTPUT_DIR": str(tmpdir / "demux-run"),
             "LINKAR_RESULTS_DIR": str(results_dir),
+            "GIT_ARGS_LOG": str(tmpdir / "git_args.log"),
             "PATH": f"{fake_pixi_bin}:{fake_git_bin}:{fake_demux_bin}:{os.environ.get('PATH', '')}",
         }
         completed = subprocess.run(
@@ -309,20 +313,18 @@ def main() -> None:
         assert versions["demultiplexing_prefect"]["repository"] == "https://github.com/MoSafi2/demultiplexing_prefect"
         assert versions["qc_tool"]["version"] == "fastqc,fastp"
         assert versions["contamination_tool"]["version"] == "kraken"
-        assert (tmpdir / "demultiplexing_prefect" / "demux_pipeline" / "__init__.py").exists()
-        assert (
-            tmpdir / "demultiplexing_prefect" / "CHECKED_OUT_COMMIT.txt"
-        ).read_text(encoding="utf-8").strip() == "commit=8c2ebab05f9c49487cb01e226c77f27893f84d0b"
-        assert (
-            tmpdir / "demultiplexing_prefect" / "FETCHED_COMMIT.txt"
-        ).read_text(encoding="utf-8").strip() == "fetch=8c2ebab05f9c49487cb01e226c77f27893f84d0b"
-        assert (
-            tmpdir / "demultiplexing_prefect" / "CLONED_FROM.txt"
-        ).read_text(encoding="utf-8").strip() == "repo=https://github.com/MoSafi2/demultiplexing_prefect"
+        git_log = (tmpdir / "git_args.log").read_text(encoding="utf-8")
+        staged_repo = TEMPLATE_DIR / "demultiplexing_prefect"
+        assert f"clone={staged_repo}" in git_log
+        assert f"fetch={staged_repo}:8c2ebab05f9c49487cb01e226c77f27893f84d0b" in git_log
+        assert f"checkout={staged_repo}:8c2ebab05f9c49487cb01e226c77f27893f84d0b" in git_log
+        assert not staged_repo.exists()
+        assert not (tmpdir / "demultiplexing_prefect").exists()
 
         template_yaml = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
         template_run_sh = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
         assert 'entry: run.sh' in template_yaml
+        assert 'upstream_repo_dir="${script_dir}/demultiplexing_prefect"' in template_run_sh
         assert 'git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"' in template_run_sh
         assert 'git -C "${upstream_repo_dir}" fetch --depth 1 origin "${upstream_commit}"' in template_run_sh
         assert 'git -C "${upstream_repo_dir}" checkout "${upstream_commit}"' in template_run_sh
@@ -340,6 +342,8 @@ def main() -> None:
         assert 'python3 "${pack_root}/functions/software_versions.py"' in template_run_sh
         assert '--spec "${script_dir}/software_versions_spec.yaml"' in template_run_sh
         assert 'export UPSTREAM_COMMIT="${upstream_commit}"' in template_run_sh
+        assert 'rm -rf "${upstream_repo_dir}"' in template_run_sh
+        assert 'rm -rf "${script_dir}/.pixi"' in template_run_sh
         assert 'linkar collect "${script_dir}"' in template_run_sh
         assert not (TEMPLATE_DIR / "demux_pipeline" / "cli.py").exists()
         assert not (TEMPLATE_DIR / "pixi.toml").exists()

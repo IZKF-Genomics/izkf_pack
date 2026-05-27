@@ -21,5 +21,8 @@ python3 "${pack_root}/functions/software_versions.py" \
   --spec "${script_dir}/software_versions_spec.yaml" \
   --output "${results_dir}/software_versions.json"
 
+rm -rf "${script_dir}/.pixi"
+rm -rf "${script_dir}/__pycache__"
+
 # Record outputs in Linkar after successful manual execution.
 linkar collect "${script_dir}"

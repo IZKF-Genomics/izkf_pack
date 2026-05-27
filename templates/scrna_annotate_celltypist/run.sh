@@ -35,5 +35,8 @@ say "  ${results_dir}/report.html"
 say "  ${results_dir}/tables/celltypist_predictions.csv"
 say "  ${results_dir}/tables/celltypist_available_models.csv"
 
+rm -rf "${script_dir}/.pixi"
+rm -rf "${script_dir}/__pycache__"
+
 # Record outputs in Linkar after successful manual execution.
 linkar collect "${script_dir}"

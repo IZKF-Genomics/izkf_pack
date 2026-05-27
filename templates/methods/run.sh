@@ -26,5 +26,8 @@ python3 "${script_dir}/run.py" \
   --llm-model "${LLM_MODEL:-}" \
   --llm-temperature "${LLM_TEMPERATURE:-0.2}"
 
+rm -rf "${script_dir}/.pixi"
+rm -rf "${script_dir}/__pycache__"
+
 # Record outputs in Linkar after successful manual execution.
 linkar collect "${script_dir}"
