@@ -1,7 +1,7 @@
 # common template outputs
 
 Many templates in `izkf_pack` write a similar set of runtime artifacts. These
-files are important because other templates, especially `methods` and `export`,
+files are important because other templates, especially `summary` and `export`,
 consume them later.
 
 ## Common output files
@@ -27,7 +27,7 @@ Purpose:
 
 Common use:
 
-- methods generation
+- analysis summary generation
 - provenance tracking
 - export traceability
 
@@ -41,7 +41,7 @@ Purpose:
 
 Common use:
 
-- methods generation
+- analysis summary generation
 - debugging
 - confirming whether optional workflow behavior was really enabled
 
@@ -53,7 +53,7 @@ generated dynamically.
 Examples:
 
 - Quarto HTML outputs
-- methods HTML companions
+- analysis summary HTML companions
 
 Purpose:
 
@@ -113,18 +113,18 @@ or reproducible runtime state outside `results/`.
 
 This pack benefits from stable output names because:
 
-- `methods` can discover artifacts more reliably
+- `summary` can discover artifacts more reliably
 - `export` mappings stay simpler
 - users learn the pattern once and can inspect many templates the same way
 
 ## Good maintenance rules
 
 - keep the artifact names stable when possible
-- when renaming an artifact, check `methods`, `export`, and tests
+- when renaming an artifact, check `summary`, `export`, and tests
 - prefer structured JSON/YAML for provenance and Markdown/HTML for user-facing summaries
 
 ## Related docs
 
 - [software_versions.md](software_versions.md)
-- [methods.md](methods.md)
+- [summary.md](summary.md)
 - [export.md](export.md)

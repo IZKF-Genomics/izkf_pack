@@ -1,6 +1,6 @@
 ---
 name: izkf-pack
-description: Use when working in the izkf_pack repository to inspect, render, run, collect, test, or modify Linkar genomics templates and their downstream methods/export behavior. Covers pack structure, common template workflows, runtime/output conventions, and repo-specific gotchas.
+description: Use when working in the izkf_pack repository to inspect, render, run, collect, test, or modify Linkar genomics templates and their downstream analysis summary/export behavior. Covers pack structure, common template workflows, runtime/output conventions, and repo-specific gotchas.
 ---
 
 # izkf_pack
@@ -13,7 +13,7 @@ Use it when the task involves:
 - updating binding logic in `linkar_pack.yaml` or `functions/`
 - helping a user render, run, collect, or inspect Linkar template outputs
 - debugging project history, `.linkar/runs`, `project.yaml`, or exported reports
-- improving `methods`, `export`, or `nfcore_*` template behavior
+- improving `summary`, `export`, or `nfcore_*` template behavior
 
 Do not load the whole repository into context. Read only the files needed for the current task.
 
@@ -112,7 +112,7 @@ Important local conventions:
 - Wraps `nf-core/rnaseq` for facility 3' mRNA-seq usage.
 - Current repo preference:
   rendered `run.sh` should show the exact multiline Nextflow command clearly.
-- `umi` and `spikein` support facility shorthands like `true`, but methods text should reflect the actual rendered command.
+- `umi` and `spikein` support facility shorthands like `true`, but analysis summary text should reflect the actual rendered command.
 - Prefer relative paths in rendered commands where possible.
 - Default bindings in `linkar_pack.yaml` resolve `samplesheet`, `genome`, `umi`, `spikein`, `max_cpus`, and `max_memory`.
 - README-backed practice for split batches:
@@ -135,16 +135,16 @@ Important local conventions:
 - Spike-in QC report template.
 - Exported reports should focus on user-facing QC outputs, not low-value runtime metadata links unless explicitly wanted.
 
-### `methods`
+### `summary`
 
-- Generates `methods_long.md`, `methods_short.md`, citations, and prompt/response artifacts.
-- Treat it as a render-first visible workspace, typically `./methods`.
+- Generates `summary_long.md`, `summary_short.md`, citations, and prompt/response artifacts.
+- Treat it as a render-first visible workspace, typically `./summary`.
 - LLM polishing is enabled by default.
 - Publication-facing wording matters more than internal template trivia.
 - For nf-core sections, UMI, genome, spike-in, and key parameters should come from the rendered or recorded command when available, not only from Agendo metadata.
-- `methods_short.md` should be a clean condensation of the long version, not an unrelated summary.
+- `summary_short.md` should be a clean condensation of the long version, not an unrelated summary.
 - README-backed practice:
-  keep LLM secrets in the environment, not in `project.yaml`, and use `linkar run methods --outdir ./methods --refresh` for reruns.
+  keep LLM secrets in the environment, not in `project.yaml`, and use `linkar run summary --outdir ./summary --refresh` for reruns.
 
 ### `export`
 
@@ -159,7 +159,7 @@ Important local conventions:
 
 Understand the distinction:
 
-- visible rendered bundle: the current working directory such as `methods/` or `nfcore_bile_duct/`
+- visible rendered bundle: the current working directory such as `summary/` or `nfcore_bile_duct/`
 - history snapshot: `.linkar/runs/<instance_id>/`
 - project registry: `project.yaml`
 
@@ -173,14 +173,14 @@ Do not casually delete `.linkar/runs` or old `project.yaml` entries unless the u
 
 ## Methods And Publication Style
 
-When editing methods generation:
+When editing analysis summary generation:
 
 - prefer publication-ready scientific prose
 - remove authoring chatter, internal implementation notes, and facility-internal wording unless scientifically relevant
 - use lists for grouped settings instead of dense parameter sentences
 - include references and citations only when they correspond to real tools or methods in use
-- keep `methods_long.md` detailed but tidy
-- keep `methods_short.md` readable in manuscript style, ideally with inline numbered citations
+- keep `summary_long.md` detailed but tidy
+- keep `summary_short.md` readable in manuscript style, ideally with inline numbered citations
 
 If the user asks for journal style, align with the requested journal's conventions, but stay grounded in recorded project provenance.
 
@@ -211,9 +211,9 @@ Depending on the task, start with:
 - template `test.py`
 - template `README.md`
 
-For methods/export work, also inspect:
+For analysis summary/export work, also inspect:
 
-- `templates/methods/methods_catalog.yaml`
+- `templates/summary/summary_catalog.yaml`
 - `templates/export/export_mapping.table.yaml`
 
 ## Validation

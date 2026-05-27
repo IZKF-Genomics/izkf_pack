@@ -116,7 +116,7 @@ def main() -> int:
         annotate_dir = project_dir / "scrna_annotate"
         annotate_zebrafish_dir = project_dir / "scrna_annotate_zebrafish"
         ercc_dir = project_dir / "ercc"
-        methods_dir = project_dir / "methods"
+        summary_dir = project_dir / "summary"
         (demux_dir / "results" / "output").mkdir(parents=True)
         (demux_dir / "results" / "multiqc").mkdir(parents=True)
         (rnaseq_dir / "results" / "multiqc").mkdir(parents=True)
@@ -135,7 +135,7 @@ def main() -> int:
         (annotate_dir / "reports").mkdir(parents=True)
         (annotate_zebrafish_dir / "results" / "tables").mkdir(parents=True)
         (ercc_dir / "results").mkdir(parents=True)
-        (methods_dir / "results").mkdir(parents=True)
+        (summary_dir / "results").mkdir(parents=True)
         (demux_dir / "results" / "output" / "sample.fastq.gz").write_text("fq\n", encoding="utf-8")
         (demux_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
         (rnaseq_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
@@ -185,11 +185,11 @@ def main() -> int:
         (ercc_dir / "results" / "ERCC.html").write_text("<html></html>\n", encoding="utf-8")
         (ercc_dir / "results" / "run_info.yaml").write_text("template: ercc\n", encoding="utf-8")
         (ercc_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
-        (methods_dir / "results" / "methods_long.md").write_text("# Long methods\n", encoding="utf-8")
-        (methods_dir / "results" / "methods_short.md").write_text("# Short methods\n", encoding="utf-8")
-        (methods_dir / "results" / "methods_references.md").write_text("# References\n", encoding="utf-8")
-        (methods_dir / "results" / "methods_long.html").write_text("<html></html>\n", encoding="utf-8")
-        (methods_dir / "results" / "methods_short.html").write_text("<html></html>\n", encoding="utf-8")
+        (summary_dir / "results" / "summary_long.md").write_text("# Long analysis summary\n", encoding="utf-8")
+        (summary_dir / "results" / "summary_short.md").write_text("# Short analysis summary\n", encoding="utf-8")
+        (summary_dir / "results" / "summary_references.md").write_text("# References\n", encoding="utf-8")
+        (summary_dir / "results" / "summary_long.html").write_text("<html></html>\n", encoding="utf-8")
+        (summary_dir / "results" / "summary_short.html").write_text("<html></html>\n", encoding="utf-8")
         export_dir.mkdir(parents=True)
 
         project_yaml = {
@@ -284,21 +284,21 @@ def main() -> int:
                     },
                 },
                 {
-                    "id": "methods",
-                    "instance_id": "methods_001",
-                    "path": "methods",
-                    "history_path": ".linkar/runs/methods_001",
+                    "id": "summary",
+                    "instance_id": "summary_001",
+                    "path": "summary",
+                    "history_path": ".linkar/runs/summary_001",
                     "outputs": {
-                        "results_dir": str((project_dir / ".linkar" / "runs" / "methods_001" / "results").resolve()),
+                        "results_dir": str((project_dir / ".linkar" / "runs" / "summary_001" / "results").resolve()),
                     },
                 },
                 {
-                    "id": "methods",
-                    "instance_id": "methods_002",
-                    "path": "methods",
-                    "history_path": ".linkar/runs/methods_002",
+                    "id": "summary",
+                    "instance_id": "summary_002",
+                    "path": "summary",
+                    "history_path": ".linkar/runs/summary_002",
                     "outputs": {
-                        "results_dir": str((project_dir / ".linkar" / "runs" / "methods_002" / "results").resolve()),
+                        "results_dir": str((project_dir / ".linkar" / "runs" / "summary_002" / "results").resolve()),
                     },
                 },
             ],
@@ -328,7 +328,7 @@ def main() -> int:
         )
         assert "Prepare Only Complete" in prepare_only.stdout
         assert "Project templates:" in prepare_only.stdout
-        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_prep (1), scrna_integrate (1), scrna_annotate (1), scrna_annotate_zebrafish (1), ercc (1), methods (2)" in prepare_only.stdout
+        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_prep (1), scrna_integrate (1), scrna_annotate (1), scrna_annotate_zebrafish (1), ercc (1), summary (2)" in prepare_only.stdout
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
@@ -339,7 +339,7 @@ def main() -> int:
         export_srcs = {entry["src"] for entry in spec["export_list"]}
         export_dests = {entry["dest"] for entry in spec["export_list"]}
         assert str((ercc_dir / "results").resolve()) in export_srcs
-        assert str((methods_dir / "results").resolve()) in export_srcs
+        assert str((summary_dir / "results").resolve()) in export_srcs
         assert "2_Processed_data/nfcore_3mrnaseq/nfcore_liver" in export_dests
         assert "2_Processed_data/nfcore_3mrnaseq/nfcore_bile_duct" in export_dests
         assert "2_Processed_data/methylation_array_analysis/results" in export_dests
@@ -354,17 +354,17 @@ def main() -> int:
         assert "3_Reports/scrna_annotate/scrna_annotate" in export_dests
         assert "3_Reports/scrna_annotate_zebrafish/scrna_annotate_zebrafish/report.html" in export_dests
         assert "3_Reports/ercc/ercc" in export_dests
-        assert "3_Reports/methods" in export_dests
-        methods_entries = [entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/methods"]
-        assert len(methods_entries) == 1
-        assert methods_entries[0]["src"] == str((methods_dir / "results").resolve())
+        assert "3_Reports/summary" in export_dests
+        summary_entries = [entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/summary"]
+        assert len(summary_entries) == 1
+        assert summary_entries[0]["src"] == str((summary_dir / "results").resolve())
         dgea_report_entries = [entry for entry in spec["export_list"] if entry["dest"].startswith("3_Reports/dgea/")]
         assert any(
             any(link.get("path") == "DGEA_all_samples.html" for link in entry.get("report_links", []))
             for entry in dgea_report_entries
         )
-        methods_paths = {link["path"] for link in methods_entries[0].get("report_links", [])}
-        assert {"methods_long.html", "methods_short.html"} <= methods_paths
+        summary_paths = {link["path"] for link in summary_entries[0].get("report_links", [])}
+        assert {"summary_long.html", "summary_short.html"} <= summary_paths
         methylation_report_entry = next(
             entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/methylation_array_analysis"
         )

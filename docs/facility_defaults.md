@@ -31,7 +31,7 @@ descriptive labels.
 That means:
 
 - the CLI stays short for facility users
-- the resulting metadata and methods text can still use the full technical names
+- the resulting metadata and analysis summary text can still use the full technical names
 
 ## Agendo and metadata API assumptions
 
@@ -85,4 +85,4 @@ When adding a new facility default:
 
 - [nfcore_templates.md](nfcore_templates.md)
 - [project_history_and_archive.md](project_history_and_archive.md)
-- [methods.md](methods.md)
+- [summary.md](summary.md)

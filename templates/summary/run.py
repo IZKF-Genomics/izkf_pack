@@ -5,9 +5,11 @@ import argparse
 import base64
 import html
 import json
+import mimetypes
 import os
 import re
 import shlex
+from datetime import date
 from glob import glob
 from pathlib import Path
 from typing import Any
@@ -17,8 +19,16 @@ from urllib.request import Request, urlopen
 import yaml
 
 
+TEMPLATE_DIR = Path(__file__).resolve().parent
+REPORT_LOGO_CANDIDATES = ("gf_logo.png",)
+LLM_DISCLAIMER = (
+    "This analysis summary was generated with large language model assistance from recorded project and "
+    "workflow metadata. Please review the text carefully before use, as it may contain omissions or errors."
+)
+
+
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate project-level methods drafts.")
+    parser = argparse.ArgumentParser(description="Generate project-level analysis summaries.")
     parser.add_argument("--results-dir", required=True)
     parser.add_argument("--project-dir", default="..")
     parser.add_argument("--style", default="publication")
@@ -661,14 +671,14 @@ def collect_run_context(
             if not isinstance(entry, dict):
                 continue
             template_id = str(entry.get("id") or "").strip()
-            if not template_id or template_id in {"export", "methods"}:
+            if not template_id or template_id in {"export", "summary"}:
                 continue
             template_counts[template_id] = template_counts.get(template_id, 0) + 1
     for index, entry in enumerate(project_data.get("templates") or [], start=1):
         if not isinstance(entry, dict):
             continue
         template_id = str(entry.get("id") or "").strip()
-        if not template_id or template_id in {"export", "methods"}:
+        if not template_id or template_id in {"export", "summary"}:
             continue
         params = entry.get("params") if isinstance(entry.get("params"), dict) else {}
         outputs = entry.get("outputs") if isinstance(entry.get("outputs"), dict) else {}
@@ -1353,11 +1363,11 @@ def collect_reference_bullets(run: dict[str, Any], catalog: dict[str, Any]) -> l
 
 
 def deterministic_long_methods(context: dict[str, Any], catalog: dict[str, Any]) -> str:
-    lines = ["# Methods", ""]
+    lines = ["# Bioinformatics Analysis Summary", ""]
     project_metadata = collect_project_metadata_bullets(context)
     if project_metadata:
         lines.append("## Project Assay Metadata")
-        lines.append("Project-level sequencing metadata were recovered from the Agendo combined metadata API and used as assay context for the methods narrative.")
+        lines.append("Project-level sequencing metadata were recovered from the Agendo combined metadata API and used as assay context for the analysis summary.")
         lines.append("")
         lines.extend(project_metadata)
         assay_description = project_assay_description(context)
@@ -1819,6 +1829,16 @@ def replace_references_section(text: str, references_block: str) -> str:
     return body + "\n\n" + references_block.strip() + "\n"
 
 
+def add_llm_disclaimer(markdown_text: str) -> str:
+    text = markdown_text.strip()
+    if LLM_DISCLAIMER in text:
+        return text + "\n"
+    lines = text.splitlines()
+    if lines and lines[0].startswith("# "):
+        return "\n".join([lines[0], "", LLM_DISCLAIMER, *lines[1:]]).rstrip() + "\n"
+    return LLM_DISCLAIMER + "\n\n" + text.rstrip() + "\n"
+
+
 def render_inline_html(text: str) -> str:
     parts = re.split(r"(`[^`]+`)", text)
     rendered: list[str] = []
@@ -1952,9 +1972,37 @@ def markdown_fragment_to_html(markdown_text: str) -> tuple[str, list[dict[str, s
     return "\n".join(html_lines), sections
 
 
-def render_methods_html(markdown_text: str, title: str) -> str:
+def load_report_style_css() -> str:
+    path = TEMPLATE_DIR / "report_style.css"
+    if path.exists():
+        return path.read_text(encoding="utf-8")
+    return "body { font-family: Arial, sans-serif; line-height: 1.6; }"
+
+
+def load_report_logo_data_uri() -> str:
+    for name in REPORT_LOGO_CANDIDATES:
+        path = TEMPLATE_DIR / name
+        if not path.exists():
+            continue
+        media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+        return f"data:{media_type};base64,{encoded}"
+    return ""
+
+
+def render_report_logo_img(class_name: str) -> str:
+    data_uri = load_report_logo_data_uri()
+    if data_uri:
+        return f'<img class="{class_name}" src="{data_uri}" alt="Genomics Facility IZKF RWTH Aachen University logo">'
+    return '<span class="report-logo-missing">Genomics Facility, IZKF, RWTH Aachen University</span>'
+
+
+def render_summary_html(markdown_text: str, title: str) -> str:
     body, sections = markdown_fragment_to_html(markdown_text)
     escaped_title = html.escape(title)
+    css = load_report_style_css()
+    title_logo = render_report_logo_img("title-logo")
+    generated_date = date.today().strftime("%d %B, %Y")
     sidebar_links = "\n".join(
         f'          <li><a href="#{html.escape(section["id"])}">{html.escape(section["title"])}</a></li>'
         for section in sections
@@ -1968,54 +2016,34 @@ def render_methods_html(markdown_text: str, title: str) -> str:
             '  <meta name="viewport" content="width=device-width, initial-scale=1">',
             f"  <title>{escaped_title}</title>",
             "  <style>",
-            "    :root { color-scheme: light; --bg: #f4f2ee; --paper: #ffffff; --ink: #20252a; --muted: #65707c; --line: #d7dde5; --accent: #1f4e79; --accent-soft: #e8f1fb; --code: #f4f6f8; --citation-bg: #fff2bf; --citation-ink: #7a5200; }",
+            css,
             "    * { box-sizing: border-box; }",
-            "    html { scroll-behavior: smooth; }",
-            "    body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif; line-height: 1.72; }",
-            "    .page { max-width: 1380px; margin: 0 auto; padding: 32px 24px 56px; display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 28px; align-items: start; }",
-            "    .sidebar { position: sticky; top: 24px; align-self: start; background: rgba(255, 255, 255, 0.78); border: 1px solid var(--line); border-radius: 20px; padding: 24px 22px; backdrop-filter: blur(6px); }",
-            "    .sidebar .eyebrow { margin: 0 0 0.45rem; font-family: Arial, Helvetica, sans-serif; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }",
-            "    .sidebar h1 { margin: 0 0 0.8rem; font-size: 1.5rem; line-height: 1.2; letter-spacing: -0.02em; }",
-            "    .sidebar p { margin: 0 0 1.2rem; color: var(--muted); font-size: 0.96rem; }",
-            "    .sidebar nav ul { list-style: none; margin: 0; padding: 0; }",
-            "    .sidebar nav li + li { margin-top: 0.55rem; }",
-            "    .sidebar nav a { color: var(--ink); text-decoration: none; display: block; padding: 0.45rem 0.6rem; border-radius: 10px; border: 1px solid transparent; }",
-            "    .sidebar nav a:hover { background: var(--accent-soft); border-color: rgba(31, 78, 121, 0.16); }",
-            "    article { background: var(--paper); border: 1px solid var(--line); border-radius: 24px; padding: 52px 64px; box-shadow: 0 22px 50px rgba(38, 48, 60, 0.08); }",
-            "    article > h1:first-child { margin-top: 0; }",
-            "    h1, h2, h3 { line-height: 1.25; color: #17212b; }",
-            "    h1 { font-size: 2.35rem; margin: 0 0 1.5rem; letter-spacing: -0.03em; }",
-            "    h2 { font-size: 1.38rem; margin: 2.4rem 0 0.95rem; padding-top: 1rem; border-top: 1px solid var(--line); scroll-margin-top: 24px; }",
-            "    h3 { font-family: Arial, Helvetica, sans-serif; font-size: 0.83rem; margin: 1.55rem 0 0.6rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.16em; }",
-            "    p, ul, ol, pre { margin: 0.92rem 0; }",
-            "    p { font-size: 1.02rem; }",
-            "    ul, ol { padding-left: 1.35rem; }",
-            "    li + li { margin-top: 0.38rem; }",
-            "    code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; background: var(--code); border: 1px solid #e0e5ea; border-radius: 4px; padding: 0.08rem 0.3rem; font-size: 0.9em; }",
-            "    pre { background: #18212b; color: #f5f7fa; padding: 18px 20px; border-radius: 14px; overflow-x: auto; border: 1px solid rgba(255, 255, 255, 0.06); }",
-            "    pre code { background: transparent; border: 0; color: inherit; padding: 0; }",
-            "    a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(31, 78, 121, 0.24); }",
-            "    a:hover { border-bottom-color: rgba(31, 78, 121, 0.68); }",
-            "    .citation-ref { display: inline-flex; align-items: center; justify-content: center; min-width: 1.2rem; height: 1.2rem; margin-left: 0.12rem; padding: 0 0.24rem; border-radius: 999px; background: var(--citation-bg); color: var(--citation-ink); font-family: Arial, Helvetica, sans-serif; font-size: 0.64rem; font-weight: 700; line-height: 1; vertical-align: super; box-shadow: inset 0 0 0 1px rgba(122, 82, 0, 0.12); }",
-            "    .citation-ref + .citation-ref { margin-left: 0.16rem; }",
-            "    @media (max-width: 1080px) { .page { grid-template-columns: 1fr; } .sidebar { position: static; } article { padding: 38px 28px; } }",
-            "    @media (max-width: 720px) { .page { padding: 16px 12px 28px; gap: 16px; } .sidebar { padding: 18px 16px; border-radius: 14px; } article { padding: 24px 18px; border-radius: 16px; } h1 { font-size: 1.85rem; } }",
             "  </style>",
             "</head>",
-            "<body>",
-            '  <main class="page">',
-            '    <aside class="sidebar">',
-            '      <p class="eyebrow">Methods Draft</p>',
-            f"      <h1>{escaped_title}</h1>",
-            "      <p>Clean publication-style rendering with section navigation and readable citations.</p>",
-            "      <nav aria-label=\"Methods sections\">",
+            '<body class="report-html">',
+            '  <main class="report-page page">',
+            '    <aside id="TOC" class="sidebar report-sidebar">',
+            '      <h2 class="toc-title">Table of Contents</h2>',
+            "      <nav aria-label=\"Table of Contents\">",
             "        <ul>",
             sidebar_links,
             "        </ul>",
             "      </nav>",
             "    </aside>",
-            "    <article>",
+            '    <article class="report-article">',
+            '      <header id="title-block-header" class="quarto-title-block">',
+            f"        <h1>{escaped_title} {title_logo}</h1>",
+            "        <p class=\"subtitle\">Bioinformatics Analysis Summary</p>",
+            f"        <p class=\"report-date\">{generated_date}</p>",
+            "      </header>",
             body,
+            '      <div class="report-footer">',
+            '        <div class="footer-content">',
+            "          <p><strong>Genomics Facility</strong><br>Interdisciplinary Center for Clinical Research (IZKF)<br>RWTH Aachen University Hospital</p>",
+            '          <p>For questions or support, please contact <a href="mailto:genomics@ukaachen.de">genomics@ukaachen.de</a><br>Website: <a href="https://genomics.rwth-aachen.de">https://genomics.rwth-aachen.de</a></p>',
+            f"          <p class=\"footer-note\">Report was automatically generated on {generated_date}.</p>",
+            "        </div>",
+            "      </div>",
             "    </article>",
             "  </main>",
             "</body>",
@@ -2092,32 +2120,32 @@ def emphasize_short_technical_terms(short_text: str, context: dict[str, Any]) ->
 def build_prompt(context: dict[str, Any], long_draft: str, short_draft: str, references: str, style: str) -> str:
     return "\n".join(
         [
-            "You are helping write publication-ready scientific methods from structured workflow provenance.",
+            "You are helping write an accurate bioinformatics analysis summary from structured workflow provenance.",
             f"Style: {style}",
             "Use the structured context as the source of truth.",
             "Treat each template catalog entry as template-level scientific guidance.",
             "Treat runtime_command, runtime params, software_versions, and recorded outputs as the run-specific truth for this project.",
             "Treat project_api.project_metadata as project-level assay and sequencing metadata when available.",
-            "Runs marked with publication_relevance=false are operational or administrative context and should normally not appear in the final publication methods narrative unless explicitly needed.",
+            "Runs marked with publication_relevance=false are operational or administrative context and should normally not appear in the final analysis summary unless explicitly needed.",
             "Do not mention Linkar, internal template mechanics, recorded authorship metadata, runtime success flags, local file paths, or execution commands unless explicitly requested.",
-            "Keep the long methods text readable for scientific users and focused on publication-relevant analytical content.",
+            "Keep the long analysis summary readable for scientific users and focused on what the analysis did.",
             "Use a clear section structure.",
-            "For the long methods text, include enough methodological detail to explain the computational approach used in each workflow step.",
-            "For the short methods text, produce a clean condensed version of the long methods text, not an unrelated re-summary.",
-            "For the short methods text, write compact manuscript prose in 1-2 short paragraphs, followed by a references section.",
-            "In the short methods text, preserve exact technical product names and assay-specific terms so they remain visually identifiable.",
-            "Follow Nature-style methods guidance: be concise, include the information needed for interpretation and replication, and avoid re-describing standard published methods when a citation suffices.",
-            "For the long methods text, it is acceptable to use clear subsection headings such as Relevant Settings, Reference Details, Key Command Parameters, Software, and References, but avoid unnecessary internal headings like Computational Approach when simple detailed bullets read more naturally.",
+            "For the long analysis summary, include enough detail to explain the computational approach used in each workflow step.",
+            "For the short analysis summary, produce a clean condensed version of the long analysis summary, not an unrelated re-summary.",
+            "For the short analysis summary, write compact scientific prose in 1-2 short paragraphs, followed by a references section.",
+            "In the short analysis summary, preserve exact technical product names and assay-specific terms so they remain visually identifiable.",
+            "Be concise, include the information needed to understand and review what was done, and avoid re-describing standard published approaches when a citation suffices.",
+            "For the long analysis summary, it is acceptable to use clear subsection headings such as Relevant Settings, Reference Details, Key Command Parameters, Software, and References, but avoid unnecessary internal headings like Computational Approach when simple detailed bullets read more naturally.",
             "When project-level assay metadata are available, include the crucial sequencing and library-preparation details in a concise publication-appropriate way.",
             "For pipeline-style workflows such as nf-core runs, include the key recorded command parameters and the best available reference details, including genome and annotation version when recoverable from recorded files.",
             "When multiple settings or parameters are relevant, present them as bullet lists instead of dense prose.",
             "Only mention settings that materially affect the analysis or interpretation.",
-            "Include the relevant citations and reference items for each workflow step in the long methods text when they are available in the structured context.",
+            "Include the relevant citations and reference items for each workflow step in the long analysis summary when they are available in the structured context.",
             "Do not shorten, paraphrase, or abbreviate the provided reference text entries. Preserve their wording and include the URL for every reference item that has one.",
             "Avoid repeating the same workflow description when adjacent sections can be phrased concisely.",
             "Do not invent tools, organisms, references, parameters, or citations.",
             "Do not mention workflow steps that are absent from the structured context.",
-            "Return JSON with keys: methods_long, methods_short, methods_references.",
+            "Return JSON with keys: summary_long, summary_short, summary_references.",
             "",
             "Structured context:",
             yaml.safe_dump(context, sort_keys=False),
@@ -2159,7 +2187,7 @@ def call_openai_compatible_api(
         "model": model,
         "temperature": temperature,
         "messages": [
-            {"role": "system", "content": "You write accurate publication methods from workflow provenance."},
+            {"role": "system", "content": "You write accurate bioinformatics analysis summaries from workflow provenance."},
             {"role": "user", "content": prompt},
         ],
     }
@@ -2180,12 +2208,12 @@ def call_openai_compatible_api(
     try:
         parsed = json.loads(extract_json_object(content))
     except Exception:
-        parsed = {"methods_long": content, "methods_short": "", "methods_references": ""}
+        parsed = {"summary_long": content, "summary_short": "", "summary_references": ""}
     return {"raw": raw, "parsed": parsed}
 
 
 def llm_config_default_path(project_dir: Path) -> Path:
-    return project_dir / ".methods_llm.yaml"
+    return project_dir / ".summary_llm.yaml"
 
 
 def resolve_llm_settings(args: argparse.Namespace, project_dir: Path) -> dict[str, Any]:
@@ -2203,7 +2231,7 @@ def resolve_llm_settings(args: argparse.Namespace, project_dir: Path) -> dict[st
         if not config_path.is_absolute():
             config_path = (project_dir / config_path).resolve()
         if config_path.is_dir():
-            directory_default = config_path / ".methods_llm.yaml"
+            directory_default = config_path / ".summary_llm.yaml"
             config_path = directory_default if directory_default.exists() else None
         if config_path is not None:
             config = load_mapping(config_path)
@@ -2259,7 +2287,7 @@ def main() -> int:
 
     template_dir = Path(__file__).resolve().parent
     project_data = load_yaml(project_file)
-    catalog = load_yaml(template_dir / "methods_catalog.yaml")
+    catalog = load_yaml(template_dir / "summary_catalog.yaml")
     runs, citation_ids = collect_run_context(project_dir, project_data, catalog)
     project_api = resolve_project_api_metadata(project_data, args.metadata_api_url)
     llm_settings = resolve_llm_settings(args, project_dir)
@@ -2309,8 +2337,8 @@ def main() -> int:
                 response_payload["used_llm"] = True
                 response_payload["llm_settings"] = context["llm_settings"]
                 parsed = response_payload.get("parsed") if isinstance(response_payload.get("parsed"), dict) else {}
-                short_draft = str(parsed.get("methods_short") or short_draft)
-                refs = str(parsed.get("methods_references") or refs)
+                short_draft = str(parsed.get("summary_short") or short_draft)
+                refs = str(parsed.get("summary_references") or refs)
                 refs = references_markdown(citation_ids, catalog)
                 short_draft = replace_references_section(short_draft, numbered_references_markdown(citation_ids, catalog))
                 short_draft = preserve_important_versions(short_draft, deterministic_short_methods(context, catalog), context)
@@ -2329,22 +2357,24 @@ def main() -> int:
             }
 
     short_draft = emphasize_short_technical_terms(short_draft, context)
+    long_draft = add_llm_disclaimer(long_draft)
+    short_draft = add_llm_disclaimer(short_draft)
 
-    write_yaml(results_dir / "methods_context.yaml", context)
-    (results_dir / "methods_long.md").write_text(long_draft, encoding="utf-8")
-    (results_dir / "methods_short.md").write_text(short_draft, encoding="utf-8")
-    (results_dir / "methods_long.html").write_text(render_methods_html(long_draft, "Methods Long"), encoding="utf-8")
-    (results_dir / "methods_short.html").write_text(render_methods_html(short_draft, "Methods Short"), encoding="utf-8")
-    (results_dir / "methods_references.md").write_text(refs, encoding="utf-8")
-    (results_dir / "methods_prompt.md").write_text(prompt, encoding="utf-8")
-    write_json(results_dir / "methods_response.json", response_payload)
+    write_yaml(results_dir / "summary_context.yaml", context)
+    (results_dir / "summary_long.md").write_text(long_draft, encoding="utf-8")
+    (results_dir / "summary_short.md").write_text(short_draft, encoding="utf-8")
+    (results_dir / "summary_long.html").write_text(render_summary_html(long_draft, "Analysis Summary Long"), encoding="utf-8")
+    (results_dir / "summary_short.html").write_text(render_summary_html(short_draft, "Analysis Summary Short"), encoding="utf-8")
+    (results_dir / "summary_references.md").write_text(refs, encoding="utf-8")
+    (results_dir / "summary_prompt.md").write_text(prompt, encoding="utf-8")
+    write_json(results_dir / "summary_response.json", response_payload)
 
-    print(f"[info] wrote {results_dir / 'methods_context.yaml'}")
-    print(f"[info] wrote {results_dir / 'methods_long.md'}")
-    print(f"[info] wrote {results_dir / 'methods_short.md'}")
-    print(f"[info] wrote {results_dir / 'methods_long.html'}")
-    print(f"[info] wrote {results_dir / 'methods_short.html'}")
-    print(f"[info] wrote {results_dir / 'methods_references.md'}")
+    print(f"[info] wrote {results_dir / 'summary_context.yaml'}")
+    print(f"[info] wrote {results_dir / 'summary_long.md'}")
+    print(f"[info] wrote {results_dir / 'summary_short.md'}")
+    print(f"[info] wrote {results_dir / 'summary_long.html'}")
+    print(f"[info] wrote {results_dir / 'summary_short.html'}")
+    print(f"[info] wrote {results_dir / 'summary_references.md'}")
     return 0
 
 

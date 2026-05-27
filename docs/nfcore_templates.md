@@ -7,7 +7,7 @@ This pack uses a consistent pattern for the nf-core style templates, especially:
 - [`nfcore_scrnaseq`](../templates/nfcore_scrnaseq/README.md)
 
 The goal is to make the final command easy to inspect, rerun, and cite later in
-methods generation.
+analysis summary generation.
 
 These templates also rely on facility-managed shared references and binaries
 prepared by the companion repository
@@ -53,7 +53,7 @@ These templates should also emit machine-readable provenance, especially:
 
 That combination is useful for:
 
-- methods generation
+- analysis summary generation
 - export
 - reproducibility checks
 - debugging differences between runs
@@ -65,7 +65,7 @@ The pack also supports facility shorthands in some nf-core templates, such as:
 - `umi=true`
 - `spikein=true`
 
-These are user conveniences, but downstream methods text should still reflect
+These are user conveniences, but downstream analysis summary text should still reflect
 the resolved technical value or the actual rendered command.
 
 ## Why command recording matters
@@ -78,7 +78,7 @@ reliable source for later interpretation. For example:
 - which nf-core revision was run
 - which extra aligner or quantification arguments were applied
 
-That is why downstream consumers such as `methods` should prefer
+That is why downstream consumers such as `summary` should prefer
 `runtime_command.json` when it is available.
 
 ## Recommended maintenance rule
@@ -94,4 +94,4 @@ When editing nf-core templates in this pack:
 
 - [facility_defaults.md](facility_defaults.md)
 - [template_outputs.md](template_outputs.md)
-- [methods.md](methods.md)
+- [summary.md](summary.md)

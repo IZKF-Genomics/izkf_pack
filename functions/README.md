@@ -226,7 +226,7 @@ Reads author metadata from the active Linkar project and returns a comma-separat
 
 Source: [`software_versions.py`](software_versions.py)
 
-Writes standardized `software_versions.json` files from command outputs and static metadata. Workflow templates can record versions locally, and the `methods` template can aggregate those records into publication-ready methods drafts.
+Writes standardized `software_versions.json` files from command outputs and static metadata. Workflow templates can record versions locally, and the `summary` template can aggregate those records into bioinformatics analysis summaries.
 
 CLI example:
 

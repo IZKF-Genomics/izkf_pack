@@ -83,18 +83,18 @@ mappings:
         description: "Aggregated web summary report from the cellranger_atac template."
         link_name: "cellranger_atac aggregated web summary"
 
-  - template_id: methods
+  - template_id: summary
     src: "{template_root}/results"
-    dest: "3_Reports/methods"
+    dest: "3_Reports/summary"
     report_links:
-      - path: "methods_long.html"
-        section: reports/Methods
-        description: "Standalone HTML rendering of the long methods draft."
-        link_name: "Long methods HTML"
-      - path: "methods_short.html"
-        section: reports/Methods
-        description: "Standalone HTML rendering of the short methods summary."
-        link_name: "Short methods HTML"
+      - path: "summary_long.html"
+        section: reports/Summary
+        description: "Standalone HTML rendering of the long bioinformatics analysis summary."
+        link_name: "Long analysis summary HTML"
+      - path: "summary_short.html"
+        section: reports/Summary
+        description: "Standalone HTML rendering of the short bioinformatics analysis summary."
+        link_name: "Short analysis summary HTML"
 
   - template_id: methylation_array_analysis
     src_project_key: "templates[id=methylation_array_analysis].outputs.results_dir"

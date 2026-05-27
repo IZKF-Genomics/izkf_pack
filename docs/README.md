@@ -16,7 +16,7 @@ maintenance notes that apply across multiple templates.
 - [software_versions.md](software_versions.md): how template-level
   `software_versions_spec.yaml` files relate to generated
   `results/software_versions.json` outputs.
-- [methods.md](methods.md): how publication-oriented methods drafts are built,
+- [summary.md](summary.md): how bioinformatics analysis summaries are built,
   refined, and exported.
 - [export.md](export.md): how export mappings, visible paths, and
   `export_job_spec.json` behave.

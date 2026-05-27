@@ -31,7 +31,7 @@ not by editing report-generation code.
 
 This pack distinguishes between:
 
-- the visible workspace path, such as `methods/` or `nfcore_bile_duct/`
+- the visible workspace path, such as `summary/` or `nfcore_bile_duct/`
 - historical run snapshots under `.linkar/runs/...`
 
 For export, the preferred behavior is to use the visible project path whenever
@@ -106,11 +106,11 @@ less results/export_job_spec.json
 bash run.sh
 ```
 
-## methods in export
+## analysis summary in export
 
-The export template can include generated methods outputs and methods context in
-the job spec. That is useful for report traceability, but the methods files
-should come from the visible `methods/` workspace rather than stale
+The export template can include generated analysis summary outputs and analysis summary context in
+the job spec. That is useful for report traceability, but the analysis summary files
+should come from the visible `summary/` workspace rather than stale
 `.linkar/runs/...` history.
 
 ## Common maintenance tasks
@@ -122,6 +122,6 @@ should come from the visible `methods/` workspace rather than stale
 
 ## Related docs
 
-- [methods.md](methods.md)
+- [summary.md](summary.md)
 - [project_history_and_archive.md](project_history_and_archive.md)
 - [template_outputs.md](template_outputs.md)

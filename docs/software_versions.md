@@ -48,7 +48,7 @@ Keeping `software_versions_spec.yaml` in the pack has a few advantages:
 - multiple templates can follow the same pattern consistently
 - tests can verify that the template still records the expected tools and
   parameters
-- downstream templates such as `methods` can rely on a standard
+- downstream templates such as `summary` can rely on a standard
   `software_versions.json` artifact
 
 ## What should go into a spec
@@ -56,7 +56,7 @@ Keeping `software_versions_spec.yaml` in the pack has a few advantages:
 Good candidates:
 
 - core execution tools such as `pixi`, `python`, `quarto`, `R`, or `nextflow`
-- template parameters that matter for methods reporting
+- template parameters that matter for analysis summary reporting
 - static labels that help interpret the run later
 
 Poor candidates:
@@ -65,10 +65,10 @@ Poor candidates:
 - values that are already better captured in `runtime_command.json`
 - metadata that belongs in `run_info.yaml` instead
 
-## Relationship to methods and export
+## Relationship to analysis summary and export
 
-The `methods` template reads `software_versions.json` when available and uses it
-to populate software/version statements in generated methods text.
+The `summary` template reads `software_versions.json` when available and uses it
+to populate software/version statements in generated analysis summary text.
 
 The `export` template can also include these runtime artifacts in exported
 bundles, so the JSON output is part of the provenance chain even though the spec

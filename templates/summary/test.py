@@ -14,11 +14,15 @@ import yaml
 
 
 TEMPLATE_DIR = Path(__file__).resolve().parent
+LLM_DISCLAIMER = (
+    "This analysis summary was generated with large language model assistance from recorded project and "
+    "workflow metadata. Please review the text carefully before use, as it may contain omissions or errors."
+)
 
 
 def load_run_module():
     path = TEMPLATE_DIR / "run.py"
-    spec = importlib.util.spec_from_file_location("methods_run", path)
+    spec = importlib.util.spec_from_file_location("summary_run", path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Could not load module: {path}")
     module = importlib.util.module_from_spec(spec)
@@ -116,20 +120,22 @@ def test_generation_with_runtime_command() -> None:
             capture_output=True,
             text=True,
         )
-        assert "methods_long.md" in completed.stdout
-        long_text = (results_dir / "methods_long.md").read_text(encoding="utf-8")
-        short_text = (results_dir / "methods_short.md").read_text(encoding="utf-8")
-        long_html = (results_dir / "methods_long.html").read_text(encoding="utf-8")
-        short_html = (results_dir / "methods_short.html").read_text(encoding="utf-8")
-        refs = (results_dir / "methods_references.md").read_text(encoding="utf-8")
-        context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
-        prompt = (results_dir / "methods_prompt.md").read_text(encoding="utf-8")
-        response = json.loads((results_dir / "methods_response.json").read_text(encoding="utf-8"))
+        assert "summary_long.md" in completed.stdout
+        long_text = (results_dir / "summary_long.md").read_text(encoding="utf-8")
+        short_text = (results_dir / "summary_short.md").read_text(encoding="utf-8")
+        long_html = (results_dir / "summary_long.html").read_text(encoding="utf-8")
+        short_html = (results_dir / "summary_short.html").read_text(encoding="utf-8")
+        refs = (results_dir / "summary_references.md").read_text(encoding="utf-8")
+        context = yaml.safe_load((results_dir / "summary_context.yaml").read_text(encoding="utf-8"))
+        prompt = (results_dir / "summary_prompt.md").read_text(encoding="utf-8")
+        response = json.loads((results_dir / "summary_response.json").read_text(encoding="utf-8"))
 
         assert "Single-cell ATAC-seq processing" in long_text
         assert "example_reference" in long_text
         assert "Cell Ranger ATAC" in long_text
         assert "2.2.0" in long_text
+        assert LLM_DISCLAIMER in long_text
+        assert LLM_DISCLAIMER in short_text
         assert "### Computational Approach" not in long_text
         assert "### Relevant Settings" in long_text
         assert "### Software" in long_text
@@ -144,11 +150,21 @@ def test_generation_with_runtime_command() -> None:
         assert "\n\n" in short_text
         assert "\n1. " in short_text
         assert "<!DOCTYPE html>" in long_html
-        assert "<h1>Methods</h1>" in long_html
-        assert 'class="sidebar"' in long_html
-        assert "<article>" in long_html
+        assert "<h1>Bioinformatics Analysis Summary</h1>" in long_html
+        assert 'class="sidebar' in long_html
+        assert "Table of Contents" in long_html
+        assert "Bioinformatics Analysis Summary" in long_html
+        assert "title-logo" in long_html
+        assert "data:image/png;base64," in long_html
+        assert "brand-mark" not in long_html
+        assert "report-sidebar-header" not in long_html
+        assert "Genomics Facility" in long_html
+        assert "https://genomics.rwth-aachen.de" in long_html
+        assert "Report was automatically generated on" in long_html
+        assert "<article" in long_html
         assert "<!DOCTYPE html>" in short_html
         assert "References" in short_html
+        assert "--gf-lime" in long_html
         assert "Cell Ranger ATAC" in refs
         assert "runtime_command" in prompt
         assert context["runs"][0]["template"] == "cellranger_atac"
@@ -219,8 +235,8 @@ def test_dgea_label_and_software_version_fallback() -> None:
             text=True,
         )
 
-        long_text = (results_dir / "methods_long.md").read_text(encoding="utf-8")
-        context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
+        long_text = (results_dir / "summary_long.md").read_text(encoding="utf-8")
+        context = yaml.safe_load((results_dir / "summary_context.yaml").read_text(encoding="utf-8"))
         assert "Differential gene expression analysis: Liver" in long_text
         assert "### Computational Approach" not in long_text
         assert "### Relevant Settings" in long_text
@@ -233,7 +249,7 @@ def test_dgea_label_and_software_version_fallback() -> None:
         assert context["runs"][0]["run_dir"].endswith("DGEA_Liver")
 
 
-def test_ercc_catalog_entry_shapes_methods_text() -> None:
+def test_ercc_catalog_entry_shapes_summary_text() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
         project_dir = root / "project"
@@ -301,9 +317,9 @@ def test_ercc_catalog_entry_shapes_methods_text() -> None:
             text=True,
         )
 
-        long_text = (results_dir / "methods_long.md").read_text(encoding="utf-8")
-        refs = (results_dir / "methods_references.md").read_text(encoding="utf-8")
-        context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
+        long_text = (results_dir / "summary_long.md").read_text(encoding="utf-8")
+        refs = (results_dir / "summary_references.md").read_text(encoding="utf-8")
+        context = yaml.safe_load((results_dir / "summary_context.yaml").read_text(encoding="utf-8"))
         assert "ERCC spike-in quality control" in long_text
         assert "Salmon quantification results" in long_text
         assert "### Computational Approach" not in long_text
@@ -320,7 +336,7 @@ def test_run_sh_resolves_project_dir_from_linkar_runtime_copy() -> None:
         root = Path(tmpdir)
         project_dir = root / "project"
         results_dir = root / "results"
-        runtime_dir = project_dir / ".linkar" / "runs" / "methods_001"
+        runtime_dir = project_dir / ".linkar" / "runs" / "summary_001"
         runtime_dir.mkdir(parents=True)
         project_dir.mkdir(exist_ok=True)
 
@@ -338,7 +354,7 @@ def test_run_sh_resolves_project_dir_from_linkar_runtime_copy() -> None:
 
         shutil.copy2(TEMPLATE_DIR / "run.py", runtime_dir / "run.py")
         shutil.copy2(TEMPLATE_DIR / "run.sh", runtime_dir / "run.sh")
-        shutil.copy2(TEMPLATE_DIR / "methods_catalog.yaml", runtime_dir / "methods_catalog.yaml")
+        shutil.copy2(TEMPLATE_DIR / "summary_catalog.yaml", runtime_dir / "summary_catalog.yaml")
         (runtime_dir / "run.sh").chmod(0o755)
         bin_dir = root / "bin"
         bin_dir.mkdir()
@@ -360,8 +376,8 @@ def test_run_sh_resolves_project_dir_from_linkar_runtime_copy() -> None:
             cwd=root,
         )
 
-        assert "methods_context.yaml" in completed.stdout
-        context = yaml.safe_load((results_dir / "methods_context.yaml").read_text(encoding="utf-8"))
+        assert "summary_context.yaml" in completed.stdout
+        context = yaml.safe_load((results_dir / "summary_context.yaml").read_text(encoding="utf-8"))
         assert context["project"]["path"] == str(project_dir.resolve())
 
 
@@ -369,7 +385,7 @@ def test_llm_config_resolution() -> None:
     module = load_run_module()
     with tempfile.TemporaryDirectory() as tmpdir:
         project_dir = Path(tmpdir)
-        config_path = project_dir / ".methods_llm.yaml"
+        config_path = project_dir / ".summary_llm.yaml"
         config_path.write_text(
             yaml.safe_dump(
                 {
@@ -611,7 +627,7 @@ def test_inferred_versions_and_reference_urls() -> None:
         inferred_nfcore = module.infer_additional_versions(nfcore_dir)
         inferred_dgea = module.infer_additional_versions(dgea_dir)
         citation_ids = ["star", "salmon", "deseq2"]
-        catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
+        catalog = yaml.safe_load((TEMPLATE_DIR / "summary_catalog.yaml").read_text(encoding="utf-8"))
         numbered = module.numbered_references_markdown(citation_ids, catalog)
         replaced = module.replace_references_section("Example text\n\nReferences\n1. old ref\n", numbered)
         context = {
@@ -648,13 +664,13 @@ def test_inferred_versions_and_reference_urls() -> None:
 
 
 def test_llm_output_does_not_override_detailed_long_methods() -> None:
-    deterministic = "# Methods\n\n## Step A\n\n### Recorded Command\n```bash\nrun-a\n```\n"
+    deterministic = "# Bioinformatics Analysis Summary\n\n## Step A\n\n### Recorded Command\n```bash\nrun-a\n```\n"
     parsed = {
-        "methods_long": "# Methods\n\n## Step A\nSimplified summary only.\n",
-        "methods_short": "Short polished text.\n\nReferences\n1. Ref\n",
+        "summary_long": "# Bioinformatics Analysis Summary\n\n## Step A\nSimplified summary only.\n",
+        "summary_short": "Short polished text.\n\nReferences\n1. Ref\n",
     }
     effective_long = deterministic
-    effective_short = str(parsed.get("methods_short") or "")
+    effective_short = str(parsed.get("summary_short") or "")
 
     assert effective_long == deterministic
     assert "### Recorded Command" in effective_long
@@ -781,7 +797,7 @@ def test_recorded_command_block_is_multiline() -> None:
 
 def test_scrna_prep_citations_and_short_sentence() -> None:
     module = load_run_module()
-    catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
+    catalog = yaml.safe_load((TEMPLATE_DIR / "summary_catalog.yaml").read_text(encoding="utf-8"))
     entry = catalog["templates"]["scrna_prep"]
 
     citations = module.resolve_catalog_citations(
@@ -809,7 +825,7 @@ def test_scrna_prep_citations_and_short_sentence() -> None:
 
 
 def test_scrna_prep_catalog_entry_matches_current_input_model() -> None:
-    catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
+    catalog = yaml.safe_load((TEMPLATE_DIR / "summary_catalog.yaml").read_text(encoding="utf-8"))
     entry = catalog["templates"]["scrna_prep"]
 
     assert "H5AD or matrix-style inputs" in entry["summary"]
@@ -860,7 +876,7 @@ def test_scrna_prep_settings_include_resolved_leiden_resolution() -> None:
 
 def test_scrna_integrate_citations_and_short_sentence() -> None:
     module = load_run_module()
-    catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
+    catalog = yaml.safe_load((TEMPLATE_DIR / "summary_catalog.yaml").read_text(encoding="utf-8"))
     entry = catalog["templates"]["scrna_integrate"]
 
     citations = module.resolve_catalog_citations(
@@ -889,7 +905,7 @@ def test_scrna_integrate_citations_and_short_sentence() -> None:
 
 def test_scrna_annotate_marker_provider_short_sentence() -> None:
     module = load_run_module()
-    catalog = yaml.safe_load((TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8"))
+    catalog = yaml.safe_load((TEMPLATE_DIR / "summary_catalog.yaml").read_text(encoding="utf-8"))
     entry = catalog["templates"]["scrna_annotate"]
 
     citations = module.resolve_catalog_citations(
@@ -919,7 +935,7 @@ def test_scrna_annotate_marker_provider_short_sentence() -> None:
 def main() -> int:
     test_generation_with_runtime_command()
     test_dgea_label_and_software_version_fallback()
-    test_ercc_catalog_entry_shapes_methods_text()
+    test_ercc_catalog_entry_shapes_summary_text()
     test_run_sh_resolves_project_dir_from_linkar_runtime_copy()
     test_llm_config_resolution()
     test_project_api_metadata_resolution_and_rendering()
@@ -939,18 +955,19 @@ def main() -> int:
     test_scrna_annotate_marker_provider_short_sentence()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     readme_text = (TEMPLATE_DIR / "README.md").read_text(encoding="utf-8")
-    catalog_text = (TEMPLATE_DIR / "methods_catalog.yaml").read_text(encoding="utf-8")
+    catalog_text = (TEMPLATE_DIR / "summary_catalog.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
     pixi_text = (TEMPLATE_DIR / "pixi.toml").read_text(encoding="utf-8")
     run_py_text = (TEMPLATE_DIR / "run.py").read_text(encoding="utf-8")
+    logo_path = TEMPLATE_DIR / "gf_logo.png"
     assert "entry: run.sh" in template_text
     assert "llm_config:" in template_text
     assert "metadata_api_url:" in template_text
-    assert "methods_long_html:" in template_text
-    assert "methods_short_html:" in template_text
+    assert "summary_long_html:" in template_text
+    assert "summary_short_html:" in template_text
     assert "runtime_command.json" in readme_text
-    assert "results/methods_long.html" in readme_text
-    assert "results/methods_short.html" in readme_text
+    assert "results/summary_long.html" in readme_text
+    assert "results/summary_short.html" in readme_text
     assert "nfcore_methylseq:" in catalog_text
     assert "methylation_array_analysis:" in catalog_text
     assert "scrna_prep:" in catalog_text
@@ -976,7 +993,10 @@ def main() -> int:
     assert "resolve_llm_settings" in run_py_text
     assert "load_runtime_command" in run_py_text
     assert "resolve_project_api_metadata" in run_py_text
-    print("methods template test passed")
+    assert "load_report_style_css" in run_py_text
+    assert logo_path.exists()
+    assert "gf_logo.png" in run_py_text
+    print("summary template test passed")
     return 0
 
 

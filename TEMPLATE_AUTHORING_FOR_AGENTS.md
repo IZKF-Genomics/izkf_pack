@@ -108,7 +108,7 @@ run:
 
 Good:
 
-- `Generate project-level methods drafts from Linkar project history.`
+- `Generate project-level analysis summaries from Linkar project history.`
 - `Run Cell Ranger ATAC on a demultiplexed FASTQ directory.`
 
 ### `tools`
@@ -144,7 +144,7 @@ Best practices:
 
 ### `outputs`
 
-Declare outputs carefully. These are how downstream templates and methods generation understand prior work.
+Declare outputs carefully. These are how downstream templates and analysis summary generation understand prior work.
 
 Use:
 
@@ -309,7 +309,7 @@ Recommended usage:
 - keep the real scientific runtime command explicit inside `run.py`
 
 Avoid hiding the real pipeline invocation behind opaque task names such as `launch` or `prod` when
-that would make `runtime_command.json` or methods generation less clear.
+that would make `runtime_command.json` or analysis summary generation less clear.
 
 Good local workflow:
 
@@ -349,7 +349,7 @@ Suggested `runtime_command.json` fields:
 - `params`
 - `artifacts`
 
-This is especially useful for downstream reporting templates such as `methods`.
+This is especially useful for downstream reporting templates such as `summary`.
 
 ## How Binding Works
 
@@ -589,7 +589,7 @@ Prefer names like:
 - `multiqc_report`
 - `salmon_dir`
 - `software_versions`
-- `methods_long`
+- `summary_long`
 
 Avoid vague names like:
 
@@ -603,7 +603,7 @@ If the template runs external software or depends on pinned upstream references,
 
 This helps:
 
-- methods generation
+- analysis summary generation
 - provenance review
 - debugging
 

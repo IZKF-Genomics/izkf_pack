@@ -86,7 +86,7 @@ When editing this template, treat these as high-sensitivity areas:
 - counts-layer enforcement for scVI and scANVI
 - sparse-safe PCA and classical integration paths
 - metric definitions and interpretation text
-- output paths consumed by export and methods generation
+- output paths consumed by export and analysis summary generation
 
 ## Related docs
 

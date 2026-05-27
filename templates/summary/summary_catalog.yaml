@@ -347,6 +347,218 @@ templates:
     citations:
       - scanpy
 
+  scrna_annotate_celltypist:
+    category: downstream_analysis
+    publication_relevance: true
+    label: CellTypist single-cell RNA-seq annotation
+    summary: Single-cell RNA-seq cells were annotated with CellTypist using a selected or automatically discovered reference model, with standardized JSON output and an HTML review report.
+    method_core: CellTypist-based annotation was performed on a prepared AnnData object using the configured expression layer and model selection settings. Predictions, confidence summaries, optional majority voting, review tables, an annotated H5AD object, and a Quarto HTML report were written for downstream inspection.
+    method_details:
+      - The workflow consumes a prepared or annotated AnnData object and records the upstream input provenance when available.
+      - When `model=auto`, the workflow queries the CellTypist model index and chooses a model using the declared organism and optional tissue context.
+      - Human/mouse model conversion can be applied when the selected model species differs from the query organism and conversion is enabled.
+      - Majority voting uses the configured cluster column when present, making cluster-level summaries available alongside cell-level predictions.
+      - CellTypist labels are automated reference-model predictions and should be reviewed against marker evidence, tissue context, and known biology before final interpretation.
+    important_params:
+      - input_h5ad
+      - input_source_template
+      - organism
+      - tissue
+      - cluster_key
+      - expression_layer
+      - model
+      - model_species
+      - convert_model
+      - majority_voting
+      - write_h5ad
+    param_explanations:
+      input_h5ad: Prepared AnnData object used as the annotation input.
+      input_source_template: Optional provenance label for the upstream template that produced the input AnnData object.
+      organism: Query organism used for model selection and optional model conversion.
+      tissue: Optional tissue keyword used to rank CellTypist models when `model=auto`.
+      cluster_key: Existing clustering column used for majority voting and cluster-level summaries when present.
+      expression_layer: AnnData expression layer or `X` passed to CellTypist; it should contain compatible log-normalized gene-symbol expression.
+      model: CellTypist model name, local model path, or `auto` for model discovery.
+      model_species: Declared or inferred species of the selected model.
+      convert_model: Whether cross-species model conversion was allowed or applied.
+      majority_voting: Whether CellTypist majority voting was performed.
+      write_h5ad: Whether an annotated AnnData/H5AD file was written.
+    param_context:
+      - Model identity and model species are central provenance fields for interpreting CellTypist output.
+      - Cross-species conversion is a practical convenience and should be reported when used.
+      - Low-confidence or ambiguous predictions should remain visible in review outputs.
+    command_hints:
+      - Mention the selected CellTypist model, organism, tissue context, majority-voting setting, and whether model conversion was used.
+      - Describe the annotated H5AD, JSON result, tables, and report as review artifacts rather than final biological validation.
+    tools:
+      - CellTypist
+      - Scanpy
+      - Quarto
+    citations:
+      - celltypist
+      - scanpy
+      - quarto
+
+  scrna_annotate_manual_markers:
+    category: downstream_analysis
+    publication_relevance: true
+    label: Manual marker single-cell RNA-seq annotation
+    summary: Single-cell RNA-seq clusters were reviewed with a user-supplied marker catalog, Scanpy marker ranking, marker-program scoring, and a Quarto annotation report.
+    method_core: Manual marker annotation was performed on a prepared AnnData object by ranking cluster marker genes, scoring user-defined marker programs with Scanpy, assigning reviewable cluster-level candidate labels, and writing standardized JSON, table, annotated H5AD, Excel, and HTML report artifacts.
+    method_details:
+      - The workflow consumes a prepared AnnData object and an explicit marker catalog supplied as a local CSV or TSV file.
+      - Cluster markers are ranked with Scanpy using the configured cluster key and expression layer.
+      - Marker programs are scored with `scanpy.tl.score_genes` using the configured score layer.
+      - Candidate labels are based on marker-program evidence and score margins, not on a trained classifier.
+      - Manual marker annotations should be interpreted as curated review candidates whose quality depends on marker catalog specificity and biological context.
+    important_params:
+      - input_h5ad
+      - input_source_template
+      - organism
+      - tissue
+      - cluster_key
+      - expression_layer
+      - marker_catalog
+      - score_layer
+      - score_method
+      - top_n_markers
+      - min_log2fc
+      - min_score_margin
+      - write_h5ad
+    param_explanations:
+      input_h5ad: Prepared AnnData object used as the annotation input.
+      input_source_template: Optional provenance label for the upstream template that produced the input AnnData object.
+      organism: Organism label recorded in the annotation result.
+      tissue: Optional tissue or biological context recorded in the report.
+      cluster_key: Existing clustering column used to rank markers and assign cluster-level labels.
+      expression_layer: AnnData expression layer or `X` used for marker ranking.
+      marker_catalog: User-supplied manual marker gene catalog used for scoring and candidate labels.
+      score_layer: AnnData expression layer or `X` used for marker-program scoring.
+      score_method: Marker scoring method; this template currently implements Scanpy gene-set scoring.
+      top_n_markers: Number of ranked marker genes retained per cluster for review.
+      min_log2fc: Minimum log2 fold-change used to label ranked markers as informative.
+      min_score_margin: Minimum top-vs-second score margin used for confidence summaries.
+      write_h5ad: Whether an annotated AnnData/H5AD file was written.
+    param_context:
+      - The marker catalog is study-defining provenance and should be curated for the organism, tissue, and expected cell states.
+      - Score margins summarize evidence strength but are not calibrated probabilities.
+      - Missing or broad marker sets should be described as reduced annotation confidence rather than hidden.
+    command_hints:
+      - Mention the marker catalog path or identifier, cluster key, expression layer, score layer, and score margin threshold.
+      - Report manual-marker labels as candidate annotations requiring biological review.
+    tools:
+      - Scanpy
+      - pandas
+      - Plotly
+      - Quarto
+    citations:
+      - scanpy
+      - quarto
+
+  scrna_annotate_sctype:
+    category: downstream_analysis
+    publication_relevance: true
+    label: ScType single-cell RNA-seq annotation
+    summary: Human or mouse single-cell RNA-seq clusters were reviewed with ScType-style marker catalog scoring and a standardized annotation report.
+    method_core: ScType-focused annotation was performed on a prepared AnnData object by ranking cluster markers, matching informative markers against a ScType marker catalog, assigning cluster-level candidate labels, and writing standardized JSON, table, annotated H5AD, Excel, and HTML report artifacts.
+    method_details:
+      - The workflow supports human and mouse datasets and records the organism and optional tissue context used for catalog selection.
+      - The default primary catalog is `download:sctype`, with local TSV catalogs also supported for explicit project-specific curation.
+      - Cluster marker genes are ranked with Scanpy using the configured cluster key and expression layer.
+      - Candidate labels are generated from ScType-style marker-set evidence and should be reviewed against marker specificity and tissue context.
+      - The `fdr_threshold` parameter is retained for schema compatibility; the v1 ScType-style scoring path does not use it as a hard statistical filter.
+    important_params:
+      - input_h5ad
+      - input_source_template
+      - organism
+      - tissue
+      - cluster_key
+      - expression_layer
+      - primary_catalog
+      - top_n_markers
+      - min_log2fc
+      - fdr_threshold
+      - write_h5ad
+    param_explanations:
+      input_h5ad: Prepared AnnData object used as the annotation input.
+      input_source_template: Optional provenance label for the upstream template that produced the input AnnData object.
+      organism: Organism setting; this focused template supports mouse and human.
+      tissue: Optional tissue context used to filter catalog entries when possible.
+      cluster_key: Existing clustering column used to rank markers and summarize candidate labels.
+      expression_layer: AnnData expression layer or `X` used for marker ranking.
+      primary_catalog: ScType catalog source, usually `download:sctype` or a local TSV.
+      top_n_markers: Number of ranked marker genes retained per cluster.
+      min_log2fc: Minimum log2 fold-change used to define informative markers for catalog matching.
+      fdr_threshold: Schema-compatible threshold parameter; not a hard filter for v1 ScType-style scoring.
+      write_h5ad: Whether an annotated AnnData/H5AD file was written.
+    param_context:
+      - Downloaded ScType resources should be treated as catalog provenance and reported with their source when available.
+      - Candidate labels are marker-catalog evidence summaries rather than classifier probabilities.
+      - Human and mouse analyses should use species-appropriate gene symbols and catalog entries.
+    command_hints:
+      - Mention the primary catalog, organism, tissue context, cluster key, expression layer, and marker thresholds.
+      - Describe ScType-derived labels as candidate annotations requiring review.
+    tools:
+      - ScType
+      - Scanpy
+      - pandas
+      - Plotly
+      - Quarto
+    citations:
+      - sctype
+      - scanpy
+      - quarto
+
+  scrna_annotate_audit:
+    category: downstream_analysis
+    publication_relevance: true
+    label: Single-cell RNA-seq annotation audit and final label curation
+    summary: Cluster-level annotation results from multiple providers were compared, reviewed against confidence and marker evidence, and consolidated into final AnnData annotation columns.
+    method_core: Annotation audit was performed by loading standardized provider outputs from CellTypist, manual marker scoring, ScType-style marker scoring, and scANVI reference transfer when available. Provider labels were normalized with a reproducible alias table, compared at cluster level, routed to a human review table, and written back to a final annotated H5AD object.
+    method_details:
+      - The workflow consumes existing provider `annotation_result.json` files rather than rerunning annotation methods.
+      - Cluster-level labels, confidence buckets, candidate labels, and evidence records are extracted from each completed provider.
+      - Label comparison uses deterministic normalization plus an editable alias table; optional LLM summaries should be treated as explanatory support rather than final decisions.
+      - Provider agreement is summarized as full agreement, lineage agreement, method conflict, or insufficient evidence.
+      - A draft final annotation decision table is generated for human review and can be placed in the template configuration before rerunning.
+      - Final labels are written to `adata.obs` with explicit suggested-label, agreement, confidence, review-status, and label-source columns.
+    important_params:
+      - input_h5ad
+      - input_source_template
+      - organism
+      - tissue
+      - cluster_key
+      - expression_layer
+      - label_aliases
+      - final_decisions
+      - write_h5ad
+    param_explanations:
+      input_h5ad: Prepared AnnData object used as the coordinate and final-output source.
+      input_source_template: Optional provenance label for the upstream template that produced the input AnnData object.
+      organism: Organism label recorded in the audit result.
+      tissue: Optional biological context recorded in the report.
+      cluster_key: Cluster column used to map cluster-level decisions back to cells.
+      expression_layer: AnnData expression layer or `X` used for marker expression evidence summaries.
+      label_aliases: Editable CSV used for reproducible label normalization and broad-lineage grouping.
+      final_decisions: Editable CSV containing human-reviewed final cluster labels.
+      write_h5ad: Whether a final annotated AnnData/H5AD file was written.
+    param_context:
+      - The audit report is a curation layer over provider outputs and does not independently validate cell identity.
+      - Draft labels should be distinguished from reviewed final labels using the recorded label source.
+      - Conflicting provider labels and weak marker evidence should be reported as review targets rather than hidden.
+    command_hints:
+      - Mention which provider results were found and whether a user final decision table was applied.
+      - Report final annotation columns only as reviewed when `label_source` indicates user decisions.
+    tools:
+      - Python
+      - AnnData
+      - pandas
+      - Plotly
+      - Quarto
+    citations:
+      - scanpy
+      - quarto
+
   scrna_annotate_zebrafish:
     category: downstream_analysis
     publication_relevance: true
@@ -625,3 +837,6 @@ references:
   celltypist:
     text: "Dominguez Conde C, Xu C, Jarvis LB, et al. Cross-tissue immune cell analysis reveals tissue-specific features in humans. Science. 2022."
     url: "https://pubmed.ncbi.nlm.nih.gov/35549406/"
+  sctype:
+    text: "Ianevski A, Giri AK, Aittokallio T. Fully-automated and ultra-fast cell-type identification using specific marker combinations from single-cell transcriptomic data. Nature Communications. 2022."
+    url: "https://doi.org/10.1038/s41467-022-28803-w"

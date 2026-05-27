@@ -38,7 +38,7 @@ General pack docs:
 
 - [docs/README.md](docs/README.md): index of pack-wide guides
 - [docs/software_versions.md](docs/software_versions.md): how template specs become generated `software_versions.json`
-- [docs/methods.md](docs/methods.md): how long/short methods outputs are built
+- [docs/summary.md](docs/summary.md): how long/short analysis summary outputs are built
 - [docs/export.md](docs/export.md): export mapping behavior and `export_job_spec.json`
 - [docs/nfcore_templates.md](docs/nfcore_templates.md): shared nf-core launcher and provenance patterns
 - [docs/project_history_and_archive.md](docs/project_history_and_archive.md): visible workspaces, `.linkar/runs`, prune, and archive behavior
@@ -422,7 +422,7 @@ linkar run cellranger_atac \
   --reference /path/to/references/example_cellranger_atac_reference
 ```
 
-### Generate Methods
+### Generate Summary
 
 Use this after one or more analysis runs have been adopted into `project.yaml`. The template now attempts LLM polishing by default and falls back to deterministic drafts if the API settings are missing. Keep secrets in the environment, not in `project.yaml`:
 
@@ -431,12 +431,12 @@ export LINKAR_LLM_API_KEY="..."
 export LINKAR_LLM_BASE_URL="https://api.example.org/v1"
 export LINKAR_LLM_MODEL="example-model"
 
-linkar run methods \
-  --outdir ./methods \
+linkar run summary \
+  --outdir ./summary \
   --refresh
 ```
 
-This keeps the visible methods workspace in `./methods` and overwrites `methods/results/` on reruns instead of leaving the user to inspect historical `.linkar/runs/...` snapshots.
+This keeps the visible analysis summary workspace in `./summary` and overwrites `summary/results/` on reruns instead of leaving the user to inspect historical `.linkar/runs/...` snapshots.
 
 For ad hoc method drafting from existing scripts, QC reports, configs, or result folders, use an LLM
 to generate a single Word document directly:
@@ -548,7 +548,7 @@ If a required parameter cannot be resolved automatically, pass it explicitly wit
 | [`ercc`](templates/ercc/linkar_template.yaml) | Create and run an editable ERCC spike-in QC workspace with Quarto reporting. | [README](templates/ercc/README.md) |
 | [`methylation_array_analysis`](templates/methylation_array_analysis/linkar_template.yaml) | Create and run an editable Illumina methylation array study workspace with preprocessing, batch-aware analysis, and ordered Quarto reports. | [README](templates/methylation_array_analysis/README.md) |
 | [`cellranger_atac`](templates/cellranger_atac/linkar_template.yaml) | Discover ATAC samples, run `cellranger-atac count`, and optionally aggregate libraries. | [README](templates/cellranger_atac/README.md) |
-| [`methods`](templates/methods/linkar_template.yaml) | Generate long and short project methods drafts from Linkar project history. | [README](templates/methods/README.md) |
+| [`summary`](templates/summary/linkar_template.yaml) | Generate long and short bioinformatics analysis summaries from Linkar project history. | [README](templates/summary/README.md) |
 | [`methods_from_paths`](templates/methods_from_paths/linkar_template.yaml) | Use an LLM to generate a publication methods Word document directly from supplied scripts, QC reports, configs, and result folders. | [README](templates/methods_from_paths/README.md) |
 | [`export`](templates/export/linkar_template.yaml) | Build and submit a project export bundle from recorded project outputs. | [README](templates/export/README.md) |
 | [`export_demux`](templates/export_demux/linkar_template.yaml) | Export an ad hoc demultiplexing run outside a full Linkar project. | [README](templates/export_demux/README.md) |
@@ -583,7 +583,7 @@ The default binding in [`linkar_pack.yaml`](linkar_pack.yaml) uses Python functi
 | [`get_dgea_application`](functions/get_dgea_application.py) | Record the upstream application label for DGEA reports. | [functions README](functions/README.md#get_dgea_application) |
 | [`get_dgea_name`](functions/get_dgea_name.py) | Use the active Linkar project name as the DGEA report name. | [functions README](functions/README.md#get_dgea_name) |
 | [`get_dgea_authors`](functions/get_dgea_authors.py) | Read project author metadata for DGEA reports. | [functions README](functions/README.md#get_dgea_authors) |
-| [`software_versions`](functions/software_versions.py) | Write standardized `software_versions.json` files for methods generation. | [functions README](functions/README.md#software_versions) |
+| [`software_versions`](functions/software_versions.py) | Write standardized `software_versions.json` files for analysis summary generation. | [functions README](functions/README.md#software_versions) |
 
 Internal helper modules are documented in the functions README but are not intended to be called directly from `linkar_pack.yaml`.
 
@@ -611,7 +611,7 @@ Run focused template tests:
 
 ```bash
 python3 templates/cellranger_atac/test.py
-python3 templates/methods/test.py
+python3 templates/summary/test.py
 python3 templates/methods_from_paths/test.py
 python3 templates/dgea/test.py
 python3 templates/nfcore_3mrnaseq/test.py

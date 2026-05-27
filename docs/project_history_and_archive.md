@@ -8,7 +8,7 @@ experience centered on visible workspaces rather than hidden run snapshots.
 When working with a project, it helps to separate:
 
 - the visible workspace
-  for example `methods/` or `nfcore_bile_duct/`
+  for example `summary/` or `nfcore_bile_duct/`
 - the project ledger in `project.yaml`
 - historical run snapshots under `.linkar/runs/...`
 
@@ -19,7 +19,7 @@ These are related, but they are not the same thing.
 For interactive analysis templates in this pack, the preferred user experience
 is a visible workspace that can be rerun and edited directly. Examples include:
 
-- `methods`
+- `summary`
 - `nfcore_3mrnaseq`
 - `nfcore_methylseq`
 - `scrna_prep`

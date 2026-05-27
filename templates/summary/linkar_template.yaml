@@ -1,6 +1,6 @@
-id: methods
+id: summary
 version: 0.1.2
-description: Generate project-level methods drafts from Linkar project history.
+description: Generate project-level analysis summaries from Linkar project history.
 tools:
   required:
     - python3
@@ -8,7 +8,7 @@ params:
   project_dir:
     type: path
     default: ..
-    description: Linkar project directory containing project.yaml. Defaults to the parent of the rendered methods bundle.
+    description: Linkar project directory containing project.yaml. Defaults to the parent of the rendered analysis summary bundle.
   style:
     type: str
     default: publication
@@ -39,22 +39,22 @@ params:
     description: Temperature used for optional LLM polishing.
 outputs:
   results_dir: {}
-  methods_context:
-    path: methods_context.yaml
-  methods_long:
-    path: methods_long.md
-  methods_long_html:
-    path: methods_long.html
-  methods_short:
-    path: methods_short.md
-  methods_short_html:
-    path: methods_short.html
-  methods_references:
-    path: methods_references.md
-  methods_prompt:
-    path: methods_prompt.md
-  methods_response:
-    path: methods_response.json
+  summary_context:
+    path: summary_context.yaml
+  summary_long:
+    path: summary_long.md
+  summary_long_html:
+    path: summary_long.html
+  summary_short:
+    path: summary_short.md
+  summary_short_html:
+    path: summary_short.html
+  summary_references:
+    path: summary_references.md
+  summary_prompt:
+    path: summary_prompt.md
+  summary_response:
+    path: summary_response.json
 cleanup:
   - path: .pixi
     type: dir
