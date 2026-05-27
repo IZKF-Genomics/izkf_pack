@@ -436,9 +436,8 @@ def main() -> None:
     assert "selected_matrix_h5ad" in template_text
     assert 'resolved_run.sh' in run_sh_text
     assert 'python3 "${script_dir}/run.py" --run-script "${script_dir}/resolved_run.sh"' in run_sh_text
-    assert 'rm -rf "${script_dir}/.pixi"' in run_sh_text
-    assert 'rm -rf "${script_dir}/work" "${script_dir}/.nextflow" "${script_dir}/.nextflow.log"*' in run_sh_text
     assert 'linkar collect "${script_dir}"' in run_sh_text
+    assert 'linkar clean "${script_dir}" --yes' in run_sh_text
     assert 'runtime_command.json' in run_py_text
     assert 'params.yaml' in run_py_text
     assert 'SUPPORTED_ALIGNERS' in run_py_text

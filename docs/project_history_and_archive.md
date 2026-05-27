@@ -63,9 +63,22 @@ are safer cleanup targets than `.linkar` as a whole.
 `.linkar` contains provenance and project history, so it should not be treated
 as disposable cache by default.
 
+Use template-declared cleanup before archive/export when runtime artifacts have
+grown large:
+
+```bash
+linkar clean . --dry-run
+linkar clean .
+```
+
+Rendered `run.sh` scripts normally perform template-local cleanup after
+successful execution, but project-level cleanup remains useful for old rendered
+workspaces and artifacts recreated during manual debugging.
+
 ## Recommended user guidance
 
 - use visible workspaces for day-to-day reruns
+- use `linkar clean . --dry-run` before export or archive
 - use `linkar project prune` when history becomes cluttered
 - archive verified project directories with the archive templates
 - avoid deleting `.linkar` blindly unless the provenance is truly no longer needed

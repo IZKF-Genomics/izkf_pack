@@ -155,6 +155,10 @@ def make_fake_demux_bin(root: Path) -> Path:
         "if [[ \"${1:-}\" == \"collect\" ]]; then\n"
         "  exit 0\n"
         "fi\n"
+        "if [[ \"${1:-}\" == \"clean\" ]]; then\n"
+        "  rm -rf \"${2:?}/demultiplexing_prefect\" \"${2:?}/.pixi\"\n"
+        "  exit 0\n"
+        "fi\n"
         "echo \"unsupported fake linkar invocation: $*\" >&2\n"
         "exit 1\n",
         encoding="utf-8",
@@ -343,8 +347,8 @@ def main() -> None:
         assert '--spec "${script_dir}/software_versions_spec.yaml"' in template_run_sh
         assert 'export UPSTREAM_COMMIT="${upstream_commit}"' in template_run_sh
         assert 'rm -rf "${upstream_repo_dir}"' in template_run_sh
-        assert 'rm -rf "${script_dir}/.pixi"' in template_run_sh
         assert 'linkar collect "${script_dir}"' in template_run_sh
+        assert 'linkar clean "${script_dir}" --yes' in template_run_sh
         assert not (TEMPLATE_DIR / "demux_pipeline" / "cli.py").exists()
         assert not (TEMPLATE_DIR / "pixi.toml").exists()
         assert not (TEMPLATE_DIR / "pixi.lock").exists()

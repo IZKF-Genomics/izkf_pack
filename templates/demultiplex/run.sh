@@ -50,8 +50,8 @@ fi
 
 python3 "${script_dir}/build_project_views.py" --results-dir "${results_dir}"
 
-rm -rf "${upstream_repo_dir}"
-rm -rf "${script_dir}/.pixi"
-
 # Record outputs in Linkar after successful manual execution.
 linkar collect "${script_dir}"
+
+# Remove template-declared runtime artifacts.
+linkar clean "${script_dir}" --yes

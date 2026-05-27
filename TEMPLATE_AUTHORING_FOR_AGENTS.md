@@ -247,6 +247,21 @@ Keep cleanup rules template-local. Add only reproducible runtime state, such as
 `.pixi/`, Python cache directories, or workflow engine work directories. Do not
 list `results/`, reports, scientific outputs, or declared Linkar outputs.
 
+For render-mode templates with manual `bash run.sh` execution, call Linkar after
+successful analysis instead of duplicating the cleanup paths in shell:
+
+```bash
+# Record outputs in Linkar after successful manual execution.
+linkar collect "${script_dir}"
+
+# Remove template-declared runtime artifacts.
+linkar clean "${script_dir}" --yes
+```
+
+Keep any pre-run cleanup that affects correctness, such as removing a stale
+temporary clone before `git clone`. Final runtime cleanup should come from the
+template `cleanup` metadata.
+
 Keep `run.sh` very small. A good default is:
 
 ```bash

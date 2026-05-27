@@ -22,8 +22,8 @@ done
 
 python3 "${script_dir}/run.py"
 
-rm -rf "${script_dir}/.pixi"
-rm -rf "${script_dir}/work" "${script_dir}/.nextflow" "${script_dir}/.nextflow.log"*
-
 # Record outputs in Linkar after successful manual execution.
 linkar collect "${script_dir}"
+
+# Remove template-declared runtime artifacts.
+linkar clean "${script_dir}" --yes

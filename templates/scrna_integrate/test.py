@@ -240,8 +240,7 @@ PY""",
     assert "id: scrna_integrate" in template_text
     assert 'python3 "${script_dir}/run.py"' in run_sh_text
     assert 'linkar collect "${script_dir}"' in run_sh_text
-    assert 'rm -rf "${script_dir}/.pixi"' in run_sh_text
-    assert 'rm -rf "${script_dir}/__pycache__"' in run_sh_text
+    assert 'linkar clean "${script_dir}" --yes' in run_sh_text
     assert "quarto" in run_py_text
     assert "scrna_integrate.qmd" in run_py_text
     assert 'title: "scRNA Integration QC"' in qmd_text

@@ -969,8 +969,7 @@ def main() -> int:
     assert "celltypist:" in catalog_text
     assert 'python3 "${script_dir}/run.py"' in run_sh_text
     assert 'linkar collect "${script_dir}"' in run_sh_text
-    assert 'rm -rf "${script_dir}/.pixi"' in run_sh_text
-    assert 'rm -rf "${script_dir}/__pycache__"' in run_sh_text
+    assert 'linkar clean "${script_dir}" --yes' in run_sh_text
     assert '--metadata-api-url "${METADATA_API_URL:-}"' in run_sh_text
     assert 'run-local = "python3 run.py"' in pixi_text
     assert 'test = "python3 test.py"' in pixi_text

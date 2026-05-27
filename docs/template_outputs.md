@@ -77,13 +77,26 @@ directory or the project root:
 
 ```bash
 linkar clean . --dry-run
-linkar clean . --yes
+linkar clean .
 ```
 
 Cleanup rules should stay template-specific. For example, nf-core templates
 declare Nextflow `work/`, `.nextflow/`, and `.nextflow.log*`, while Pixi/Python
 templates declare `.pixi/` and `__pycache__/`. Scientific outputs, reports, and
 declared Linkar outputs should not be listed as cleanup targets.
+
+Most rendered `run.sh` scripts also call cleanup automatically after successful
+manual execution:
+
+```bash
+linkar collect "${script_dir}"
+linkar clean "${script_dir}" --yes
+```
+
+That keeps the cleanup policy in `linkar_template.yaml` while still removing
+template-local runtime artifacts before a user exports or archives the project.
+Use plain `linkar clean .` when cleaning manually; it previews the matching
+paths and asks for terminal confirmation.
 
 Current policy:
 

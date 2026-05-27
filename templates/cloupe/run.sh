@@ -32,8 +32,8 @@ say "outputs:"
 say "  ${results_dir}/output.cloupe"
 say "  ${results_dir}/cloupe_export.json"
 
-rm -rf "${script_dir}/.pixi"
-rm -rf "${script_dir}/__pycache__"
-
 # Record outputs in Linkar after successful manual execution.
 linkar collect "${script_dir}"
+
+# Remove template-declared runtime artifacts.
+linkar clean "${script_dir}" --yes

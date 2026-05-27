@@ -43,8 +43,8 @@ say "  ${results_dir}/tables/differential_markers.csv"
 say "  ${results_dir}/tables/catalog_matches.csv"
 say "  ${results_dir}/tables/cluster_annotation_summary.csv"
 
-rm -rf "${script_dir}/.pixi"
-rm -rf "${script_dir}/__pycache__"
-
 # Record outputs in Linkar after successful manual execution.
 linkar collect "${script_dir}"
+
+# Remove template-declared runtime artifacts.
+linkar clean "${script_dir}" --yes

@@ -44,8 +44,8 @@ else
 fi
 say "review marker evidence before treating labels as final annotations"
 
-rm -rf "${script_dir}/.pixi"
-rm -rf "${script_dir}/__pycache__"
-
 # Record outputs in Linkar after successful manual execution.
 linkar collect "${script_dir}"
+
+# Remove template-declared runtime artifacts.
+linkar clean "${script_dir}" --yes

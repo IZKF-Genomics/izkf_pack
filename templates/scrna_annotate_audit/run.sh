@@ -25,8 +25,7 @@ say() {
 }
 
 cleanup_runtime() {
-  rm -rf "${script_dir}/.pixi"
-  rm -rf "${script_dir}/__pycache__"
+  linkar clean "${script_dir}" --yes
 }
 
 say "starting annotation audit"

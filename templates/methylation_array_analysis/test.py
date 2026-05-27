@@ -95,8 +95,7 @@ def main() -> None:
     assert "software:" in spec_text
     assert "command: pixi --version" in spec_text
     assert 'linkar collect "${script_dir}"' in run_sh_text
-    assert 'rm -rf "${script_dir}/.pixi"' in run_sh_text
-    assert 'rm -rf "${script_dir}/__pycache__"' in run_sh_text
+    assert 'linkar clean "${script_dir}" --yes' in run_sh_text
     assert 'source("dnam_inputs.R")' in constructor_text
     assert "default_comparisons_from_samples" in constructor_text
     assert "comparison_report.qmd" in (TEMPLATE_DIR / "DNAm_functions.R").read_text(encoding="utf-8")

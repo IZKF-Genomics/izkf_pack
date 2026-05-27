@@ -53,13 +53,19 @@ linkar clean . --dry-run
 If the plan only contains disposable runtime artifacts, apply it:
 
 ```bash
-linkar clean . --yes
+linkar clean .
 ```
 
 The cleanup policy is declared by each template in `linkar_template.yaml`.
 Linkar applies those template-level rules to recorded project workspaces; it
 does not use a pack-wide hard-coded list. This keeps `nfcore_*`, Pixi/Python,
 and demultiplex cleanup behavior separate and reviewable.
+
+Rendered `run.sh` scripts in this pack also run template-local cleanup after
+successful manual execution, immediately after `linkar collect`. Running
+project-level `linkar clean .` before export is still useful for older rendered
+workspaces, partially rerun projects, and any artifacts that were recreated
+after the last `run.sh` finished.
 
 ## Rebuild vs reuse
 

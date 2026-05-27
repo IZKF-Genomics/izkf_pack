@@ -92,8 +92,7 @@ def main() -> int:
         assert linkar_template["outputs"]["run_info"]["path"] == "results/run_info.yaml"
         assert linkar_template["outputs"]["software_versions"]["path"] == "results/software_versions.json"
         assert 'linkar collect "${script_dir}"' in run_sh_text
-        assert 'rm -rf "${script_dir}/.pixi"' in run_sh_text
-        assert 'rm -rf "${script_dir}/__pycache__"' in run_sh_text
+        assert 'linkar clean "${script_dir}" --yes' in run_sh_text
         assert "--configure" in run_sh_text
         assert "pixi run python ./configure_comparisons.py" in run_sh_text
         assert "pixi install --frozen --quiet --no-progress" in run_sh_text

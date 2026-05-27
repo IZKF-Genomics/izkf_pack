@@ -459,7 +459,7 @@ Prepare and inspect the generated export specification before submission:
 
 ```bash
 linkar clean . --dry-run
-linkar clean . --yes
+linkar clean .
 linkar run export --prepare-only
 less export/results/export_job_spec.json
 ```
@@ -517,6 +517,11 @@ Collect outputs again after manually executing or editing a rendered run:
 ```bash
 linkar collect ./run_directory
 ```
+
+Rendered `run.sh` scripts normally call `linkar collect` and then
+`linkar clean` automatically after successful execution. Use the explicit
+`linkar collect` command when you changed outputs manually or are working with
+an older rendered workspace.
 
 Confirm global configuration:
 
