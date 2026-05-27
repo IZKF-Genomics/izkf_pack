@@ -432,8 +432,7 @@ export LINKAR_LLM_BASE_URL="https://api.example.org/v1"
 export LINKAR_LLM_MODEL="example-model"
 
 linkar run summary \
-  --outdir ./summary \
-  --refresh
+  --outdir ./summary
 ```
 
 This keeps the visible analysis summary workspace in `./summary` and overwrites `summary/results/` on reruns instead of leaving the user to inspect historical `.linkar/runs/...` snapshots.

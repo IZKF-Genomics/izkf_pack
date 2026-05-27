@@ -78,8 +78,7 @@ bundle is:
 
 ```bash
 linkar run summary \
-  --outdir ./summary \
-  --refresh
+  --outdir ./summary
 ```
 
 This keeps the visible workspace in `./summary` and overwrites

@@ -34,8 +34,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--metadata-api-url", default="")
     parser.add_argument("--metadata-api-endpoint", default="/project-output")
     parser.add_argument("--metadata-api-timeout", type=int, default=20)
-    parser.add_argument("--include-methods-in-spec", default="true")
-    parser.add_argument("--methods-style", default="full")
+    parser.add_argument("--include-summary-in-spec", default="true")
+    parser.add_argument("--summary-style", default="full")
     parser.add_argument("--poll-interval-seconds", type=int, default=2)
     parser.add_argument("--timeout-seconds", type=int, default=3600)
     return parser.parse_args()
@@ -194,10 +194,10 @@ def main() -> int:
                 args.metadata_api_endpoint,
                 "--metadata-api-timeout",
                 str(args.metadata_api_timeout),
-                "--include-methods-in-spec",
-                str(args.include_methods_in_spec),
-                "--methods-style",
-                args.methods_style,
+                "--include-summary-in-spec",
+                str(args.include_summary_in_spec),
+                "--summary-style",
+                args.summary_style,
             ],
         )
 

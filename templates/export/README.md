@@ -4,7 +4,7 @@ This template migrates the BPM `export` workflow into a Linkar pack template.
 
 It keeps the export mapping table as data, and makes the old BPM hook chain explicit:
 
-- [build_export_bundle.py](build_export_bundle.py) builds `export_job_spec.json`, metadata files, and methods files from project history.
+- [build_export_bundle.py](build_export_bundle.py) builds `export_job_spec.json`, metadata files, and summary files from project history.
 - [submit_export.py](submit_export.py) submits the prepared spec to the export engine and records submission outputs.
 
 ## Current behavior
@@ -89,12 +89,12 @@ Generated artifacts include:
 - `results/metadata_context.yaml`
 - `results/metadata_raw.json`
 - `results/metadata_normalized.yaml`
-- `results/project_methods.md`
-- `results/methods_context.yaml`
+- `results/project_summary.md`
+- `results/summary_context.yaml`
 - `results/export_state.json` after submission or refresh
 
 ## Notes
 
 - At runtime the template prefers `LINKAR_PROJECT_DIR`, which Linkar exports automatically for project-backed runs and renders. Outside Linkar, it falls back to `..`.
 - The vendored [export_mapping.table.yaml](export_mapping.table.yaml) has been normalized for the current `izkf_pack` template ids and outputs. Repeated template runs are namespaced by their rendered folder names such as `nfcore_liver`, `nfcore_bile_duct`, `DGEA_Liver`, or `DGEA_Bile_Duct`.
-- Methods generation is now Linkar-native and is built from local project history through [build_export_bundle.py](build_export_bundle.py), not through BPM runtime hooks.
+- Analysis summary generation is now Linkar-native and is built from local project history through [build_export_bundle.py](build_export_bundle.py), not through BPM runtime hooks.

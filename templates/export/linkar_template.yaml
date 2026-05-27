@@ -73,14 +73,14 @@ params:
     type: int
     default: 20
     description: Timeout in seconds for metadata API requests.
-  include_methods_in_spec:
+  include_summary_in_spec:
     type: bool
     default: true
-    description: When true, include generated methods text and context in export_job_spec.json.
-  methods_style:
+    description: When true, include generated analysis summary text and context in export_job_spec.json.
+  summary_style:
     type: str
     default: full
-    description: Methods report style. Use full or concise.
+    description: Summary report style. Use full or concise.
   poll_interval_seconds:
     type: int
     default: 2
@@ -101,10 +101,10 @@ outputs:
     path: metadata_raw.json
   metadata_normalized:
     path: metadata_normalized.yaml
-  project_methods:
-    path: project_methods.md
-  methods_context:
-    path: methods_context.yaml
+  project_summary:
+    path: project_summary.md
+  summary_context:
+    path: summary_context.yaml
   export_submission:
     path: export_submission.json
   export_state:
@@ -140,8 +140,8 @@ run:
       --metadata-api-url "${param:metadata_api_url}" \
       --metadata-api-endpoint "${param:metadata_api_endpoint}" \
       --metadata-api-timeout "${param:metadata_api_timeout}" \
-      --include-methods-in-spec "${param:include_methods_in_spec}" \
-      --methods-style "${param:methods_style}" \
+      --include-summary-in-spec "${param:include_summary_in_spec}" \
+      --summary-style "${param:summary_style}" \
       --poll-interval-seconds "${param:poll_interval_seconds}" \
       --timeout-seconds "${param:timeout_seconds}"
 render:
@@ -169,8 +169,8 @@ render:
       --metadata-api-url "${param:metadata_api_url}"
       --metadata-api-endpoint "${param:metadata_api_endpoint}"
       --metadata-api-timeout "${param:metadata_api_timeout}"
-      --include-methods-in-spec "${param:include_methods_in_spec}"
-      --methods-style "${param:methods_style}"
+      --include-summary-in-spec "${param:include_summary_in_spec}"
+      --summary-style "${param:summary_style}"
     )
     if [[ "${param:reuse_spec}" == "true" ]]; then
       build_args+=(--skip-if-spec-exists)

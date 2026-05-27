@@ -422,7 +422,7 @@ def main() -> int:
         annotate_zebrafish_report_paths = {link["path"] for link in annotate_zebrafish_report_entries[0].get("report_links", [])}
         assert "." in annotate_zebrafish_report_paths
         assert (export_dir / "results" / "metadata_context.yaml").exists()
-        assert (export_dir / "results" / "project_methods.md").exists()
+        assert (export_dir / "results" / "project_summary.md").exists()
 
         rebuilt = subprocess.run(
             [

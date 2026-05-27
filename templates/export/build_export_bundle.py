@@ -11,7 +11,7 @@ from export_common import (
     derive_export_credentials,
     extract_citations,
     fetch_api_payload,
-    generate_methods_markdown,
+    generate_summary_markdown,
     load_file_payload,
     mock_metadata_payload,
     normalize_metadata_payload,
@@ -40,8 +40,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--metadata-api-url", default="https://genomics.rwth-aachen.de/api")
     parser.add_argument("--metadata-api-endpoint", default="/project-output")
     parser.add_argument("--metadata-api-timeout", type=int, default=20)
-    parser.add_argument("--include-methods-in-spec", default="true")
-    parser.add_argument("--methods-style", default="full")
+    parser.add_argument("--include-summary-in-spec", default="true")
+    parser.add_argument("--summary-style", default="full")
     parser.add_argument("--skip-if-spec-exists", action="store_true")
     return parser.parse_args()
 
@@ -230,14 +230,14 @@ def main() -> int:
     }
     spec_path.write_text(json.dumps(job_spec, indent=2), encoding="utf-8")
 
-    if to_bool(args.include_methods_in_spec):
-        style = str(args.methods_style or "full").strip().lower()
+    if to_bool(args.include_summary_in_spec):
+        style = str(args.summary_style or "full").strip().lower()
         if style not in {"full", "concise"}:
             style = "full"
-        markdown, templates_count, citation_count = generate_methods_markdown(project_dir, style)
-        methods_path = results_dir / "project_methods.md"
-        methods_path.write_text(markdown, encoding="utf-8")
-        methods_context = {
+        markdown, templates_count, citation_count = generate_summary_markdown(project_dir, style)
+        summary_path = results_dir / "project_summary.md"
+        summary_path.write_text(markdown, encoding="utf-8")
+        summary_context = {
             "style": style,
             "templates_count": templates_count,
             "citation_count": citation_count,
@@ -245,10 +245,10 @@ def main() -> int:
             "citations": extract_citations(markdown),
             "protocol_metadata": normalized,
         }
-        save_yaml(results_dir / "methods_context.yaml", methods_context)
+        save_yaml(results_dir / "summary_context.yaml", summary_context)
         raw_spec = json.loads(spec_path.read_text(encoding="utf-8"))
-        raw_spec["methods"] = methods_context
-        raw_spec["methods_markdown_path"] = str(methods_path)
+        raw_spec["summary"] = summary_context
+        raw_spec["summary_markdown_path"] = str(summary_path)
         spec_path.write_text(json.dumps(raw_spec, indent=2), encoding="utf-8")
 
     print(f"[info] wrote {spec_path}")

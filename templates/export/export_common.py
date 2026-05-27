@@ -548,7 +548,7 @@ def normalize_metadata_payload(raw: dict[str, Any], ids: dict[str, str], mode_us
     }
 
 
-def generate_methods_markdown(project_dir: Path, style: str) -> tuple[str, int, int]:
+def generate_summary_markdown(project_dir: Path, style: str) -> tuple[str, int, int]:
     try:
         from bpm.core import agent_methods
 
@@ -556,9 +556,9 @@ def generate_methods_markdown(project_dir: Path, style: str) -> tuple[str, int, 
         return result.markdown, int(result.templates_count), int(result.citation_count)
     except Exception as exc:
         note = (
-            "# Methods Draft\n\n"
+            "# Project Summary\n\n"
             f"Automatic generation failed: {exc}\n"
-            "Regenerate manually after installing BPM methods support.\n"
+            "Regenerate manually after installing BPM summary support.\n"
         )
         return note, 0, 0
 

@@ -1883,7 +1883,10 @@ def markdown_fragment_to_html(markdown_text: str) -> tuple[str, list[dict[str, s
         nonlocal paragraph
         if paragraph:
             text = " ".join(line.strip() for line in paragraph if line.strip())
-            html_lines.append(f"<p>{render_inline_html(text)}</p>")
+            if text == LLM_DISCLAIMER:
+                html_lines.append(f'<p class="llm-disclaimer">{render_inline_html(text)}</p>')
+            else:
+                html_lines.append(f"<p>{render_inline_html(text)}</p>")
             paragraph = []
 
     def flush_list() -> None:
@@ -2040,7 +2043,7 @@ def render_summary_html(markdown_text: str, title: str) -> str:
             '      <div class="report-footer">',
             '        <div class="footer-content">',
             "          <p><strong>Genomics Facility</strong><br>Interdisciplinary Center for Clinical Research (IZKF)<br>RWTH Aachen University Hospital</p>",
-            '          <p>For questions or support, please contact <a href="mailto:genomics@ukaachen.de">genomics@ukaachen.de</a><br>Website: <a href="https://genomics.rwth-aachen.de">https://genomics.rwth-aachen.de</a></p>',
+            '          <p>For questions or support, please contact <a href="mailto:genomics@ukaachen.de">genomics@ukaachen.de</a></p>',
             f"          <p class=\"footer-note\">Report was automatically generated on {generated_date}.</p>",
             "        </div>",
             "      </div>",

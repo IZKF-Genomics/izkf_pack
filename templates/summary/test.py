@@ -159,7 +159,10 @@ def test_generation_with_runtime_command() -> None:
         assert "brand-mark" not in long_html
         assert "report-sidebar-header" not in long_html
         assert "Genomics Facility" in long_html
-        assert "https://genomics.rwth-aachen.de" in long_html
+        assert "Website:" not in long_html
+        assert "https://genomics.rwth-aachen.de" not in long_html
+        assert "linear-gradient" not in long_html
+        assert "llm-disclaimer" in long_html
         assert "Report was automatically generated on" in long_html
         assert "<article" in long_html
         assert "<!DOCTYPE html>" in short_html
