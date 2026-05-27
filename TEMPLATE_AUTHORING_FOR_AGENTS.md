@@ -231,6 +231,22 @@ Use this when the template needs:
 - cleanup logic
 - runtime metadata outputs
 
+Declare disposable runtime artifacts in `linkar_template.yaml` so users can run
+`linkar clean .` from either the project root or the rendered template
+directory:
+
+```yaml
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: __pycache__
+    type: dir
+```
+
+Keep cleanup rules template-local. Add only reproducible runtime state, such as
+`.pixi/`, Python cache directories, or workflow engine work directories. Do not
+list `results/`, reports, scientific outputs, or declared Linkar outputs.
+
 Keep `run.sh` very small. A good default is:
 
 ```bash

@@ -38,6 +38,29 @@ For export, the preferred behavior is to use the visible project path whenever
 that is the active workspace. This keeps exported reports readable and avoids
 accidentally exporting stale historical bundles.
 
+## Clean before export
+
+Some analysis templates create large runtime directories that should not be
+part of a project export, especially Nextflow `work/` directories and template
+local `.pixi/` environments.
+
+Before preparing an export, preview the project-level cleanup plan:
+
+```bash
+linkar clean . --dry-run
+```
+
+If the plan only contains disposable runtime artifacts, apply it:
+
+```bash
+linkar clean . --yes
+```
+
+The cleanup policy is declared by each template in `linkar_template.yaml`.
+Linkar applies those template-level rules to recorded project workspaces; it
+does not use a pack-wide hard-coded list. This keeps `nfcore_*`, Pixi/Python,
+and demultiplex cleanup behavior separate and reviewable.
+
 ## Rebuild vs reuse
 
 The export template can reuse an existing `export_job_spec.json` if one is

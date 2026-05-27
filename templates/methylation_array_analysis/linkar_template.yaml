@@ -1,5 +1,5 @@
 id: methylation_array_analysis
-version: 0.1.0
+version: 0.1.1
 description: Editable Illumina methylation array analysis workspace with staged preprocessing, batch-aware cohort analysis, and Quarto reports.
 tools:
   required:
@@ -28,6 +28,11 @@ outputs:
     glob: results/figures/**/*.{png,html}
   rds_objects:
     glob: results/rds/*.rds
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: __pycache__
+    type: dir
 run:
   mode: render
   entry: run.sh

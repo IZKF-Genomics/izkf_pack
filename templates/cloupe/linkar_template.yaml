@@ -1,5 +1,5 @@
 id: cloupe
-version: 0.1.0
+version: 0.1.1
 description: Convert an H5AD object into a 10x Genomics Loupe Browser .cloupe file.
 tools:
   required:
@@ -35,6 +35,11 @@ outputs:
     path: results/output.cloupe
   export_metadata:
     path: results/cloupe_export.json
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: __pycache__
+    type: dir
 run:
   mode: render
   entry: run.sh

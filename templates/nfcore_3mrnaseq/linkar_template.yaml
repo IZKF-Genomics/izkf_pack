@@ -1,5 +1,5 @@
 id: nfcore_3mrnaseq
-version: 0.1.1
+version: 0.1.2
 description: Facility-specific nf-core/rnaseq wrapper for 3' mRNA-seq runs.
 tools:
   required:
@@ -49,6 +49,15 @@ outputs:
     path: software_versions.json
   runtime_command:
     path: runtime_command.json
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: work
+    type: dir
+  - path: .nextflow
+    type: dir
+  - glob: ".nextflow.log*"
+    type: file
 run:
   mode: render
   command: |

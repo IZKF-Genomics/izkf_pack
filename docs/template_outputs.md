@@ -69,6 +69,33 @@ pattern:
 - summary tables under `results/tables/`
 - small JSON summaries for machine-readable reporting
 
+## Runtime cleanup
+
+Templates declare disposable runtime artifacts in `linkar_template.yaml` under
+`cleanup`. Linkar can apply these rules from either a rendered template
+directory or the project root:
+
+```bash
+linkar clean . --dry-run
+linkar clean . --yes
+```
+
+Cleanup rules should stay template-specific. For example, nf-core templates
+declare Nextflow `work/`, `.nextflow/`, and `.nextflow.log*`, while Pixi/Python
+templates declare `.pixi/` and `__pycache__/`. Scientific outputs, reports, and
+declared Linkar outputs should not be listed as cleanup targets.
+
+Current policy:
+
+| Template group | Cleanup targets |
+| --- | --- |
+| nf-core / Nextflow templates | `.pixi/`, `work/`, `.nextflow/`, `.nextflow.log*` |
+| Pixi/Python report and analysis templates | `.pixi/`, `__pycache__/` |
+| `demultiplex` | `.pixi/`, `demultiplexing_prefect/` |
+
+Template authors should add cleanup metadata when a new template creates large
+or reproducible runtime state outside `results/`.
+
 ## Why naming consistency matters
 
 This pack benefits from stable output names because:

@@ -1,5 +1,5 @@
 id: scrna_annotate_audit
-version: 0.1.0
+version: 0.1.1
 description: Cluster-level audit of multiple scRNA-seq annotation providers with review tables and final h5ad annotation output.
 tools:
   required:
@@ -55,6 +55,11 @@ outputs:
     path: results/report.qmd
   tables:
     glob: results/tables/*.csv
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: __pycache__
+    type: dir
 run:
   mode: render
   entry: run.sh

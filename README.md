@@ -458,6 +458,8 @@ Use this after the project contains the runs and reports you want to publish.
 Prepare and inspect the generated export specification before submission:
 
 ```bash
+linkar clean . --dry-run
+linkar clean . --yes
 linkar run export --prepare-only
 less export/results/export_job_spec.json
 ```

@@ -1,5 +1,5 @@
 id: methods
-version: 0.1.1
+version: 0.1.2
 description: Generate project-level methods drafts from Linkar project history.
 tools:
   required:
@@ -55,6 +55,11 @@ outputs:
     path: methods_prompt.md
   methods_response:
     path: methods_response.json
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: __pycache__
+    type: dir
 run:
   mode: render
   verbose_by_default: true

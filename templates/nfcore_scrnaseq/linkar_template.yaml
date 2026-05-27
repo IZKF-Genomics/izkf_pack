@@ -1,5 +1,5 @@
 id: nfcore_scrnaseq
-version: 0.1.0
+version: 0.1.1
 description: Facility-focused nf-core/scrnaseq wrapper for single-cell RNA-seq runs.
 tools:
   required:
@@ -71,6 +71,15 @@ outputs:
     path: results/matrix_selection.json
   all_h5ad_outputs:
     glob: results/*/mtx_conversions/*.h5ad
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: work
+    type: dir
+  - path: .nextflow
+    type: dir
+  - glob: ".nextflow.log*"
+    type: file
 run:
   mode: render
   command: |

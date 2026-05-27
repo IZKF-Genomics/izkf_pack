@@ -1,5 +1,5 @@
 id: ercc
-version: 0.1.0
+version: 0.1.1
 description: Editable ERCC spike-in QC workspace with Quarto reporting.
 tools:
   required:
@@ -30,6 +30,11 @@ outputs:
     path: results/software_versions.json
   runtime_qmd:
     path: ERCC.runtime.qmd
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: __pycache__
+    type: dir
 run:
   mode: render
   entry: run.sh

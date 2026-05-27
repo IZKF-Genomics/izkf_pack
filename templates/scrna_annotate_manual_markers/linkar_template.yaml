@@ -1,5 +1,5 @@
 id: scrna_annotate_manual_markers
-version: 0.1.0
+version: 0.1.1
 description: Manual marker gene scRNA-seq cluster annotation using Scanpy marker-program scores and a rich Quarto review report.
 tools:
   required:
@@ -77,6 +77,11 @@ outputs:
     path: results/report.qmd
   tables:
     glob: results/tables/*.csv
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: __pycache__
+    type: dir
 run:
   mode: render
   entry: run.sh

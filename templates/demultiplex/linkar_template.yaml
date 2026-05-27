@@ -1,5 +1,5 @@
 id: demultiplex
-version: 0.2.0
+version: 0.2.1
 description: Clone and run the upstream demultiplexing_prefect pipeline through Linkar.
 tools:
   required:
@@ -104,6 +104,11 @@ outputs:
     path: results/template_outputs.json
   run_summary:
     glob: results/.pipeline/*/run_summary.json
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: demultiplexing_prefect
+    type: dir
 run:
   mode: render
   entry: run.sh

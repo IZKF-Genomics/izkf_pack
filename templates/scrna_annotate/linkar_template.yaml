@@ -1,5 +1,5 @@
 id: scrna_annotate
-version: 0.3.0
+version: 0.3.1
 description: Provider-based single-cell RNA-seq annotation runner with a marker-based evidence MVP and standard provider JSON outputs.
 tools:
   required:
@@ -75,6 +75,11 @@ outputs:
     glob: results/providers/*/report.*
   provider_tables:
     glob: results/providers/*/tables/*.csv
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: __pycache__
+    type: dir
 run:
   mode: render
   entry: run.sh

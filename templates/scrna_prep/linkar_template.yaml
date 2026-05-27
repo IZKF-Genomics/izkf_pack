@@ -1,5 +1,5 @@
 id: scrna_prep
-version: 0.1.0
+version: 0.1.1
 description: Editable scverse/Scanpy single-cell RNA-seq preprocessing workspace with Quarto QC reporting.
 tools:
   required:
@@ -132,6 +132,11 @@ outputs:
     glob: "tables/*.csv"
   metadata_json:
     glob: "*.json"
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: __pycache__
+    type: dir
 run:
   mode: render
   entry: run.sh
