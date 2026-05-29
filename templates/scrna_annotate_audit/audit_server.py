@@ -27,7 +27,6 @@ DECISION_FIELDS = [
     "review_priority",
     "review_status",
     "final_label",
-    "final_broad_label",
     "reviewer_note",
 ]
 

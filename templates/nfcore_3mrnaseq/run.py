@@ -167,8 +167,6 @@ def build_nextflow_command(
         "--igenomes_base",
         "/data/shared/igenomes/",
         "--gencode",
-        "--featurecounts_group_type",
-        "gene_type",
     ]
     if umi == UMI_KIT:
         command.extend(

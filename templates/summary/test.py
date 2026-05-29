@@ -541,11 +541,9 @@ params {
                     "--genome",
                     "Sscrofa11.1_with_ERCC",
                     "--gencode",
-                    "--featurecounts_group_type",
-                    "gene_type",
                     "--extra_salmon_quant_args=--noLengthCorrection",
                 ],
-                "command_pretty": "pixi run nextflow run nf-core/rnaseq -r 3.22.2 -profile docker --genome Sscrofa11.1_with_ERCC --gencode --featurecounts_group_type gene_type --extra_salmon_quant_args=--noLengthCorrection",
+                "command_pretty": "pixi run nextflow run nf-core/rnaseq -r 3.22.2 -profile docker --genome Sscrofa11.1_with_ERCC --gencode --extra_salmon_quant_args=--noLengthCorrection",
                 "params": {
                     "effective_genome": "Sscrofa11.1_with_ERCC",
                     "genome": "Sscrofa11.1",
@@ -783,8 +781,6 @@ def test_recorded_command_block_is_multiline() -> None:
                     "docker",
                     "--genome",
                     "Sscrofa11.1_with_ERCC",
-                    "--featurecounts_group_type",
-                    "gene_type",
                     "--extra_salmon_quant_args=--noLengthCorrection",
                     "--extra_star_align_args=--alignIntronMax 1000000 --alignIntronMin 20 --alignMatesGapMax 1000000 --alignSJoverhangMin 8 --outFilterMismatchNmax 999 --outFilterMultimapNmax 20 --outFilterType BySJout --outFilterMismatchNoverLmax 0.1 --clip3pAdapterSeq AAAAAAAA",
                 ]

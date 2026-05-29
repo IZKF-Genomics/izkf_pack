@@ -77,7 +77,6 @@ DECISION_FIELDS = [
     "review_priority",
     "review_status",
     "final_label",
-    "final_broad_label",
     "reviewer_note",
 ]
 MARKER_FIELDS = ["cluster_id", "gene", "mean_expression", "pct_expressing", "source"]
@@ -689,7 +688,6 @@ def decision_rows_from_cards(cards: list[dict[str, Any]]) -> list[dict[str, Any]
             "review_priority": card["review_priority"],
             "review_status": "accepted" if card["decision"] == "Accepted" and card["confidence"] == "high" else "not_reviewed",
             "final_label": card["suggested_label"] if card["decision"] == "Accepted" and card["confidence"] == "high" else "",
-            "final_broad_label": card["suggested_broad_label"] if card["decision"] == "Accepted" and card["confidence"] == "high" else "",
             "reviewer_note": "",
         }
         for card in cards
@@ -720,13 +718,9 @@ def apply_final_decisions(
             final_label = clean_label(row.get("reviewed_label"))
         if not final_label:
             final_label = clean_label(draft.get("suggested_label")) or "Unknown"
-        final_broad = clean_label(row.get("final_broad_label"))
-        if not final_broad:
-            final_broad = normalize_label(final_label, aliases)["broad_label"]
         applied = dict(draft)
         applied["review_status"] = review_status
         applied["final_label"] = final_label
-        applied["final_broad_label"] = final_broad
         applied["reviewer_note"] = clean_label(row.get("reviewer_note"))
         final_rows.append(applied)
         if review_status in {"accepted", "changed"} and final_label in {"", "Unknown"}:
@@ -744,7 +738,6 @@ def attach_final_decisions(cards: list[dict[str, Any]], final_by_cluster: dict[s
             label_source = "user_table_fallback"
         updated["final"] = {
             "label": row.get("final_label") or card.get("suggested_label") or "Unknown",
-            "broad_label": row.get("final_broad_label") or card.get("suggested_broad_label") or "Unknown",
             "review_status": row.get("review_status") or "not_reviewed",
             "reviewer_note": row.get("reviewer_note") or "",
             "label_source": label_source,
@@ -925,7 +918,6 @@ def write_final_h5ad(input_h5ad: Path, output_h5ad: Path, cluster_key: str, card
     clusters = adata.obs[cluster_key].astype(str)
     prefix = "scrna_annotate_audit"
     adata.obs[f"{prefix}_final_label"] = pd.Categorical([by_cluster.get(value, {}).get("final", {}).get("label", "Unknown") for value in clusters])
-    adata.obs[f"{prefix}_final_broad_label"] = pd.Categorical([by_cluster.get(value, {}).get("final", {}).get("broad_label", "Unknown") for value in clusters])
     adata.obs[f"{prefix}_review_status"] = pd.Categorical([by_cluster.get(value, {}).get("final", {}).get("review_status", "not_reviewed") for value in clusters])
     adata.obs[f"{prefix}_label_source"] = pd.Categorical([by_cluster.get(value, {}).get("final", {}).get("label_source", "draft") for value in clusters])
     adata.obs[f"{prefix}_suggested_label"] = pd.Categorical([by_cluster.get(value, {}).get("suggested_label", "Unknown") for value in clusters])

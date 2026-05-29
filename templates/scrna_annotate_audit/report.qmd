@@ -43,11 +43,14 @@ execute:
 .audit-map-height-resizer:after{content:"";position:absolute;left:50%;top:50%;width:3rem;height:.24rem;border-radius:999px;background:#94a3b8;transform:translate(-50%,-50%)}
 .audit-map-height-resizer:hover:after,.audit-map-height-resizer.dragging:after{background:#2563eb}
 .cluster-explorer-map .map-meta{display:flex;justify-content:space-between;gap:.6rem;color:#64748b;font-size:.8rem;margin-top:.32rem}
+.umap-view-controls{display:grid;grid-template-columns:repeat(2,minmax(9rem,1fr));gap:.45rem;margin:.35rem 0 .15rem}
+.umap-view-controls label{font-size:.74rem;color:#475569;margin:0}
+.umap-view-controls select{min-height:1.9rem}
 .final-label-overview{border-top:1px solid #e2e8f0;margin-top:.75rem;padding-top:.65rem}
 .final-label-overview-head{display:flex;justify-content:space-between;gap:.6rem;align-items:baseline;margin-bottom:.35rem}
 .final-label-overview-title{font-weight:700;color:#0f172a;font-size:.9rem}
 .final-label-overview-meta{color:#64748b;font-size:.78rem;text-align:right}
-#cluster-final-label-umap{height:340px;min-height:240px;max-height:520px;background:#f8fafc}
+#cluster-final-label-umap{height:420px;min-height:260px;max-height:760px;background:#f8fafc}
 .final-label-body{display:block}
 .cluster-explorer .cluster-summary{display:none}
 .cluster-explorer .provider-col{width:10rem;white-space:nowrap}
@@ -142,7 +145,7 @@ for resource in provider_resources:
 provider_ids = [p["id"] for p in provider_meta]
 provider_labels = {p["id"]: p["label"] for p in provider_meta}
 
-decision_cols = ["cluster_id", "final_label", "final_broad_label", "review_status", "reviewer_note"]
+decision_cols = ["cluster_id", "final_label", "review_status", "reviewer_note"]
 review_matrix = comparison.copy()
 if "cluster_id" in review_matrix:
     review_matrix["cluster_id"] = review_matrix["cluster_id"].astype(str)
@@ -152,7 +155,7 @@ if len(applied_decisions):
         on="cluster_id",
         how="left",
     )
-for column in ["final_label", "final_broad_label", "review_status", "reviewer_note"]:
+for column in ["final_label", "review_status", "reviewer_note"]:
     if column not in review_matrix:
         review_matrix[column] = ""
 compact_columns = [
@@ -308,7 +311,7 @@ def final_decisions_compact_html(df):
         note = "" if pd.isna(note) else str(note or "")
         rows.append(
             f"<div class='grid-cell'><strong>{escape(str(row.get('cluster_id','')))}</strong></div>"
-            f"<div class='grid-cell'><strong>{escape(str(row.get('final_label') or row.get('suggested_label') or ''))}</strong><span>{escape(str(row.get('final_broad_label') or row.get('suggested_broad_label') or ''))}</span></div>"
+            f"<div class='grid-cell'><strong>{escape(str(row.get('final_label') or row.get('suggested_label') or ''))}</strong></div>"
             f"<div class='grid-cell'>{badge(row.get('review_status',''))}</div>"
             f"<div class='grid-cell'>{badge(row.get('decision',''))}{badge(row.get('confidence',''))}</div>"
             f"<div class='grid-cell wrap'>{escape(note)}</div>"
@@ -329,13 +332,13 @@ def workflow_html():
     </div>
     """
 
-def umap_canvas_payload(obs):
+def umap_canvas_payload(obs, *, key="X_umap", label="X_umap"):
     if obs is None or not len(obs):
         return None
-    required = {"UMAP1", "UMAP2", "cluster_id"}
+    required = {"UMAP1", "UMAP2", "cluster_id", "sample"}
     if not required.issubset(set(obs.columns)):
         return None
-    umap = obs[["UMAP1", "UMAP2", "cluster_id"]].replace([np.inf, -np.inf], np.nan).dropna().copy()
+    umap = obs[["UMAP1", "UMAP2", "cluster_id", "sample"]].replace([np.inf, -np.inf], np.nan).dropna().copy()
     if not len(umap):
         return None
     x = umap["UMAP1"].astype(float)
@@ -347,7 +350,9 @@ def umap_canvas_payload(obs):
     umap["x"] = x.round(5)
     umap["y"] = y.round(5)
     return {
-        "points": umap[["x", "y", "cluster_id"]].astype({"cluster_id": str}).values.tolist(),
+        "key": str(key),
+        "label": str(label),
+        "points": umap[["x", "y", "cluster_id", "sample"]].astype({"cluster_id": str, "sample": str}).values.tolist(),
         "bounds": {
             "x_min": x_min,
             "x_max": x_max,
@@ -357,6 +362,22 @@ def umap_canvas_payload(obs):
             "y_span": y_span,
         },
         "n": int(len(umap)),
+        "samples": sorted([str(x) for x in umap["sample"].dropna().unique() if str(x)]),
+    }
+
+def umap_views_payload(views):
+    payload_views = []
+    for key, obs in views:
+        view = umap_canvas_payload(obs, key=key, label=key)
+        if view:
+            payload_views.append(view)
+    first = payload_views[0] if payload_views else {"points": [], "n": 0}
+    return {
+        "views": payload_views,
+        "points": first.get("points", []),
+        "bounds": first.get("bounds", {}),
+        "n": first.get("n", 0),
+        "active_key": first.get("key", ""),
     }
 
 def safe_json_script(value):
@@ -425,7 +446,6 @@ def cluster_explorer_html(cards, umap=None, markers=None):
                 "review_priority": card.get("review_priority", ""),
                 "review_status": (card.get("final") or {}).get("review_status", "not_reviewed"),
                 "final_label": (card.get("final") or {}).get("label", ""),
-                "final_broad_label": (card.get("final") or {}).get("broad_label", ""),
                 "reviewer_note": (card.get("final") or {}).get("reviewer_note", ""),
             },
         })
@@ -443,6 +463,10 @@ def cluster_explorer_html(cards, umap=None, markers=None):
           <canvas id='cluster-audit-umap' width='900' height='900'></canvas>
           <div id='audit-map-height-resizer' class='audit-map-height-resizer' role='separator' aria-orientation='horizontal' aria-label='Resize UMAP height' tabindex='0'></div>
           <div class='map-meta'><span id='cluster-audit-map-label'>UMAP</span><span id='cluster-audit-map-legend'>Reviewed: green</span><span id='cluster-audit-map-count'></span></div>
+          <div class='umap-view-controls'>
+            <label>Embedding<select id='audit-embedding-select'></select></label>
+            <label>Facet<select id='audit-facet-select'><option value='sample' selected>Sample</option><option value='none'>None</option></select></label>
+          </div>
           <div class='final-label-overview'>
             <div class='final-label-overview-head'>
               <div class='final-label-overview-title'>Final label overview</div>
@@ -460,7 +484,7 @@ def cluster_explorer_html(cards, umap=None, markers=None):
     <script type='application/json' id='cluster-audit-umap-data'>{umap_data}</script>
     <script>
     (function() {{
-      var decisionFields = ['cluster_id','suggested_label','suggested_broad_label','decision','confidence','agreement_level','review_priority','review_status','final_label','final_broad_label','reviewer_note'];
+      var decisionFields = ['cluster_id','suggested_label','suggested_broad_label','decision','confidence','agreement_level','review_priority','review_status','final_label','reviewer_note'];
       var storageKey = 'scrna_annotate_audit_decisions:' + window.location.pathname;
       var splitStorageKey = 'scrna_annotate_audit_split:' + window.location.pathname;
       var umapHeightStorageKey = 'scrna_annotate_audit_umap_height:' + window.location.pathname;
@@ -468,7 +492,9 @@ def cluster_explorer_html(cards, umap=None, markers=None):
       var decisions = {{}};
       var initialized = false;
       var data = [];
-      var umap = {{points: [], n: 0}};
+      var umap = {{views: [], points: [], n: 0}};
+      var selectedEmbeddingKey = null;
+      var facetBy = 'sample';
       var markerLimit = localStorage.getItem(markerLimitStorageKey) || '5';
       var currentClusterId = null;
       var select = null;
@@ -483,6 +509,8 @@ def cluster_explorer_html(cards, umap=None, markers=None):
       var mapLegend = null;
       var mapCount = null;
       var finalLabelMeta = null;
+      var embeddingSelect = null;
+      var facetSelect = null;
       var lastMapHits = [];
       var lastMapClusterCounts = {{}};
       var hoverClusterId = null;
@@ -707,6 +735,42 @@ def cluster_explorer_html(cards, umap=None, markers=None):
         var hue = ((Math.abs(hash) * 137.508) % 360);
         return 'hsl(' + hue.toFixed(1) + ', 72%, 46%)';
       }}
+      function umapViews() {{
+        if (Array.isArray(umap.views) && umap.views.length) return umap.views;
+        return [umap || {{points: [], n: 0, key: 'X_umap', label: 'X_umap'}}];
+      }}
+      function activeUmapView() {{
+        var views = umapViews();
+        var key = selectedEmbeddingKey || (umap.active_key || (views[0] && views[0].key) || '');
+        for (var i = 0; i < views.length; i++) {{
+          if (String(views[i].key || '') === String(key)) return views[i];
+        }}
+        return views[0] || {{points: [], n: 0}};
+      }}
+      function setupUmapControls() {{
+        if (embeddingSelect) {{
+          var views = umapViews();
+          embeddingSelect.innerHTML = views.map(function(view) {{
+            var key = String(view.key || view.label || 'X_umap');
+            var label = String(view.label || key) + ' (' + String(view.n || (view.points || []).length || 0) + ' cells)';
+            return '<option value="' + esc(key) + '">' + esc(label) + '</option>';
+          }}).join('');
+          selectedEmbeddingKey = selectedEmbeddingKey || (umap.active_key || (views[0] && views[0].key) || '');
+          embeddingSelect.value = selectedEmbeddingKey;
+          embeddingSelect.onchange = function() {{
+            selectedEmbeddingKey = embeddingSelect.value;
+            drawMap(currentClusterId);
+            drawFinalLabelMap();
+          }};
+        }}
+        if (facetSelect) {{
+          facetSelect.value = facetBy;
+          facetSelect.onchange = function() {{
+            facetBy = facetSelect.value || 'none';
+            drawFinalLabelMap();
+          }};
+        }}
+      }}
       function resizeCanvas() {{
         if (!canvas) return {{w: 900, h: 900, dpr: 1}};
         var dpr = window.devicePixelRatio || 1;
@@ -723,7 +787,7 @@ def cluster_explorer_html(cards, umap=None, markers=None):
       }}
       function umapBounds(points) {{
         points = points || [];
-        var bounds = umap.bounds || {{}};
+        var bounds = activeUmapView().bounds || {{}};
         var xMin = Number(bounds.x_min), xMax = Number(bounds.x_max);
         var yMin = Number(bounds.y_min), yMax = Number(bounds.y_max);
         if (!isFinite(xMin) || !isFinite(xMax) || !isFinite(yMin) || !isFinite(yMax)) {{
@@ -757,7 +821,9 @@ def cluster_explorer_html(cards, umap=None, markers=None):
         var ratio = isFinite(bounds.xMax - bounds.xMin) && isFinite(bounds.yMax - bounds.yMin)
           ? Math.max(0.35, Math.min(1.15, (bounds.yMax - bounds.yMin) / Math.max(bounds.xMax - bounds.xMin, 1e-9)))
           : 0.75;
-        var cssH = Math.round(Math.max(240, Math.min(520, cssW * ratio)));
+        var facetCount = facetBy === 'sample' ? Math.max(1, (activeUmapView().samples || []).length) : 1;
+        var facetBoost = facetCount > 1 ? Math.min(1.55, 1 + Math.log(facetCount) * 0.18) : 1;
+        var cssH = Math.round(Math.max(260, Math.min(760, cssW * ratio * facetBoost)));
         finalLabelCanvas.style.height = cssH + 'px';
         var dpr = Math.min(4, Math.max(2, (window.devicePixelRatio || 1) * 2));
         var targetW = Math.round(cssW * dpr);
@@ -801,15 +867,15 @@ def cluster_explorer_html(cards, umap=None, markers=None):
         hoverClusterId = hit ? String(hit.cluster) : null;
         if (canvas) canvas.style.cursor = hit ? 'pointer' : 'crosshair';
         if (!hit) {{
-          if (currentClusterId && mapLabel) mapLabel.textContent = 'Highlighted cluster ' + currentClusterId;
+          if (currentClusterId && mapLabel) mapLabel.textContent = String(activeUmapView().label || activeUmapView().key || 'UMAP') + ' · highlighted cluster ' + currentClusterId;
           if (currentClusterId && mapCount) {{
             var selectedCount = lastMapClusterCounts[String(currentClusterId)] || 0;
-            mapCount.textContent = selectedCount + ' / ' + ((umap.points || []).length) + ' cells';
+            mapCount.textContent = selectedCount + ' / ' + ((activeUmapView().points || []).length) + ' cells';
           }}
           return;
         }}
         if (mapLabel) mapLabel.textContent = 'Hover cluster ' + hoverClusterId + ' - click to select';
-        if (mapCount) mapCount.textContent = (lastMapClusterCounts[hoverClusterId] || 0) + ' / ' + ((umap.points || []).length) + ' cells';
+        if (mapCount) mapCount.textContent = (lastMapClusterCounts[hoverClusterId] || 0) + ' / ' + ((activeUmapView().points || []).length) + ' cells';
       }}
       function clickMapCluster(event) {{
         var hit = nearestMapCluster(event);
@@ -830,7 +896,8 @@ def cluster_explorer_html(cards, umap=None, markers=None):
         ctx.clearRect(0, 0, w, h);
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, w, h);
-        var points = umap.points || [];
+        var active = activeUmapView();
+        var points = active.points || [];
         if (!points.length) {{
           ctx.fillStyle = '#64748b';
           ctx.font = (14 * size.dpr) + 'px sans-serif';
@@ -880,13 +947,14 @@ def cluster_explorer_html(cards, umap=None, markers=None):
         ctx.strokeStyle = '#cbd5e1';
         ctx.lineWidth = Math.max(1, size.dpr);
         ctx.strokeRect(size.dpr / 2, size.dpr / 2, w - size.dpr, h - size.dpr);
-        if (mapLabel) mapLabel.textContent = 'Highlighted cluster ' + clusterId;
+        if (mapLabel) mapLabel.textContent = String(active.label || active.key || 'UMAP') + ' · highlighted cluster ' + clusterId;
         if (mapLegend) mapLegend.textContent = Object.keys(reviewedClusters).length + ' reviewed clusters shown in green';
         if (mapCount) mapCount.textContent = selected + ' / ' + points.length + ' cells';
       }}
       function drawFinalLabelMap() {{
         if (!finalLabelCanvas || !finalLabelCanvas.getContext) return;
-        var points = umap.points || [];
+        var active = activeUmapView();
+        var points = active.points || [];
         var size = resizeFinalLabelCanvas(points);
         var ctx = finalLabelCanvas.getContext('2d');
         var w = size.w, h = size.h, pad = 18 * size.dpr;
@@ -908,24 +976,56 @@ def cluster_explorer_html(cards, umap=None, markers=None):
         var labels = Object.keys(labelCounts).sort(function(a, b) {{
           return (labelCounts[b] - labelCounts[a]) || a.localeCompare(b);
         }});
+        var facetSamples = [];
+        if (facetBy === 'sample') {{
+          var sampleSeen = {{}};
+          for (var s = 0; s < points.length; s++) {{
+            var sample = String(points[s][3] || 'unknown');
+            if (!sampleSeen[sample]) {{
+              sampleSeen[sample] = true;
+              facetSamples.push(sample);
+            }}
+          }}
+          facetSamples.sort();
+        }}
+        var panels = facetSamples.length ? facetSamples : ['all'];
         var legendWidth = Math.min(Math.max(178 * size.dpr, w * 0.22), 260 * size.dpr);
         var legendGap = 16 * size.dpr;
-        var mapSize = {{w: Math.max(320 * size.dpr, w - legendWidth - legendGap), h: h, dpr: size.dpr}};
-        var plot = plotFromBounds(mapSize, umapBounds(points), pad);
+        var mapW = Math.max(320 * size.dpr, w - legendWidth - legendGap);
+        var cols = panels.length > 1 ? Math.ceil(Math.sqrt(panels.length)) : 1;
+        var rows = panels.length > 1 ? Math.ceil(panels.length / cols) : 1;
+        var panelGap = 14 * size.dpr;
+        var panelW = (mapW - panelGap * (cols - 1)) / cols;
+        var panelH = (h - panelGap * (rows - 1)) / rows;
         var dotSize = 1.7 * size.dpr;
         var dotOffset = dotSize / 2;
-        ctx.globalAlpha = 0.72;
-        for (var i = 0; i < points.length; i++) {{
-          var p = points[i];
-          var labelForPoint = finalLabelForCluster(String(p[2]));
-          var xy = pointPosition(p, plot);
-          ctx.fillStyle = colorForLabel(labelForPoint);
-          ctx.fillRect(xy[0] - dotOffset, xy[1] - dotOffset, dotSize, dotSize);
+        var bounds = umapBounds(points);
+        for (var panelIndex = 0; panelIndex < panels.length; panelIndex++) {{
+          var panel = panels[panelIndex];
+          var col = panelIndex % cols;
+          var row = Math.floor(panelIndex / cols);
+          var offsetX = col * (panelW + panelGap);
+          var offsetY = row * (panelH + panelGap);
+          var panelPoints = panel === 'all' ? points : points.filter(function(p) {{ return String(p[3] || 'unknown') === panel; }});
+          var plot = plotFromBounds({{w: panelW, h: panelH, dpr: size.dpr}}, bounds, pad);
+          plot.left += offsetX;
+          plot.top += offsetY;
+          ctx.globalAlpha = 0.72;
+          for (var i = 0; i < panelPoints.length; i++) {{
+            var p = panelPoints[i];
+            var labelForPoint = finalLabelForCluster(String(p[2]));
+            var xy = pointPosition(p, plot);
+            ctx.fillStyle = colorForLabel(labelForPoint);
+            ctx.fillRect(xy[0] - dotOffset, xy[1] - dotOffset, dotSize, dotSize);
+          }}
+          ctx.globalAlpha = 1;
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = Math.max(1, size.dpr);
+          ctx.strokeRect(offsetX + size.dpr / 2, offsetY + size.dpr / 2, panelW - size.dpr, panelH - size.dpr);
+          ctx.fillStyle = '#334155';
+          ctx.font = (10.5 * size.dpr) + 'px sans-serif';
+          ctx.fillText(panel === 'all' ? String(active.label || active.key || 'UMAP') : panel, offsetX + 8 * size.dpr, offsetY + 15 * size.dpr);
         }}
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = '#cbd5e1';
-        ctx.lineWidth = Math.max(1, size.dpr);
-        ctx.strokeRect(size.dpr / 2, size.dpr / 2, w - size.dpr, h - size.dpr);
         ctx.fillStyle = '#ffffff';
         ctx.globalAlpha = 0.9;
         ctx.fillRect(w - legendWidth - 8 * size.dpr, 8 * size.dpr, legendWidth, h - 16 * size.dpr);
@@ -958,7 +1058,7 @@ def cluster_explorer_html(cards, umap=None, markers=None):
           ctx.fillStyle = '#64748b';
           ctx.fillText('+' + (labels.length - maxItems) + ' more', lx, ly);
         }}
-        if (finalLabelMeta) finalLabelMeta.textContent = labels.length + ' final labels · legend inside figure';
+        if (finalLabelMeta) finalLabelMeta.textContent = labels.length + ' final labels · ' + (facetSamples.length ? facetSamples.length + ' sample facets' : 'no facets') + ' · ' + String(active.label || active.key || 'UMAP');
       }}
       function render() {{
         if (!currentClusterId && data.length) currentClusterId = String(data[0].cluster_id);
@@ -1102,7 +1202,6 @@ def cluster_explorer_html(cards, umap=None, markers=None):
               review_priority: card.review_priority || '',
               review_status: reviewStatus ? reviewStatus.value : 'not_reviewed',
               final_label: finalLabel ? finalLabel.value : '',
-              final_broad_label: finalLabel ? finalLabel.value : '',
               reviewer_note: reviewerNote ? reviewerNote.value : ''
             }});
             saveLocal();
@@ -1172,12 +1271,15 @@ def cluster_explorer_html(cards, umap=None, markers=None):
           mapLegend = document.getElementById('cluster-audit-map-legend');
           mapCount = document.getElementById('cluster-audit-map-count');
           finalLabelMeta = document.getElementById('cluster-final-label-meta');
+          embeddingSelect = document.getElementById('audit-embedding-select');
+          facetSelect = document.getElementById('audit-facet-select');
           if (!dataNode || !umapNode || !view || !canvas) {{
             if ((attempt || 0) < 20) setTimeout(function() {{ initAuditDashboard((attempt || 0) + 1); }}, 100);
             return;
           }}
           data = JSON.parse(dataNode.textContent || '[]');
-          umap = JSON.parse(umapNode.textContent || '{{"points":[],"n":0}}');
+          umap = JSON.parse(umapNode.textContent || '{{"views":[],"points":[],"n":0}}');
+          selectedEmbeddingKey = umap.active_key || ((umap.views || [])[0] || {{}}).key || null;
           if (data.length) currentClusterId = String(data[0].cluster_id);
           data.forEach(function(card) {{
             var row = card.decision_row || {{}};
@@ -1189,6 +1291,7 @@ def cluster_explorer_html(cards, umap=None, markers=None):
               decisions[key] = Object.assign(decisions[key] || {{}}, saved[key] || {{}});
             }});
           }} catch (e) {{}}
+          setupUmapControls();
           initSplitControl();
           initUmapHeightControl();
           canvas.addEventListener('mousemove', updateMapHover);
@@ -1216,38 +1319,48 @@ def cluster_explorer_html(cards, umap=None, markers=None):
     </script>
     """
 
-def load_umap_table():
+def load_umap_tables():
     if ad is None:
-        return pd.DataFrame(), "anndata is not available, so UMAP figures were not rendered."
+        return [], "anndata is not available, so UMAP figures were not rendered."
     h5ad = run_input.get("h5ad")
     cluster_key = run_input.get("cluster_key") or ""
     if not h5ad:
-        return pd.DataFrame(), "No input h5ad path was recorded."
+        return [], "No input h5ad path was recorded."
     try:
         adata = ad.read_h5ad(h5ad, backed="r")
     except Exception as exc:
-        return pd.DataFrame(), f"Could not read input h5ad for UMAP figures: {exc}"
+        return [], f"Could not read input h5ad for UMAP figures: {exc}"
     try:
-        if "X_umap" not in adata.obsm:
-            return pd.DataFrame(), "The input h5ad does not contain obsm['X_umap']."
         if cluster_key not in adata.obs:
-            return pd.DataFrame(), f"Cluster key '{cluster_key}' was not found in adata.obs."
-        coords = np.asarray(adata.obsm["X_umap"])
-        obs = pd.DataFrame(index=adata.obs_names.astype(str))
-        obs["cell_id"] = obs.index
-        obs["cluster_id"] = adata.obs[cluster_key].astype(str).values
+            return [], f"Cluster key '{cluster_key}' was not found in adata.obs."
+        embedding_keys = []
+        for key in adata.obsm.keys():
+            shape = getattr(adata.obsm[key], "shape", ())
+            if "umap" in str(key).lower() and len(shape) == 2 and shape[1] >= 2:
+                embedding_keys.append(str(key))
+        embedding_keys = sorted(embedding_keys, key=lambda key: (0 if key == "X_umap" else 1, key))
+        if not embedding_keys:
+            return [], "The input h5ad does not contain a 2D UMAP embedding in adata.obsm."
+        obs_base = pd.DataFrame(index=adata.obs_names.astype(str))
+        obs_base["cell_id"] = obs_base.index
+        obs_base["cluster_id"] = adata.obs[cluster_key].astype(str).values
         sample_key = run_input.get("sample_key")
-        obs["sample"] = adata.obs[sample_key].astype(str).values if sample_key and sample_key in adata.obs else ""
-        obs["UMAP1"] = coords[:, 0]
-        obs["UMAP2"] = coords[:, 1]
+        obs_base["sample"] = adata.obs[sample_key].astype(str).values if sample_key and sample_key in adata.obs else "all"
         labels = comparison.assign(cluster_id=comparison["cluster_id"].astype(str))
         keep = ["suggested_label", "decision", "confidence", "agreement_level", "review_priority"]
         for provider_id in provider_ids:
             keep.append(f"{provider_id}_label")
-        obs = obs.reset_index(drop=True).merge(labels[["cluster_id"] + keep], on="cluster_id", how="left")
+        obs_base = obs_base.reset_index(drop=True).merge(labels[["cluster_id"] + keep], on="cluster_id", how="left")
         for column in keep:
-            obs[column] = obs[column].fillna("")
-        return obs, ""
+            obs_base[column] = obs_base[column].fillna("")
+        views = []
+        for key in embedding_keys:
+            coords = np.asarray(adata.obsm[key])
+            obs = obs_base.copy()
+            obs["UMAP1"] = coords[:, 0]
+            obs["UMAP2"] = coords[:, 1]
+            views.append((key, obs))
+        return views, ""
     finally:
         try:
             adata.file.close()
@@ -1261,8 +1374,8 @@ def load_umap_table():
 ## Review Workbench {height=100%}
 
 ```{python}
-obs, reason = load_umap_table()
+umap_views, reason = load_umap_tables()
 if reason:
     display(HTML(f"<div class='note-box'>{escape(reason)} The cluster explorer will still show annotation tables.</div>"))
-display(HTML(cluster_explorer_html(cards, umap=umap_canvas_payload(obs) if not reason else None, markers=cluster_markers)))
+display(HTML(cluster_explorer_html(cards, umap=umap_views_payload(umap_views) if not reason else None, markers=cluster_markers)))
 ```

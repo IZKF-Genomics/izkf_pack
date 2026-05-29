@@ -64,15 +64,14 @@ def test_apply_final_decisions_prefers_user_table() -> None:
             "review_priority": "medium",
             "review_status": "not_reviewed",
             "final_label": "",
-            "final_broad_label": "",
             "reviewer_note": "",
         }
     ]
     with tempfile.TemporaryDirectory() as tmp:
         table = Path(tmp) / "final_annotation_decisions.csv"
         table.write_text(
-            "cluster_id,suggested_label,suggested_broad_label,decision,confidence,agreement_level,review_priority,review_status,final_label,final_broad_label,reviewer_note\n"
-            "0,T cell,T/NK cell,Needs review,medium,lineage_agreement,medium,changed,CD4 T cell,T/NK cell,manual choice\n",
+            "cluster_id,suggested_label,suggested_broad_label,decision,confidence,agreement_level,review_priority,review_status,final_label,reviewer_note\n"
+            "0,T cell,T/NK cell,Needs review,medium,lineage_agreement,medium,changed,CD4 T cell,manual choice\n",
             encoding="utf-8",
         )
         rows, source, warnings = run.apply_final_decisions(draft_rows, table, {})
