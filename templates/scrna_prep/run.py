@@ -10,7 +10,6 @@ import yaml
 
 
 TEMPLATE_DIR = Path(__file__).resolve().parent
-PACK_ROOT = Path(os.environ.get("LINKAR_PACK_ROOT", TEMPLATE_DIR.parent.parent)).resolve()
 PROJECT_DIR = Path(os.environ.get("LINKAR_PROJECT_DIR", TEMPLATE_DIR.parent)).resolve()
 RESULTS_DIR = Path(os.environ.get("LINKAR_RESULTS_DIR", TEMPLATE_DIR / "results")).resolve()
 REPORTS_DIR = TEMPLATE_DIR / "reports"
@@ -48,6 +47,43 @@ SUPPORTED_VAR_NAME_CHOICES = ("gene_symbols", "gene_ids")
 SUPPORTED_VAR_NAME_HELP = ", ".join(SUPPORTED_VAR_NAME_CHOICES)
 SUPPORTED_DOUBLET_METHODS = ("none", "scrublet")
 SUPPORTED_QC_MODES = ("fixed", "mad_per_sample")
+
+
+def software_versions_script(pack_root: Path) -> Path:
+    return pack_root / "functions" / "software_versions.py"
+
+
+def resolve_pack_root() -> Path:
+    env_root = os.environ.get("LINKAR_PACK_ROOT")
+    candidates = []
+    if env_root:
+        candidates.append(Path(env_root).expanduser())
+    candidates.append(TEMPLATE_DIR.parent.parent)
+
+    try:
+        completed = subprocess.run(
+            ["linkar", "pack", "show"],
+            cwd=PROJECT_DIR,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        completed = None
+    if completed and completed.returncode == 0:
+        for line in completed.stdout.splitlines():
+            parts = line.split()
+            if len(parts) >= 2:
+                candidates.append(Path(parts[-1]).expanduser())
+
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if software_versions_script(resolved).exists():
+            return resolved
+    return candidates[0].resolve()
+
+
+PACK_ROOT = resolve_pack_root()
 
 
 def env(name: str, default: str = "") -> str:
