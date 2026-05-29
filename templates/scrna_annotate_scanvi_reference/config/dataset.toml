@@ -1,0 +1,40 @@
+[dataset]
+input_h5ad = ""
+input_source_template = ""
+organism = "mouse"
+organism_id = "NCBITaxon:10090"
+tissue = "heart"
+cluster_key = "leiden"
+sample_key = "sample_id"
+counts_layer = "counts"
+
+[reference]
+reference_h5ad = ""
+reference_name = "tabula_muris"
+reference_label_key = "cell_ontology_class"
+reference_batch_key = ""
+reference_sample_key = ""
+reference_tissue_key = ""
+reference_tissue_filter = ""
+reference_species = "mouse"
+query_label_value = "Unknown"
+
+[scanvi]
+batch_key = "scrna_annotate_scanvi_reference_batch"
+labels_key = "scrna_annotate_scanvi_reference_training_label"
+source_key = "scrna_annotate_scanvi_reference_source"
+n_latent = 30
+n_hidden = 128
+n_layers = 2
+max_epochs_scvi = 400
+max_epochs_scanvi = 200
+early_stopping = true
+prediction_min_probability = 0.6
+top_n_candidates = 3
+seed = 0
+use_gpu = "auto"
+
+[outputs]
+write_h5ad = true
+write_latent = true
+write_model = false

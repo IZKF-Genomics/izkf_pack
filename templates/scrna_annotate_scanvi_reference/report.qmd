@@ -1,0 +1,240 @@
+---
+title: "scANVI Reference Annotation Review"
+subtitle: "Reference label transfer with scVI/scANVI"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    page-layout: full
+    embed-resources: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{=html}
+<style>
+.warning-list{border-left:4px solid #c2410c;background:#fff7ed;padding:.85rem 1rem;margin:.7rem 0 1rem}
+.note-box{border-left:4px solid #2563eb;background:#eff6ff;padding:.85rem 1rem;margin:.7rem 0 1rem}
+main.content{max-width:none}.cell-output-display{overflow-x:auto}.cell-output-display img,.cell-output-display svg{max-width:100%;height:auto}
+.dataTables_wrapper{max-width:none}.dataTables_wrapper table.dataTable{width:auto!important;table-layout:auto!important}
+.dataTables_wrapper table.dataTable th,.dataTables_wrapper table.dataTable td{white-space:nowrap;vertical-align:top}
+.dataTables_wrapper table.dataTable td.dt-compact-number,.dataTables_wrapper table.dataTable th.dt-compact-number{min-width:2.8rem;max-width:6rem;text-align:right}
+.dataTables_wrapper table.dataTable td.dt-long-text{white-space:normal;min-width:12rem;max-width:30rem;overflow-wrap:anywhere;line-height:1.25}
+</style>
+```
+
+```{python}
+from html import escape
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+from IPython.display import HTML, display
+
+try:
+    import plotly.express as px
+except ImportError:
+    px = None
+try:
+    import anndata as ad
+except ImportError:
+    ad = None
+try:
+    from itables import show
+    import itables.options as itable_options
+    itable_options.showIndex = False
+    itable_options.classes = "display compact stripe hover"
+    itable_options.layout = {"topStart": "pageLength", "topEnd": "search", "bottomStart": "info", "bottomEnd": "paging"}
+    itable_options.maxBytes = "1MB"
+except ImportError:
+    show = None
+
+results_dir = Path(".")
+payload = json.loads((results_dir / "annotation_result.json").read_text())
+cell_predictions = pd.read_csv(results_dir / "tables" / "scanvi_cell_predictions.csv")
+label_summary = pd.read_csv(results_dir / "tables" / "scanvi_label_summary.csv")
+cluster_summary = pd.read_csv(results_dir / "tables" / "scanvi_cluster_summary.csv")
+reference_summary = pd.read_csv(results_dir / "tables" / "scanvi_reference_summary.csv")
+training_metrics = pd.read_csv(results_dir / "tables" / "scanvi_training_metrics.csv")
+run_status = payload.get("run", {})
+run_input = payload.get("input", {})
+method = payload.get("method", {})
+params = method.get("parameters", {})
+warnings = run_status.get("warnings", [])
+
+def display_static_table(df):
+    display(HTML(df.reset_index(drop=True).to_html(index=False, escape=False)))
+
+def display_table(df, *, page_length=10, order=None, long_text_columns=None):
+    df = df.reset_index(drop=True)
+    if show is None:
+        display_static_table(df)
+        return
+    long_text_columns = set(long_text_columns or [])
+    compact_columns = {c for c in df.columns if c in {"cluster_id","n_cells","n_predicted_labels","mean_probability","median_probability","top_label_fraction","fraction_cells","max_probability","entropy"}}
+    column_defs = []
+    compact_targets = [i for i,c in enumerate(df.columns) if c in compact_columns]
+    long_targets = [i for i,c in enumerate(df.columns) if c in long_text_columns]
+    if compact_targets:
+        column_defs.append({"targets": compact_targets, "className": "dt-compact-number", "width": "6rem"})
+    if long_targets:
+        column_defs.append({"targets": long_targets, "className": "dt-long-text", "width": "28rem"})
+    show(df, showIndex=False, scrollX=True, column_filters="header", pageLength=page_length, lengthMenu=[10,25,50,100], order=order or [], autoWidth=True, autoWidthMode="fit", columnDefs=column_defs, deferRender=True, classes="display compact stripe hover")
+
+def artifact_path(name):
+    value = payload.get("artifacts", {}).get(name, "")
+    if str(value).startswith("results/"):
+        return str(value).replace("results/", "", 1)
+    return str(value)
+
+def load_annotated_obs():
+    if ad is None:
+        return pd.DataFrame(), "anndata is not available."
+    h5ad = artifact_path("annotated_h5ad") or "adata.annotated.h5ad"
+    if not Path(h5ad).exists():
+        return pd.DataFrame(), "Annotated h5ad was not found."
+    try:
+        adata = ad.read_h5ad(h5ad, backed="r")
+    except Exception as exc:
+        return pd.DataFrame(), f"Could not read annotated h5ad: {exc}"
+    try:
+        obs = pd.DataFrame(index=adata.obs_names.astype(str))
+        prefix = "scrna_annotate_scanvi_reference"
+        obs["cell_id"] = obs.index
+        obs["label"] = adata.obs.get(f"{prefix}_label", "").astype(str).values
+        obs["confidence"] = adata.obs.get(f"{prefix}_confidence", "").astype(str).values
+        obs["probability"] = pd.to_numeric(adata.obs.get(f"{prefix}_probability", np.nan), errors="coerce")
+        obs["sample"] = adata.obs[run_input.get("sample_key")].astype(str).values if run_input.get("sample_key") in adata.obs else ""
+        obs["cluster"] = adata.obs[run_input.get("cluster_key")].astype(str).values if run_input.get("cluster_key") in adata.obs else ""
+        if "X_scANVI_umap" in adata.obsm:
+            coords = np.asarray(adata.obsm["X_scANVI_umap"])
+            obs["UMAP1"] = coords[:, 0]
+            obs["UMAP2"] = coords[:, 1]
+        elif "X_umap" in adata.obsm:
+            coords = np.asarray(adata.obsm["X_umap"])
+            obs["UMAP1"] = coords[:, 0]
+            obs["UMAP2"] = coords[:, 1]
+        return obs.reset_index(drop=True), ""
+    finally:
+        try:
+            adata.file.close()
+        except Exception:
+            pass
+```
+
+## Summary
+
+This report transfers labels from a labeled reference dataset to query cells using scVI/scANVI.
+Treat labels as reference-mapping evidence: they are strongest when the reference matches organism,
+tissue, technology, and biological condition, and weakest for disease states absent from the reference.
+
+```{python}
+display_static_table(pd.DataFrame([
+    {"field": "state", "value": run_status.get("state", "unknown")},
+    {"field": "schema", "value": payload.get("schema_version", "")},
+    {"field": "organism", "value": run_input.get("organism") or "not provided"},
+    {"field": "tissue", "value": run_input.get("tissue") or "not provided"},
+    {"field": "query counts layer", "value": run_input.get("counts_layer", "")},
+    {"field": "reference", "value": params.get("reference_name", "")},
+    {"field": "reference label key", "value": params.get("reference_label_key", "")},
+    {"field": "annotated cells", "value": len(cell_predictions)},
+    {"field": "transferred labels", "value": len(label_summary)},
+]))
+```
+
+## Warnings
+
+```{python}
+if warnings:
+    display(HTML("<div class='warning-list'>" + "".join(f"<p><strong>Warning {i}.</strong> {escape(str(w))}</p>" for i, w in enumerate(warnings, start=1)) + "</div>"))
+else:
+    display(HTML("<div class='note-box'>No warnings were recorded.</div>"))
+```
+
+## Reference Summary
+
+```{python}
+display_table(reference_summary, page_length=25, long_text_columns=["value"])
+```
+
+## Label Summary
+
+```{python}
+display_table(label_summary, page_length=25, order=[[1, "desc"]])
+```
+
+## Cluster Review
+
+Clusters marked `low confidence` or `mixed cluster` should be reviewed against marker genes and other
+annotation methods before final labeling.
+
+```{python}
+display_table(cluster_summary, page_length=25, order=[[0, "asc"]], long_text_columns=["label_counts"])
+```
+
+## Low Confidence Cells
+
+```{python}
+low = cell_predictions[cell_predictions["review_status"].astype(str).str.contains("low", case=False, na=False)]
+if len(low):
+    display_table(low.head(500), page_length=25)
+else:
+    display(HTML("<div class='note-box'>No low-confidence cells were reported by the configured probability threshold.</div>"))
+```
+
+## scANVI UMAP
+
+```{python}
+obs, reason = load_annotated_obs()
+if reason:
+    display(HTML(f"<div class='note-box'>{escape(reason)}</div>"))
+elif px is None:
+    display(HTML("<div class='note-box'>plotly is not available, so UMAP plots were not rendered.</div>"))
+elif {"UMAP1", "UMAP2"}.issubset(obs.columns):
+    fig = px.scatter(
+        obs,
+        x="UMAP1",
+        y="UMAP2",
+        color="label",
+        hover_data=["cell_id", "cluster", "sample", "probability", "confidence"],
+        render_mode="webgl",
+        height=700,
+        title="Query cells colored by transferred scANVI label",
+    )
+    fig.update_traces(marker={"size": 3, "opacity": 0.75})
+    fig.update_layout(legend_title_text="label")
+    fig.show()
+else:
+    display(HTML("<div class='note-box'>No UMAP coordinates were available in the annotated h5ad.</div>"))
+```
+
+## Probability UMAP
+
+```{python}
+if not reason and px is not None and {"UMAP1", "UMAP2"}.issubset(obs.columns):
+    fig = px.scatter(
+        obs,
+        x="UMAP1",
+        y="UMAP2",
+        color="probability",
+        hover_data=["cell_id", "cluster", "sample", "label", "confidence"],
+        render_mode="webgl",
+        height=650,
+        color_continuous_scale="Viridis",
+        title="Query cells colored by max scANVI probability",
+    )
+    fig.update_traces(marker={"size": 3, "opacity": 0.75})
+    fig.show()
+```
+
+## Training Metrics
+
+```{python}
+if len(training_metrics):
+    display_table(training_metrics, page_length=25)
+else:
+    display(HTML("<div class='note-box'>No training metrics were available from the scvi-tools model history.</div>"))
+```

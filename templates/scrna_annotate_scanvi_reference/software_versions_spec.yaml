@@ -1,0 +1,21 @@
+tools:
+  - pixi
+  - python
+
+software:
+  - name: scvi-tools
+    command: pixi run python -c "import scvi; print(scvi.__version__)"
+  - name: scanpy
+    command: pixi run python -c "import scanpy; print(scanpy.__version__)"
+  - name: anndata
+    command: pixi run python -c "import anndata; print(anndata.__version__)"
+
+params:
+  - name: cluster_key
+    env: CLUSTER_KEY
+  - name: reference_h5ad
+    env: REFERENCE_H5AD
+  - name: reference_label_key
+    env: REFERENCE_LABEL_KEY
+  - name: reference_name
+    env: REFERENCE_NAME

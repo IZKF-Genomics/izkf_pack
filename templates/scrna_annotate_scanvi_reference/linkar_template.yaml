@@ -1,0 +1,86 @@
+id: scrna_annotate_scanvi_reference
+version: 0.1.0
+description: scVI/scANVI reference label transfer for scRNA-seq annotation with standardized JSON output.
+tools:
+  required:
+    - bash
+    - python3
+    - pixi
+params:
+  input_h5ad:
+    type: str
+    default: ""
+    description: Prepared query `.h5ad` input path. When empty, direct runner prefers upstream `scrna_prep` output.
+  input_source_template:
+    type: str
+    default: ""
+    description: Optional provenance label for the upstream template that produced `input_h5ad`.
+  organism:
+    type: str
+    default: "mouse"
+    description: Query organism.
+  organism_id:
+    type: str
+    default: "NCBITaxon:10090"
+    description: Optional NCBI Taxon id.
+  tissue:
+    type: str
+    default: "heart"
+    description: Query tissue context recorded in output metadata.
+  cluster_key:
+    type: str
+    default: "leiden"
+    description: Cluster column in query `adata.obs`, used for cluster summaries when present.
+  sample_id_key:
+    type: str
+    default: "sample_id"
+    description: Optional query sample identifier column in `adata.obs`.
+  counts_layer:
+    type: str
+    default: "counts"
+    description: Raw count layer used by scVI/scANVI. Use `X` only when `.X` contains count-like values.
+  reference_h5ad:
+    type: str
+    default: ""
+    description: Labeled reference `.h5ad` path, for example Tabula Muris or a mouse heart reference.
+  reference_name:
+    type: str
+    default: "tabula_muris"
+    description: Human-readable reference id recorded in output metadata.
+  reference_label_key:
+    type: str
+    default: "cell_ontology_class"
+    description: Reference `obs` column containing supervised labels.
+  reference_tissue_key:
+    type: str
+    default: ""
+    description: Optional reference `obs` column used to filter tissue.
+  reference_tissue_filter:
+    type: str
+    default: ""
+    description: Optional exact tissue value to retain from the reference.
+  prediction_min_probability:
+    type: str
+    default: "0.6"
+    description: Minimum max probability for a confident query cell label.
+  write_h5ad:
+    type: bool
+    default: true
+    description: Write `results/adata.annotated.h5ad` with scANVI annotation columns added to `adata.obs`.
+outputs:
+  results_dir: {}
+  software_versions:
+    path: results/software_versions.json
+  annotation_result:
+    path: results/annotation_result.json
+  annotated_h5ad:
+    path: results/adata.annotated.h5ad
+  html_report:
+    path: results/report.html
+  quarto_report:
+    path: results/report.qmd
+  tables:
+    glob: results/tables/*.csv
+run:
+  mode: render
+  entry: run.sh
