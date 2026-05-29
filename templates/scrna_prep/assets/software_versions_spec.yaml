@@ -10,3 +10,9 @@ params:
     env: INPUT_FORMAT
   - name: doublet_method
     env: DOUBLET_METHOD
+  - name: random_state
+    env: RANDOM_STATE
+  - name: umap_min_dist
+    env: UMAP_MIN_DIST
+  - name: umap_spread
+    env: UMAP_SPREAD

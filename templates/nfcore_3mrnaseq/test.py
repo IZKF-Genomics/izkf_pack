@@ -148,7 +148,7 @@ def test_rendered_run_script() -> None:
         assert runtime_payload["template"] == "nfcore_3mrnaseq"
         assert runtime_payload["engine"] == "nextflow"
         assert runtime_payload["pipeline"] == "nf-core/rnaseq"
-        assert runtime_payload["pipeline_version"] == "3.25.0"
+        assert runtime_payload["pipeline_version"] == "3.26.0"
         assert runtime_payload["command"][:4] == ["pixi", "run", "nextflow", "run"]
         assert runtime_payload["params"]["genome"] == "GRCh38"
         assert runtime_payload["params"]["effective_genome"] == "GRCh38_with_ERCC"
@@ -162,7 +162,7 @@ def test_rendered_run_script() -> None:
         versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
         versions = {entry["name"]: entry for entry in versions_payload["software"]}
         assert versions["nextflow"]["version"] == "nextflow version 24.10.0"
-        assert versions["nf-core/rnaseq"]["version"] == "3.25.0"
+        assert versions["nf-core/rnaseq"]["version"] == "3.26.0"
         assert versions["execution_profile"]["version"] == "docker"
         assert versions["genome"]["version"] == "GRCh38_with_ERCC"
         assert versions["umi"]["version"] == UMI_KIT
@@ -379,7 +379,7 @@ def main() -> None:
     assert 'UMI Second Strand SynthesisModule for QuantSeq FWD' in run_py_text
     assert 'ERCC RNA Spike-in Mix' in run_py_text
     assert 'normalize_toggle_param' in run_py_text
-    assert 'path: runtime_command.json' in template_text
+    assert "path: pipeline_info/params_*.json" in template_text
     assert "__EDIT_ME_MAX_CPUS__" in nextflow_config_text
     assert "__EDIT_ME_MAX_MEMORY__" in nextflow_config_text
     assert "star_index" not in nextflow_config_text
@@ -388,8 +388,8 @@ def main() -> None:
     assert "salmon_index" not in nextflow_config_text
     assert "star         = '/data/ref_genomes/GRCm39/indices/star'" in nextflow_config_text
     assert "salmon       = '/data/ref_genomes/GRCm39/indices/salmon'" in nextflow_config_text
-    assert "bed12              = '/data/ref_genomes/GRCm39/src/GRCm39.annotation.bed'" in nextflow_config_text
-    assert "transcript_fasta   = '/data/ref_genomes/GRCm39/src/GRCm39.transcripts.fa'" in nextflow_config_text
+    assert "bed12" not in nextflow_config_text
+    assert "transcript_fasta" not in nextflow_config_text
     pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
     pack_data = yaml.safe_load(pack_text)
     nfcore_params = pack_data["templates"]["nfcore_3mrnaseq"]["params"]

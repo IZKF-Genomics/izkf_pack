@@ -106,6 +106,18 @@ params:
     type: int
     default: 15
     description: Number of neighbors for graph construction.
+  random_state:
+    type: int
+    default: 0
+    description: Random seed for UMAP and Leiden layout-sensitive steps.
+  umap_min_dist:
+    type: str
+    default: "0.5"
+    description: UMAP minimum distance. Larger values make the embedding more diffuse; smaller values make local groups tighter.
+  umap_spread:
+    type: str
+    default: "1.0"
+    description: UMAP spread parameter controlling the effective scale of embedded points.
   leiden_resolution:
     type: str
     default: ""
@@ -124,8 +136,10 @@ outputs:
     path: ../assets/samples.csv
   scrna_prep_h5ad:
     path: adata.prep.h5ad
+  html_report:
+    path: scrna_prep.html
   html_reports:
-    glob: "../reports/*.html"
+    glob: "*.html"
   h5ad_outputs:
     glob: "*.h5ad"
   tables:

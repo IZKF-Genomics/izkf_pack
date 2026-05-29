@@ -151,6 +151,9 @@ def main() -> int:
             "n_top_hvgs": "3000",
             "n_pcs": "30",
             "n_neighbors": "15",
+            "random_state": "0",
+            "umap_min_dist": "0.5",
+            "umap_spread": "1.0",
             "leiden_resolution": "",
             "resolution_grid": "0.2,0.4,0.6,0.8,1.0,1.2",
         }
@@ -307,6 +310,13 @@ def main() -> int:
             "Set RESOLUTION_GRID to a numeric value >= 1e-06.",
         )
 
+        invalid_umap_params = dict(minimal_params)
+        invalid_umap_params["umap_spread"] = "0"
+        assert_system_exit(
+            lambda: run_module.validate_params(invalid_umap_params),
+            "Set UMAP_SPREAD to a numeric value >= 1e-06.",
+        )
+
         alias_matrix_params = dict(minimal_params)
         alias_matrix_params["input_h5ad"] = ""
         alias_matrix_params["input_matrix"] = str(tenx_mtx_dir)
@@ -345,28 +355,34 @@ def main() -> int:
         assert 'input_format = "h5ad"' in config_text
         assert 'doublet_method = "scrublet"' in config_text
         assert "filter_predicted_doublets = true" in config_text
+        assert "random_state = 0" in config_text
+        assert "umap_min_dist = 0.5" in config_text
+        assert "umap_spread = 1.0" in config_text
         assert 'sample_metadata = "assets/samples.csv"' in config_text
         assert "authors =" not in config_text
 
         assert run_info["params"]["project_name"] == "260417_scRNA_Project"
         assert run_info["params"]["organism"] == "human"
         assert run_info["params"]["filter_predicted_doublets"] is True
+        assert run_info["params"]["random_state"] == "0"
+        assert run_info["params"]["umap_min_dist"] == "0.5"
+        assert run_info["params"]["umap_spread"] == "1.0"
         assert run_info["params"]["sample_metadata"] == "assets/samples.csv"
         assert "authors" not in run_info["params"]
 
         base_env = {**os.environ, "LINKAR_PACK_ROOT": str(TEMPLATE_DIR.parent.parent)}
         assert_fails(
-            [sys.executable, str(TEMPLATE_DIR / "run.py")],
+            [sys.executable, str(TEMPLATE_DIR / "run.py"), "--write-config-from-env"],
             "Set INPUT_H5AD or INPUT_MATRIX before running scrna_prep.",
             env=base_env,
         )
         assert_fails(
-            [sys.executable, str(TEMPLATE_DIR / "run.py")],
+            [sys.executable, str(TEMPLATE_DIR / "run.py"), "--write-config-from-env"],
             "Set ORGANISM to a supported alias for QC gene annotation before running scrna_prep.",
             env={**base_env, "INPUT_H5AD": str(input_h5ad)},
         )
         assert_fails(
-            [sys.executable, str(TEMPLATE_DIR / "run.py")],
+            [sys.executable, str(TEMPLATE_DIR / "run.py"), "--write-config-from-env"],
             "Use INPUT_H5AD for AnnData .h5ad input.",
             env={
                 **base_env,
@@ -376,7 +392,7 @@ def main() -> int:
             },
         )
         assert_fails(
-            [sys.executable, str(TEMPLATE_DIR / "run.py")],
+            [sys.executable, str(TEMPLATE_DIR / "run.py"), "--write-config-from-env"],
             "FILTER_PREDICTED_DOUBLETS requires DOUBLET_METHOD=scrublet",
             env={
                 **base_env,
@@ -389,12 +405,12 @@ def main() -> int:
 
         temp_workspace = tmp_path / "render_workspace"
         temp_results_dir = temp_workspace / "results"
-        temp_reports_dir = temp_workspace / "reports"
         temp_config_dir = temp_workspace / "config"
         temp_assets_dir = temp_workspace / "assets"
         temp_project_dir = tmp_path / "260418_scRNA_Render"
         temp_workspace.mkdir()
         temp_assets_dir.mkdir()
+        (temp_assets_dir / "samples.csv").write_text("sample_id,batch,condition\n", encoding="utf-8")
         temp_project_dir.mkdir()
         commands: list[list[str]] = []
         original_globals = {
@@ -420,12 +436,17 @@ def main() -> int:
                 "VAR_NAMES",
                 "SAMPLE_METADATA",
                 "ORGANISM",
+                "DOUBLET_METHOD",
+                "FILTER_PREDICTED_DOUBLETS",
+                "RANDOM_STATE",
+                "UMAP_MIN_DIST",
+                "UMAP_SPREAD",
             ]
         }
         try:
             run_module.PROJECT_DIR = temp_project_dir
             run_module.RESULTS_DIR = temp_results_dir
-            run_module.REPORTS_DIR = temp_reports_dir
+            run_module.REPORTS_DIR = temp_results_dir
             run_module.CONFIG_DIR = temp_config_dir
             run_module.NOTEBOOK_PATH = temp_workspace / "scrna_prep.qmd"
             run_module.SOFTWARE_VERSIONS_SPEC = temp_assets_dir / "software_versions_spec.yaml"
@@ -450,9 +471,25 @@ def main() -> int:
             assert f'input_matrix = "{tenx_mtx_dir}"' in orchestration_config
             assert orchestration_run_info["params"]["sample_metadata"] == "assets/samples.csv"
             assert temp_results_dir.exists()
-            assert temp_reports_dir.exists()
             assert temp_config_dir.exists()
             assert commands == []
+
+            edited_config = orchestration_config.replace('doublet_method = "none"', 'doublet_method = "scrublet"')
+            edited_config = edited_config.replace("filter_predicted_doublets = false", "filter_predicted_doublets = true")
+            (temp_config_dir / "project.toml").write_text(edited_config, encoding="utf-8")
+            os.environ["DOUBLET_METHOD"] = "none"
+            os.environ["FILTER_PREDICTED_DOUBLETS"] = "false"
+            assert run_module.main([]) == 0
+            refreshed_run_info = yaml.safe_load((temp_results_dir / "run_info.yaml").read_text(encoding="utf-8"))
+            assert refreshed_run_info["params"]["doublet_method"] == "scrublet"
+            assert refreshed_run_info["params"]["filter_predicted_doublets"] is True
+            assert os.environ["RANDOM_STATE"] == "0"
+            assert os.environ["UMAP_MIN_DIST"] == "0.5"
+            assert os.environ["UMAP_SPREAD"] == "1.0"
+            assert commands[0] == ["pixi", "install"]
+            assert commands[1][:4] == ["pixi", "run", "quarto", "render"]
+            assert commands[1][-5:] == ["--output-dir", str(temp_results_dir), "--output", "scrna_prep.html", "--no-clean"]
+            assert commands[2][0] == "python3"
         finally:
             run_module.PROJECT_DIR = original_globals["PROJECT_DIR"]
             run_module.RESULTS_DIR = original_globals["RESULTS_DIR"]
@@ -551,17 +588,31 @@ PY""",
     assert "exactly one of `input_h5ad` or `input_matrix`" in template_text.lower()
     assert "requires `doublet_method=scrublet`" in template_text
     assert 'cd "${script_dir}"' in run_sh_text
-    assert 'python3 "run.py" --prepare-only' in run_sh_text
-    assert "pixi install" in run_sh_text
-    assert 'pixi run quarto render "scrna_prep.qmd"' in run_sh_text
+    assert 'python3 "run.py"' in run_sh_text
+    assert 'python3 "run.py" --prepare-only' not in run_sh_text
+    assert "pixi install" not in run_sh_text
+    assert 'pixi run quarto render "scrna_prep.qmd"' not in run_sh_text
     assert 'linkar collect "${script_dir}"' in run_sh_text
     assert 'linkar clean "${script_dir}" --yes' in run_sh_text
     assert "--prepare-only" in run_py_text
+    assert "--write-config-from-env" in run_py_text
+    assert "load_project_config" in run_py_text
     assert "detect_input_format" in run_py_text
     assert "FILTER_PREDICTED_DOUBLETS requires DOUBLET_METHOD=scrublet" in run_py_text
     assert "from scipy import sparse" in qmd_text
     assert "resolve_input_selection" in qmd_text
     assert "sample metadata file was not found" in qmd_text
+    assert "Doublet Diagnostics" in qmd_text
+    assert "doublet_by_sample.csv" in qmd_text
+    assert "Doublet removal candidates by sample" in qmd_text
+    assert "DOUBLETPLOT_MAX_BACKGROUND_PER_SAMPLE" in qmd_text
+    assert "save_static_png" in qmd_text
+    assert "doublet_removal_candidates_by_sample.png" in qmd_text
+    assert "scaleanchor=\"x\"" in qmd_text
+    assert "constrain=\"domain\"" in qmd_text
+    assert "autosize=False" in qmd_text
+    assert "random_state=random_state" in qmd_text
+    assert "umap_min_dist" in qmd_text
     assert 'title: "scRNA Preprocessing QC"' in qmd_text
     assert "config/project.toml" in readme_text
     assert "Minimal `.h5ad` handoff" in readme_text
@@ -573,7 +624,10 @@ PY""",
     assert "Automatic handoff from `nfcore_scrnaseq`" in readme_text
     assert "selected_matrix_h5ad" in readme_text
     assert "doublet_method" in spec_text
+    assert "umap_min_dist" in spec_text
     assert "scrna_prep_h5ad:\n    path: adata.prep.h5ad" in template_text
+    assert "html_report:\n    path: scrna_prep.html" in template_text
+    assert 'glob: "*.html"' in template_text
     assert 'glob: "*.h5ad"' in template_text
     assert 'mask_var="highly_variable"' in qmd_text
     assert "sc.pp.scale(filtered" not in qmd_text

@@ -4,8 +4,9 @@ This template creates an editable `scverse` / `scanpy` preprocessing workspace f
 
 It follows the same Linkar pattern as the other analysis workspaces in this pack:
 
-- `run.sh` is the user-facing launcher and shows the main shell steps explicitly
-- `run.py` contains the runtime orchestration and writes `config/project.toml` plus `results/run_info.yaml`
+- `run.sh` is the thin user-facing launcher
+- `run.py` contains the runtime orchestration and writes `results/run_info.yaml`
+- `config/project.toml` is the editable source of truth after render
 - `pixi.toml` defines the local Python/Quarto environment
 - `scrna_prep.qmd` contains the preprocessing and report logic
 - `assets/` stores static template fixtures such as the sample metadata stub and software-version spec
@@ -44,6 +45,7 @@ Parameter behavior:
 - `var_names` matters for MTX-style inputs. It is ignored for `.h5ad` and 10x `.h5`.
 - `filter_predicted_doublets=true` only makes sense with `doublet_method=scrublet`.
 - `qc_nmads` is only used when `qc_mode=mad_per_sample`.
+- `random_state`, `umap_min_dist`, and `umap_spread` control reproducibility and the final UMAP layout.
 - When `sample_metadata` is omitted, the workspace uses `assets/samples.csv`.
 
 With `--binding default`, the pack can resolve these values automatically from the latest recorded `nfcore_scrnaseq` run when present:
@@ -127,6 +129,8 @@ linkar render scrna_prep --binding default
 
 The binding case works best when an upstream `nfcore_scrnaseq` run already published `selected_matrix_h5ad` and organism metadata.
 
+After the workspace has been rendered, edit `config/project.toml` for manual reruns. Bindings seed the initial configuration; `bash run.sh` reads the TOML file and does not overwrite local QC edits such as `doublet_method`, `filter_predicted_doublets`, or threshold changes.
+
 ## Input-Specific Notes
 
 For `.h5ad` input, the workspace expects raw counts. If the object stores normalized values in `X`, provide raw counts in `adata.layers["counts"]` before running the template.
@@ -145,13 +149,11 @@ Zebrafish inputs are supported with `zebrafish`, `drerio`, or `danio_rerio`. For
 
 The launcher [run.sh](run.sh):
 
-- creates the runtime config under `config/project.toml`
-- records resolved parameters in `results/run_info.yaml`
-- runs `pixi install`
-- runs `pixi run quarto render scrna_prep.qmd --to html --output-dir reports --no-clean`
-- writes `results/software_versions.json`
+- reads the editable runtime config from `config/project.toml`
+- runs [run.py](run.py), which validates the config, records resolved parameters in `results/run_info.yaml`, runs Pixi/Quarto, and writes `results/software_versions.json`
+- calls `linkar collect` and `linkar clean` after a successful run
 
-Internally, [run.py](run.py) supports `--prepare-only` so the shell launcher can show the execution steps explicitly while still centralizing validation and runtime config generation in Python.
+Internally, [run.py](run.py) supports `--write-config-from-env` to initialize `config/project.toml` from Linkar-resolved environment parameters. The older `--prepare-only` flag remains as a backward-compatible alias for that initialization step. Normal execution uses the existing TOML file; if the file is missing, `run.py` bootstraps it from the environment once and then runs.
 
 The notebook supports:
 
@@ -170,7 +172,7 @@ The notebook supports:
 - `results/tables/*.csv`
 - `results/run_info.yaml`
 - `results/software_versions.json`
-- `reports/scrna_prep.html`
+- `results/scrna_prep.html`
 
 ## Test Command
 

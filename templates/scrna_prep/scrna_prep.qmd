@@ -34,16 +34,19 @@ import sys
 import tomllib
 
 import igraph as ig
+import matplotlib.ticker as mticker
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import scanpy as sc
-from IPython.display import Markdown, display
+import seaborn as sns
+from IPython.display import Image, Markdown, display
 from plotly.subplots import make_subplots
 from scipy import sparse
 from scipy.stats import median_abs_deviation
-from sklearn.metrics import davies_bouldin_score
+from sklearn.metrics import adjusted_rand_score, davies_bouldin_score, normalized_mutual_info_score, silhouette_score
 
 LIB_DIR = Path(".").resolve() / "lib"
 if str(LIB_DIR) not in sys.path:
@@ -59,6 +62,8 @@ from scrna_prep_io import (
 
 ROOT = Path(".").resolve()
 CONFIG_PATH = ROOT / "config" / "project.toml"
+FIGURES_DIR = ROOT / "results" / "figures"
+DOUBLETPLOT_MAX_BACKGROUND_PER_SAMPLE = 12000
 
 QC_PATTERNS = {
     "human": {
@@ -114,6 +119,23 @@ QUALITATIVE_SEQUENCE = [
     "#b91c1c",
     "#475569",
 ]
+STATIC_FIGURE_DPI = 130
+STATIC_FIGURE_RC = {
+    "font.size": 8,
+    "axes.titlesize": 9,
+    "axes.labelsize": 8,
+    "xtick.labelsize": 8,
+    "ytick.labelsize": 8,
+    "legend.fontsize": 8,
+    "legend.title_fontsize": 8,
+    "figure.titlesize": 9,
+    "axes.linewidth": 0.8,
+    "grid.linewidth": 0.5,
+    "lines.linewidth": 1.2,
+    "patch.linewidth": 0.8,
+}
+
+sns.set_theme(style="white", context="paper", rc=STATIC_FIGURE_RC)
 
 
 def load_config(path: Path) -> dict:
@@ -680,6 +702,50 @@ def compare_sample_metric(sample_compare_df: pd.DataFrame, metric: str, label: s
     return fig
 
 
+def save_static_png(fig, filename: str, *, dpi: int = STATIC_FIGURE_DPI) -> None:
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    path = FIGURES_DIR / filename
+    fig.savefig(path, dpi=dpi, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    display(Image(filename=str(path)))
+
+
+def sample_barplot_figsize(n_samples: int) -> tuple[float, float]:
+    return (max(3.9, 0.32 * n_samples + 1.9), 2.4)
+
+
+def format_count_tick(value: float, _: int) -> str:
+    if abs(value) >= 1_000_000:
+        return f"{value / 1_000_000:.1f}M".replace(".0M", "M")
+    if abs(value) >= 1_000:
+        return f"{value / 1_000:.0f}k"
+    return f"{value:.0f}"
+
+
+def static_sample_metric(sample_compare_df: pd.DataFrame, metric: str, title: str, ylabel: str, filename: str) -> None:
+    plot_df = sample_compare_df[["stage", metric]].dropna().copy()
+    plot_df["stage"] = pd.Categorical(plot_df["stage"], categories=STAGE_ORDER, ordered=True)
+    fig, ax = plt.subplots(figsize=(4.4, 2.8))
+    sns.boxplot(
+        data=plot_df,
+        x="stage",
+        y=metric,
+        order=STAGE_ORDER,
+        palette=STAGE_COLORS,
+        ax=ax,
+        showmeans=True,
+        linewidth=0.8,
+        meanprops={"marker": "^", "markerfacecolor": "#22c55e", "markeredgecolor": "#22c55e", "markersize": 4},
+    )
+    ax.set_title(title)
+    ax.set_xlabel("")
+    ax.set_ylabel(ylabel)
+    ax.set_xticks(range(len(STAGE_ORDER)), ["Before", "After"])
+    fig.tight_layout()
+    sns.despine(fig=fig)
+    save_static_png(fig, filename)
+
+
 def embedding_plot(adata, basis: str, color_key: str, title: str) -> go.Figure:
     coords = adata.obsm[basis]
     x_name, y_name = ("UMAP1", "UMAP2") if basis == "X_umap" else ("PC1", "PC2")
@@ -699,8 +765,33 @@ def embedding_plot(adata, basis: str, color_key: str, title: str) -> go.Figure:
         color_discrete_sequence=QUALITATIVE_SEQUENCE,
     )
     fig.update_traces(marker=dict(size=4, opacity=0.75), selector=dict(mode="markers"))
-    apply_standard_figure_layout(fig, height=620, title=title)
+    if basis == "X_umap":
+        apply_standard_figure_layout(fig, height=760, title=title)
+        fig.update_layout(width=760, autosize=False)
+        fig.update_xaxes(constrain="domain")
+        fig.update_yaxes(scaleanchor="x", scaleratio=1, constrain="domain")
+    else:
+        apply_standard_figure_layout(fig, height=620, title=title)
     return fig
+
+
+def static_embedding_plot(adata, basis: str, color_key: str, title: str, filename: str) -> None:
+    coords = adata.obsm[basis]
+    x_name, y_name = ("UMAP1", "UMAP2") if basis == "X_umap" else ("PC1", "PC2")
+    emb = pd.DataFrame(coords[:, :2], columns=[x_name, y_name], index=adata.obs_names)
+    emb[color_key] = adata.obs[color_key].astype(str).values
+    categories = sorted(emb[color_key].dropna().unique())
+    palette = dict(zip(categories, sns.color_palette("tab20", n_colors=max(1, len(categories)))))
+    fig, ax = plt.subplots(figsize=(7.2, 6.2))
+    sns.scatterplot(data=emb, x=x_name, y=y_name, hue=color_key, palette=palette, s=5, linewidth=0, alpha=0.72, ax=ax)
+    ax.set_title(title)
+    ax.set_xlabel(x_name)
+    ax.set_ylabel(y_name)
+    if basis == "X_umap":
+        ax.set_aspect("equal", adjustable="datalim")
+    ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False, markerscale=2)
+    sns.despine(fig=fig)
+    save_static_png(fig, filename)
 
 
 def confounder_scatter(long_df: pd.DataFrame, x: str, y: str, color_key: str, title: str) -> go.Figure:
@@ -730,6 +821,18 @@ def confounder_scatter(long_df: pd.DataFrame, x: str, y: str, color_key: str, ti
     fig.update_traces(marker=dict(size=4))
     apply_standard_figure_layout(fig, height=520, title=title)
     return fig
+
+
+def static_confounder_scatter(long_df: pd.DataFrame, x: str, y: str, color_key: str, title: str, filename: str) -> None:
+    keep_cols = [x, y, "stage", color_key]
+    plot_df = long_df[keep_cols].dropna(subset=[x, y]).copy()
+    plot_df[color_key] = plot_df[color_key].astype(str)
+    g = sns.FacetGrid(plot_df, col="stage", col_order=STAGE_ORDER, hue=color_key, height=3.7, aspect=1.15, palette="tab20", sharex=False, sharey=False)
+    g.map_dataframe(sns.scatterplot, x=x, y=y, s=5, linewidth=0, alpha=0.35)
+    g.add_legend(title=color_key)
+    g.figure.suptitle(title, y=1.04)
+    g.set_axis_labels(x, y)
+    save_static_png(g.figure, filename)
 
 
 def resolution_diagnostics_plot(df: pd.DataFrame) -> go.Figure:
@@ -777,6 +880,138 @@ def resolution_diagnostics_plot(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
+def static_resolution_diagnostics_plot(df: pd.DataFrame, filename: str) -> None:
+    fig, axes = plt.subplots(1, 2, figsize=(8.8, 3.8), sharex=True)
+    axes[0].plot(df["resolution"], df["modularity"], marker="o", color="#0f766e")
+    axes[1].plot(df["resolution"], df["davies_bouldin_score"], marker="o", color="#d97706")
+    chosen = df[df["selected_resolution"]]
+    for ax in axes:
+        for _, row in chosen.iterrows():
+            ax.axvline(row["resolution"], linestyle="--", color="#dc2626", linewidth=1)
+        ax.set_xlabel("Resolution")
+    axes[0].set_ylabel("Modularity")
+    axes[1].set_ylabel("Davies-Bouldin score")
+    fig.suptitle("Clustering resolution diagnostics")
+    sns.despine(fig=fig)
+    save_static_png(fig, filename)
+
+
+def static_resolution_selection_plot(df: pd.DataFrame, filename: str) -> None:
+    fig, axes = plt.subplots(2, 2, figsize=(7.8, 5.0), sharex=True)
+    axes = axes.flat
+    selected = df[df["selected_resolution"]]
+
+    panels = [
+        ("n_clusters", "Clusters", "#0f766e"),
+        ("small_cluster_fraction", "Cells in small clusters", "#d97706"),
+        ("silhouette_score", "Silhouette", "#2563eb"),
+        ("adjacent_ari", "ARI vs previous", "#7c3aed"),
+    ]
+    for ax, (column, ylabel, color) in zip(axes, panels):
+        ax.plot(df["resolution"], df[column], marker="o", color=color, linewidth=1.2)
+        for _, row in selected.iterrows():
+            ax.axvline(row["resolution"], linestyle="--", color="#dc2626", linewidth=0.9)
+        ax.set_ylabel(ylabel)
+        ax.set_xlabel("Resolution")
+        if column == "small_cluster_fraction":
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda value, _: f"{value:.0%}"))
+
+    if "adjacent_nmi" in df.columns:
+        axes[3].plot(df["resolution"], df["adjacent_nmi"], marker="s", color="#475569", linewidth=1.0, label="NMI")
+        axes[3].legend(frameon=False, loc="best")
+
+    fig.suptitle("Resolution selection metrics")
+    fig.tight_layout()
+    sns.despine(fig=fig)
+    save_static_png(fig, filename)
+
+
+def static_resolution_tree_plot(label_map: dict[float, pd.Series], diagnostics: pd.DataFrame, filename: str, *, min_edge_fraction: float = 0.05) -> None:
+    resolutions = sorted(label_map)
+    if len(resolutions) < 2:
+        return
+
+    def _cluster_sort_key(value: str) -> tuple[int, str]:
+        text = str(value)
+        return (0, f"{int(text):06d}") if text.isdigit() else (1, text)
+
+    count_lookup = {}
+    x_lookup = {}
+    y_lookup = {}
+    max_clusters = max(label_map[resolution].nunique() for resolution in resolutions)
+    max_count = max(int(label_map[resolution].value_counts().max()) for resolution in resolutions)
+    colors = dict(zip(resolutions, sns.color_palette("Set2", n_colors=len(resolutions))))
+
+    for y_idx, resolution in enumerate(resolutions):
+        counts = label_map[resolution].astype(str).value_counts()
+        counts = counts.loc[sorted(counts.index, key=_cluster_sort_key)]
+        offset = (max_clusters - len(counts)) / 2
+        y = len(resolutions) - y_idx - 1
+        for x_idx, (cluster, count) in enumerate(counts.items()):
+            node = (resolution, str(cluster))
+            x_lookup[node] = offset + x_idx + 0.5
+            y_lookup[node] = y
+            count_lookup[node] = int(count)
+
+    width = max(6.5, 0.38 * max_clusters + 2.2)
+    height = max(3.6, 0.55 * len(resolutions) + 1.3)
+    fig, ax = plt.subplots(figsize=(width, height))
+
+    for src_resolution, dst_resolution in zip(resolutions[:-1], resolutions[1:]):
+        src = label_map[src_resolution].astype(str)
+        dst = label_map[dst_resolution].astype(str)
+        cross = pd.crosstab(src, dst)
+        source_totals = cross.sum(axis=1).replace(0, np.nan)
+        for src_cluster, row in cross.iterrows():
+            for dst_cluster, count in row[row > 0].items():
+                fraction = float(count / source_totals.loc[src_cluster])
+                if fraction < min_edge_fraction:
+                    continue
+                src_node = (src_resolution, str(src_cluster))
+                dst_node = (dst_resolution, str(dst_cluster))
+                ax.annotate(
+                    "",
+                    xy=(x_lookup[dst_node], y_lookup[dst_node] + 0.12),
+                    xytext=(x_lookup[src_node], y_lookup[src_node] - 0.12),
+                    arrowprops=dict(
+                        arrowstyle="-|>",
+                        color="#334155",
+                        alpha=0.18 + 0.55 * min(1.0, fraction),
+                        linewidth=0.4 + 3.0 * fraction,
+                        shrinkA=6,
+                        shrinkB=6,
+                    ),
+                    zorder=1,
+                )
+
+    for resolution in resolutions:
+        nodes = [(res, cluster) for (res, cluster) in x_lookup if res == resolution]
+        xs = [x_lookup[node] for node in nodes]
+        ys = [y_lookup[node] for node in nodes]
+        sizes = [70 + 430 * (count_lookup[node] / max_count) for node in nodes]
+        ax.scatter(xs, ys, s=sizes, color=colors[resolution], edgecolor="white", linewidth=0.7, zorder=3)
+        for node in nodes:
+            ax.text(x_lookup[node], y_lookup[node], node[1], ha="center", va="center", fontsize=7, zorder=4)
+
+    selected = diagnostics[diagnostics["selected_resolution"]]
+    for _, row in selected.iterrows():
+        resolution = float(row["resolution"])
+        if resolution in resolutions:
+            y = len(resolutions) - resolutions.index(resolution) - 1
+            ax.text(max_clusters + 0.7, y, "selected", va="center", fontsize=8, color="#dc2626")
+
+    ax.set_yticks([len(resolutions) - resolutions.index(resolution) - 1 for resolution in resolutions])
+    ax.set_yticklabels([f"res {resolution:g}" for resolution in resolutions])
+    ax.set_xticks([])
+    ax.set_xlim(-0.2, max_clusters + 1.8)
+    ax.set_ylim(-0.5, len(resolutions) - 0.5)
+    ax.set_title("Leiden resolution tree")
+    ax.set_xlabel("Cluster lineage across increasing resolution")
+    sns.despine(fig=fig, left=False, bottom=True)
+    fig.tight_layout()
+    save_static_png(fig, filename)
+
+
 def composition_heatmap(df: pd.DataFrame, title: str) -> go.Figure:
     show_text = df.shape[0] <= 10 and df.shape[1] <= 10
     fig = px.imshow(
@@ -791,6 +1026,17 @@ def composition_heatmap(df: pd.DataFrame, title: str) -> go.Figure:
     fig.update_xaxes(title_text="Cluster")
     fig.update_yaxes(title_text="")
     return fig
+
+
+def static_composition_heatmap(df: pd.DataFrame, title: str, filename: str) -> None:
+    height = max(3.8, 0.28 * df.shape[0] + 1.4)
+    width = max(6.4, 0.32 * df.shape[1] + 2.6)
+    fig, ax = plt.subplots(figsize=(width, height))
+    sns.heatmap(df, cmap="crest", vmin=0, vmax=max(1e-9, float(np.nanmax(df.values))), ax=ax, cbar_kws={"label": "Row fraction"})
+    ax.set_title(title)
+    ax.set_xlabel("Cluster")
+    ax.set_ylabel("")
+    save_static_png(fig, filename)
 
 
 def build_igraph_from_connectivities(connectivities) -> ig.Graph:
@@ -1164,10 +1410,13 @@ sc.pp.log1p(filtered)
 sc.pp.highly_variable_genes(filtered, n_top_genes=int(cfg["analysis"]["n_top_hvgs"]), flavor="seurat")
 max_pcs = min(filtered.n_obs - 1, filtered.n_vars - 1, int(cfg["analysis"]["n_pcs"]))
 n_neighbors = min(int(cfg["analysis"]["n_neighbors"]), filtered.n_obs - 1)
+random_state = int(cfg["analysis"].get("random_state", 0))
+umap_min_dist = float(cfg["analysis"].get("umap_min_dist", 0.5))
+umap_spread = float(cfg["analysis"].get("umap_spread", 1.0))
 sc.tl.pca(filtered, n_comps=max_pcs, svd_solver="arpack", mask_var="highly_variable")
 sc.pp.neighbors(filtered, n_neighbors=n_neighbors, n_pcs=max_pcs)
-sc.tl.umap(filtered)
-sc.tl.leiden(filtered, resolution=resolved_leiden_resolution)
+sc.tl.umap(filtered, random_state=random_state, min_dist=umap_min_dist, spread=umap_spread)
+sc.tl.leiden(filtered, resolution=resolved_leiden_resolution, random_state=random_state)
 
 after_obs = filtered.obs.copy()
 after_obs["stage"] = "After filtering"
@@ -1176,32 +1425,58 @@ graph = build_igraph_from_connectivities(filtered.obsp["connectivities"])
 pca_for_score = filtered.obsm["X_pca"][:, : min(10, filtered.obsm["X_pca"].shape[1])]
 
 resolution_rows = []
+resolution_label_map = {}
+small_cluster_threshold = max(10, int(math.ceil(0.01 * filtered.n_obs)))
 for resolution in resolution_grid:
     key = f"leiden_res_{str(resolution).replace('.', '_')}"
     if math.isclose(resolution, resolved_leiden_resolution):
         filtered.obs[key] = filtered.obs["leiden"].astype(str)
     else:
-        sc.tl.leiden(filtered, resolution=float(resolution), key_added=key)
+        sc.tl.leiden(filtered, resolution=float(resolution), key_added=key, random_state=random_state)
 
     labels = filtered.obs[key].astype(str)
+    resolution_label_map[float(resolution)] = labels.copy()
     codes = pd.Categorical(labels).codes.astype(int)
     n_clusters = int(labels.nunique())
+    cluster_sizes = labels.value_counts()
     modularity = graph.modularity(codes.tolist(), weights="weight") if n_clusters > 1 else math.nan
     if n_clusters > 1 and pca_for_score.shape[0] > n_clusters:
         db_score = float(davies_bouldin_score(pca_for_score, codes))
+        silhouette_sample_size = min(5000, pca_for_score.shape[0])
+        try:
+            sil_score = float(silhouette_score(pca_for_score, codes, sample_size=silhouette_sample_size, random_state=random_state))
+        except ValueError:
+            sil_score = math.nan
     else:
         db_score = math.nan
+        sil_score = math.nan
+    small_clusters = cluster_sizes[cluster_sizes < small_cluster_threshold]
     resolution_rows.append(
         {
             "resolution": float(resolution),
             "n_clusters": n_clusters,
+            "min_cluster_size": int(cluster_sizes.min()),
+            "median_cluster_size": float(cluster_sizes.median()),
+            "small_cluster_threshold": int(small_cluster_threshold),
+            "n_small_clusters": int(small_clusters.shape[0]),
+            "small_cluster_fraction": float(small_clusters.sum() / filtered.n_obs),
             "modularity": modularity,
             "davies_bouldin_score": db_score,
+            "silhouette_score": sil_score,
             "selected_resolution": math.isclose(resolution, resolved_leiden_resolution),
         }
     )
 
 resolution_diagnostics_df = pd.DataFrame(resolution_rows).sort_values("resolution").reset_index(drop=True)
+resolution_diagnostics_df["adjacent_ari"] = np.nan
+resolution_diagnostics_df["adjacent_nmi"] = np.nan
+for idx in range(1, resolution_diagnostics_df.shape[0]):
+    previous_resolution = float(resolution_diagnostics_df.loc[idx - 1, "resolution"])
+    current_resolution = float(resolution_diagnostics_df.loc[idx, "resolution"])
+    previous_labels = resolution_label_map[previous_resolution].loc[filtered.obs_names]
+    current_labels = resolution_label_map[current_resolution].loc[filtered.obs_names]
+    resolution_diagnostics_df.loc[idx, "adjacent_ari"] = float(adjusted_rand_score(previous_labels, current_labels))
+    resolution_diagnostics_df.loc[idx, "adjacent_nmi"] = float(normalized_mutual_info_score(previous_labels, current_labels))
 cluster_counts = (
     after_obs.groupby("leiden", dropna=False)
     .size()
@@ -1226,6 +1501,9 @@ qc_after = {
     "filter_predicted_doublets": filter_predicted_doublets,
     "qc_mode": qc_mode,
     "qc_nmads": qc_nmads,
+    "random_state": random_state,
+    "umap_min_dist": umap_min_dist,
+    "umap_spread": umap_spread,
     "leiden_resolution": resolved_leiden_resolution,
     "leiden_resolution_source": leiden_resolution_source,
 }
@@ -1333,6 +1611,75 @@ sample_compare_df["retained_fraction_after"] = sample_compare_df["n_cells_after"
 sample_compare_df["removed_cells"] = sample_compare_df["n_cells"] - sample_compare_df["n_cells_after"]
 write_table(sample_qc_summary_file, sample_compare_df)
 
+doublet_score_available = pd.to_numeric(before_obs["doublet_score"], errors="coerce").notna().any()
+doublet_pass_without_doublet_filter = before_obs["pass_qc_fixed"] & before_obs["pass_qc_mad"]
+predicted_doublet_bool = before_obs["predicted_doublet"].fillna(False).astype(bool)
+doublets_excluded_by_filter = predicted_doublet_bool & doublet_pass_without_doublet_filter if filter_predicted_doublets else pd.Series(False, index=before_obs.index)
+doublet_global_summary_df = pd.DataFrame(
+    [
+        {
+            "doublet_method": doublet_method,
+            "filter_predicted_doublets": filter_predicted_doublets,
+            "doublet_score_available": bool(doublet_score_available),
+            "cells_before": int(before_obs.shape[0]),
+            "predicted_doublets": int(predicted_doublet_bool.sum()),
+            "predicted_doublet_fraction": float(predicted_doublet_bool.mean()) if before_obs.shape[0] else math.nan,
+            "doublets_excluded_by_filter": int(doublets_excluded_by_filter.sum()),
+            "cells_after": int(after_obs.shape[0]),
+        }
+    ]
+)
+
+doublet_by_sample_parts = []
+for (sample_id, sample_display), group in before_obs.groupby(["sample_id", "sample_display"], dropna=False):
+    group_predicted = group["predicted_doublet"].fillna(False).astype(bool)
+    group_score = pd.to_numeric(group["doublet_score"], errors="coerce")
+    group_excluded = (
+        group_predicted & group["pass_qc_fixed"] & group["pass_qc_mad"]
+        if filter_predicted_doublets
+        else pd.Series(False, index=group.index)
+    )
+    doublet_by_sample_parts.append(
+        {
+            "sample_id": sample_id,
+            "sample_display": sample_display,
+            "n_cells": int(group.shape[0]),
+            "predicted_doublets": int(group_predicted.sum()),
+            "predicted_doublet_fraction": float(group_predicted.mean()) if group.shape[0] else math.nan,
+            "doublets_excluded_by_filter": int(group_excluded.sum()),
+            "median_doublet_score": float(group_score.median()) if group_score.notna().any() else math.nan,
+            "max_doublet_score": float(group_score.max()) if group_score.notna().any() else math.nan,
+        }
+    )
+doublet_by_sample_df = (
+    pd.DataFrame(doublet_by_sample_parts)
+    .sort_values(["predicted_doublet_fraction", "predicted_doublets", "sample_display"], ascending=[False, False, True])
+    .reset_index(drop=True)
+)
+doublet_cell_plot_df = before_obs[
+    [
+        "sample_display",
+        "sample_id",
+        "total_counts",
+        "n_genes_by_counts",
+        "doublet_score",
+        "predicted_doublet",
+        "pass_qc_fixed",
+        "pass_qc_mad",
+    ]
+].copy()
+doublet_cell_plot_df["doublet_score"] = pd.to_numeric(doublet_cell_plot_df["doublet_score"], errors="coerce")
+doublet_cell_plot_df["predicted_doublet"] = doublet_cell_plot_df["predicted_doublet"].fillna(False).astype(bool)
+doublet_cell_plot_df["doublet_filter_status"] = "Kept / not called doublet"
+doublet_cell_plot_df.loc[doublet_cell_plot_df["predicted_doublet"], "doublet_filter_status"] = "Predicted doublet"
+if filter_predicted_doublets:
+    doublet_removed_mask = (
+        doublet_cell_plot_df["predicted_doublet"]
+        & doublet_cell_plot_df["pass_qc_fixed"]
+        & doublet_cell_plot_df["pass_qc_mad"]
+    )
+    doublet_cell_plot_df.loc[doublet_removed_mask, "doublet_filter_status"] = "Removed by doublet filter"
+
 sample_overview_display_df = (
     sample_compare_df[
         [
@@ -1416,6 +1763,8 @@ cluster_by_condition_fraction = cluster_by_condition_counts.div(
 write_table(tables_dir / "qc_metric_stage_summary.csv", before_after_stats)
 write_table(tables_dir / "qc_metric_before_after.csv", pd.DataFrame(comparison_rows))
 write_table(tables_dir / "filter_effect_summary.csv", filter_effect_df)
+write_table(tables_dir / "doublet_summary.csv", doublet_global_summary_df)
+write_table(tables_dir / "doublet_by_sample.csv", doublet_by_sample_df)
 write_table(tables_dir / "cluster_resolution_diagnostics.csv", resolution_diagnostics_df)
 write_table(tables_dir / "cluster_by_sample_counts.csv", cluster_by_sample_counts.reset_index(names="sample_display"))
 write_table(tables_dir / "cluster_by_sample_fraction.csv", cluster_by_sample_fraction.reset_index(names="sample_display"))
@@ -1568,6 +1917,102 @@ format_table(filter_effect_display_df)
 format_table(metric_shift_display_df)
 ```
 
+### Doublet Diagnostics
+
+These tables and plots summarize the configured doublet detection method and
+where predicted doublets were found. If doublet detection was disabled, the
+tables remain explicit and the score plots are skipped because no doublet scores
+are available.
+
+```{python}
+format_table(doublet_global_summary_df)
+```
+
+```{python}
+format_table(doublet_by_sample_df)
+```
+
+```{python}
+if doublet_score_available and not doublet_by_sample_df.empty:
+    plot_df = doublet_by_sample_df.copy()
+    fig, ax = plt.subplots(figsize=sample_barplot_figsize(len(plot_df)))
+    sns.barplot(data=plot_df, x="sample_display", y="predicted_doublet_fraction", color="#7c3aed", ax=ax)
+    ax.set_title("Predicted doublet burden by sample")
+    ax.set_xlabel("")
+    ax.set_ylabel("Predicted doublet fraction")
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda value, _: f"{value:.0%}"))
+    ax.tick_params(axis="x", rotation=25)
+    sns.despine(fig=fig)
+    save_static_png(fig, "doublet_burden_by_sample.png")
+else:
+    print("No doublet score plot shown because doublet scoring was not run.")
+```
+
+```{python}
+if doublet_score_available:
+    score_df = before_obs[["sample_display", "doublet_score", "predicted_doublet"]].copy()
+    score_df["doublet_score"] = pd.to_numeric(score_df["doublet_score"], errors="coerce")
+    score_df = score_df.dropna(subset=["doublet_score"])
+    score_df["predicted_doublet"] = score_df["predicted_doublet"].fillna(False).map({True: "Predicted doublet", False: "Retained call"})
+    fig = px.histogram(
+        score_df,
+        x="doublet_score",
+        color="predicted_doublet",
+        facet_col="sample_display",
+        facet_col_wrap=3,
+        nbins=80,
+        barmode="overlay",
+        opacity=0.72,
+        labels={"doublet_score": "Doublet score", "predicted_doublet": "Call"},
+        title="Scrublet score distribution by sample",
+        color_discrete_map={"Retained call": "#64748b", "Predicted doublet": "#dc2626"},
+    )
+    facet_rows = math.ceil(max(1, score_df["sample_display"].nunique()) / 3)
+    fig.update_layout(height=max(320, 240 * facet_rows + 80), margin=dict(l=40, r=120, t=55, b=45))
+    fig.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.replace("sample_display=", "")))
+    fig.show()
+```
+
+```{python}
+if doublet_score_available:
+    plot_df = doublet_cell_plot_df.dropna(subset=["doublet_score", "total_counts", "n_genes_by_counts"]).copy()
+    plot_df["_is_doublet_signal"] = plot_df["doublet_filter_status"].isin(["Predicted doublet", "Removed by doublet filter"])
+    plot_parts = []
+    for _, sample_df in plot_df.groupby("sample_display", sort=False):
+        signal = sample_df[sample_df["_is_doublet_signal"]]
+        background = sample_df[~sample_df["_is_doublet_signal"]]
+        if len(background) > DOUBLETPLOT_MAX_BACKGROUND_PER_SAMPLE:
+            background = background.sample(n=DOUBLETPLOT_MAX_BACKGROUND_PER_SAMPLE, random_state=random_state)
+        plot_parts.append(pd.concat([signal, background], axis=0))
+    plot_df_display = pd.concat(plot_parts, axis=0).sort_index() if plot_parts else plot_df
+    color_map = {
+        "Kept / not called doublet": "#94a3b8",
+        "Predicted doublet": "#f59e0b",
+        "Removed by doublet filter": "#dc2626",
+    }
+    n_samples = plot_df_display["sample_display"].nunique()
+    g = sns.FacetGrid(
+        plot_df_display,
+        col="sample_display",
+        col_wrap=2 if n_samples <= 4 else 3,
+        hue="doublet_filter_status",
+        palette=color_map,
+        height=3.6,
+        aspect=1.35,
+        sharex=False,
+        sharey=True,
+    )
+    g.map_dataframe(sns.scatterplot, x="total_counts", y="doublet_score", s=5, linewidth=0, alpha=0.55)
+    g.add_legend(title="Doublet filter status")
+    g.figure.suptitle("Doublet removal candidates by sample", y=1.03)
+    g.set_titles(col_template="{col_name}")
+    g.set_axis_labels("Total counts", "Doublet score")
+    for ax in g.axes.flat:
+        ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=4))
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(format_count_tick))
+    save_static_png(g.figure, "doublet_removal_candidates_by_sample.png")
+```
+
 ### Cell-Level QC Before Vs After
 
 These interactive figures compare the key QC metrics before and after filtering.
@@ -1620,30 +2065,30 @@ shown separately only when the condition annotation is informative.
 #### Sample
 
 ```{python}
-confounder_scatter(long_qc_df, "total_counts", "n_genes_by_counts", "sample_display", "Counts vs genes by sample")
+static_confounder_scatter(long_qc_df, "total_counts", "n_genes_by_counts", "sample_display", "Counts vs genes by sample", "confounder_counts_vs_genes_by_sample.png")
 ```
 
 ```{python}
-confounder_scatter(long_qc_df, "total_counts", "pct_counts_mt", "sample_display", "Counts vs mitochondrial percentage by sample")
+static_confounder_scatter(long_qc_df, "total_counts", "pct_counts_mt", "sample_display", "Counts vs mitochondrial percentage by sample", "confounder_counts_vs_mt_by_sample.png")
 ```
 
 ```{python}
 if pd.to_numeric(long_qc_df["doublet_score"], errors="coerce").notna().any():
-    confounder_scatter(long_qc_df, "total_counts", "doublet_score", "sample_display", "Counts vs doublet score by sample")
+    static_confounder_scatter(long_qc_df, "total_counts", "doublet_score", "sample_display", "Counts vs doublet score by sample", "confounder_counts_vs_doublet_by_sample.png")
 ```
 
 #### Condition
 
 ```{python}
 if condition_available:
-    confounder_scatter(long_qc_df, "total_counts", "n_genes_by_counts", condition_key, f"Counts vs genes by {condition_key}")
+    static_confounder_scatter(long_qc_df, "total_counts", "n_genes_by_counts", condition_key, f"Counts vs genes by {condition_key}", "confounder_counts_vs_genes_by_condition.png")
 else:
     print(f"No condition-specific diagnostics shown because '{condition_key}' is not defined with at least two non-missing values.")
 ```
 
 ```{python}
 if condition_available:
-    confounder_scatter(long_qc_df, "total_counts", "pct_counts_mt", condition_key, f"Counts vs mitochondrial percentage by {condition_key}")
+    static_confounder_scatter(long_qc_df, "total_counts", "pct_counts_mt", condition_key, f"Counts vs mitochondrial percentage by {condition_key}", "confounder_counts_vs_mt_by_condition.png")
 ```
 
 :::
@@ -1664,41 +2109,36 @@ format_table(sample_metric_shift_display_df)
 ```
 
 ```{python}
-retention_fig = px.bar(
-    sample_compare_df.sort_values("retained_fraction_after", ascending=False),
-    x="sample_display",
-    y="retained_fraction_after",
-    template="simple_white",
-    title="Retained cell fraction by sample",
-    hover_data={"sample_id": True, "retained_fraction_after": ":.2%"},
-)
-retention_fig.update_layout(
-    height=420,
-    xaxis_title="",
-    yaxis_title="Retained fraction",
-    font=dict(size=13),
-    margin=dict(l=40, r=40, t=70, b=100),
-)
-retention_fig.update_xaxes(tickangle=-25, automargin=True)
-retention_fig.update_traces(marker_color="#0f766e")
-retention_fig
+plot_df = sample_compare_df.sort_values("retained_fraction_after", ascending=False)
+fig, ax = plt.subplots(figsize=sample_barplot_figsize(len(plot_df)))
+sns.barplot(data=plot_df, x="sample_display", y="retained_fraction_after", color="#0f766e", ax=ax)
+ax.set_title("Cells retained")
+ax.set_xlabel("")
+ax.set_ylabel("Cells retained")
+ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda value, _: f"{value:.0%}"))
+ax.tick_params(axis="x", rotation=20)
+for label in ax.get_xticklabels():
+    label.set_horizontalalignment("right")
+fig.tight_layout()
+sns.despine(fig=fig)
+save_static_png(fig, "retained_cell_fraction_by_sample.png")
 ```
 
 ```{python}
-compare_sample_metric(sample_compare_long, "median_total_counts_stage", "Median total counts per sample")
+static_sample_metric(sample_compare_long, "median_total_counts_stage", "Median counts", "Median counts", "sample_median_total_counts_before_after.png")
 ```
 
 ```{python}
-compare_sample_metric(sample_compare_long, "median_n_genes_stage", "Median genes per sample")
+static_sample_metric(sample_compare_long, "median_n_genes_stage", "Median genes", "Median genes", "sample_median_genes_before_after.png")
 ```
 
 ```{python}
-compare_sample_metric(sample_compare_long, "median_pct_counts_mt_stage", "Median mitochondrial percentage per sample")
+static_sample_metric(sample_compare_long, "median_pct_counts_mt_stage", "Median MT %", "Median MT (%)", "sample_median_mt_before_after.png")
 ```
 
 ## Embeddings And Clustering
 
-These embeddings show the retained object after normalization, PCA, graph
+These summaries show the retained object after normalization, PCA, graph
 construction, UMAP, and Leiden clustering. Review them together rather than in
 isolation:
 
@@ -1710,34 +2150,19 @@ isolation:
 
 ::: {.panel-tabset}
 
-#### UMAP
-
-```{python}
-embedding_plot(filtered, "X_umap", "leiden", "Interactive UMAP colored by Leiden cluster")
-```
-
-```{python}
-embedding_plot(filtered, "X_umap", batch_key, f"Interactive UMAP colored by {batch_key}")
-```
-
-```{python}
-if condition_available:
-    embedding_plot(filtered, "X_umap", condition_key, f"Interactive UMAP colored by {condition_key}")
-```
-
 #### PCA
 
 ```{python}
-embedding_plot(filtered, "X_pca", "leiden", "Interactive PCA colored by Leiden cluster")
+static_embedding_plot(filtered, "X_pca", "leiden", "PCA colored by Leiden cluster", "pca_by_leiden.png")
 ```
 
 ```{python}
-embedding_plot(filtered, "X_pca", batch_key, f"Interactive PCA colored by {batch_key}")
+static_embedding_plot(filtered, "X_pca", batch_key, f"PCA colored by {batch_key}", "pca_by_batch.png")
 ```
 
 ```{python}
 if condition_available:
-    embedding_plot(filtered, "X_pca", condition_key, f"Interactive PCA colored by {condition_key}")
+    static_embedding_plot(filtered, "X_pca", condition_key, f"PCA colored by {condition_key}", "pca_by_condition.png")
 ```
 
 #### Cluster Counts
@@ -1750,16 +2175,19 @@ format_table(cluster_counts)
 
 ### Resolution Diagnostics
 
-The final Leiden resolution is still set either manually or by the simple
-heuristic used in this template, but this section now benchmarks a grid of
-alternative resolutions on the same graph. The line labels show the number of
-clusters at each resolution.
+The final Leiden resolution is set either manually or by the template heuristic,
+but this section benchmarks a grid of alternatives on the same neighbor graph.
+Use these panels as a decision aid rather than a strict optimizer: a useful
+resolution should be reasonably stable, avoid many tiny clusters, and remain
+biologically interpretable in the downstream annotation step.
 
 Interpretation:
 
 - higher modularity can indicate cleaner graph partitioning
 - lower Davies-Bouldin score can indicate better separation in PCA space
-- the selected resolution should usually sit in a stable, interpretable range rather than at an arbitrary extreme
+- higher adjacent ARI/NMI means the clustering changed less from the previous resolution
+- small-cluster burden flags over-fragmentation; very small clusters may still be valid, but they need biological or technical justification
+- the resolution tree shows whether clusters split gradually or abruptly across the grid
 
 Selected resolution rationale:
 
@@ -1768,7 +2196,15 @@ display(Markdown(leiden_resolution_note))
 ```
 
 ```{python}
-resolution_diagnostics_plot(resolution_diagnostics_df)
+static_resolution_diagnostics_plot(resolution_diagnostics_df, "resolution_diagnostics.png")
+```
+
+```{python}
+static_resolution_selection_plot(resolution_diagnostics_df, "resolution_selection_metrics.png")
+```
+
+```{python}
+static_resolution_tree_plot(resolution_label_map, resolution_diagnostics_df, "resolution_tree.png")
 ```
 
 ```{python}
@@ -1787,7 +2223,7 @@ format_table(cluster_by_sample_counts.reset_index(names="sample_display"))
 ```
 
 ```{python}
-composition_heatmap(cluster_by_sample_fraction.fillna(0), "Cluster composition by sample (row fractions)")
+static_composition_heatmap(cluster_by_sample_fraction.fillna(0), "Cluster composition by sample (row fractions)", "cluster_composition_by_sample.png")
 ```
 
 ```{python}
@@ -1799,15 +2235,15 @@ else:
 
 ```{python}
 if condition_available:
-    composition_heatmap(cluster_by_condition_fraction.fillna(0), f"Cluster composition by {condition_key} (row fractions)")
+    static_composition_heatmap(cluster_by_condition_fraction.fillna(0), f"Cluster composition by {condition_key} (row fractions)", "cluster_composition_by_condition.png")
 ```
 
 ### Final Selected Leiden UMAP
 
-This final panel shows the retained object colored by the Leiden clustering
-actually used downstream together with the batch labels on the same final UMAP.
-It is repeated here after the resolution review so the chosen clustering and
-residual batch structure can be checked directly in their final form.
+This panel shows the retained object colored by the Leiden clustering actually
+used downstream together with the batch labels on the same final UMAP. It is
+placed after the resolution review so the chosen clustering and residual batch
+structure can be checked directly in their final form.
 
 ```{python}
 display(
@@ -1872,6 +2308,9 @@ format_table(
                 "n_top_hvgs",
                 "n_pcs",
                 "n_neighbors",
+                "random_state",
+                "umap_min_dist",
+                "umap_spread",
                 "resolution_grid",
                 "leiden_resolution",
                 "leiden_resolution_source",
@@ -1900,6 +2339,9 @@ format_table(
                 int(cfg["analysis"]["n_top_hvgs"]),
                 int(cfg["analysis"]["n_pcs"]),
                 int(cfg["analysis"]["n_neighbors"]),
+                random_state,
+                umap_min_dist,
+                umap_spread,
                 str(cfg["analysis"].get("resolution_grid", "")),
                 resolved_leiden_resolution,
                 leiden_resolution_source,
