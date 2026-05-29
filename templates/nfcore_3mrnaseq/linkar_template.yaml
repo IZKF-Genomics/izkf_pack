@@ -40,9 +40,9 @@ outputs:
   multiqc_dir:
     path: multiqc
   multiqc_report:
-    path: multiqc/multiqc_report.html
+    path: multiqc/star_salmon/multiqc_report.html
   salmon_dir:
-    path: salmon
+    path: star_salmon
   pipeline_info_dir:
     path: pipeline_info
   software_versions:
