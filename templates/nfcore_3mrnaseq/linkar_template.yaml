@@ -40,15 +40,15 @@ outputs:
   multiqc_dir:
     path: multiqc
   multiqc_report:
-    path: multiqc/multiqc_report.html
+    path: multiqc/star_salmon/multiqc_report.html
   salmon_dir:
-    path: salmon
+    path: star_salmon
   pipeline_info_dir:
     path: pipeline_info
   software_versions:
-    path: software_versions.json
+    path: pipeline_info/nf_core_rnaseq_software_mqc_versions.yml
   runtime_command:
-    path: runtime_command.json
+    path: pipeline_info/params_*.json
 cleanup:
   - path: .pixi
     type: dir
