@@ -86,6 +86,17 @@ The template currently supports:
 
 This gives users a simple threshold-based path and a sample-aware outlier path.
 
+## Render and rerun model
+
+`linkar render scrna_prep --binding default` resolves pack bindings and seeds
+the rendered workspace configuration. After that point, treat
+`config/project.toml` as the editable source of truth for manual reruns.
+
+`bash run.sh` reads the existing TOML file, validates it, refreshes
+`results/run_info.yaml`, and executes the preprocessing report. It does not
+rewrite the TOML from the resolved environment unless the config file is
+missing or `run.py --write-config-from-env` is called explicitly.
+
 ## Output expectations
 
 Important outputs include:
@@ -94,7 +105,7 @@ Important outputs include:
 - `results/tables/*.csv`
 - `results/run_info.yaml`
 - `results/software_versions.json`
-- `reports/scrna_prep.html`
+- `results/scrna_prep.html`
 
 ## Maintenance notes
 

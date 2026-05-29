@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 import subprocess
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -12,7 +13,7 @@ import yaml
 TEMPLATE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = Path(os.environ.get("LINKAR_PROJECT_DIR", TEMPLATE_DIR.parent)).resolve()
 RESULTS_DIR = Path(os.environ.get("LINKAR_RESULTS_DIR", TEMPLATE_DIR / "results")).resolve()
-REPORTS_DIR = TEMPLATE_DIR / "reports"
+REPORTS_DIR = RESULTS_DIR
 CONFIG_DIR = TEMPLATE_DIR / "config"
 NOTEBOOK_PATH = TEMPLATE_DIR / "scrna_prep.qmd"
 SOFTWARE_VERSIONS_SPEC = TEMPLATE_DIR / "assets" / "software_versions_spec.yaml"
@@ -91,7 +92,7 @@ def env(name: str, default: str = "") -> str:
 
 
 def parse_bool(value: str) -> bool:
-    return value.strip().lower() in {"1", "true", "yes", "on"}
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def toml_string(value: str) -> str:
@@ -223,9 +224,124 @@ def resolved_params() -> dict[str, str]:
         "n_top_hvgs": env("N_TOP_HVGS", "3000"),
         "n_pcs": env("N_PCS", "30"),
         "n_neighbors": env("N_NEIGHBORS", "15"),
+        "random_state": env("RANDOM_STATE", "0"),
+        "umap_min_dist": env("UMAP_MIN_DIST", "0.5"),
+        "umap_spread": env("UMAP_SPREAD", "1.0"),
         "leiden_resolution": env("LEIDEN_RESOLUTION"),
         "resolution_grid": env("RESOLUTION_GRID", "0.2,0.4,0.6,0.8,1.0,1.2"),
     }
+
+
+def param_string(value) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        return ""
+    return str(value)
+
+
+def load_project_config(path: Path) -> tuple[dict[str, str], str]:
+    if not path.exists():
+        raise SystemExit(
+            f"Project config does not exist: {path}. "
+            "Render the template with Linkar first, or run with --write-config-from-env to create it from resolved parameters."
+        )
+    with path.open("rb") as fh:
+        cfg = tomllib.load(fh)
+
+    project = cfg.get("project", {})
+    input_cfg = cfg.get("input", {})
+    metadata = cfg.get("metadata", {})
+    qc = cfg.get("qc", {})
+    analysis = cfg.get("analysis", {})
+
+    params = {
+        "input_h5ad": param_string(input_cfg.get("input_h5ad", "")),
+        "input_matrix": param_string(input_cfg.get("input_matrix", "")),
+        "input_source_template": param_string(input_cfg.get("input_source_template", "")),
+        "ambient_correction_applied": param_string(input_cfg.get("ambient_correction_applied", False)),
+        "ambient_correction_method": param_string(input_cfg.get("ambient_correction_method", "none")),
+        "input_format": param_string(input_cfg.get("input_format", "auto")),
+        "var_names": param_string(input_cfg.get("var_names", "gene_symbols")),
+        "sample_metadata": param_string(input_cfg.get("sample_metadata", "")),
+        "organism": param_string(metadata.get("organism", "")),
+        "batch_key": param_string(metadata.get("batch_key", "batch")),
+        "condition_key": param_string(metadata.get("condition_key", "condition")),
+        "sample_id_key": param_string(metadata.get("sample_id_key", "sample_id")),
+        "doublet_method": param_string(qc.get("doublet_method", "none")),
+        "filter_predicted_doublets": param_string(qc.get("filter_predicted_doublets", False)),
+        "qc_mode": param_string(qc.get("qc_mode", "fixed")),
+        "qc_nmads": param_string(qc.get("qc_nmads", "3.0")),
+        "min_genes": param_string(qc.get("min_genes", "200")),
+        "min_cells": param_string(qc.get("min_cells", "3")),
+        "min_counts": param_string(qc.get("min_counts", "500")),
+        "max_pct_counts_mt": param_string(qc.get("max_pct_counts_mt", "20.0")),
+        "max_pct_counts_ribo": param_string(qc.get("max_pct_counts_ribo", "")),
+        "max_pct_counts_hb": param_string(qc.get("max_pct_counts_hb", "")),
+        "n_top_hvgs": param_string(analysis.get("n_top_hvgs", "3000")),
+        "n_pcs": param_string(analysis.get("n_pcs", "30")),
+        "n_neighbors": param_string(analysis.get("n_neighbors", "15")),
+        "random_state": param_string(analysis.get("random_state", "0")),
+        "umap_min_dist": param_string(analysis.get("umap_min_dist", "0.5")),
+        "umap_spread": param_string(analysis.get("umap_spread", "1.0")),
+        "leiden_resolution": param_string(analysis.get("leiden_resolution", "")),
+        "resolution_grid": param_string(analysis.get("resolution_grid", "0.2,0.4,0.6,0.8,1.0,1.2")),
+    }
+    project_name = param_string(project.get("name", "")) or PROJECT_DIR.name
+    return params, project_name
+
+
+def prepare_from_env() -> tuple[dict[str, str], str, str]:
+    params = resolved_params()
+    validate_params(params)
+    project_name = PROJECT_DIR.name
+    sample_metadata = params["sample_metadata"].strip() or "assets/samples.csv"
+    write_project_config(PROJECT_CONFIG_PATH, params, project_name=project_name, sample_metadata=sample_metadata)
+    return params, project_name, sample_metadata
+
+
+def prepare_from_project_config() -> tuple[dict[str, str], str, str]:
+    params, project_name = load_project_config(PROJECT_CONFIG_PATH)
+    validate_params(params)
+    sample_metadata = params["sample_metadata"].strip() or "assets/samples.csv"
+    return params, project_name, sample_metadata
+
+
+def export_params_to_env(params: dict[str, str]) -> None:
+    env_names = {
+        "input_h5ad": "INPUT_H5AD",
+        "input_matrix": "INPUT_MATRIX",
+        "input_source_template": "INPUT_SOURCE_TEMPLATE",
+        "ambient_correction_applied": "AMBIENT_CORRECTION_APPLIED",
+        "ambient_correction_method": "AMBIENT_CORRECTION_METHOD",
+        "input_format": "INPUT_FORMAT",
+        "var_names": "VAR_NAMES",
+        "sample_metadata": "SAMPLE_METADATA",
+        "organism": "ORGANISM",
+        "batch_key": "BATCH_KEY",
+        "condition_key": "CONDITION_KEY",
+        "sample_id_key": "SAMPLE_ID_KEY",
+        "doublet_method": "DOUBLET_METHOD",
+        "filter_predicted_doublets": "FILTER_PREDICTED_DOUBLETS",
+        "qc_mode": "QC_MODE",
+        "qc_nmads": "QC_NMADS",
+        "min_genes": "MIN_GENES",
+        "min_cells": "MIN_CELLS",
+        "min_counts": "MIN_COUNTS",
+        "max_pct_counts_mt": "MAX_PCT_COUNTS_MT",
+        "max_pct_counts_ribo": "MAX_PCT_COUNTS_RIBO",
+        "max_pct_counts_hb": "MAX_PCT_COUNTS_HB",
+        "n_top_hvgs": "N_TOP_HVGS",
+        "n_pcs": "N_PCS",
+        "n_neighbors": "N_NEIGHBORS",
+        "random_state": "RANDOM_STATE",
+        "umap_min_dist": "UMAP_MIN_DIST",
+        "umap_spread": "UMAP_SPREAD",
+        "leiden_resolution": "LEIDEN_RESOLUTION",
+        "resolution_grid": "RESOLUTION_GRID",
+    }
+    for key, env_name in env_names.items():
+        os.environ[env_name] = str(params.get(key, ""))
 
 
 def validate_params(params: dict[str, str]) -> None:
@@ -341,6 +457,9 @@ def validate_params(params: dict[str, str]) -> None:
     require_int("N_TOP_HVGS", params["n_top_hvgs"], minimum=1)
     require_int("N_PCS", params["n_pcs"], minimum=1)
     require_int("N_NEIGHBORS", params["n_neighbors"], minimum=1)
+    require_int("RANDOM_STATE", params["random_state"], minimum=0)
+    require_float("UMAP_MIN_DIST", params["umap_min_dist"], minimum=0.0)
+    require_float("UMAP_SPREAD", params["umap_spread"], minimum=0.000001)
     if params["leiden_resolution"].strip():
         require_float("LEIDEN_RESOLUTION", params["leiden_resolution"], minimum=0.000001)
     for part in str(params["resolution_grid"]).split(","):
@@ -386,6 +505,9 @@ def write_project_config(path: Path, params: dict[str, str], *, project_name: st
         f"n_top_hvgs = {params['n_top_hvgs']}",
         f"n_pcs = {params['n_pcs']}",
         f"n_neighbors = {params['n_neighbors']}",
+        f"random_state = {params['random_state']}",
+        f"umap_min_dist = {params['umap_min_dist']}",
+        f"umap_spread = {params['umap_spread']}",
         f"leiden_resolution = {toml_string(params['leiden_resolution'])}",
         f"resolution_grid = {toml_string(params['resolution_grid'])}",
         "target_sum = 10000",
@@ -431,6 +553,9 @@ def write_run_info(path: Path, params: dict[str, str], *, project_name: str, sam
             "n_top_hvgs": params["n_top_hvgs"],
             "n_pcs": params["n_pcs"],
             "n_neighbors": params["n_neighbors"],
+            "random_state": params["random_state"],
+            "umap_min_dist": params["umap_min_dist"],
+            "umap_spread": params["umap_spread"],
             "leiden_resolution": params["leiden_resolution"],
             "resolution_grid": params["resolution_grid"],
         },
@@ -447,27 +572,33 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--prepare-only",
         action="store_true",
-        help="Validate inputs and write runtime config files without running pixi or Quarto.",
+        help="Backward-compatible alias for --write-config-from-env.",
+    )
+    parser.add_argument(
+        "--write-config-from-env",
+        action="store_true",
+        help="Validate Linkar-resolved environment parameters, write config/project.toml, refresh run_info.yaml, and exit.",
     )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    params = resolved_params()
-    validate_params(params)
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
-    project_name = PROJECT_DIR.name
-    sample_metadata = params["sample_metadata"].strip() or "assets/samples.csv"
-
-    write_project_config(PROJECT_CONFIG_PATH, params, project_name=project_name, sample_metadata=sample_metadata)
+    if args.prepare_only or args.write_config_from_env:
+        params, project_name, sample_metadata = prepare_from_env()
+    elif PROJECT_CONFIG_PATH.exists():
+        params, project_name, sample_metadata = prepare_from_project_config()
+    else:
+        params, project_name, sample_metadata = prepare_from_env()
     write_run_info(RUN_INFO_PATH, params, project_name=project_name, sample_metadata=sample_metadata)
+    export_params_to_env(params)
 
-    if args.prepare_only:
+    if args.prepare_only or args.write_config_from_env:
         return 0
 
     run_command(["pixi", "install"])
@@ -482,6 +613,8 @@ def main(argv: list[str] | None = None) -> int:
             "html",
             "--output-dir",
             str(REPORTS_DIR),
+            "--output",
+            "scrna_prep.html",
             "--no-clean",
         ]
     )
