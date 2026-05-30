@@ -5,7 +5,7 @@ configuration used for 3' mRNA-seq runs.
 
 It is intentionally opinionated:
 
-- fixed pipeline revision: `3.22.2`
+- fixed pipeline revision: `3.26.0`
 - fixed execution profile: `docker`
 - template-local `pixi.toml` provides `nextflow`
 - shared genome references come from `nextflow.config`
@@ -59,25 +59,23 @@ The actual runtime logic lives in
 
 `run.py`:
 
-- validates `genome` before launch
+- preserves unresolved genome placeholders so they are clearly editable before launch
 - derives `effective_genome` from `spikein` when ERCC is present
-- writes a fully resolved rerunnable shell script with the exact `nextflow` command
-- installs the template-local `pixi` environment and runs `nextflow` from it
-- records `software_versions.json`
-- records `runtime_command.json` with the effective Nextflow invocation and resolved runtime context
-- enables UMI extraction flags for the facility default UMI metadata label
-- writes a generated runtime `nextflow.config` and applies CPU / memory caps through `-c`
-- runs the generated shell script
+- copies the resolved Linkar samplesheet to the fixed workspace path `samplesheet.csv`
+- writes `config/run_params.env` with the resolved runtime values used by `run.sh`
+- keeps pipeline version, profile, UMI, CPU, memory, and key nf-core arguments visible in the shell launcher
 
 The template [nextflow.config](nextflow.config)
-contains the shared genome references and runtime resource-limit placeholders used to produce the
-final generated config under `results/`.
+contains the shared genome references. It is copied as a static site config and is not rewritten by
+`run.py`.
 
-When Linkar renders this template, it asks `run.py` to write `./run.sh` in the rendered workspace.
-That generated `run.sh` contains:
+The [run.sh](run.sh) launcher is the stable user-facing entrypoint in both the source template and
+rendered workspaces. It contains:
 
 - `pixi install`
 - the exact resolved `nextflow run nf-core/rnaseq ...` command
+- fixed local input/output paths: `--input samplesheet.csv` and `--outdir results`
+- `linkar collect` after successful execution
 
 That means users can inspect the real command in plain shell and rerun the analysis later with:
 
@@ -88,19 +86,14 @@ That means users can inspect the real command in plain shell and rerun the analy
 If a user wants to add `-resume` or any other workflow flag, they can edit the rendered `run.sh`
 directly.
 
-The repository copy of [run.sh](run.sh) is
-kept as a small developer wrapper. It writes `resolved_run.sh` locally so the tracked template file
-is not overwritten during template development.
+Resolved parameters are stored in `config/run_params.env`. Rerendering the template refreshes that
+file from Linkar bindings; manual reruns reuse it unless the user edits it.
 
 ## Runtime metadata
 
-This template writes:
-
-- `software_versions.json`
-- `runtime_command.json`
-
-`runtime_command.json` is the preferred downstream source when another template needs to understand
-the actual runtime command and resolved parameters.
+nf-core writes the authoritative runtime metadata under `results/pipeline_info/`. Linkar collects
+`params_*.json` as the runtime command record and
+`nf_core_rnaseq_software_mqc_versions.yml` as the software version record.
 
 ## Test commands
 

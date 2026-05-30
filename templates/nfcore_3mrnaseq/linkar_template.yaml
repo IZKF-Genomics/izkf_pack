@@ -30,11 +30,11 @@ params:
   max_cpus:
     type: int
     required: false
-    description: Optional CPU cap applied through the generated runtime Nextflow config. The default binding sets this to 80 percent of host CPUs.
+    description: Optional CPU cap passed as nf-core --max_cpus. The default binding sets this to 80 percent of host CPUs.
   max_memory:
     type: str
     default: ""
-    description: Optional memory cap applied through the generated runtime Nextflow config. The default binding sets this to 80 percent of host RAM when detectable.
+    description: Optional memory cap passed as nf-core --max_memory. The default binding sets this to 80 percent of host RAM when detectable.
 outputs:
   results_dir: {}
   multiqc_dir:
@@ -60,8 +60,7 @@ cleanup:
     type: file
 run:
   mode: render
-  command: |
-    python3 ./run.py --run-script ./run.sh
+  entry: run.sh
 render:
   command: |
-    python3 ./run.py --render-only --run-script ./run.sh
+    python3 ./run.py --prepare
