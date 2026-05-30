@@ -17,6 +17,7 @@ RESULTS_DIR = Path(__import__("os").environ.get("LINKAR_RESULTS_DIR", RUN_DIR / 
 CONFIG_DIR = RUN_DIR / "config"
 DECISIONS_PATH = CONFIG_DIR / "final_annotation_decisions.csv"
 FINAL_H5AD = RESULTS_DIR / "adata.final_annotated.h5ad"
+FINAL_CLOUPE = RESULTS_DIR / "adata.final_annotated.cloupe"
 DECISION_FIELDS = [
     "cluster_id",
     "suggested_label",
@@ -100,10 +101,15 @@ def write_final_h5ad() -> dict:
     input_h5ad = Path(str(json.loads((RESULTS_DIR / "annotation_audit.json").read_text(encoding="utf-8")).get("input", {}).get("h5ad") or ""))
     if not input_h5ad.exists():
         input_h5ad = run.resolve_input_h5ad(params, [], warnings)
-    run.write_final_h5ad(input_h5ad, FINAL_H5AD, params["cluster_key"], final_cards)
+    run.write_final_h5ad(input_h5ad, FINAL_H5AD, params["cluster_key"], final_cards, params, warnings)
+    cloupe_written = False
+    if run.bool_param(params.get("write_cloupe", True)):
+        cloupe_written = run.write_cloupe(FINAL_H5AD, FINAL_CLOUPE, params, warnings)
     return {
         "written": True,
         "path": str(FINAL_H5AD),
+        "cloupe_written": cloupe_written,
+        "cloupe_path": str(FINAL_CLOUPE),
         "decision_source": source,
         "warnings": warnings,
     }
@@ -143,6 +149,8 @@ class AuditHandler(BaseHTTPRequestHandler):
                     "decisions_exists": DECISIONS_PATH.exists(),
                     "final_h5ad": str(FINAL_H5AD),
                     "final_h5ad_exists": FINAL_H5AD.exists(),
+                    "final_cloupe": str(FINAL_CLOUPE),
+                    "final_cloupe_exists": FINAL_CLOUPE.exists(),
                 },
             )
             return

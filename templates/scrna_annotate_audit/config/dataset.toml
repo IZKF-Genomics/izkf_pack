@@ -22,6 +22,24 @@ top_n_candidates = 5
 marker_expression_max_genes = 60
 cluster_marker_top_n = 200
 cluster_marker_min_pct = 10
+selected_umap_key = "X_umap"
+selected_umap_reason = "Default project UMAP retained. Update this after reviewing the UMAP candidate page."
+umap_generate_candidates = true
+umap_candidates = [
+  { key = "X_umap_nn15_md0_5", n_neighbors = 15, min_dist = 0.5, spread = 1.0, explanation = "Balanced default: preserves broad neighborhoods while keeping clusters readable." },
+  { key = "X_umap_nn30_md0_5", n_neighbors = 30, min_dist = 0.5, spread = 1.0, explanation = "Smoother global structure: useful when sample or lineage continuity matters." },
+  { key = "X_umap_nn15_md0_1", n_neighbors = 15, min_dist = 0.1, spread = 1.0, explanation = "Tighter local structure: useful for separating compact subclusters." },
+  { key = "X_umap_nn50_md0_8", n_neighbors = 50, min_dist = 0.8, spread = 1.0, explanation = "Conservative overview: emphasizes global topology and avoids over-separated islands." },
+]
 
 [outputs]
 write_h5ad = true
+write_cloupe = true
+cloupe_counts_layer = "counts"
+cloupe_obs_keys = [
+  "sample_id",
+  "leiden",
+  "scrna_annotate_audit_final_label",
+  "scrna_annotate_audit_review_status",
+  "scrna_annotate_audit_label_source",
+]

@@ -1,0 +1,288 @@
+---
+title: "Final scRNA-seq Annotation Audit"
+subtitle: "Static finalized report"
+format:
+  html:
+    embed-resources: true
+    theme: cosmo
+    toc: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{python}
+from __future__ import annotations
+
+import json
+from html import escape
+from pathlib import Path
+
+import pandas as pd
+from IPython.display import HTML, display
+
+try:
+    import anndata as ad
+except Exception:
+    ad = None
+
+try:
+    import plotly.express as px
+except Exception:
+    px = None
+
+
+RESULTS_DIR = Path(".")
+TABLES_DIR = RESULTS_DIR / "tables"
+
+
+def read_json(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def read_table(name: str) -> pd.DataFrame:
+    path = TABLES_DIR / name
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_csv(path)
+
+
+def html_table(df: pd.DataFrame, *, columns: list[str] | None = None, limit: int | None = None) -> HTML:
+    if df.empty:
+        return HTML("<p class='muted'>No rows available.</p>")
+    view = df.copy()
+    if columns:
+        view = view[[column for column in columns if column in view.columns]]
+    if limit is not None:
+        view = view.head(limit)
+    return HTML(view.to_html(index=False, classes="audit-table", escape=True))
+
+
+def pill(value: object, tone: str = "neutral") -> str:
+    return f"<span class='pill {tone}'>{escape(str(value))}</span>"
+
+
+payload = read_json(RESULTS_DIR / "annotation_audit.json")
+cards = read_json(RESULTS_DIR / "annotation_audit_cards.json")
+decisions = read_table("final_annotation_decisions_applied.csv")
+comparison = read_table("annotation_method_comparison.csv")
+umap_candidates = read_table("umap_candidates.csv")
+
+run = payload.get("run", {})
+method = payload.get("method", {})
+artifacts = payload.get("artifacts", {})
+warnings = run.get("warnings", []) or []
+selected_umap_key = method.get("parameters", {}).get("selected_umap_key", "")
+selected_umap_reason = method.get("parameters", {}).get("selected_umap_reason", "")
+
+total_clusters = len(decisions)
+reviewed = int((decisions.get("review_status", pd.Series(dtype=str)).fillna("") == "reviewed").sum()) if not decisions.empty else 0
+labels = int(decisions.get("final_label", pd.Series(dtype=str)).fillna("").astype(str).str.len().gt(0).sum()) if not decisions.empty else 0
+agreement_counts = decisions.get("agreement_level", pd.Series(dtype=str)).fillna("unknown").value_counts().to_dict() if not decisions.empty else {}
+state_tone = "good" if run.get("state") == "completed" else "warn"
+```
+
+<style>
+body {
+  color: #1f2937;
+}
+.audit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: .75rem;
+  margin: 1rem 0 1.25rem;
+}
+.metric {
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  padding: .8rem .9rem;
+  background: #fbfcfe;
+}
+.metric strong {
+  display: block;
+  font-size: 1.55rem;
+  line-height: 1.15;
+}
+.metric span, .muted {
+  color: #64748b;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: .18rem .55rem;
+  font-size: .78rem;
+  font-weight: 650;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  background: #f8fafc;
+  margin: .1rem .15rem .1rem 0;
+}
+.pill.good {
+  color: #166534;
+  background: #ecfdf3;
+  border-color: #bbf7d0;
+}
+.pill.warn {
+  color: #92400e;
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .9rem;
+}
+.audit-table th {
+  background: #f1f5f9;
+  color: #334155;
+}
+.audit-table th, .audit-table td {
+  border: 1px solid #d9e2ec;
+  padding: .42rem .5rem;
+  vertical-align: top;
+}
+.note {
+  border-left: 4px solid #2f6f73;
+  padding: .75rem .9rem;
+  background: #f3faf9;
+  margin: 1rem 0;
+}
+</style>
+
+## Finalization Summary
+
+```{python}
+agreement_html = "".join(pill(f"{key}: {value}") for key, value in agreement_counts.items())
+display(HTML(f"""
+<div class="audit-grid">
+  <div class="metric"><strong>{escape(str(total_clusters))}</strong><span>clusters audited</span></div>
+  <div class="metric"><strong>{escape(str(labels))}</strong><span>clusters with final labels</span></div>
+  <div class="metric"><strong>{escape(str(reviewed))}</strong><span>clusters marked reviewed</span></div>
+  <div class="metric"><strong>{escape(str(len(warnings)))}</strong><span>warnings</span></div>
+</div>
+<p>{pill(run.get("state", "unknown"), state_tone)} {agreement_html}</p>
+"""))
+```
+
+## Selected Project UMAP
+
+```{python}
+selected = pd.DataFrame()
+if not umap_candidates.empty and "key" in umap_candidates.columns:
+    selected = umap_candidates[umap_candidates["key"].astype(str) == str(selected_umap_key)]
+display(HTML(f"""
+<div class="note">
+  <strong>{escape(str(selected_umap_key or "No selected UMAP recorded"))}</strong><br>
+  {escape(str(selected_umap_reason or "No rationale recorded."))}
+</div>
+"""))
+display(html_table(selected, columns=["key", "source", "n_neighbors", "min_dist", "spread", "explanation"]))
+```
+
+## Final UMAP Review
+
+```{python}
+def final_umap_frame() -> pd.DataFrame:
+    h5ad_path = RESULTS_DIR / "adata.final_annotated.h5ad"
+    if ad is None or not h5ad_path.exists():
+        return pd.DataFrame()
+    adata = ad.read_h5ad(h5ad_path, backed="r")
+    key = "X_umap" if "X_umap" in adata.obsm else selected_umap_key
+    if not key or key not in adata.obsm:
+        return pd.DataFrame()
+    coords = adata.obsm[key]
+    label_key = "scrna_annotate_audit_final_label"
+    sample_key = payload.get("input", {}).get("sample_key") or "sample_id"
+    final_labels = adata.obs[label_key].astype(str).to_numpy() if label_key in adata.obs else ["unassigned"] * adata.n_obs
+    samples = adata.obs[sample_key].astype(str).to_numpy() if sample_key in adata.obs else ["sample"] * adata.n_obs
+    frame = pd.DataFrame(
+        {
+            "UMAP1": coords[:, 0],
+            "UMAP2": coords[:, 1],
+            "final_label": final_labels,
+            "sample": samples,
+        }
+    )
+    return frame
+
+
+umap_frame = final_umap_frame()
+if px is None:
+    display(HTML("<p class='muted'>Plotly is not available, so UMAP figures are not embedded.</p>"))
+elif umap_frame.empty:
+    display(HTML("<p class='muted'>Final h5ad or selected UMAP coordinates were not available for plotting.</p>"))
+else:
+    fig_label = px.scatter(
+        umap_frame,
+        x="UMAP1",
+        y="UMAP2",
+        color="final_label",
+        title="Final labels",
+        render_mode="webgl",
+        height=620,
+    )
+    fig_label.update_traces(marker={"size": 4, "opacity": 0.75})
+    fig_label.update_layout(legend_title_text="Final label")
+    fig_label.show()
+
+    fig_sample = px.scatter(
+        umap_frame,
+        x="UMAP1",
+        y="UMAP2",
+        color="final_label",
+        facet_col="sample",
+        facet_col_wrap=3,
+        title="Final labels by sample",
+        render_mode="webgl",
+        height=max(520, 280 * max(1, int((umap_frame["sample"].nunique() + 2) / 3))),
+    )
+    fig_sample.update_traces(marker={"size": 4, "opacity": 0.75})
+    fig_sample.update_layout(legend_title_text="Final label")
+    fig_sample.show()
+```
+
+## Final Annotation Decisions
+
+```{python}
+display(html_table(
+    decisions,
+    columns=[
+        "cluster_id",
+        "final_label",
+        "review_status",
+        "label_source",
+        "chosen_method",
+        "agreement_level",
+        "notes",
+    ],
+))
+```
+
+## Provider Comparison
+
+```{python}
+display(html_table(comparison, limit=250))
+```
+
+## Exported Artifacts
+
+```{python}
+artifact_rows = [{"artifact": key, "path": value} for key, value in artifacts.items() if not isinstance(value, list)]
+table_artifacts = artifacts.get("tables", []) if isinstance(artifacts.get("tables"), list) else []
+for table_path in table_artifacts:
+    artifact_rows.append({"artifact": "table", "path": table_path})
+display(html_table(pd.DataFrame(artifact_rows)))
+```
+
+## Warnings
+
+```{python}
+if warnings:
+    display(HTML("<ul>" + "".join(f"<li>{escape(str(item))}</li>" for item in warnings) + "</ul>"))
+else:
+    display(HTML("<p>No warnings were recorded.</p>"))
+```

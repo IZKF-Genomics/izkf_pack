@@ -5,6 +5,10 @@ tools:
 software:
   - name: anndata
     command: pixi run python -c "import anndata; print(anndata.__version__)"
+  - name: scanpy
+    command: pixi run python -c "import scanpy; print(scanpy.__version__)"
+  - name: loupepy
+    command: pixi run python -c "import loupepy; print(getattr(loupepy, '__version__', 'unknown'))"
 
 params:
   - name: input_results
@@ -13,3 +17,7 @@ params:
     env: CLUSTER_KEY
   - name: final_decisions
     env: FINAL_DECISIONS
+  - name: selected_umap_key
+    env: SELECTED_UMAP_KEY
+  - name: write_cloupe
+    env: WRITE_CLOUPE

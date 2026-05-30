@@ -50,8 +50,11 @@ say "outputs:"
 say "  ${results_dir}/annotation_audit.json"
 say "  ${results_dir}/annotation_audit_cards.json"
 say "  ${results_dir}/adata.final_annotated.h5ad"
+say "  ${results_dir}/adata.final_annotated.cloupe"
 say "  ${results_dir}/report.html"
+say "  ${results_dir}/audit_report_static.html"
 say "  ${results_dir}/tables/final_annotation_decisions_draft.csv"
+say "  ${results_dir}/tables/umap_candidates.csv"
 
 # Record outputs in Linkar after successful manual execution.
 linkar collect "${script_dir}"

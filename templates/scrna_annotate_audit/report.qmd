@@ -22,6 +22,8 @@ execute:
 .decision-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));gap:.75rem;margin:1rem 0 1.2rem}
 .decision-card{border:1px solid #dbe4ef;background:#fff;border-radius:6px;padding:.8rem .9rem}
 .decision-card .number{font-size:1.65rem;font-weight:700;line-height:1;color:#0f172a}.decision-card .label{color:#475569;margin-top:.25rem}
+.readiness-panel{border:1px solid #dbe4ef;background:#fff;border-radius:6px;padding:.85rem 1rem;margin:.8rem 0 1rem}.readiness-panel.warning{border-color:#fed7aa;background:#fff7ed}.readiness-head{display:flex;justify-content:space-between;gap:.75rem;align-items:baseline;margin-bottom:.55rem}.readiness-title{font-weight:700;color:#0f172a}.readiness-state{font-size:.84rem;color:#475569;text-align:right}.readiness-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.55rem}.readiness-stat{border-top:1px solid #e2e8f0;padding-top:.45rem}.readiness-stat strong{display:block;color:#0f172a;font-size:1.35rem;line-height:1.1}.readiness-stat span{display:block;color:#64748b;font-size:.82rem;margin-top:.18rem}.readiness-note{color:#7c2d12;font-size:.86rem;margin:.65rem 0 0}
+.umap-selection-panel{border:1px solid #dbe4ef;background:#f8fafc;border-radius:6px;padding:.85rem 1rem;margin:.8rem 0 1rem}.umap-selection-head{display:grid;grid-template-columns:minmax(12rem,1fr) minmax(14rem,2fr);gap:.7rem;align-items:start}.umap-selection-key{font-weight:700;color:#0f172a;overflow-wrap:anywhere}.umap-selection-reason{color:#475569;line-height:1.35}.umap-candidate-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:.65rem;margin:.75rem 0 1rem}.umap-candidate{border:1px solid #dbe4ef;background:#fff;border-radius:6px;padding:.72rem .8rem}.umap-candidate.selected{border-color:#86efac;background:#f0fdf4}.umap-candidate strong{display:block;color:#0f172a;overflow-wrap:anywhere}.umap-candidate span{display:block;color:#64748b;font-size:.82rem;margin-top:.2rem}.umap-candidate p{margin:.42rem 0 0;color:#475569;font-size:.86rem;line-height:1.3}.umap-plot-title{border-top:1px solid #e2e8f0;margin:1.1rem 0 .35rem;padding-top:.8rem;font-weight:700;color:#0f172a}.umap-plot-caption{color:#64748b;font-size:.86rem;margin:0 0 .55rem}
 .workflow{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:.7rem;margin:.8rem 0 1rem}.workflow div{border:1px solid #dbe4ef;background:#f8fafc;border-radius:6px;padding:.7rem .8rem}.workflow strong{display:block;color:#0f172a}
 .cluster-explorer{border:0;border-radius:0;background:#fff;margin:0;padding:.25rem;min-height:0;--audit-left-fr:1.05fr;--audit-right-fr:.95fr;--audit-umap-height:calc(100vh - 15rem);font-size:14px;line-height:1.35;color:#334155}
 .cluster-explorer label{display:block;font-weight:700;margin-bottom:.18rem;color:#334155;font-size:.78rem;line-height:1.2}
@@ -30,6 +32,8 @@ execute:
 .audit-resizer{align-self:stretch;min-height:24rem;border-radius:999px;background:linear-gradient(90deg,transparent 0,#cbd5e1 45%,#cbd5e1 55%,transparent 100%);cursor:col-resize;touch-action:none;position:relative}
 .audit-resizer:after{content:"";position:absolute;left:50%;top:50%;width:.26rem;height:2.6rem;border-radius:999px;background:#94a3b8;transform:translate(-50%,-50%)}
 .audit-resizer:hover:after,.audit-resizer.dragging:after{background:#2563eb}
+.audit-review-progress{border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;background:#f8fafc;padding:.55rem .65rem;margin:.1rem 0 .65rem}.audit-review-progress-head{display:flex;justify-content:space-between;gap:.75rem;align-items:baseline;margin-bottom:.38rem}.audit-review-progress-title{font-weight:700;color:#0f172a;font-size:.9rem}.audit-review-progress-meta{font-size:.8rem;color:#475569;text-align:right}.audit-review-progress-bar{height:.52rem;background:#e2e8f0;border-radius:999px;overflow:hidden}.audit-review-progress-fill{height:100%;width:0;background:#059669;border-radius:999px;transition:width .18s ease}.audit-review-progress-stats{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.4rem;color:#475569;font-size:.8rem}.audit-review-progress-stats span{white-space:nowrap}
+.audit-bulk-fill{border-bottom:1px solid #e2e8f0;background:#fff;padding:.15rem .65rem .65rem;margin:-.25rem 0 .65rem}.audit-bulk-fill-head{display:flex;justify-content:space-between;gap:.65rem;align-items:end;margin-bottom:.45rem}.audit-bulk-fill-title{font-weight:700;color:#0f172a;font-size:.86rem}.audit-bulk-fill-mode{display:flex;align-items:end;gap:.35rem;color:#475569;font-size:.76rem}.audit-bulk-fill-mode label{margin:0;font-weight:700}.audit-bulk-fill-mode select{min-height:1.9rem;padding:.22rem .42rem;border:1px solid #cbd5e1;border-radius:4px;background:#fff;font:inherit}.audit-bulk-fill-actions{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}.audit-bulk-fill button{border:1px solid #cbd5e1;background:#fff;border-radius:4px;padding:.34rem .52rem;font-weight:700;cursor:pointer;font-size:.82rem;line-height:1.2}.audit-bulk-fill button:hover{border-color:#94a3b8;background:#f8fafc}.audit-bulk-fill .status{color:#475569;font-size:.8rem;margin-left:.2rem}
 .audit-controlbar{display:grid;grid-template-columns:minmax(10rem,16rem) minmax(11rem,1fr) minmax(11rem,1fr) minmax(6rem,8rem);gap:.5rem;align-items:end;margin:.15rem 0 .7rem}
 .audit-controlbar>div{min-width:0}
 .audit-controlbar .control-card{background:transparent;border:0;border-left:1px solid #e2e8f0;border-radius:0;padding:.1rem .55rem;min-width:0;min-height:2rem}
@@ -68,7 +72,7 @@ main.content{max-width:none}.cell-output-display{overflow-x:auto}.cell-output-di
 .dataTables_wrapper table.dataTable th,.dataTables_wrapper table.dataTable td{white-space:nowrap;vertical-align:top}
 .dataTables_wrapper table.dataTable td.dt-compact-number,.dataTables_wrapper table.dataTable th.dt-compact-number{min-width:3rem;max-width:6rem;text-align:right}
 .dataTables_wrapper table.dataTable td.dt-long-text{white-space:normal;min-width:12rem;max-width:28rem;overflow-wrap:anywhere;line-height:1.25}
-.decision-editor{border:0;border-top:1px solid #edf2f7;background:#fff;border-radius:0;margin-top:.55rem;padding:.55rem 0 0}.decision-editor h3{display:none}.decision-editor-grid{display:grid;grid-template-columns:repeat(3,minmax(8rem,1fr));gap:.5rem}.decision-editor label{display:block;font-weight:700;color:#334155;font-size:.78rem;margin:0}.decision-editor input,.decision-editor select,.decision-editor textarea{width:100%;box-sizing:border-box;margin-top:.16rem;border:1px solid #cbd5e1;border-radius:4px;background:#fff;padding:.32rem .48rem;font:inherit;min-height:2rem}.decision-editor textarea{min-height:3.4rem;resize:vertical}.decision-editor-actions{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem}.decision-editor button{border:1px solid #cbd5e1;background:#fff;border-radius:4px;padding:.36rem .55rem;font-weight:700;cursor:pointer;font-size:.84rem;line-height:1.2}.decision-editor button.primary{background:#2563eb;border-color:#2563eb;color:#fff}.decision-editor .status{color:#475569;font-size:.8rem;align-self:center}.reasoning-details{margin-top:.45rem;color:#334155;font-size:.84rem;border-top:1px solid #edf2f7;padding-top:.35rem}.reasoning-details summary{cursor:pointer;font-weight:700;color:#475569;outline:0}.reasoning-details summary:focus-visible{box-shadow:0 0 0 2px #bfdbfe;border-radius:3px}.reasoning-details p{margin:.26rem 0 0}
+.decision-editor{border:0;border-top:1px solid #edf2f7;background:#fff;border-radius:0;margin-top:.55rem;padding:.55rem 0 0}.decision-editor h3{display:none}.decision-editor-grid{display:grid;grid-template-columns:repeat(3,minmax(8rem,1fr));gap:.5rem}.decision-editor label{display:block;font-weight:700;color:#334155;font-size:.78rem;margin:0}.decision-editor input,.decision-editor select,.decision-editor textarea{width:100%;box-sizing:border-box;margin-top:.16rem;border:1px solid #cbd5e1;border-radius:4px;background:#fff;padding:.32rem .48rem;font:inherit;min-height:2rem}.decision-editor textarea{min-height:3.4rem;resize:vertical}.decision-editor-actions{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem}.decision-editor button{border:1px solid #cbd5e1;background:#fff;border-radius:4px;padding:.36rem .55rem;font-weight:700;cursor:pointer;font-size:.84rem;line-height:1.2}.decision-editor button.primary{background:#2563eb;border-color:#2563eb;color:#fff}.decision-editor button:disabled{opacity:.55;cursor:not-allowed}.decision-editor .status{color:#475569;font-size:.8rem;align-self:center}.decision-editor .unsaved{color:#92400e}.reasoning-details{margin-top:.45rem;color:#334155;font-size:.84rem;border-top:1px solid #edf2f7;padding-top:.35rem}.reasoning-details summary{cursor:pointer;font-weight:700;color:#475569;outline:0}.reasoning-details summary:focus-visible{box-shadow:0 0 0 2px #bfdbfe;border-radius:3px}.reasoning-details p{margin:.26rem 0 0}
 .marker-panel{border:0;border-top:1px solid #edf2f7;background:#fff;border-radius:0;margin-top:.55rem;padding:.6rem 0 0}.marker-panel-head{display:grid;grid-template-columns:minmax(10rem,1fr) auto;gap:.65rem;align-items:end;margin-bottom:.35rem}.marker-panel-title{font-weight:700;color:#0f172a;font-size:.98rem;line-height:1.2}.marker-panel-controls{display:grid;grid-template-columns:5.6rem minmax(12rem,18rem);gap:.35rem;align-items:end;justify-content:end;min-width:0}.marker-panel-controls label{font-size:.72rem;color:#475569;margin:0;font-weight:700}.marker-panel input{width:100%;border:1px solid #cbd5e1;border-radius:4px;padding:.3rem .45rem;min-height:2rem;font:inherit}.marker-panel select{width:100%;min-width:0;border:1px solid #cbd5e1;border-radius:4px;padding:.3rem .45rem;min-height:2rem;font:inherit}.marker-panel .gene-col{width:8rem;font-weight:700}.marker-panel .num-col{width:5.5rem;text-align:right;white-space:nowrap}.marker-panel .marker-empty{color:#64748b;font-size:.84rem;margin:.25rem 0 0}
 .api-panel{border:1px solid #dbe4ef;background:#f8fafc;border-radius:6px;padding:.8rem;margin:.7rem 0}.api-panel strong{display:block;color:#0f172a}.api-panel span{color:#475569}
 .cluster-explorer.html-fill-container,.cluster-explorer .html-fill-container,.compact-warning.html-fill-container,.audit-workbench.html-fill-container,.decision-editor.html-fill-container,.api-panel.html-fill-container{height:auto!important;min-height:0!important;flex:0 0 auto!important}
@@ -119,11 +123,15 @@ marker_expression_path = results_dir / "tables" / "marker_expression_summary.csv
 marker_expression = pd.read_csv(marker_expression_path) if marker_expression_path.exists() else pd.DataFrame()
 cluster_markers_path = results_dir / "tables" / "cluster_marker_genes.csv"
 cluster_markers = pd.read_csv(cluster_markers_path) if cluster_markers_path.exists() else pd.DataFrame()
+umap_candidates_path = results_dir / "tables" / "umap_candidates.csv"
+umap_candidates = pd.read_csv(umap_candidates_path) if umap_candidates_path.exists() else pd.DataFrame()
 run_status = payload.get("run", {})
 run_input = payload.get("input", {})
 warnings = run_status.get("warnings", [])
 resources = payload.get("resources", [])
 method_params = payload.get("method", {}).get("parameters", {})
+selected_umap_key = str(method_params.get("selected_umap_key") or "X_umap")
+selected_umap_reason = str(method_params.get("selected_umap_reason") or "")
 
 provider_resources = [r for r in resources if r.get("role") == "annotation_result"]
 provider_meta = []
@@ -196,13 +204,13 @@ def cluster_sort_key(value):
 def badge(text):
     cls = "badge"
     lower = str(text).lower()
-    if "high" in lower or lower == "accepted":
+    if "high" in lower or lower in {"accepted", "selected"}:
         cls += " badge-high"
-    elif "medium" in lower or "lineage" in lower:
+    elif "medium" in lower or "lineage" in lower or lower == "bulk_filled":
         cls += " badge-medium"
     elif "low" in lower or "conflict" in lower or "ambiguous" in lower:
         cls += " badge-low"
-    elif "review" in lower:
+    elif "review" in lower or lower == "candidate":
         cls += " badge-review"
     return f"<span class='{cls}'>{escape(str(text))}</span>"
 
@@ -220,18 +228,55 @@ def count_value(df, column, value):
 def dashboard_html():
     final_sources = [str((card.get("final") or {}).get("label_source") or "") for card in cards]
     reviewed = sum(1 for value in final_sources if value == "reviewed")
+    bulk = sum(1 for value in final_sources if value == "bulk_fill")
     items = [
         ("Clusters", len(comparison)),
         ("High priority", count_value(comparison, "review_priority", "high")),
         ("Method conflicts", count_value(comparison, "agreement_level", "method_conflict")),
         ("Accepted suggestions", count_value(comparison, "decision", "Accepted")),
         ("Reviewed finals", reviewed),
+        ("Bulk-filled finals", bulk),
         ("Provider results", len([r for r in resources if r.get("role") == "annotation_result"])),
     ]
     return "<div class='decision-grid'>" + "".join(
         f"<div class='decision-card'><div class='number'>{escape(str(value))}</div><div class='label'>{escape(label)}</div></div>"
         for label, value in items
     ) + "</div>"
+
+def finalization_readiness_html():
+    rows = applied_decisions.copy() if len(applied_decisions) else draft_decisions.copy()
+    if not len(rows):
+        return "<div class='readiness-panel warning'><div class='readiness-head'><div class='readiness-title'>Finalization readiness</div><div class='readiness-state'>No decision rows</div></div><p class='readiness-note'>Run the audit first, then review final labels before export.</p></div>"
+    rows["review_status"] = rows.get("review_status", "").fillna("").astype(str)
+    rows["final_label"] = rows.get("final_label", "").fillna("").astype(str)
+    rows["review_priority"] = rows.get("review_priority", "").fillna("").astype(str)
+    has_label = rows["final_label"].str.strip() != ""
+    human = has_label & rows["review_status"].isin(["accepted", "changed"])
+    bulk = has_label & (rows["review_status"] == "bulk_filled")
+    uncertain = rows["review_status"] == "uncertain"
+    unresolved = (~has_label) | rows["review_status"].isin(["not_reviewed", "uncertain", ""])
+    high_unresolved = unresolved & (rows["review_priority"] == "high")
+    ready = int(high_unresolved.sum()) == 0 and int((~has_label).sum()) == 0
+    stats = [
+        ("Human reviewed", int(human.sum())),
+        ("Bulk filled", int(bulk.sum())),
+        ("Uncertain", int(uncertain.sum())),
+        ("No final label", int((~has_label).sum())),
+        ("High priority unresolved", int(high_unresolved.sum())),
+        ("Total clusters", int(len(rows))),
+    ]
+    state = "Ready to export" if ready else "Review before final export"
+    note = "" if ready else "<p class='readiness-note'>Resolve high-priority or unlabeled clusters before treating the h5ad/cloupe as final.</p>"
+    return (
+        f"<div class='readiness-panel{' warning' if not ready else ''}'>"
+        f"<div class='readiness-head'><div class='readiness-title'>Finalization readiness</div><div class='readiness-state'>{escape(state)}</div></div>"
+        "<div class='readiness-grid'>"
+        + "".join(
+            f"<div class='readiness-stat'><strong>{value}</strong><span>{escape(label)}</span></div>"
+            for label, value in stats
+        )
+        + f"</div>{note}</div>"
+    )
 
 def provider_status_table():
     rows = []
@@ -380,6 +425,38 @@ def umap_views_payload(views):
         "active_key": first.get("key", ""),
     }
 
+def umap_candidate_note_html():
+    rows = []
+    if len(umap_candidates):
+        table = umap_candidates.fillna("").astype(str)
+        for _, row in table.iterrows():
+            chosen = row.get("key") == selected_umap_key
+            params = ", ".join(
+                part for part in [
+                    f"neighbors={row.get('n_neighbors')}" if row.get("n_neighbors") else "",
+                    f"min_dist={row.get('min_dist')}" if row.get("min_dist") else "",
+                    f"spread={row.get('spread')}" if row.get("spread") else "",
+                ] if part
+            )
+            rows.append(
+                f"<div class='umap-candidate{' selected' if chosen else ''}'>"
+                f"<strong>{escape(row.get('key',''))}</strong>"
+                f"<span>{escape(row.get('source',''))}</span>"
+                f"<span>{escape(params or 'existing embedding')}</span>"
+                f"<p>{escape(row.get('explanation',''))}</p>"
+                f"{badge('selected' if chosen else 'candidate')}"
+                f"</div>"
+            )
+    selected = (
+        f"<div class='umap-selection-panel'><div class='umap-selection-head'>"
+        f"<div><div class='umap-selection-key'>{escape(selected_umap_key)}</div><span class='compact-note'>Selected project UMAP</span></div>"
+        f"<div class='umap-selection-reason'>{escape(selected_umap_reason or 'No rationale recorded yet.')}</div>"
+        f"</div></div>"
+    )
+    if not rows:
+        return selected + "<div class='note-box'>No UMAP candidate metadata was generated.</div>"
+    return selected + "<div class='umap-candidate-grid'>" + "".join(rows) + "</div>"
+
 def safe_json_script(value):
     return json.dumps(value).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
 
@@ -462,7 +539,7 @@ def cluster_explorer_html(cards, umap=None, markers=None):
         <div class='cluster-explorer-map'>
           <canvas id='cluster-audit-umap' width='900' height='900'></canvas>
           <div id='audit-map-height-resizer' class='audit-map-height-resizer' role='separator' aria-orientation='horizontal' aria-label='Resize UMAP height' tabindex='0'></div>
-          <div class='map-meta'><span id='cluster-audit-map-label'>UMAP</span><span id='cluster-audit-map-legend'>Reviewed: green</span><span id='cluster-audit-map-count'></span></div>
+          <div class='map-meta'><span id='cluster-audit-map-label'>UMAP</span><span id='cluster-audit-map-legend'>Finalized: green</span><span id='cluster-audit-map-count'></span></div>
           <div class='umap-view-controls'>
             <label>Embedding<select id='audit-embedding-select'></select></label>
             <label>Facet<select id='audit-facet-select'><option value='sample' selected>Sample</option><option value='none'>None</option></select></label>
@@ -565,6 +642,31 @@ def cluster_explorer_html(cards, umap=None, markers=None):
       }}
       function currentDecisionPayload() {{
         return {{decisions: data.map(function(card) {{ return decisions[String(card.cluster_id)] || card.decision_row || {{}}; }})}};
+      }}
+      function exportWarnings() {{
+        var highUnresolved = 0;
+        var missingFinal = 0;
+        var uncertain = 0;
+        data.forEach(function(card) {{
+          var row = clusterDecision(card.cluster_id);
+          var status = String(row.review_status || '').toLowerCase();
+          var hasLabel = !!String(row.final_label || '').trim();
+          if (!hasLabel) missingFinal += 1;
+          if (status === 'uncertain') uncertain += 1;
+          if (String(card.review_priority || '').toLowerCase() === 'high' && (!hasLabel || status === 'not_reviewed' || status === 'uncertain' || !status)) {{
+            highUnresolved += 1;
+          }}
+        }});
+        var messages = [];
+        if (highUnresolved) messages.push(highUnresolved + ' high-priority cluster(s) are unresolved');
+        if (missingFinal) messages.push(missingFinal + ' cluster(s) have no final label');
+        if (uncertain) messages.push(uncertain + ' cluster(s) are marked uncertain');
+        return messages;
+      }}
+      function confirmExportIfNeeded() {{
+        var messages = exportWarnings();
+        if (!messages.length) return true;
+        return window.confirm('Export final h5ad/cloupe with unresolved review items?\\n\\n' + messages.join('\\n'));
       }}
       function setEditorStatus(message, isError) {{
         var status = document.getElementById('audit-editor-status');
@@ -706,10 +808,72 @@ def cluster_explorer_html(cards, umap=None, markers=None):
         var card = cardForCluster(key);
         return decisions[key] || (card ? card.decision_row : null) || {{}};
       }}
+      function isFinalStatus(status) {{
+        status = String(status || '').toLowerCase();
+        return status === 'accepted' || status === 'changed' || status === 'bulk_filled';
+      }}
+      function isHumanReviewedStatus(status) {{
+        status = String(status || '').toLowerCase();
+        return status === 'accepted' || status === 'changed';
+      }}
+      function reviewStats() {{
+        var reviewed = 0;
+        var priorityTotal = 0;
+        var priorityReviewed = 0;
+        data.forEach(function(card) {{
+          var priority = String(card.review_priority || '').toLowerCase();
+          var isPriority = priority === 'high' || priority === 'medium';
+          var done = isReviewedCluster(card.cluster_id);
+          if (done) reviewed += 1;
+          if (isPriority) {{
+            priorityTotal += 1;
+            if (done) priorityReviewed += 1;
+          }}
+        }});
+        return {{
+          reviewed: reviewed,
+          total: data.length,
+          remaining: Math.max(0, data.length - reviewed),
+          priorityTotal: priorityTotal,
+          priorityReviewed: priorityReviewed,
+          priorityRemaining: Math.max(0, priorityTotal - priorityReviewed)
+        }};
+      }}
+      function progressHtml() {{
+        var stats = reviewStats();
+        var pct = stats.total ? Math.round(stats.reviewed / stats.total * 100) : 0;
+        return '<div class="audit-review-progress" id="audit-review-progress">' +
+          '<div class="audit-review-progress-head"><div class="audit-review-progress-title">Review progress</div><div class="audit-review-progress-meta">' + pct + '% complete</div></div>' +
+          '<div class="audit-review-progress-bar"><div class="audit-review-progress-fill" style="width:' + pct + '%"></div></div>' +
+          '<div class="audit-review-progress-stats">' +
+          '<span>' + stats.reviewed + ' / ' + stats.total + ' clusters finalized</span>' +
+          '<span>' + stats.priorityReviewed + ' / ' + stats.priorityTotal + ' priority finalized</span>' +
+          '<span>' + stats.remaining + ' remaining</span>' +
+          '</div></div>';
+      }}
+      function refreshProgress() {{
+        var progress = document.getElementById('audit-review-progress');
+        if (progress) progress.outerHTML = progressHtml();
+      }}
+      function nextReviewClusterId(fromClusterId) {{
+        if (!data.length) return null;
+        var start = data.findIndex(function(card) {{ return String(card.cluster_id) === String(fromClusterId); }});
+        if (start < 0) start = 0;
+        var pass;
+        for (pass = 0; pass < 2; pass++) {{
+          for (var offset = 1; offset <= data.length; offset++) {{
+            var card = data[(start + offset) % data.length];
+            var priority = String(card.review_priority || '').toLowerCase();
+            var isPriority = priority === 'high' || priority === 'medium';
+            if ((pass === 0 && !isPriority) || isReviewedCluster(card.cluster_id)) continue;
+            return String(card.cluster_id);
+          }}
+        }}
+        return null;
+      }}
       function isReviewedCluster(clusterId) {{
         var row = clusterDecision(clusterId);
-        var status = String(row.review_status || '').toLowerCase();
-        return !!String(row.final_label || '').trim() && (status === 'accepted' || status === 'changed');
+        return !!String(row.final_label || '').trim() && isFinalStatus(row.review_status);
       }}
       function finalLabelForCluster(clusterId) {{
         var row = clusterDecision(clusterId);
@@ -721,7 +885,7 @@ def cluster_explorer_html(cards, umap=None, markers=None):
         var row = clusterDecision(id);
         var status = String((row && row.review_status) || '').toLowerCase();
         var finalLabel = String((row && row.final_label) || '').trim();
-        var isFinalized = finalLabel && (status === 'accepted' || status === 'changed');
+        var isFinalized = finalLabel && isFinalStatus(status);
         var label = finalLabel || String(card.suggested_label || '').trim();
         var prefix = isFinalized ? '✓' : '○';
         var suffix = label ? ' · ' + label : ' · not finalized';
@@ -734,6 +898,101 @@ def cluster_explorer_html(cards, umap=None, markers=None):
         for (var i = 0; i < label.length; i++) hash = ((hash << 5) - hash + label.charCodeAt(i)) | 0;
         var hue = ((Math.abs(hash) * 137.508) % 360);
         return 'hsl(' + hue.toFixed(1) + ', 72%, 46%)';
+      }}
+      function providerDisplayName(providerId) {{
+        var labels = {{
+          celltypist: 'CellTypist',
+          manual_markers: 'Manual markers',
+          sctype: 'ScType',
+          scanvi_reference: 'scANVI reference'
+        }};
+        return labels[providerId] || String(providerId || '').replace(/_/g, ' ').split(' ').map(function(word) {{
+          return word ? word.charAt(0).toUpperCase() + word.slice(1) : word;
+        }}).join(' ');
+      }}
+      function bulkSources() {{
+        var seen = {{}};
+        var sources = [{{id: '__suggested__', label: 'Suggested labels'}}];
+        data.forEach(function(card) {{
+          (card.methods || []).forEach(function(method) {{
+            var methodId = String(method.method || '').trim();
+            if (!methodId || seen[methodId]) return;
+            seen[methodId] = true;
+            sources.push({{id: methodId, label: providerDisplayName(methodId)}});
+          }});
+        }});
+        return sources;
+      }}
+      function labelFromSource(card, sourceId) {{
+        if (sourceId === '__suggested__') return String(card.suggested_label || '').trim();
+        var methods = card.methods || [];
+        for (var i = 0; i < methods.length; i++) {{
+          if (String(methods[i].method || '') === String(sourceId)) return String(methods[i].label || '').trim();
+        }}
+        return '';
+      }}
+      function canBulkOverwrite(row, mode) {{
+        var label = String((row && row.final_label) || '').trim();
+        if (mode === 'empty') return !label;
+        if (mode === 'non_reviewed') return !isHumanReviewedStatus(row && row.review_status);
+        if (mode === 'all') return true;
+        return false;
+      }}
+      function bulkFillHtml() {{
+        var buttons = bulkSources().map(function(source) {{
+          return '<button type="button" class="audit-bulk-source" data-source="' + esc(source.id) + '">' + esc(source.label) + '</button>';
+        }}).join('');
+        return '<div class="audit-bulk-fill">' +
+          '<div class="audit-bulk-fill-head"><div class="audit-bulk-fill-title">Bulk fill final labels</div>' +
+          '<div class="audit-bulk-fill-mode"><label for="audit-bulk-mode">Mode</label><select id="audit-bulk-mode">' +
+          '<option value="empty">Empty labels only</option>' +
+          '<option value="non_reviewed" selected>Non-reviewed only</option>' +
+          '<option value="all">Overwrite all</option>' +
+          '</select></div></div>' +
+          '<div class="audit-bulk-fill-actions">' + buttons + '<span class="status" id="audit-bulk-status"></span></div>' +
+          '</div>';
+      }}
+      function applyBulkFill(sourceId, mode) {{
+        var source = bulkSources().find(function(item) {{ return item.id === sourceId; }}) || {{id: sourceId, label: sourceId}};
+        if (mode === 'all') {{
+          var reviewedCount = data.filter(function(card) {{
+            var row = clusterDecision(card.cluster_id);
+            return String(row.final_label || '').trim() && isHumanReviewedStatus(row.review_status);
+          }}).length;
+          if (reviewedCount && !window.confirm('Overwrite ' + reviewedCount + ' human-reviewed final label(s)?')) return;
+        }}
+        var changed = 0;
+        var skipped = 0;
+        data.forEach(function(card) {{
+          var label = labelFromSource(card, sourceId);
+          if (!label) {{
+            skipped += 1;
+            return;
+          }}
+          var key = String(card.cluster_id);
+          var row = decisions[key] || card.decision_row || {{}};
+          if (!canBulkOverwrite(row, mode)) {{
+            skipped += 1;
+            return;
+          }}
+          decisions[key] = Object.assign({{}}, row, {{
+            cluster_id: key,
+            suggested_label: card.suggested_label || '',
+            suggested_broad_label: card.suggested_broad_label || '',
+            decision: card.decision || '',
+            confidence: card.confidence || '',
+            agreement_level: card.agreement_level || '',
+            review_priority: card.review_priority || '',
+            review_status: 'bulk_filled',
+            final_label: label,
+            reviewer_note: 'Bulk-filled from ' + source.label
+          }});
+          changed += 1;
+        }});
+        saveLocal();
+        render();
+        var status = document.getElementById('audit-bulk-status');
+        if (status) status.textContent = 'Filled ' + changed + ' cluster(s); skipped ' + skipped + '.';
       }}
       function umapViews() {{
         if (Array.isArray(umap.views) && umap.views.length) return umap.views;
@@ -948,7 +1207,7 @@ def cluster_explorer_html(cards, umap=None, markers=None):
         ctx.lineWidth = Math.max(1, size.dpr);
         ctx.strokeRect(size.dpr / 2, size.dpr / 2, w - size.dpr, h - size.dpr);
         if (mapLabel) mapLabel.textContent = String(active.label || active.key || 'UMAP') + ' · highlighted cluster ' + clusterId;
-        if (mapLegend) mapLegend.textContent = Object.keys(reviewedClusters).length + ' reviewed clusters shown in green';
+        if (mapLegend) mapLegend.textContent = Object.keys(reviewedClusters).length + ' finalized clusters shown in green';
         if (mapCount) mapCount.textContent = selected + ' / ' + points.length + ' cells';
       }}
       function drawFinalLabelMap() {{
@@ -1096,7 +1355,7 @@ def cluster_explorer_html(cards, umap=None, markers=None):
           var selected = label === decision.final_label ? ' selected' : '';
           return '<option value="' + esc(label) + '"' + selected + '>' + esc(label) + '</option>';
         }}).join('') + '<option value="__custom__">Custom label</option>';
-        var statusOptions = ['accepted','changed','uncertain','not_reviewed'].map(function(status) {{
+        var statusOptions = ['accepted','changed','bulk_filled','uncertain','not_reviewed'].map(function(status) {{
           return '<option value="' + esc(status) + '"' + (status === decision.review_status ? ' selected' : '') + '>' + esc(status) + '</option>';
         }}).join('');
         var supports = (reasoning.supports || []).join(' ');
@@ -1114,6 +1373,8 @@ def cluster_explorer_html(cards, umap=None, markers=None):
         }}).join('');
         view.innerHTML =
           warningHtml +
+          progressHtml() +
+          bulkFillHtml() +
           '<div class="audit-controlbar">' +
           '<div><label for="cluster-audit-select">Cluster</label><select id="cluster-audit-select">' + clusterOptions + '</select></div>' +
           '<div class="control-card"><strong>Label</strong><span id="audit-sidebar-label">' + esc(card.suggested_label || 'Unknown') + '</span></div>' +
@@ -1136,8 +1397,8 @@ def cluster_explorer_html(cards, umap=None, markers=None):
           '<label style="margin-top:.65rem">Reviewer note<textarea id="audit-reviewer-note">' + esc(decision.reviewer_note || '') + '</textarea></label>' +
           '<div class="decision-editor-actions">' +
           '<button class="primary" id="audit-save-cluster" type="button">Save cluster</button>' +
+          '<button id="audit-next-review" type="button">Next needs review</button>' +
           '<button id="audit-save-config" type="button">Save decisions to config</button>' +
-          '<button id="audit-write-h5ad" type="button">Generate final h5ad</button>' +
           '<button id="audit-save-write-h5ad" type="button">Save + generate h5ad</button>' +
           '<button id="audit-download-decisions" type="button">Download decisions CSV</button>' +
           '<span class="status" id="audit-editor-status"></span>' +
@@ -1164,11 +1425,49 @@ def cluster_explorer_html(cards, umap=None, markers=None):
         var reviewStatus = document.getElementById('audit-review-status');
         var reviewerNote = document.getElementById('audit-reviewer-note');
         var status = document.getElementById('audit-editor-status');
+        var saveWriteButton = document.getElementById('audit-save-write-h5ad');
+        var bulkMode = document.getElementById('audit-bulk-mode');
+        document.querySelectorAll('.audit-bulk-source').forEach(function(button) {{
+          button.addEventListener('click', function() {{
+            applyBulkFill(button.getAttribute('data-source') || '', bulkMode ? bulkMode.value : 'non_reviewed');
+          }});
+        }});
+        function markDirty() {{
+          if (status) {{
+            status.textContent = 'Unsaved edits for cluster ' + String(card.cluster_id) + '.';
+            status.className = 'status unsaved';
+          }}
+        }}
+        function saveCurrentCluster() {{
+          var key = String(card.cluster_id);
+          decisions[key] = Object.assign(decisions[key] || {{}}, {{
+            cluster_id: key,
+            suggested_label: card.suggested_label || '',
+            suggested_broad_label: card.suggested_broad_label || '',
+            decision: card.decision || '',
+            confidence: card.confidence || '',
+            agreement_level: card.agreement_level || '',
+            review_priority: card.review_priority || '',
+            review_status: reviewStatus ? reviewStatus.value : 'not_reviewed',
+            final_label: finalLabel ? finalLabel.value : '',
+            reviewer_note: reviewerNote ? reviewerNote.value : ''
+          }});
+          saveLocal();
+          refreshProgress();
+          if (status) {{
+            status.textContent = 'Saved cluster ' + key + ' in this browser.';
+            status.className = 'status';
+          }}
+          drawMap(card.cluster_id);
+          drawFinalLabelMap();
+          return decisions[key];
+        }}
         if (labelChoice && finalLabel) {{
           labelChoice.addEventListener('change', function() {{
             if (labelChoice.value !== '__custom__') {{
               finalLabel.value = labelChoice.value;
             }}
+            markDirty();
           }});
         }}
         function refreshMarkerTable() {{
@@ -1188,39 +1487,44 @@ def cluster_explorer_html(cards, umap=None, markers=None):
           markerSearch.addEventListener('search', refreshMarkerTable);
           markerSearch.addEventListener('keyup', refreshMarkerTable);
         }}
+        [finalLabel, reviewStatus, reviewerNote].forEach(function(element) {{
+          if (!element) return;
+          element.addEventListener('input', markDirty);
+          element.addEventListener('change', markDirty);
+        }});
         var saveButton = document.getElementById('audit-save-cluster');
         if (saveButton) {{
           saveButton.addEventListener('click', function() {{
-            var key = String(card.cluster_id);
-            decisions[key] = Object.assign(decisions[key] || {{}}, {{
-              cluster_id: key,
-              suggested_label: card.suggested_label || '',
-              suggested_broad_label: card.suggested_broad_label || '',
-              decision: card.decision || '',
-              confidence: card.confidence || '',
-              agreement_level: card.agreement_level || '',
-              review_priority: card.review_priority || '',
-              review_status: reviewStatus ? reviewStatus.value : 'not_reviewed',
-              final_label: finalLabel ? finalLabel.value : '',
-              reviewer_note: reviewerNote ? reviewerNote.value : ''
-            }});
-            saveLocal();
-            if (status) status.textContent = 'Saved cluster ' + key + ' in this browser.';
-            drawMap(card.cluster_id);
-            drawFinalLabelMap();
+            saveCurrentCluster();
+            render();
+          }});
+        }}
+        var nextReviewButton = document.getElementById('audit-next-review');
+        if (nextReviewButton) {{
+          var nextId = nextReviewClusterId(card.cluster_id);
+          nextReviewButton.disabled = !nextId;
+          nextReviewButton.addEventListener('click', function() {{
+            saveCurrentCluster();
+            var target = nextReviewClusterId(card.cluster_id);
+            if (target) {{
+              currentClusterId = target;
+              render();
+            }} else {{
+              setEditorStatus('All clusters with final labels are up to date.', false);
+            }}
           }});
         }}
         var downloadButton = document.getElementById('audit-download-decisions');
         if (downloadButton) {{
           downloadButton.addEventListener('click', function() {{
-            if (saveButton) saveButton.click();
+            saveCurrentCluster();
             downloadCsv();
           }});
         }}
         var saveConfigButton = document.getElementById('audit-save-config');
         if (saveConfigButton) {{
           saveConfigButton.addEventListener('click', function() {{
-            if (saveButton) saveButton.click();
+            saveCurrentCluster();
             setEditorStatus('Saving decisions to config...', false);
             apiPost('/api/save-decisions', currentDecisionPayload()).then(function(body) {{
               setEditorStatus('Saved ' + body.rows + ' decisions to config.', false);
@@ -1229,24 +1533,16 @@ def cluster_explorer_html(cards, umap=None, markers=None):
             }});
           }});
         }}
-        var writeH5adButton = document.getElementById('audit-write-h5ad');
-        if (writeH5adButton) {{
-          writeH5adButton.addEventListener('click', function() {{
-            setEditorStatus('Generating final h5ad...', false);
-            apiPost('/api/write-h5ad', {{}}).then(function(body) {{
-              setEditorStatus('Generated final h5ad: ' + body.path, false);
-            }}).catch(function(error) {{
-              setEditorStatus('Could not generate h5ad: ' + error.message, true);
-            }});
-          }});
-        }}
-        var saveWriteButton = document.getElementById('audit-save-write-h5ad');
         if (saveWriteButton) {{
           saveWriteButton.addEventListener('click', function() {{
-            if (saveButton) saveButton.click();
+            saveCurrentCluster();
+            if (!confirmExportIfNeeded()) {{
+              setEditorStatus('Export cancelled. Review unresolved clusters first.', true);
+              return;
+            }}
             setEditorStatus('Saving decisions and generating final h5ad...', false);
             apiPost('/api/save-and-write-h5ad', currentDecisionPayload()).then(function(body) {{
-              setEditorStatus('Saved decisions and generated final h5ad.', false);
+              setEditorStatus('Saved decisions and generated final h5ad' + (body.write_h5ad && body.write_h5ad.cloupe_written ? ' and cloupe.' : '.'), false);
             }}).catch(function(error) {{
               setEditorStatus('Could not save/generate: ' + error.message, true);
             }});
@@ -1339,8 +1635,6 @@ def load_umap_tables():
             if "umap" in str(key).lower() and len(shape) == 2 and shape[1] >= 2:
                 embedding_keys.append(str(key))
         embedding_keys = sorted(embedding_keys, key=lambda key: (0 if key == "X_umap" else 1, key))
-        if not embedding_keys:
-            return [], "The input h5ad does not contain a 2D UMAP embedding in adata.obsm."
         obs_base = pd.DataFrame(index=adata.obs_names.astype(str))
         obs_base["cell_id"] = obs_base.index
         obs_base["cluster_id"] = adata.obs[cluster_key].astype(str).values
@@ -1351,8 +1645,20 @@ def load_umap_tables():
         for provider_id in provider_ids:
             keep.append(f"{provider_id}_label")
         obs_base = obs_base.reset_index(drop=True).merge(labels[["cluster_id"] + keep], on="cluster_id", how="left")
+        if len(applied_decisions) and "final_label" in applied_decisions:
+            final_labels = applied_decisions.assign(cluster_id=lambda d: d["cluster_id"].astype(str))
+            final_cols = [c for c in ["cluster_id", "final_label", "review_status"] if c in final_labels.columns]
+            obs_base = obs_base.merge(final_labels[final_cols], on="cluster_id", how="left")
+        if "final_label" not in obs_base:
+            obs_base["final_label"] = ""
+        if "review_status" not in obs_base:
+            obs_base["review_status"] = ""
         for column in keep:
             obs_base[column] = obs_base[column].fillna("")
+        obs_base["final_label"] = obs_base["final_label"].fillna("")
+        obs_base["review_status"] = obs_base["review_status"].fillna("")
+        obs_base["display_label"] = obs_base["final_label"].where(obs_base["final_label"].astype(str).str.strip() != "", obs_base["suggested_label"])
+        obs_base["display_label"] = obs_base["display_label"].fillna("Unknown").replace("", "Unknown")
         views = []
         for key in embedding_keys:
             coords = np.asarray(adata.obsm[key])
@@ -1360,6 +1666,24 @@ def load_umap_tables():
             obs["UMAP1"] = coords[:, 0]
             obs["UMAP2"] = coords[:, 1]
             views.append((key, obs))
+        generated_path = results_dir / "umap_candidates.npz"
+        if generated_path.exists():
+            try:
+                with np.load(generated_path) as generated:
+                    for key in generated.files:
+                        if key in embedding_keys:
+                            continue
+                        coords = np.asarray(generated[key])
+                        if coords.shape[0] != len(obs_base) or coords.shape[1] < 2:
+                            continue
+                        obs = obs_base.copy()
+                        obs["UMAP1"] = coords[:, 0]
+                        obs["UMAP2"] = coords[:, 1]
+                        views.append((key, obs))
+            except Exception as exc:
+                return views, f"Generated UMAP candidates could not be loaded: {exc}"
+        if not views:
+            return [], "The input h5ad does not contain a 2D UMAP embedding in adata.obsm, and no generated candidates were available."
         return views, ""
     finally:
         try:
@@ -1369,12 +1693,65 @@ def load_umap_tables():
 
 ```
 
+# UMAP Selection
+
+## Candidate Embeddings
+
+Choose the UMAP that best supports project-level interpretation before final export. Candidate layouts are shown colored by final label and faceted by sample, so the selected UMAP can be judged by label readability and sample structure in the same view.
+
+```{python}
+umap_views, reason = load_umap_tables()
+if reason:
+    display(HTML(f"<div class='note-box'>{escape(reason)}</div>"))
+display(HTML(finalization_readiness_html()))
+display(HTML(umap_candidate_note_html()))
+```
+
+```{python}
+if px is None:
+    display(HTML("<div class='note-box'>Plotly is not available, so UMAP candidate plots could not be rendered.</div>"))
+elif not umap_views:
+    display(HTML("<div class='note-box'>No UMAP candidate coordinates are available.</div>"))
+else:
+    for key, obs in umap_views:
+        display(HTML(f"<div class='umap-plot-title'>{escape(key)}</div><p class='umap-plot-caption'>Colored by final label and faceted by sample.</p>"))
+        plot_df = obs[["UMAP1", "UMAP2", "cluster_id", "sample", "display_label", "review_status"]].copy()
+        sample_count = max(1, int(plot_df["sample"].astype(str).nunique()))
+        fig = px.scatter(
+            plot_df,
+            x="UMAP1",
+            y="UMAP2",
+            color="display_label",
+            facet_col="sample",
+            facet_col_wrap=3,
+            hover_data=["cluster_id", "review_status"],
+            render_mode="webgl",
+            template="simple_white",
+        )
+        fig.update_traces(marker={"size": 2.5, "opacity": 0.72})
+        fig.update_layout(height=max(520, 310 * int(np.ceil(sample_count / 3))), legend_title_text="Final label")
+        fig.update_xaxes(visible=False)
+        fig.update_yaxes(visible=False, scaleanchor="x", scaleratio=1)
+        fig.show()
+```
+
+## Selection Guidance
+
+Record the chosen embedding in `config/dataset.toml`:
+
+```toml
+[audit]
+selected_umap_key = "X_umap_nn30_md0_5"
+selected_umap_reason = "Best balances global lineage separation, sample mixing, and cluster readability for this project."
+```
+
+The selected embedding is copied to `adata.obsm["X_umap"]` in the final h5ad so downstream reports and Loupe Browser use the same project-approved layout.
+
 # Review
 
 ## Review Workbench {height=100%}
 
 ```{python}
-umap_views, reason = load_umap_tables()
 if reason:
     display(HTML(f"<div class='note-box'>{escape(reason)} The cluster explorer will still show annotation tables.</div>"))
 display(HTML(cluster_explorer_html(cards, umap=umap_views_payload(umap_views) if not reason else None, markers=cluster_markers)))

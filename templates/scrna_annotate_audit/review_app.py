@@ -149,7 +149,12 @@ def write_final_h5ad(input_h5ad: str, cluster_key: str, cards: list[dict], decis
         review_status = str(row.get("review_status") or "not_reviewed")
         final_labels.append(final_label)
         review_statuses.append(review_status)
-        label_sources.append("reviewed" if review_status in {"accepted", "changed"} else "user_table_fallback")
+        if review_status in {"accepted", "changed"}:
+            label_sources.append("reviewed")
+        elif review_status == "bulk_filled":
+            label_sources.append("bulk_fill")
+        else:
+            label_sources.append("user_table_fallback")
         suggested_labels.append(str(card.get("suggested_label") or "Unknown"))
         agreement_levels.append(str(card.get("agreement_level") or "insufficient_evidence"))
         confidences.append(str(card.get("confidence") or "unknown"))
@@ -261,9 +266,9 @@ def main() -> None:
         final_label = st.text_input("Final label", value=initial_label)
         review_status = st.selectbox(
             "Review status",
-            ["accepted", "changed", "uncertain", "not_reviewed"],
-            index=["accepted", "changed", "uncertain", "not_reviewed"].index(defaults["review_status"])
-            if defaults["review_status"] in {"accepted", "changed", "uncertain", "not_reviewed"} else 3,
+            ["accepted", "changed", "bulk_filled", "uncertain", "not_reviewed"],
+            index=["accepted", "changed", "bulk_filled", "uncertain", "not_reviewed"].index(defaults["review_status"])
+            if defaults["review_status"] in {"accepted", "changed", "bulk_filled", "uncertain", "not_reviewed"} else 4,
         )
         reviewer_note = st.text_area("Reviewer note", value=defaults["reviewer_note"], height=90)
         if st.button("Save this cluster"):

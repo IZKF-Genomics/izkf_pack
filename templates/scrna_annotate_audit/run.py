@@ -24,6 +24,8 @@ CONFIG_DIR = TEMPLATE_DIR / "config"
 SCHEMA_VERSION = "izkf_annotation_audit.v1"
 TEMPLATE_NAME = "scrna_annotate_audit"
 FINAL_H5AD = RESULTS_DIR / "adata.final_annotated.h5ad"
+FINAL_CLOUPE = RESULTS_DIR / "adata.final_annotated.cloupe"
+UMAP_CANDIDATES_NPZ = RESULTS_DIR / "umap_candidates.npz"
 
 METHOD_FAMILIES = {
     "scrna_annotate_celltypist": "celltypist",
@@ -92,6 +94,7 @@ CLUSTER_MARKER_FIELDS = [
     "pct_other",
     "source",
 ]
+UMAP_CANDIDATE_FIELDS = ["key", "source", "n_neighbors", "min_dist", "spread", "explanation"]
 
 
 def progress(message: str) -> None:
@@ -122,6 +125,7 @@ def main() -> int:
     candidate_rows = candidate_rows_from_cards(cards)
     marker_rows = marker_expression_rows(input_h5ad, cards, params, warnings)
     cluster_marker_rows = cluster_marker_gene_rows(input_h5ad, params, warnings)
+    umap_candidate_rows = prepare_umap_candidates(input_h5ad, params, warnings)
     draft_rows = decision_rows_from_cards(cards)
     final_decision_path = resolve_path(params["final_decisions"], base=TEMPLATE_DIR)
     final_rows, final_source, final_warnings = apply_final_decisions(draft_rows, final_decision_path, aliases)
@@ -135,11 +139,14 @@ def main() -> int:
     write_csv(TABLES_DIR / "final_annotation_decisions_applied.csv", final_rows, DECISION_FIELDS)
     write_csv(TABLES_DIR / "marker_expression_summary.csv", marker_rows, MARKER_FIELDS)
     write_csv(TABLES_DIR / "cluster_marker_genes.csv", cluster_marker_rows, CLUSTER_MARKER_FIELDS)
+    write_csv(TABLES_DIR / "umap_candidates.csv", umap_candidate_rows, UMAP_CANDIDATE_FIELDS)
     write_json(RESULTS_DIR / "annotation_audit_cards.json", final_cards)
 
     artifacts: dict[str, Any] = {
         "report_html": "results/report.html",
         "report_qmd": "results/report.qmd",
+        "static_report_html": "results/audit_report_static.html",
+        "static_report_qmd": "results/audit_report_static.qmd",
         "annotation_cards": "results/annotation_audit_cards.json",
         "tables": [
             "results/tables/annotation_method_comparison.csv",
@@ -148,11 +155,16 @@ def main() -> int:
             "results/tables/final_annotation_decisions_applied.csv",
             "results/tables/marker_expression_summary.csv",
             "results/tables/cluster_marker_genes.csv",
+            "results/tables/umap_candidates.csv",
         ],
+        "umap_candidates": "results/umap_candidates.npz",
     }
     if bool_param(params["write_h5ad"]) and input_h5ad.exists():
-        write_final_h5ad(input_h5ad, FINAL_H5AD, params["cluster_key"], final_cards)
+        write_final_h5ad(input_h5ad, FINAL_H5AD, params["cluster_key"], final_cards, params, warnings)
         artifacts["final_h5ad"] = "results/adata.final_annotated.h5ad"
+        if bool_param(params["write_cloupe"]):
+            if write_cloupe(FINAL_H5AD, FINAL_CLOUPE, params, warnings):
+                artifacts["final_cloupe"] = "results/adata.final_annotated.cloupe"
     elif bool_param(params["write_h5ad"]):
         warnings.append(f"Final h5ad was not written because input_h5ad was not found: {input_h5ad}")
 
@@ -186,6 +198,9 @@ def main() -> int:
                 "label_aliases": params["label_aliases"],
                 "final_decisions": params["final_decisions"],
                 "top_n_candidates": int(params["top_n_candidates"]),
+                "selected_umap_key": params["selected_umap_key"],
+                "selected_umap_reason": params["selected_umap_reason"],
+                "umap_generate_candidates": bool_param(params["umap_generate_candidates"]),
             },
         },
         "methods": [
@@ -242,7 +257,26 @@ def load_params() -> dict[str, Any]:
         "marker_expression_max_genes": audit.get("marker_expression_max_genes", 60),
         "cluster_marker_top_n": audit.get("cluster_marker_top_n", 200),
         "cluster_marker_min_pct": audit.get("cluster_marker_min_pct", 10),
+        "selected_umap_key": audit.get("selected_umap_key", "X_umap"),
+        "selected_umap_reason": audit.get(
+            "selected_umap_reason",
+            "Default project UMAP retained. Update this after reviewing the UMAP candidate page.",
+        ),
+        "umap_generate_candidates": audit.get("umap_generate_candidates", True),
+        "umap_candidates": audit.get("umap_candidates", default_umap_candidates()),
         "write_h5ad": outputs.get("write_h5ad", True),
+        "write_cloupe": outputs.get("write_cloupe", True),
+        "cloupe_counts_layer": outputs.get("cloupe_counts_layer", "counts"),
+        "cloupe_obs_keys": outputs.get(
+            "cloupe_obs_keys",
+            [
+                "sample_id",
+                "leiden",
+                "scrna_annotate_audit_final_label",
+                "scrna_annotate_audit_review_status",
+                "scrna_annotate_audit_label_source",
+            ],
+        ),
     }
     env_map = {
         "input_h5ad": "INPUT_H5AD",
@@ -252,6 +286,10 @@ def load_params() -> dict[str, Any]:
         "sample_key": "SAMPLE_ID_KEY",
         "expression_layer": "EXPRESSION_LAYER",
         "write_h5ad": "WRITE_H5AD",
+        "write_cloupe": "WRITE_CLOUPE",
+        "selected_umap_key": "SELECTED_UMAP_KEY",
+        "selected_umap_reason": "SELECTED_UMAP_REASON",
+        "cloupe_counts_layer": "CLOUPE_COUNTS_LAYER",
     }
     for key, env_name in env_map.items():
         value = os.environ.get(env_name)
@@ -259,6 +297,39 @@ def load_params() -> dict[str, Any]:
             params[key] = value
     params["annotation_templates"] = [str(item) for item in params["annotation_templates"]]
     return params
+
+
+def default_umap_candidates() -> list[dict[str, Any]]:
+    return [
+        {
+            "key": "X_umap_nn15_md0_5",
+            "n_neighbors": 15,
+            "min_dist": 0.5,
+            "spread": 1.0,
+            "explanation": "Balanced default: preserves broad neighborhoods while keeping clusters readable.",
+        },
+        {
+            "key": "X_umap_nn30_md0_5",
+            "n_neighbors": 30,
+            "min_dist": 0.5,
+            "spread": 1.0,
+            "explanation": "Smoother global structure: useful when sample or lineage continuity matters.",
+        },
+        {
+            "key": "X_umap_nn15_md0_1",
+            "n_neighbors": 15,
+            "min_dist": 0.1,
+            "spread": 1.0,
+            "explanation": "Tighter local structure: useful for separating compact subclusters.",
+        },
+        {
+            "key": "X_umap_nn50_md0_8",
+            "n_neighbors": 50,
+            "min_dist": 0.8,
+            "spread": 1.0,
+            "explanation": "Conservative overview: emphasizes global topology and avoids over-separated islands.",
+        },
+    ]
 
 
 def discover_annotation_results(params: dict[str, Any]) -> list[Path]:
@@ -300,7 +371,13 @@ def load_provider_result(path: Path, warnings: list[str]) -> dict[str, Any] | No
         warnings.append(f"Could not read provider result {path}: {exc}")
         return None
     source_template = path.parents[1].name
-    template_name = str(payload.get("template", {}).get("name") or source_template)
+    template_info = payload.get("template", {})
+    if isinstance(template_info, dict):
+        template_name = str(template_info.get("name") or source_template)
+    elif isinstance(template_info, str):
+        template_name = template_info or source_template
+    else:
+        template_name = source_template
     method_family = infer_method_family(template_name, source_template)
     method_id = provider_id_from_source(template_name, source_template)
     return {
@@ -733,12 +810,18 @@ def attach_final_decisions(cards: list[dict[str, Any]], final_by_cluster: dict[s
     for card in cards:
         updated = json.loads(json.dumps(card))
         row = final_by_cluster.get(str(card["cluster_id"]), {})
-        label_source = "reviewed" if source == "user_final_decisions" and row.get("review_status") in {"accepted", "changed"} else "draft"
-        if source == "user_final_decisions" and row.get("review_status") not in {"accepted", "changed"}:
-            label_source = "user_table_fallback"
+        review_status = row.get("review_status") or "not_reviewed"
+        label_source = "draft"
+        if source == "user_final_decisions":
+            if review_status in {"accepted", "changed"}:
+                label_source = "reviewed"
+            elif review_status == "bulk_filled":
+                label_source = "bulk_fill"
+            else:
+                label_source = "user_table_fallback"
         updated["final"] = {
             "label": row.get("final_label") or card.get("suggested_label") or "Unknown",
-            "review_status": row.get("review_status") or "not_reviewed",
+            "review_status": review_status,
             "reviewer_note": row.get("reviewer_note") or "",
             "label_source": label_source,
             "decision_source": source,
@@ -907,10 +990,155 @@ def selected_marker_genes(cards: list[dict[str, Any]], max_genes: int) -> list[s
     return ordered
 
 
-def write_final_h5ad(input_h5ad: Path, output_h5ad: Path, cluster_key: str, cards: list[dict[str, Any]]) -> None:
+def prepare_umap_candidates(input_h5ad: Path, params: dict[str, Any], warnings: list[str]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    if input_h5ad.exists():
+        try:
+            import anndata as ad
+
+            adata = ad.read_h5ad(input_h5ad, backed="r")
+            try:
+                for key in adata.obsm.keys():
+                    shape = getattr(adata.obsm[key], "shape", ())
+                    if "umap" in str(key).lower() and len(shape) == 2 and shape[1] >= 2:
+                        rows.append(
+                            {
+                                "key": str(key),
+                                "source": "existing_obsm",
+                                "n_neighbors": "",
+                                "min_dist": "",
+                                "spread": "",
+                                "explanation": "Existing UMAP stored in the input h5ad.",
+                            }
+                        )
+            finally:
+                try:
+                    adata.file.close()
+                except Exception:
+                    pass
+        except Exception as exc:
+            warnings.append(f"Could not inspect existing UMAP embeddings: {exc}")
+    if not input_h5ad.exists() or not bool_param(params.get("umap_generate_candidates", True)):
+        return unique_umap_rows(rows)
+    try:
+        import anndata as ad
+        import numpy as np
+        import scanpy as sc
+    except Exception as exc:
+        warnings.append(f"UMAP candidate generation skipped because dependencies are unavailable: {exc}")
+        return unique_umap_rows(rows)
+    try:
+        adata = ad.read_h5ad(input_h5ad)
+    except Exception as exc:
+        warnings.append(f"Could not read h5ad for UMAP candidate generation: {exc}")
+        return unique_umap_rows(rows)
+    if adata.n_obs < 3:
+        warnings.append("UMAP candidate generation skipped because fewer than three cells are available.")
+        return unique_umap_rows(rows)
+    use_rep = first_existing_key(adata.obsm, ["X_pca", "X_integrated", "X_scVI", "X_scANVI"])
+    if use_rep is None:
+        try:
+            max_comps = min(50, max(2, adata.n_obs - 1), max(2, adata.n_vars - 1))
+            sc.pp.pca(adata, n_comps=max_comps)
+            use_rep = "X_pca"
+        except Exception as exc:
+            warnings.append(f"UMAP candidate generation skipped because PCA/neighbors could not be prepared: {exc}")
+            return unique_umap_rows(rows)
+    generated: dict[str, Any] = {}
+    for spec in normalize_umap_specs(params.get("umap_candidates", [])):
+        key = str(spec["key"])
+        try:
+            work = adata.copy()
+            n_neighbors = min(max(2, int(spec["n_neighbors"])), work.n_obs - 1)
+            sc.pp.neighbors(work, n_neighbors=n_neighbors, use_rep=use_rep)
+            sc.tl.umap(work, min_dist=float(spec["min_dist"]), spread=float(spec["spread"]), random_state=0)
+            generated[key] = np.asarray(work.obsm["X_umap"])[:, :2].astype("float32")
+            rows.append(
+                {
+                    "key": key,
+                    "source": f"generated_from_{use_rep}",
+                    "n_neighbors": n_neighbors,
+                    "min_dist": spec["min_dist"],
+                    "spread": spec["spread"],
+                    "explanation": spec["explanation"],
+                }
+            )
+        except Exception as exc:
+            warnings.append(f"Could not generate UMAP candidate {key}: {exc}")
+    if generated:
+        UMAP_CANDIDATES_NPZ.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(UMAP_CANDIDATES_NPZ, **generated)
+    return unique_umap_rows(rows)
+
+
+def normalize_umap_specs(value: Any) -> list[dict[str, Any]]:
+    specs = value if isinstance(value, list) else []
+    normalized = []
+    for index, item in enumerate(specs, start=1):
+        if not isinstance(item, dict):
+            continue
+        n_neighbors = int(item.get("n_neighbors", 15))
+        min_dist = float(item.get("min_dist", 0.5))
+        spread = float(item.get("spread", 1.0))
+        key = clean_label(item.get("key")) or f"X_umap_nn{n_neighbors}_md{str(min_dist).replace('.', '_')}_{index}"
+        normalized.append(
+            {
+                "key": re.sub(r"[^A-Za-z0-9_]+", "_", key).strip("_") or f"X_umap_candidate_{index}",
+                "n_neighbors": n_neighbors,
+                "min_dist": min_dist,
+                "spread": spread,
+                "explanation": clean_label(item.get("explanation")) or "Candidate UMAP generated for project-level layout review.",
+            }
+        )
+    return normalized
+
+
+def unique_umap_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen = set()
+    output = []
+    for row in rows:
+        key = str(row.get("key") or "")
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        output.append(row)
+    return output
+
+
+def first_existing_key(mapping: Any, candidates: list[str]) -> str | None:
+    for key in candidates:
+        if key in mapping:
+            return key
+    return None
+
+
+def load_generated_umap(key: str) -> Any | None:
+    if not UMAP_CANDIDATES_NPZ.exists():
+        return None
+    try:
+        import numpy as np
+
+        with np.load(UMAP_CANDIDATES_NPZ) as data:
+            if key in data:
+                return data[key]
+    except Exception:
+        return None
+    return None
+
+
+def write_final_h5ad(
+    input_h5ad: Path,
+    output_h5ad: Path,
+    cluster_key: str,
+    cards: list[dict[str, Any]],
+    params: dict[str, Any] | None = None,
+    warnings: list[str] | None = None,
+) -> None:
     import anndata as ad
     import pandas as pd
 
+    params = params or {}
+    warnings = warnings if warnings is not None else []
     adata = ad.read_h5ad(input_h5ad)
     if cluster_key not in adata.obs:
         raise ValueError(f"cluster_key '{cluster_key}' was not found in input h5ad")
@@ -923,14 +1151,65 @@ def write_final_h5ad(input_h5ad: Path, output_h5ad: Path, cluster_key: str, card
     adata.obs[f"{prefix}_suggested_label"] = pd.Categorical([by_cluster.get(value, {}).get("suggested_label", "Unknown") for value in clusters])
     adata.obs[f"{prefix}_agreement_level"] = pd.Categorical([by_cluster.get(value, {}).get("agreement_level", "insufficient_evidence") for value in clusters])
     adata.obs[f"{prefix}_confidence"] = pd.Categorical([by_cluster.get(value, {}).get("confidence", "unknown") for value in clusters])
+    selected_umap_key = clean_label(params.get("selected_umap_key")) or "X_umap"
+    generated = load_generated_umap(selected_umap_key)
+    if generated is not None:
+        adata.obsm[selected_umap_key] = generated
+    if selected_umap_key in adata.obsm:
+        adata.obsm["X_umap"] = adata.obsm[selected_umap_key].copy()
+    else:
+        warnings.append(f"Selected UMAP key was not found and could not be copied to X_umap: {selected_umap_key}")
     adata.uns[prefix] = {
         "schema_version": SCHEMA_VERSION,
         "created_at": utc_now(),
         "cluster_key": cluster_key,
+        "selected_umap_key": selected_umap_key,
+        "selected_umap_reason": clean_label(params.get("selected_umap_reason")),
         "annotation_audit_cards_json": json.dumps(cards, sort_keys=True),
     }
     output_h5ad.parent.mkdir(parents=True, exist_ok=True)
     adata.write_h5ad(output_h5ad)
+
+
+def write_cloupe(input_h5ad: Path, output_path: Path, params: dict[str, Any], warnings: list[str]) -> bool:
+    try:
+        import anndata as ad
+        import loupepy
+    except Exception as exc:
+        warnings.append(f"Cloupe export skipped because loupepy/anndata is unavailable: {exc}")
+        return False
+    try:
+        adata = ad.read_h5ad(input_h5ad)
+        counts_layer = clean_label(params.get("cloupe_counts_layer")) or "counts"
+        layer = None if counts_layer == "X" else counts_layer
+        if layer and layer not in adata.layers:
+            warnings.append(f"Cloupe export skipped because counts layer '{layer}' is missing. Set cloupe_counts_layer='X' only if adata.X is count-like.")
+            return False
+        if "X_umap" not in adata.obsm:
+            warnings.append("Cloupe export skipped because final h5ad does not contain obsm['X_umap'].")
+            return False
+        obs_keys = [key for key in params.get("cloupe_obs_keys", []) if str(key) in adata.obs]
+        for key in obs_keys:
+            adata.obs[str(key)] = adata.obs[str(key)].astype(str).fillna("NA")
+        try:
+            loupepy.create_loupe_from_anndata(
+                adata,
+                str(output_path),
+                layer=layer,
+                dims=["X_umap"],
+                obs_keys=obs_keys,
+                force=True,
+            )
+        except TypeError:
+            loupepy.create_loupe_from_anndata(adata, str(output_path), dims=["X_umap"], obs_keys=obs_keys)
+        return output_path.exists()
+    except Exception as exc:
+        warnings.append(
+            "Cloupe export skipped/failed. If this is a Loupe converter setup or EULA issue, run "
+            "`pixi run python -c \"import loupepy; loupepy.setup()\"`. "
+            f"Original error: {exc}"
+        )
+        return False
 
 
 def load_label_aliases(path: Path) -> dict[str, dict[str, str]]:
@@ -1054,19 +1333,30 @@ def provider_resources(providers: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def render_report() -> None:
-    report_src = TEMPLATE_DIR / "report.qmd"
-    report_dst = RESULTS_DIR / "report.qmd"
-    if report_src.exists():
-        shutil.copyfile(report_src, report_dst)
+    reports = [
+        ("report.qmd", "report.qmd", "report.html", False),
+        ("static_report.qmd", "audit_report_static.qmd", "audit_report_static.html", True),
+    ]
+    for src_name, dst_name, _, _ in reports:
+        report_src = TEMPLATE_DIR / src_name
+        report_dst = RESULTS_DIR / dst_name
+        if report_src.exists():
+            shutil.copyfile(report_src, report_dst)
     quarto = shutil.which("quarto")
     if quarto is None:
-        write_fallback_report(RESULTS_DIR / "report.html")
+        write_fallback_report(RESULTS_DIR / "report.html", static=False)
+        write_fallback_report(RESULTS_DIR / "audit_report_static.html", static=True)
         return
-    try:
-        subprocess.run([quarto, "render", str(report_dst), "--output", "report.html"], cwd=RESULTS_DIR, check=True)
-    except Exception as exc:
-        progress(f"quarto render skipped/failed: {exc}")
-        write_fallback_report(RESULTS_DIR / "report.html")
+    for _, dst_name, output_name, is_static in reports:
+        report_dst = RESULTS_DIR / dst_name
+        if not report_dst.exists():
+            write_fallback_report(RESULTS_DIR / output_name, static=is_static)
+            continue
+        try:
+            subprocess.run([quarto, "render", str(report_dst), "--output", output_name], cwd=RESULTS_DIR, check=True)
+        except Exception as exc:
+            progress(f"quarto render skipped/failed for {output_name}: {exc}")
+            write_fallback_report(RESULTS_DIR / output_name, static=is_static)
 
 
 def copy_review_app() -> None:
@@ -1076,16 +1366,18 @@ def copy_review_app() -> None:
         shutil.copyfile(app_src, app_dst)
 
 
-def write_fallback_report(path: Path) -> None:
+def write_fallback_report(path: Path, *, static: bool = False) -> None:
+    title = "Final scRNA-seq Annotation Audit" if static else "scRNA-seq Annotation Audit"
+    source = "audit_report_static.qmd" if static else "report.qmd"
     path.write_text(
-        """<!doctype html>
+        f"""<!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>scRNA-seq Annotation Audit</title>
-<style>body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:900px;margin:3rem auto;padding:0 1rem;line-height:1.5}code{background:#f1f5f9;padding:.15rem .3rem;border-radius:4px}</style></head>
+<head><meta charset="utf-8"><title>{title}</title>
+<style>body{{font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:900px;margin:3rem auto;padding:0 1rem;line-height:1.5}}code{{background:#f1f5f9;padding:.15rem .3rem;border-radius:4px}}</style></head>
 <body>
-<h1>scRNA-seq Annotation Audit</h1>
+<h1>{title}</h1>
 <p>The audit data tables were generated successfully, but Quarto was not available to render the full interactive report.</p>
-<p>Open <code>results/report.qmd</code> in an environment with Quarto, or inspect the CSV files in <code>results/tables/</code>.</p>
+<p>Open <code>results/{source}</code> in an environment with Quarto, or inspect the CSV files in <code>results/tables/</code>.</p>
 </body></html>
 """,
         encoding="utf-8",

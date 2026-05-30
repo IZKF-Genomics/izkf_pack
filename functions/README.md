@@ -210,6 +210,18 @@ Source: [`get_scrna_annotate_input_source_template.py`](get_scrna_annotate_input
 
 Returns the template id corresponding to the chosen default annotation input, matching the same preference order as `get_scrna_annotate_input_h5ad`.
 
+### `get_scrna_annotate_audit_input_h5ad`
+
+Source: [`get_scrna_annotate_audit_input_h5ad.py`](get_scrna_annotate_audit_input_h5ad.py)
+
+Returns the preferred upstream AnnData input for `scrna_annotate_audit`. The audit prefers the latest `scrna_integrate.integrated_h5ad` so final labels, UMAP selection, h5ad export, and cloupe export use the integrated project object when available. It falls back to `scrna_prep.scrna_prep_h5ad`, then to an empty value so the audit runner can infer the input from provider metadata.
+
+### `get_scrna_annotate_audit_input_source_template`
+
+Source: [`get_scrna_annotate_audit_input_source_template.py`](get_scrna_annotate_audit_input_source_template.py)
+
+Returns the template id corresponding to the audit input selected by `get_scrna_annotate_audit_input_h5ad`.
+
 ### `get_dgea_name`
 
 Source: [`get_dgea_name.py`](get_dgea_name.py)

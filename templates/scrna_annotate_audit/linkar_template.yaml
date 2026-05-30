@@ -39,6 +39,18 @@ params:
     type: bool
     default: true
     description: Write `results/adata.final_annotated.h5ad` with final or draft audit annotation columns.
+  write_cloupe:
+    type: bool
+    default: true
+    description: Attempt to write `results/adata.final_annotated.cloupe` from the final h5ad.
+  selected_umap_key:
+    type: str
+    default: "X_umap"
+    description: UMAP embedding key copied to `obsm['X_umap']` in the final h5ad and used for Loupe export.
+  selected_umap_reason:
+    type: str
+    default: "Default project UMAP retained. Update this after reviewing the UMAP candidate page."
+    description: Human-readable rationale for the final project UMAP selection.
 outputs:
   results_dir: {}
   software_versions:
@@ -49,10 +61,18 @@ outputs:
     path: results/annotation_audit_cards.json
   final_h5ad:
     path: results/adata.final_annotated.h5ad
+  final_cloupe:
+    path: results/adata.final_annotated.cloupe
   html_report:
     path: results/report.html
   quarto_report:
     path: results/report.qmd
+  static_html_report:
+    path: results/audit_report_static.html
+  static_quarto_report:
+    path: results/audit_report_static.qmd
+  umap_candidates:
+    path: results/umap_candidates.npz
   tables:
     glob: results/tables/*.csv
 cleanup:
