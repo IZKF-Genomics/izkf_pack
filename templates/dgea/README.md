@@ -18,6 +18,7 @@ Instead of BPM Jinja rendering, Linkar now writes a small `dgea_inputs.R` file t
 `linkar render dgea`:
 
 - stages an editable analyst workspace
+- writes rendered `.vscode/settings.json` paths for the local workspace automatically
 - does not execute the analysis
 
 `linkar run dgea`:

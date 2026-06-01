@@ -4,6 +4,7 @@ description: Editable DGEA workspace with Pixi, Positron, and Quarto support.
 tools:
   required:
     - pixi
+    - python3
 params:
   salmon_dir:
     type: path
@@ -55,3 +56,8 @@ cleanup:
 run:
   mode: render
   entry: run.sh
+render:
+  command: |
+    python3 "${LINKAR_PACK_ROOT}/functions/materialize_vscode_settings.py" \
+      --template-dir "." \
+      --workspace-dir "."

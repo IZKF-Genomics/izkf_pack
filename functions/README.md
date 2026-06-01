@@ -261,6 +261,14 @@ static:
     version: example
 ```
 
+### `materialize_vscode_settings`
+
+Source: [`materialize_vscode_settings.py`](materialize_vscode_settings.py)
+
+Materializes a template `.vscode/settings.json` into a rendered workspace by replacing
+`${workspaceFolder}` with the workspace absolute path. This is a repo utility for render-time
+workspace preparation, not a Linkar binding function.
+
 ## Internal Helpers
 
 ### `_agendo_common`
@@ -281,5 +289,6 @@ Run the function tests from the pack root:
 
 ```bash
 python3 functions/test_get_api_samplesheet.py
+python3 functions/test_materialize_vscode_settings.py
 python3 functions/test_software_versions.py
 ```

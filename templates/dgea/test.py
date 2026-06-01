@@ -10,6 +10,7 @@ import yaml
 
 
 TEMPLATE_DIR = Path(__file__).resolve().parent
+PACK_ROOT = TEMPLATE_DIR.parent.parent
 
 
 def main() -> int:
@@ -81,6 +82,24 @@ def main() -> int:
 
         settings = (TEMPLATE_DIR / ".vscode" / "settings.json").read_text(encoding="utf-8")
         assert "${workspaceFolder}/.pixi/envs/default/bin/R" in settings
+        assert "${workspaceFolder}/.pixi/envs/default/bin/quarto" in settings
+
+        rendered_workspace = workspace / "rendered_dgea"
+        rendered_workspace.mkdir()
+        subprocess.run(
+            [
+                sys.executable,
+                str(PACK_ROOT / "functions" / "materialize_vscode_settings.py"),
+                "--template-dir",
+                str(TEMPLATE_DIR),
+                "--workspace-dir",
+                str(rendered_workspace),
+            ],
+            check=True,
+        )
+        rendered_settings = (rendered_workspace / ".vscode" / "settings.json").read_text(encoding="utf-8")
+        assert str(rendered_workspace.resolve()) in rendered_settings
+        assert "${workspaceFolder}" not in rendered_settings
 
         run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
         functions_text = (TEMPLATE_DIR / "DGEA_functions.R").read_text(encoding="utf-8")
@@ -91,6 +110,7 @@ def main() -> int:
         assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
         assert linkar_template["outputs"]["run_info"]["path"] == "results/run_info.yaml"
         assert linkar_template["outputs"]["software_versions"]["path"] == "results/software_versions.json"
+        assert 'python3 "${LINKAR_PACK_ROOT}/functions/materialize_vscode_settings.py"' in linkar_template["render"]["command"]
         assert 'linkar collect "${script_dir}"' in run_sh_text
         assert 'linkar clean "${script_dir}" --yes' in run_sh_text
         assert "--configure" in run_sh_text
