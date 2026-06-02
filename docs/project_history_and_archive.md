@@ -27,14 +27,40 @@ is a visible workspace that can be rerun and edited directly. Examples include:
 When possible, rerunning should overwrite the visible workspace outputs instead
 of forcing users to inspect hidden historical bundles.
 
+## Planned Linkar UX
+
+For this pack, the preferred long-term model is:
+
+```text
+one project + one template id = one active workspace
+```
+
+That means rerendering `nfcore_3mrnaseq`, `dgea`, `scrna_prep`, or similar
+stage-like templates should update the existing workspace and overwrite the
+existing `project.yaml` entry by default. Extra history should be opt-in, not an
+accidental side effect of rendering into a temporary directory.
+
+The desired command behavior is:
+
+- `linkar render TEMPLATE` refreshes `<project>/<template_id>` by default
+- existing non-empty workspaces require confirmation
+- `--yes` accepts confirmation for scripts
+- `--fresh` recreates the workspace after confirmation
+- `--new-instance` explicitly records a second instance
+- external `--outdir` renders are treated as ad hoc unless explicitly adopted
+
+Until this Linkar behavior is implemented, use `linkar project prune --dry-run`
+to inspect duplicate project entries and `linkar project prune` to remove stale
+history.
+
 ## Historical runs
 
 Linkar can still record historical runs in `project.yaml` and `.linkar/runs/`.
 Those records are useful for provenance, but they can become clutter if the same
 visible workspace is rerendered many times.
 
-This is why `linkar project prune` matters. It helps remove stale historical
-entries and, by default, can also remove orphaned directories.
+This is why `linkar project prune` matters in current projects. It helps remove
+stale historical entries and, by default, can also remove orphaned directories.
 
 ## Archive templates
 
