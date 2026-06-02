@@ -25,6 +25,8 @@ params:
     type: bool
     default: false
     description: Backward-compatible no-op. Project deletion is the default when project_id is provided.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir: {}
   delete_response:

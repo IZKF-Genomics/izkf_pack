@@ -27,6 +27,8 @@ params:
     type: str
     default: ""
     description: Comma-separated additional `adata.obs` columns to export as Loupe categories.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir: {}
   software_versions:

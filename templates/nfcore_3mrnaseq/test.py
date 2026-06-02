@@ -442,6 +442,9 @@ def main() -> None:
     assert 'ERCC RNA Spike-in Mix' in run_py_text
     assert 'normalize_toggle_param' in run_py_text
     assert "path: pipeline_info/params_*.json" in template_text
+    assert "rendered_samplesheet:" in template_text
+    assert "path: ../samplesheet.csv" in template_text
+    assert "Output paths and globs are resolved relative to LINKAR_RESULTS_DIR" in template_text
     assert "__EDIT_ME_MAX_CPUS__" not in nextflow_config_text
     assert "__EDIT_ME_MAX_MEMORY__" not in nextflow_config_text
     assert "star_index" not in nextflow_config_text

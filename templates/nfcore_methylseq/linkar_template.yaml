@@ -31,6 +31,8 @@ params:
     type: str
     default: ""
     description: Optional memory cap applied through the generated runtime Nextflow config. The default binding sets this to 80 percent of host RAM when detectable.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir: {}
   multiqc_dir:

@@ -37,6 +37,8 @@ params:
     type: float
     default: 0.2
     description: Temperature used for optional LLM polishing.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir: {}
   summary_context:

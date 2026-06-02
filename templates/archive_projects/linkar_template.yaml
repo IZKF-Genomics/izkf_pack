@@ -45,6 +45,8 @@ params:
   exclude_patterns:
     type: str
     default: "work,.pixi,.renv,.nextflow,results,*.fastq.gz"
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir: {}
   manifest_path:

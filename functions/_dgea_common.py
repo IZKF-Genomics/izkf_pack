@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 
-UPSTREAM_TEMPLATE_IDS = ("nfcore_3mrnaseq", "nfcore_rnaseq")
+UPSTREAM_TEMPLATE_IDS = ("nfcore_3mrnaseq",)
 
 
 def _templates(ctx) -> list[dict[str, Any]]:
@@ -45,6 +46,27 @@ def latest_param(ctx, key: str, template_ids: tuple[str, ...] = UPSTREAM_TEMPLAT
     if isinstance(params, dict):
         return params.get(key)
     return None
+
+
+def project_root(ctx) -> Path | None:
+    project = getattr(ctx, "project", None)
+    root = getattr(project, "root", None)
+    if root:
+        return Path(root).resolve()
+    return None
+
+
+def entry_path(ctx, entry: dict[str, Any]) -> Path | None:
+    value = entry.get("path") or entry.get("history_path")
+    if not isinstance(value, str) or not value.strip():
+        return None
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return path.resolve()
+    root = project_root(ctx)
+    if root is None:
+        return path.resolve()
+    return (root / path).resolve()
 
 
 def project_author_names(ctx) -> str:

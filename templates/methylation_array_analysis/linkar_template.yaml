@@ -10,6 +10,8 @@ params:
     type: str
     default: ""
     description: Optional author list shown in reports. When omitted, the workspace derives a fallback from Linkar project metadata when available.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir: {}
   run_info:

@@ -57,6 +57,8 @@ params:
     type: bool
     default: false
     description: If true, build and save the export metadata but do not submit anything to the export engine.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir: {}
   export_summary:

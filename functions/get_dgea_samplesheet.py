@@ -16,9 +16,26 @@ def _load_common():
 
 def resolve(ctx) -> str:
     common = _load_common()
+    value = common.latest_output(ctx, "rendered_samplesheet")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    entry = common.latest_entry(ctx)
+    if entry is not None:
+        workspace = common.entry_path(ctx, entry)
+        if workspace is not None:
+            rendered = workspace / "samplesheet.csv"
+            if rendered.exists():
+                return str(rendered)
     for key in ("samplesheet", "nfcore_samplesheet"):
         value = common.latest_param(ctx, key)
         if isinstance(value, str) and value.strip():
+            path = Path(value.strip()).expanduser()
+            if path.is_absolute():
+                return str(path)
+            if entry is not None:
+                workspace = common.entry_path(ctx, entry)
+                if workspace is not None:
+                    return str((workspace / path).resolve())
             return value.strip()
     raise RuntimeError(
         "samplesheet could not be resolved because no upstream nfcore samplesheet param was found in the current project"

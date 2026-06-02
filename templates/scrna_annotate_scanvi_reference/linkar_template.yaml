@@ -67,6 +67,8 @@ params:
     type: bool
     default: true
     description: Write `results/adata.annotated.h5ad` with scANVI annotation columns added to `adata.obs`.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir: {}
   software_versions:

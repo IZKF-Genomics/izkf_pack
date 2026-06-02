@@ -4,6 +4,7 @@ from __future__ import annotations
 import subprocess
 import sys
 import tempfile
+import importlib.util
 from pathlib import Path
 
 import yaml
@@ -13,7 +14,79 @@ TEMPLATE_DIR = Path(__file__).resolve().parent
 PACK_ROOT = TEMPLATE_DIR.parent.parent
 
 
+class FakeProject:
+    def __init__(self, root: Path, templates: list[dict]) -> None:
+        self.root = root
+        self.data = {"templates": templates}
+
+
+class FakeContext:
+    def __init__(self, root: Path, templates: list[dict]) -> None:
+        self.project = FakeProject(root, templates)
+
+    def latest_output(self, key: str, template_id: str | None = None):
+        for entry in reversed(self.project.data["templates"]):
+            if template_id is not None and entry.get("id") != template_id:
+                continue
+            outputs = entry.get("outputs") or {}
+            if key in outputs:
+                return outputs[key]
+        return None
+
+
+def load_function(name: str):
+    path = PACK_ROOT / "functions" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Could not load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.resolve
+
+
+def test_dgea_samplesheet_binding_prefers_rendered_output() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project = Path(tmpdir)
+        rendered = project / "nfcore_3mrnaseq" / "samplesheet.csv"
+        rendered.parent.mkdir(parents=True)
+        rendered.write_text("sample\nA\n", encoding="utf-8")
+        ctx = FakeContext(
+            project,
+            [
+                {
+                    "id": "nfcore_3mrnaseq",
+                    "path": "nfcore_3mrnaseq",
+                    "params": {"samplesheet": "./samplesheet.csv"},
+                    "outputs": {"rendered_samplesheet": str(rendered)},
+                }
+            ],
+        )
+        assert load_function("get_dgea_samplesheet")(ctx) == str(rendered)
+
+
+def test_dgea_samplesheet_binding_resolves_upstream_relative_param() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project = Path(tmpdir)
+        rendered = project / "nfcore_3mrnaseq" / "samplesheet.csv"
+        rendered.parent.mkdir(parents=True)
+        rendered.write_text("sample\nA\n", encoding="utf-8")
+        ctx = FakeContext(
+            project,
+            [
+                {
+                    "id": "nfcore_3mrnaseq",
+                    "path": "nfcore_3mrnaseq",
+                    "params": {"samplesheet": "./samplesheet.csv"},
+                    "outputs": {},
+                }
+            ],
+        )
+        assert load_function("get_dgea_samplesheet")(ctx) == str(rendered.resolve())
+
+
 def main() -> int:
+    test_dgea_samplesheet_binding_prefers_rendered_output()
+    test_dgea_samplesheet_binding_resolves_upstream_relative_param()
     with tempfile.TemporaryDirectory() as tmpdir:
         workspace = Path(tmpdir)
         results_dir = workspace / "results"

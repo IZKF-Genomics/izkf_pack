@@ -89,6 +89,8 @@ params:
     type: int
     default: 3600
     description: Timeout in seconds while waiting for the export engine final status.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir: {}
   export_job_spec:

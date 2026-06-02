@@ -51,6 +51,8 @@ params:
     type: path
     default: ""
     description: FastQ Screen configuration file.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir:
     path: results

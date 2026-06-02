@@ -118,6 +118,8 @@ params:
     type: int
     default: 1
     description: Number of devices used by scVI/scANVI training.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir: {}
   run_info:

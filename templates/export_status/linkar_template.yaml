@@ -13,6 +13,8 @@ params:
     type: str
     default: http://genomics.rwth-aachen.de:9500/export
     description: Export engine base URL. If it does not end with /export, the suffix is appended automatically.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir: {}
   export_status:

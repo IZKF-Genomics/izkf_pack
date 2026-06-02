@@ -29,6 +29,8 @@ params:
     type: int
     default: 0
     description: Optional localmem in GB passed through to cellranger-atac when greater than zero.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir: {}
   counts_dir:

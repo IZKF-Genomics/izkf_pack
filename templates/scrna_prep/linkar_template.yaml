@@ -126,6 +126,8 @@ params:
     type: str
     default: "0.2,0.4,0.6,0.8,1.0,1.2"
     description: Comma-separated Leiden resolutions to benchmark in the clustering diagnostics section, for example `0.2,0.4,0.6,0.8,1.0`.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir: {}
   run_info:

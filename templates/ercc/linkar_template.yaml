@@ -18,6 +18,8 @@ params:
     type: str
     default: ""
     description: Optional comma-separated author names shown in the report header.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
 outputs:
   results_dir: {}
   html_report:
