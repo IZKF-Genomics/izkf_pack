@@ -26,8 +26,12 @@ python3 "${script_dir}/run.py" \
   --llm-model "${LLM_MODEL:-}" \
   --llm-temperature "${LLM_TEMPERATURE:-0.2}"
 
-# Record outputs in Linkar after successful manual execution.
-linkar collect "${script_dir}"
-
-# Remove template-declared runtime artifacts.
-linkar clean "${script_dir}" --yes
+# Record outputs after successful manual execution of a rendered workspace.
+# During `linkar run summary`, Linkar writes .linkar/meta.json after this script
+# returns, so the outer run owns collection in that mode.
+if [[ -f "${script_dir}/.linkar/meta.json" ]]; then
+  linkar collect "${script_dir}"
+  linkar clean "${script_dir}" --yes
+else
+  echo "[info] no Linkar run metadata found yet; skipping in-script collect/clean"
+fi
