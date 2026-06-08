@@ -325,9 +325,10 @@ def main() -> int:
         alias_matrix_params["sample_metadata"] = str(metadata_csv)
         run_module.validate_params(alias_matrix_params)
 
-        (TEMPLATE_DIR / "config").mkdir(exist_ok=True)
+        generated_config_path = tmp_path / "config" / "project.toml"
+        generated_config_path.parent.mkdir()
         run_module.write_project_config(
-            TEMPLATE_DIR / "config" / "project.toml",
+            generated_config_path,
             minimal_params,
             project_name=project_dir.name,
             sample_metadata="assets/samples.csv",
@@ -347,7 +348,7 @@ def main() -> int:
             run_module.PROJECT_DIR = original_project_dir
             run_module.RESULTS_DIR = original_results_dir
 
-        config_text = (TEMPLATE_DIR / "config" / "project.toml").read_text(encoding="utf-8")
+        config_text = generated_config_path.read_text(encoding="utf-8")
         run_info = yaml.safe_load((results_dir / "run_info.yaml").read_text(encoding="utf-8"))
 
         assert 'name = "260417_scRNA_Project"' in config_text
@@ -587,6 +588,7 @@ PY""",
     assert "id: scrna_prep" in template_text
     assert "exactly one of `input_h5ad` or `input_matrix`" in template_text.lower()
     assert "requires `doublet_method=scrublet`" in template_text
+    assert "python3 ./run.py --write-config-from-env" in template_text
     assert 'cd "${script_dir}"' in run_sh_text
     assert 'python3 "run.py"' in run_sh_text
     assert 'python3 "run.py" --prepare-only' not in run_sh_text
