@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from urllib.error import HTTPError
 
 import yaml
 
@@ -25,6 +26,16 @@ def load_function(name: str):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.resolve
+
+
+def load_function_module(name: str):
+    path = FUNCTIONS_DIR / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(f"test_{name}", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Could not load function module: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def make_fake_runtime_bin(root: Path) -> Path:
@@ -138,6 +149,10 @@ def write_illumina_run(root: Path) -> tuple[Path, Path]:
         "[Reads]\n"
         "151\n"
         "151\n"
+        "[Settings]\n"
+        "AdapterRead1,AGATCGGAAGAGCACACGTCTGAACTCCAGTCA\n"
+        "AdapterRead2,AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT\n"
+        "AdapterBehavior,trim\n"
         "[Data]\n"
         "Sample_ID,Sample_Name,Sample_Project,index\n"
         "S1,S1,Project_A,ACGTACGT\n"
@@ -206,9 +221,16 @@ def test_illumina_run_script() -> None:
         assert "PLATFORM=illumina" in run_params
         assert "DEMULTIPLEXER=bclconvert" in run_params
         assert "FLOWCELL_ID=HLHGVBGYX" in run_params
+        assert "MERGE_LANES=true" in run_params
+        assert "V1_SCHEMA=true" in run_params
+        assert "REMOVE_SAMPLESHEET_ADAPTER=false" in run_params
         assert "MAX_MEMORY=64.GB" in run_params
         assert "DEMUX_CPUS=''" in run_params
         assert "FALCO_CPUS=''" in run_params
+        staged_samplesheet = (tmpdir / "flowcell_samplesheet.csv").read_text(encoding="utf-8")
+        assert "AdapterRead1,AGATCGGAAGAGCACACGTCTGAACTCCAGTCA" in staged_samplesheet
+        assert "AdapterRead2,AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT" in staged_samplesheet
+        assert "AdapterBehavior,trim" in staged_samplesheet
 
         run_env = os.environ.copy()
         run_env["PATH"] = f"{fake_bin}:{run_env.get('PATH', '')}"
@@ -229,12 +251,15 @@ def test_illumina_run_script() -> None:
         assert "-r 1.7.1" in args_text
         assert "--flowcell_id HLHGVBGYX" in args_text
         assert "--demultiplexer bclconvert" in args_text
+        assert "--remove_samplesheet_adapter false" in args_text
         assert "--max_cpus" not in args_text
         assert "--max_memory" not in args_text
         nextflow_config_text = (tmpdir / "nextflow.config").read_text(encoding="utf-8")
         assert "resourceLimits" in nextflow_config_text
         assert "def demuxCpus" in nextflow_config_text
         assert "def falcoCpus" in nextflow_config_text
+        assert "def mergeLanes" in nextflow_config_text
+        assert "--no-lane-splitting true" in nextflow_config_text
         assert "withName: FALCO" in nextflow_config_text
         assert "maxForks = falcoMaxForks" in nextflow_config_text
         assert "--skip-empty-fq-files" not in nextflow_config_text
@@ -360,6 +385,113 @@ def test_bindings_are_registered_and_aviti_manifest_resolves() -> None:
         assert value == str((raw_run_dir / "RunManifest.csv").resolve())
 
 
+def test_illumina_binding_uses_flowcell_api_before_agendo() -> None:
+    module = load_function_module("get_nfcore_demultiplex_flowcell_samplesheet")
+
+    class FakeApi:
+        API_BASE_FLOWCELL = "https://example.test/flowcell/"
+        API_BASE_REQUEST = "https://example.test/request/"
+
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+            self.cache = Path(tempfile.mkdtemp(prefix="nfcore-demux-api-cache-"))
+
+        def _build_auth_header(self) -> str:
+            return "Basic token"
+
+        def _parse_flowcell_id(self, bcl_dir: str) -> str:
+            return "H7CGGBGYX"
+
+        def _extract_not_found_detail(self, _exc: HTTPError) -> str:
+            return "not found"
+
+        def _cache_root(self) -> Path:
+            return self.cache
+
+        def _fetch(self, url: str, _auth_header: str) -> bytes:
+            self.calls.append(url)
+            return b"[Header]\nIEMFileVersion,4\n"
+
+    fake = FakeApi()
+    original = module._load_api_module
+    module._load_api_module = lambda: fake
+    try:
+        value = module.resolve(
+            FakeContext(
+                TEMPLATE_DIR,
+                {
+                    "raw_run_dir": "/data/run/260608_NB501289_0999_AH7CGGBGYX",
+                    "platform": "illumina",
+                    "demultiplexer": "bclconvert",
+                    "flowcell_samplesheet": "",
+                    "agendo_id": "6101",
+                    "use_api_samplesheet": True,
+                },
+            )
+        )
+        assert Path(value).read_text(encoding="utf-8") == "[Header]\nIEMFileVersion,4\n"
+        assert fake.calls == ["https://example.test/flowcell/H7CGGBGYX"]
+    finally:
+        module._load_api_module = original
+        shutil.rmtree(fake.cache, ignore_errors=True)
+
+
+def test_illumina_binding_falls_back_to_agendo_after_flowcell_404() -> None:
+    module = load_function_module("get_nfcore_demultiplex_flowcell_samplesheet")
+
+    class FakeApi:
+        API_BASE_FLOWCELL = "https://example.test/flowcell/"
+        API_BASE_REQUEST = "https://example.test/request/"
+
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+            self.cache = Path(tempfile.mkdtemp(prefix="nfcore-demux-api-cache-"))
+
+        def _build_auth_header(self) -> str:
+            return "Basic token"
+
+        def _parse_flowcell_id(self, bcl_dir: str) -> str:
+            return "H7CGGBGYX"
+
+        def _extract_not_found_detail(self, _exc: HTTPError) -> str:
+            return "not found"
+
+        def _cache_root(self) -> Path:
+            return self.cache
+
+        def _fetch(self, url: str, _auth_header: str) -> bytes:
+            self.calls.append(url)
+            if "/flowcell/" in url:
+                raise HTTPError(url, 404, "not found", hdrs=None, fp=None)
+            return b"[Header]\nIEMFileVersion,4\n"
+
+    fake = FakeApi()
+    original = module._load_api_module
+    module._load_api_module = lambda: fake
+    try:
+        value = module.resolve(
+            FakeContext(
+                TEMPLATE_DIR,
+                {
+                    "raw_run_dir": "/data/run/260608_NB501289_0999_AH7CGGBGYX",
+                    "platform": "illumina",
+                    "demultiplexer": "bclconvert",
+                    "flowcell_samplesheet": "",
+                    "agendo_id": "6101",
+                    "use_api_samplesheet": True,
+                },
+            )
+        )
+        assert Path(value).read_text(encoding="utf-8") == "[Header]\nIEMFileVersion,4\n"
+        assert fake.calls == [
+            "https://example.test/flowcell/H7CGGBGYX",
+            "https://example.test/request/6101",
+        ]
+    finally:
+        module._load_api_module = original
+        shutil.rmtree(fake.cache, ignore_errors=True)
+
+
 def test_render_outdir_shortens_yyyy_mm_dd_prefix() -> None:
     resolve = load_function("get_nfcore_demultiplex_render_outdir")
     value = resolve(
@@ -378,6 +510,8 @@ def main() -> None:
     test_aviti_defaults_to_run_manifest_and_bases2fastq()
     test_cpu_overrides_are_written_to_runtime_env()
     test_bindings_are_registered_and_aviti_manifest_resolves()
+    test_illumina_binding_uses_flowcell_api_before_agendo()
+    test_illumina_binding_falls_back_to_agendo_after_flowcell_404()
     test_render_outdir_shortens_yyyy_mm_dd_prefix()
     print("nfcore_demultiplex template test passed")
 

@@ -213,6 +213,11 @@ def project_map_value(value: object, project: str) -> str:
     return str(raw or "").strip()
 
 
+def first_glob_match(pattern: Path) -> str:
+    matches = sorted(path for path in pattern.parent.glob(pattern.name) if path.is_file())
+    return str(matches[0]) if matches else ""
+
+
 def derive_parent_from_file_outputs(value: object) -> str:
     if isinstance(value, str):
         files = [value]
@@ -538,7 +543,9 @@ def main() -> int:
                 if linkar_outputs.get("multiqc_dir")
                 else "",
                 run_dir / "results" / "multiqc" / "multiqc_report.html",
+                first_glob_match(run_dir / "results" / "multiqc" / "*multiqc_report.html"),
                 run_dir / "multiqc" / "multiqc_report.html",
+                first_glob_match(run_dir / "multiqc" / "*multiqc_report.html"),
             ],
             run_dir,
             host_default,

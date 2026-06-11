@@ -29,7 +29,7 @@ fi
 # shellcheck disable=SC1091
 source config/run_params.env
 
-export RAW_RUN_DIR FLOWCELL_ID FLOWCELL_LANE PLATFORM DEMULTIPLEXER SKIP_TOOLS V1_SCHEMA PROJECT_MULTIQC ALLOW_EMPTY_FASTQ MAX_CPUS MAX_MEMORY DEMUX_CPUS FALCO_CPUS PACK_ROOT
+export RAW_RUN_DIR FLOWCELL_ID FLOWCELL_LANE MERGE_LANES PLATFORM DEMULTIPLEXER SKIP_TOOLS V1_SCHEMA REMOVE_SAMPLESHEET_ADAPTER PROJECT_MULTIQC ALLOW_EMPTY_FASTQ MAX_CPUS MAX_MEMORY DEMUX_CPUS FALCO_CPUS PACK_ROOT
 export NXF_VER="${NXF_VER:-25.10.2}"
 
 if [[ -z "${FLOWCELL_ID}" ]]; then
@@ -79,7 +79,7 @@ pixi run nextflow run nf-core/demultiplex \
   --outdir results \
   --demultiplexer "${DEMULTIPLEXER}" \
   --trim_fastq false \
-  --remove_samplesheet_adapter true \
+  --remove_samplesheet_adapter "${REMOVE_SAMPLESHEET_ADAPTER}" \
   --v1_schema "${V1_SCHEMA}" \
   --multiqc_title "${FLOWCELL_ID}" \
   "${LANE_ARGS[@]}" \

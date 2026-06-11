@@ -152,6 +152,31 @@ def main() -> int:
         assert dry_spec["export_list"][1]["src"] == str(actual_multiqc_report.resolve())
         assert not (results_dir / "export_demux_summary.json").exists()
 
+        actual_multiqc_report.unlink()
+        named_multiqc_report = run_dir / "results" / "multiqc" / "H7CGGBGYX_multiqc_report.html"
+        named_multiqc_report.write_text("<html>named</html>\n", encoding="utf-8")
+        named_dry = subprocess.run(
+            [
+                "python3",
+                str(TEMPLATE_DIR / "run.py"),
+                "--results-dir",
+                str(results_dir),
+                "--run-dir",
+                str(run_dir),
+                "--author",
+                "CKuo, IZKF",
+                "--dry-run",
+                "true",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert "Dry Run" in named_dry.stdout
+        named_spec = json.loads((latest / "export_job_spec.json").read_text(encoding="utf-8"))
+        assert named_spec["export_list"][1]["src"] == str(named_multiqc_report.resolve())
+        actual_multiqc_report.write_text("<html></html>\n", encoding="utf-8")
+
         project_dry = subprocess.run(
             [
                 "python3",

@@ -24,6 +24,7 @@ Exposed parameters:
 - `agendo_id`
 - `flowcell_id`
 - `flowcell_lane`
+- `merge_lanes`
 - `platform`
 - `demultiplexer`
 - `skip_tools`
@@ -40,9 +41,22 @@ With `--binding default`, the pack can resolve:
 - `flowcell_samplesheet`
   - explicit `--flowcell-samplesheet` first
   - AVITI `raw_run_dir/RunManifest.csv` when present
-  - Illumina facility API lookup via flowcell id
+  - Illumina facility API lookup via flowcell id, with `agendo_id` as request fallback
 - `max_cpus` and `max_memory` from host capacity
 - render `outdir` from `raw_run_dir`, under `/data/fastq` by default
+
+`v1_schema` defaults to `true` because the facility Illumina samplesheets are
+usually legacy IEM v1 / `[Data]` sheets. Set `--v1-schema false` for Illumina
+v2 samplesheets.
+
+Illumina samplesheets fetched from the facility APIs are staged as-is. The
+template does not remove adapter settings by default; this avoids corrupting
+valid bcl-convert settings such as `AdapterBehavior=trim` paired with
+`AdapterRead1` / `AdapterRead2`.
+
+`merge_lanes` defaults to `true` for Illumina bcl-convert runs. When no
+specific `flowcell_lane` is requested, the template passes
+`--no-lane-splitting true` so each sample gets merged FASTQs across lanes.
 
 `max_cpus` is the total local CPU budget. `demux_cpus` defaults to `max_cpus`
 and is used for `bases2fastq` / `bclconvert`. `falco_cpus` defaults to
@@ -103,10 +117,14 @@ pixi run nextflow run nf-core/demultiplex \
   --outdir results \
   --demultiplexer "${DEMULTIPLEXER}" \
   --trim_fastq false \
-  --remove_samplesheet_adapter true
+  --remove_samplesheet_adapter "${REMOVE_SAMPLESHEET_ADAPTER}"
 ```
 
 Users can edit the rendered `run.sh` directly before rerunning.
+
+`remove_samplesheet_adapter` defaults to `false`. This preserves complete
+bcl-convert adapter trimming settings in facility SampleSheets, especially when
+`AdapterBehavior=trim` is present.
 
 ## Project-Level Views
 

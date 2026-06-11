@@ -11,14 +11,6 @@ params:
     type: path
     required: true
     description: Raw sequencer run directory. Illumina runs use the BCL run folder; Element AVITI runs use the AVITI run folder.
-  flowcell_samplesheet:
-    type: path
-    required: false
-    description: Demultiplexer-specific flowcell samplesheet. For Illumina this is SampleSheet.csv; for AVITI this is RunManifest.csv. With --binding default, Illumina can resolve from the facility API and AVITI defaults to raw_run_dir/RunManifest.csv.
-  use_api_samplesheet:
-    type: bool
-    default: true
-    description: When true and --flowcell-samplesheet is not passed explicitly, resolve Illumina samplesheets from the facility API via the default binding.
   agendo_id:
     type: str
     default: ""
@@ -27,10 +19,22 @@ params:
     type: str
     default: ""
     description: Optional flowcell id override. If omitted, it is derived from raw_run_dir.
+  flowcell_samplesheet:
+    type: path
+    required: false
+    description: Demultiplexer-specific flowcell samplesheet. For Illumina this is SampleSheet.csv; for AVITI this is RunManifest.csv. With --binding default, Illumina can resolve from the facility API and AVITI defaults to raw_run_dir/RunManifest.csv.
+  use_api_samplesheet:
+    type: bool
+    default: true
+    description: When true and --flowcell-samplesheet is not passed explicitly, resolve Illumina samplesheets from the facility API via the default binding.
   flowcell_lane:
     type: int
     required: false
     description: Optional lane restriction for single-flowcell runs.
+  merge_lanes:
+    type: bool
+    default: true
+    description: Merge Illumina lanes per sample by passing bcl-convert --no-lane-splitting true when no single flowcell_lane is set.
   platform:
     type: str
     default: auto
@@ -45,8 +49,12 @@ params:
     description: Optional comma-separated nf-core tools to skip, such as kraken or fastp,kraken.
   v1_schema:
     type: bool
+    default: true
+    description: Pass nf-core --v1_schema by default for facility Illumina/IEM v1 samplesheets. Set false for Illumina v2 samplesheets.
+  remove_samplesheet_adapter:
+    type: bool
     default: false
-    description: Pass nf-core --v1_schema for Illumina samplesheets that need the v1 schema parser.
+    description: Pass nf-core --remove_samplesheet_adapter. Defaults to false so bcl-convert keeps complete SampleSheet adapter trimming settings when AdapterBehavior is present.
   project_multiqc:
     type: bool
     default: true
