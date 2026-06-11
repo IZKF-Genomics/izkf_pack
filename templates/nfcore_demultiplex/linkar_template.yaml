@@ -1,0 +1,112 @@
+id: nfcore_demultiplex
+version: 0.1.0
+description: Facility-specific nf-core/demultiplex wrapper for Illumina and Element AVITI raw run folders.
+tools:
+  required:
+    - pixi
+    - python3
+    - docker
+params:
+  raw_run_dir:
+    type: path
+    required: true
+    description: Raw sequencer run directory. Illumina runs use the BCL run folder; Element AVITI runs use the AVITI run folder.
+  flowcell_samplesheet:
+    type: path
+    required: false
+    description: Demultiplexer-specific flowcell samplesheet. For Illumina this is SampleSheet.csv; for AVITI this is RunManifest.csv. With --binding default, Illumina can resolve from the facility API and AVITI defaults to raw_run_dir/RunManifest.csv.
+  use_api_samplesheet:
+    type: bool
+    default: true
+    description: When true and --flowcell-samplesheet is not passed explicitly, resolve Illumina samplesheets from the facility API via the default binding.
+  agendo_id:
+    type: str
+    default: ""
+    description: Optional request id fallback used for API samplesheet lookup when the flowcell lookup returns 404.
+  flowcell_id:
+    type: str
+    default: ""
+    description: Optional flowcell id override. If omitted, it is derived from raw_run_dir.
+  flowcell_lane:
+    type: int
+    required: false
+    description: Optional lane restriction for single-flowcell runs.
+  platform:
+    type: str
+    default: auto
+    description: Sequencer platform hint. Use auto, illumina, or aviti.
+  demultiplexer:
+    type: str
+    default: auto
+    description: nf-core/demultiplex demultiplexer. Use auto, bclconvert, or bases2fastq.
+  skip_tools:
+    type: str
+    default: ""
+    description: Optional comma-separated nf-core tools to skip, such as kraken or fastp,kraken.
+  v1_schema:
+    type: bool
+    default: false
+    description: Pass nf-core --v1_schema for Illumina samplesheets that need the v1 schema parser.
+  project_multiqc:
+    type: bool
+    default: true
+    description: Generate project-level MultiQC reports under results/output/<project>/qc/multiqc after nf-core completes.
+  allow_empty_fastq:
+    type: bool
+    default: false
+    description: Allow empty FASTQ files in diagnostic reports and exclude them from project-level views instead of failing after nf-core succeeds. nf-core may still fail internally if empty FASTQs reach read-group generation.
+  max_cpus:
+    type: int
+    required: false
+    description: Optional CPU cap used by local Nextflow process resource limits. The default binding sets this to 80 percent of host CPUs.
+  max_memory:
+    type: str
+    default: ""
+    description: Optional memory cap used by local Nextflow process resource limits. The default binding sets this to 80 percent of host RAM when detectable.
+  demux_cpus:
+    type: int
+    required: false
+    description: Optional CPU count for the demultiplexer process. Defaults to max_cpus when unset.
+  falco_cpus:
+    type: int
+    required: false
+    description: Optional CPU count for each Falco QC process. Defaults to min(8, max_cpus / 4) when unset.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
+outputs:
+  results_dir: {}
+  rendered_flowcell_samplesheet:
+    path: ../flowcell_samplesheet.csv
+  nfcore_multiqc_report:
+    path: multiqc/multiqc_report.html
+  pipeline_info_dir:
+    path: pipeline_info
+  software_versions:
+    path: software_versions.json
+  nfcore_software_versions:
+    glob: pipeline_info/*software*versions*.yml
+  runtime_command:
+    glob: pipeline_info/params_*.json
+  demux_fastq_files:
+    glob: output/*/*.fastq.gz
+  project_multiqc_reports:
+    glob: output/*/qc/multiqc/multiqc_report.html
+  project_adoption_metadata:
+    glob: output/*/.linkar/meta.json
+  project_template_outputs_json:
+    glob: output/*/template_outputs.json
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: work
+    type: dir
+  - path: .nextflow
+    type: dir
+  - glob: ".nextflow.log*"
+    type: file
+run:
+  mode: render
+  entry: run.sh
+render:
+  command: |
+    python3 ./run.py --prepare

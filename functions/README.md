@@ -29,17 +29,33 @@ Environment variables:
 
 - `IZKF_DEMULTIPLEX_RENDER_ROOT`
 
+### `get_nfcore_demultiplex_render_outdir`
+
+Source: [`get_nfcore_demultiplex_render_outdir.py`](get_nfcore_demultiplex_render_outdir.py)
+
+Builds the default render output directory for the `nfcore_demultiplex` template from the basename of `raw_run_dir`.
+
+Environment variables:
+
+- `IZKF_DEMULTIPLEX_RENDER_ROOT`
+
+### `get_nfcore_demultiplex_flowcell_samplesheet`
+
+Source: [`get_nfcore_demultiplex_flowcell_samplesheet.py`](get_nfcore_demultiplex_flowcell_samplesheet.py)
+
+Resolves the demultiplexer-specific flowcell samplesheet for `nfcore_demultiplex`. It prefers an explicit `flowcell_samplesheet`, uses `raw_run_dir/RunManifest.csv` for AVITI runs, and otherwise delegates Illumina lookup to `get_api_samplesheet`.
+
 ### `get_demultiplex_fastq_dir`
 
 Source: [`get_demultiplex_fastq_dir.py`](get_demultiplex_fastq_dir.py)
 
-Finds the sample FASTQ directory from the latest recorded `demultiplex.demux_fastq_files` output in the current project. It ignores undetermined reads when possible and raises a clear error if the recorded FASTQ files span ambiguous directories.
+Finds the sample FASTQ directory from the latest recorded `nfcore_demultiplex.demux_fastq_files` or legacy `demultiplex.demux_fastq_files` output in the current project. It ignores undetermined/unassigned reads when possible and raises a clear error if the recorded FASTQ files span ambiguous directories.
 
 ### `generate_nfcore_rnaseq_samplesheet_forward`
 
 Source: [`generate_nfcore_rnaseq_samplesheet_forward.py`](generate_nfcore_rnaseq_samplesheet_forward.py)
 
-Generates an nf-core samplesheet from the latest recorded demultiplexed read pairs. It writes a cached samplesheet under the Linkar cache directory and returns that generated path.
+Generates an nf-core samplesheet from the latest recorded demultiplexed read pairs from `nfcore_demultiplex` or the legacy `demultiplex` template. It writes a cached samplesheet under the Linkar cache directory and returns that generated path.
 
 Environment variables:
 
@@ -49,7 +65,7 @@ Environment variables:
 
 Source: [`generate_nfcore_methylseq_samplesheet.py`](generate_nfcore_methylseq_samplesheet.py)
 
-Generates an `nf-core/methylseq` samplesheet from the latest recorded demultiplexed FASTQ pairs. It writes a cached samplesheet under the Linkar cache directory and returns that generated path.
+Generates an `nf-core/methylseq` samplesheet from the latest recorded demultiplexed FASTQ pairs from `nfcore_demultiplex` or the legacy `demultiplex` template. It writes a cached samplesheet under the Linkar cache directory and returns that generated path.
 
 Environment variables:
 
@@ -59,7 +75,7 @@ Environment variables:
 
 Source: [`generate_nfcore_scrnaseq_samplesheet.py`](generate_nfcore_scrnaseq_samplesheet.py)
 
-Generates an `nf-core/scrnaseq` samplesheet from the latest recorded demultiplexed FASTQ pairs. It writes a cached samplesheet under the Linkar cache directory and includes the optional `expected_cells` column when that parameter is already resolved.
+Generates an `nf-core/scrnaseq` samplesheet from the latest recorded demultiplexed FASTQ pairs from `nfcore_demultiplex` or the legacy `demultiplex` template. It writes a cached samplesheet under the Linkar cache directory and includes the optional `expected_cells` column when that parameter is already resolved.
 
 Environment variables:
 
@@ -69,7 +85,7 @@ Environment variables:
 
 Source: [`generate_nfcore_3mrnaseq_samplesheet.py`](generate_nfcore_3mrnaseq_samplesheet.py)
 
-Generates an nf-core samplesheet by scanning the latest demultiplex results directory for paired reads. This is kept for compatibility with workflows that prefer directory-based discovery instead of the recorded file list.
+Generates an nf-core 3' mRNA-seq samplesheet from the latest recorded demultiplexed FASTQ pairs from `nfcore_demultiplex` or the legacy `demultiplex` template.
 
 Environment variables:
 

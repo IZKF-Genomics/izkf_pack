@@ -2,13 +2,30 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import importlib.util
 import os
 import re
 from pathlib import Path
 
-
-READ1_EXTENSION = "_R1_001.fastq.gz"
-READ2_EXTENSION = "_R2_001.fastq.gz"
+try:
+    from functions._demux_common import (
+        READ1_SUFFIXES,
+        READ2_SUFFIXES,
+        is_unassigned_sample,
+        latest_demux_fastq_files,
+        read_suffix,
+    )
+except ModuleNotFoundError:
+    spec = importlib.util.spec_from_file_location("_demux_common", Path(__file__).with_name("_demux_common.py"))
+    if spec is None or spec.loader is None:
+        raise
+    _demux_common = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(_demux_common)
+    READ1_SUFFIXES = _demux_common.READ1_SUFFIXES
+    READ2_SUFFIXES = _demux_common.READ2_SUFFIXES
+    is_unassigned_sample = _demux_common.is_unassigned_sample
+    latest_demux_fastq_files = _demux_common.latest_demux_fastq_files
+    read_suffix = _demux_common.read_suffix
 
 
 def _nonempty(value: object | None) -> str:
@@ -26,53 +43,36 @@ def _strip_sample_suffix(name: str) -> str:
     return re.sub(r"_S\d+$", "", name)
 
 
-def _latest_demux_results_dir(ctx) -> Path:
-    latest = ctx.latest_output("results_dir", template_id="demultiplex")
-    if not latest:
-        raise RuntimeError(
-            "samplesheet could not be generated because no demultiplex results_dir was found in the current project"
-        )
-    path = Path(str(latest)).resolve()
-    if not path.exists():
-        raise RuntimeError(f"demultiplex results_dir does not exist: {path}")
-    return path
-
-
-def _demux_fastq_dir(ctx) -> Path:
-    results_dir = _latest_demux_results_dir(ctx)
-    candidate = results_dir / "output"
-    if candidate.exists():
-        return candidate
-    return results_dir
-
-
 def resolve(ctx) -> str:
     if ctx.project is None:
         raise RuntimeError("samplesheet generation requires a Linkar project with prior demultiplex outputs")
 
-    fastq_dir = _demux_fastq_dir(ctx)
-    r1_files = sorted(fastq_dir.rglob(f"*{READ1_EXTENSION}"))
-    if not r1_files:
-        raise RuntimeError(f"No R1 FASTQ files found under {fastq_dir}")
+    fastq_files = sorted(Path(item).resolve() for item in latest_demux_fastq_files(ctx))
+    if not fastq_files:
+        raise RuntimeError("demultiplex demux_fastq_files output is empty")
 
     reads: dict[str, dict[str, list[str]]] = {}
-    for path in r1_files:
-        sample = _strip_sample_suffix(path.name[: -len(READ1_EXTENSION)])
-        if sample.startswith("Undetermined"):
-            continue
-        reads.setdefault(sample, {"R1": [], "R2": []})["R1"].append(str(path.resolve()))
-
-    r2_files = sorted(fastq_dir.rglob(f"*{READ2_EXTENSION}"))
-    for path in r2_files:
-        sample = _strip_sample_suffix(path.name[: -len(READ2_EXTENSION)])
-        if sample.startswith("Undetermined"):
-            continue
-        reads.setdefault(sample, {"R1": [], "R2": []})["R2"].append(str(path.resolve()))
+    usable_files: list[str] = []
+    for path in fastq_files:
+        if not path.exists():
+            raise RuntimeError(f"FASTQ file listed in demux_fastq_files does not exist: {path}")
+        read1_suffix = read_suffix(path.name, READ1_SUFFIXES)
+        read2_suffix = read_suffix(path.name, READ2_SUFFIXES)
+        if read1_suffix:
+            sample = _strip_sample_suffix(path.name[: -len(read1_suffix)])
+            if sample and not is_unassigned_sample(sample):
+                reads.setdefault(sample, {"R1": [], "R2": []})["R1"].append(str(path))
+                usable_files.append(str(path))
+        elif read2_suffix:
+            sample = _strip_sample_suffix(path.name[: -len(read2_suffix)])
+            if sample and not is_unassigned_sample(sample):
+                reads.setdefault(sample, {"R1": [], "R2": []})["R2"].append(str(path))
+                usable_files.append(str(path))
 
     if not reads:
-        raise RuntimeError(f"No usable FASTQ pairs found under {fastq_dir}")
+        raise RuntimeError("No usable FASTQ pairs found in demux_fastq_files")
 
-    cache_key = hashlib.sha1(str(fastq_dir).encode("utf-8")).hexdigest()[:12]
+    cache_key = hashlib.sha1("\n".join(sorted(usable_files)).encode("utf-8")).hexdigest()[:12]
     out_dir = _cache_root() / "nfcore_3mrnaseq" / cache_key
     out_dir.mkdir(parents=True, exist_ok=True)
     out_csv = out_dir / "samplesheet.csv"

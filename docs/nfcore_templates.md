@@ -3,6 +3,7 @@
 This pack uses a consistent pattern for the nf-core style templates, especially:
 
 - [`nfcore_3mrnaseq`](../templates/nfcore_3mrnaseq/README.md)
+- [`nfcore_demultiplex`](../templates/nfcore_demultiplex/README.md)
 - [`nfcore_methylseq`](../templates/nfcore_methylseq/README.md)
 - [`nfcore_scrnaseq`](../templates/nfcore_scrnaseq/README.md)
 
@@ -20,10 +21,9 @@ building or fetching them.
 
 For these templates, the preferred design is:
 
-1. `run.py` resolves parameters and metadata
-2. `run.py` writes a concrete `run.sh`
-3. `run.py` records runtime artifacts
-4. the generated `run.sh` contains the exact command the user can inspect or rerun
+1. `run.py` prepares local editable runtime files
+2. `run.sh` contains the exact command the user can inspect or rerun
+3. runtime artifacts are written under `results/` or `results/pipeline_info/`
 
 This is easier for users than hiding the final command deep inside Python logic.
 

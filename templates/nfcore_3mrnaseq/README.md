@@ -25,7 +25,7 @@ Exposed parameters:
 
 With `--binding default`, the pack can resolve:
 
-- `samplesheet` from the latest `demultiplex.demux_fastq_files` outputs in the active project
+- `samplesheet` from the latest `nfcore_demultiplex.demux_fastq_files` or legacy `demultiplex.demux_fastq_files` outputs in the active project
 - `genome` from Agendo organism metadata
 - `umi` from Agendo UMI metadata
 - `spikein` from Agendo spike-in metadata
@@ -41,7 +41,7 @@ The same shorthand also accepts `yes`, `on`, and `1`. False-like values such as 
 ## Samplesheet generation
 
 The default binding generates the `nf-core/rnaseq` samplesheet from FASTQ names recorded by the
-latest `demultiplex` run.
+latest `nfcore_demultiplex` or legacy `demultiplex` run.
 
 The generated columns are:
 

@@ -2,13 +2,31 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import importlib.util
 import os
 import re
 from pathlib import Path
 
+try:
+    from functions._demux_common import (
+        READ1_SUFFIXES,
+        READ2_SUFFIXES,
+        is_unassigned_sample,
+        latest_demux_fastq_files,
+        read_suffix,
+    )
+except ModuleNotFoundError:
+    spec = importlib.util.spec_from_file_location("_demux_common", Path(__file__).with_name("_demux_common.py"))
+    if spec is None or spec.loader is None:
+        raise
+    _demux_common = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(_demux_common)
+    READ1_SUFFIXES = _demux_common.READ1_SUFFIXES
+    READ2_SUFFIXES = _demux_common.READ2_SUFFIXES
+    is_unassigned_sample = _demux_common.is_unassigned_sample
+    latest_demux_fastq_files = _demux_common.latest_demux_fastq_files
+    read_suffix = _demux_common.read_suffix
 
-READ1_EXTENSION = "_R1_001.fastq.gz"
-READ2_EXTENSION = "_R2_001.fastq.gz"
 SAMPLE_SUFFIX_PATTERN = re.compile(r"_S\d+(?:_L\d{3})?$")
 
 
@@ -21,17 +39,6 @@ def _cache_root() -> Path:
     if linkar_home:
         return Path(linkar_home).expanduser().resolve() / "generated_samplesheets"
     return Path.home().resolve() / ".linkar" / "generated_samplesheets"
-
-
-def _latest_demux_fastq_files(ctx) -> list[str]:
-    latest = ctx.latest_output("demux_fastq_files", template_id="demultiplex")
-    if not latest:
-        raise RuntimeError(
-            "samplesheet could not be generated because no demultiplex demux_fastq_files output was found in the current project"
-        )
-    if not isinstance(latest, list):
-        raise RuntimeError("demultiplex demux_fastq_files output must be a list of file paths")
-    return [str(item) for item in latest]
 
 
 def _sample_key(path: Path, suffix: str) -> str:
@@ -48,7 +55,7 @@ def resolve(ctx) -> str:
     if ctx.project is None:
         raise RuntimeError("samplesheet generation requires a Linkar project with prior demultiplex outputs")
 
-    fastq_files = sorted(Path(item).resolve() for item in _latest_demux_fastq_files(ctx))
+    fastq_files = sorted(Path(item).resolve() for item in latest_demux_fastq_files(ctx))
     if not fastq_files:
         raise RuntimeError("demultiplex demux_fastq_files output is empty")
 
@@ -57,16 +64,18 @@ def resolve(ctx) -> str:
     for path in fastq_files:
         if not path.exists():
             raise RuntimeError(f"FASTQ file listed in demux_fastq_files does not exist: {path}")
-        if path.name.endswith(READ1_EXTENSION):
-            pair_key = _sample_key(path, READ1_EXTENSION)
+        read1_suffix = read_suffix(path.name, READ1_SUFFIXES)
+        read2_suffix = read_suffix(path.name, READ2_SUFFIXES)
+        if read1_suffix:
+            pair_key = _sample_key(path, read1_suffix)
             sample = _sample_name(pair_key)
-            if sample and not sample.startswith("Undetermined"):
+            if sample and not is_unassigned_sample(sample):
                 reads.setdefault(sample, {"R1": [], "R2": []})["R1"].append(str(path))
                 usable_files.append(str(path))
-        elif path.name.endswith(READ2_EXTENSION):
-            pair_key = _sample_key(path, READ2_EXTENSION)
+        elif read2_suffix:
+            pair_key = _sample_key(path, read2_suffix)
             sample = _sample_name(pair_key)
-            if sample and not sample.startswith("Undetermined"):
+            if sample and not is_unassigned_sample(sample):
                 reads.setdefault(sample, {"R1": [], "R2": []})["R2"].append(str(path))
                 usable_files.append(str(path))
 

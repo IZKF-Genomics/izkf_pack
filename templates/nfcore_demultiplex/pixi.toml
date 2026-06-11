@@ -1,0 +1,14 @@
+[workspace]
+authors = ["izkf_pack"]
+channels = ["conda-forge", "bioconda"]
+name = "nfcore_demultiplex"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[dependencies]
+multiqc = "*"
+nextflow = "*"
+
+[tasks]
+run-local = "python3 run.py --prepare"
+test = "python3 test.py"

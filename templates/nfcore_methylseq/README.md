@@ -24,7 +24,7 @@ Exposed parameters:
 
 With `--binding default`, the pack can resolve:
 
-- `samplesheet` from the latest `demultiplex.demux_fastq_files` outputs in the active project
+- `samplesheet` from the latest `nfcore_demultiplex.demux_fastq_files` or legacy `demultiplex.demux_fastq_files` outputs in the active project
 - `genome` from Agendo organism metadata
 - `project_name` from the active Linkar project name
 - `max_cpus` and `max_memory` from host capacity
@@ -32,7 +32,7 @@ With `--binding default`, the pack can resolve:
 ## Samplesheet generation
 
 The default binding generates the `nf-core/methylseq` samplesheet from FASTQ names recorded by the
-latest `demultiplex` run.
+latest `nfcore_demultiplex` or legacy `demultiplex` run.
 
 The generated columns are:
 

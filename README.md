@@ -536,6 +536,7 @@ If a required parameter cannot be resolved automatically, pass it explicitly wit
 | Template | Purpose | Details |
 | --- | --- | --- |
 | [`demultiplex`](templates/demultiplex/linkar_template.yaml) | Clone and run the pinned demultiplexing workflow, writing processed outputs under `results/`. | [README](templates/demultiplex/README.md) |
+| [`nfcore_demultiplex`](templates/nfcore_demultiplex/linkar_template.yaml) | Run `nf-core/demultiplex` for Illumina and Element AVITI raw run folders with project-level FASTQ and MultiQC views. | [README](templates/nfcore_demultiplex/README.md) |
 | [`nfcore_3mrnaseq`](templates/nfcore_3mrnaseq/linkar_template.yaml) | Run the site-specific `nf-core/rnaseq` wrapper for 3' mRNA-seq projects. | [README](templates/nfcore_3mrnaseq/README.md) |
 | [`nfcore_scrnaseq`](templates/nfcore_scrnaseq/linkar_template.yaml) | Run the facility-focused `nf-core/scrnaseq` wrapper for single-cell RNA-seq projects. | [README](templates/nfcore_scrnaseq/README.md) |
 | [`scrna_prep`](templates/scrna_prep/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq preprocessing workspace with Quarto QC reporting. | [README](templates/scrna_prep/README.md) |
@@ -568,6 +569,8 @@ The default binding in [`linkar_pack.yaml`](linkar_pack.yaml) uses Python functi
 | --- | --- | --- |
 | [`get_api_samplesheet`](functions/get_api_samplesheet.py) | Resolve a demultiplexing samplesheet from an explicit value, metadata API, or bundled fallback. | [functions README](functions/README.md#get_api_samplesheet) |
 | [`get_demultiplex_render_outdir`](functions/get_demultiplex_render_outdir.py) | Derive the default demultiplex render directory from the raw run folder name. | [functions README](functions/README.md#get_demultiplex_render_outdir) |
+| [`get_nfcore_demultiplex_render_outdir`](functions/get_nfcore_demultiplex_render_outdir.py) | Derive the default `nfcore_demultiplex` render directory from `raw_run_dir`. | [functions README](functions/README.md#get_nfcore_demultiplex_render_outdir) |
+| [`get_nfcore_demultiplex_flowcell_samplesheet`](functions/get_nfcore_demultiplex_flowcell_samplesheet.py) | Resolve Illumina SampleSheet.csv or AVITI RunManifest.csv for `nfcore_demultiplex`. | [functions README](functions/README.md#get_nfcore_demultiplex_flowcell_samplesheet) |
 | [`get_demultiplex_fastq_dir`](functions/get_demultiplex_fastq_dir.py) | Resolve the sample FASTQ directory from recorded demultiplex outputs. | [functions README](functions/README.md#get_demultiplex_fastq_dir) |
 | [`generate_nfcore_rnaseq_samplesheet_forward`](functions/generate_nfcore_rnaseq_samplesheet_forward.py) | Generate an nf-core samplesheet from demultiplexed read pairs recorded in project history. | [functions README](functions/README.md#generate_nfcore_rnaseq_samplesheet_forward) |
 | [`generate_nfcore_3mrnaseq_samplesheet`](functions/generate_nfcore_3mrnaseq_samplesheet.py) | Generate an nf-core samplesheet from the latest demultiplex results directory. | [functions README](functions/README.md#generate_nfcore_3mrnaseq_samplesheet) |
@@ -613,6 +616,7 @@ python3 templates/cellranger_atac/test.py
 python3 templates/summary/test.py
 python3 templates/methods_from_paths/test.py
 python3 templates/dgea/test.py
+python3 templates/nfcore_demultiplex/test.py
 python3 templates/nfcore_3mrnaseq/test.py
 python3 templates/nfcore_scrnaseq/test.py
 python3 templates/scrna_prep/test.py

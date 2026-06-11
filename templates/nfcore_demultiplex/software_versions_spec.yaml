@@ -1,0 +1,14 @@
+tools:
+  - nextflow
+
+params:
+  - name: platform
+    env: PLATFORM
+  - name: demultiplexer
+    env: DEMULTIPLEXER
+
+static:
+  - name: nf-core/demultiplex
+    version: 1.7.1
+  - name: execution_profile
+    version: docker

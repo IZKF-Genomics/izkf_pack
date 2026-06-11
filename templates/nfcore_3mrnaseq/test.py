@@ -269,11 +269,11 @@ def test_none_string_normalization() -> None:
 
 
 class FakeProject:
-    def __init__(self, fastq_files: list[str]) -> None:
+    def __init__(self, fastq_files: list[str], *, template_id: str = "demultiplex") -> None:
         self.data = {
             "templates": [
                 {
-                    "id": "demultiplex",
+                    "id": template_id,
                     "outputs": {"demux_fastq_files": fastq_files},
                 }
             ]
@@ -285,8 +285,8 @@ class FakeTemplate:
 
 
 class FakeContext:
-    def __init__(self, fastq_files: list[str]) -> None:
-        self.project = FakeProject(fastq_files)
+    def __init__(self, fastq_files: list[str], *, template_id: str = "demultiplex") -> None:
+        self.project = FakeProject(fastq_files, template_id=template_id)
         self.template = FakeTemplate()
         self.resolved_params = {}
 
@@ -319,6 +319,28 @@ def test_samplesheet_binding() -> None:
         assert rows[0] == ["sample", "fastq_1", "fastq_2", "strandedness"]
         assert rows[1][0] == "SampleA"
         assert rows[1][3] == "forward"
+
+
+def test_samplesheet_binding_accepts_nfcore_demultiplex_aviti_names() -> None:
+    with tempfile.TemporaryDirectory(prefix="linkar-nfcore-demux-binding-test-") as tmp:
+        tmpdir = Path(tmp)
+        project_dir = tmpdir / "results" / "output" / "project_a"
+        project_dir.mkdir(parents=True)
+        sample_r1 = project_dir / "ProjectA_R1.fastq.gz"
+        sample_r2 = project_dir / "ProjectA_R2.fastq.gz"
+        unassigned = project_dir / "Unassigned_R1.fastq.gz"
+        sample_r1.write_text("r1\n", encoding="utf-8")
+        sample_r2.write_text("r2\n", encoding="utf-8")
+        unassigned.write_text("skip\n", encoding="utf-8")
+
+        resolve = load_function("generate_nfcore_rnaseq_samplesheet_forward")
+        output = Path(resolve(FakeContext([str(sample_r1), str(sample_r2), str(unassigned)], template_id="nfcore_demultiplex")))
+        rows = list(csv.reader(output.open(encoding="utf-8")))
+        assert rows[0] == ["sample", "fastq_1", "fastq_2", "strandedness"]
+        assert len(rows) == 2
+        assert rows[1][0] == "ProjectA"
+        assert rows[1][1] == str(sample_r1.resolve())
+        assert rows[1][2] == str(sample_r2.resolve())
 
 
 def test_agendo_bindings_use_cached_metadata() -> None:
@@ -415,6 +437,7 @@ def main() -> None:
     test_toggle_shorthand_normalization()
     test_none_string_normalization()
     test_samplesheet_binding()
+    test_samplesheet_binding_accepts_nfcore_demultiplex_aviti_names()
     test_agendo_bindings_use_cached_metadata()
     test_agendo_genome_unknown_organism_returns_placeholder()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")

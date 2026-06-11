@@ -157,11 +157,11 @@ def test_rendered_run_script() -> None:
 
 
 class FakeProject:
-    def __init__(self, fastq_files: list[str]) -> None:
+    def __init__(self, fastq_files: list[str], *, template_id: str = "demultiplex") -> None:
         self.data = {
             "templates": [
                 {
-                    "id": "demultiplex",
+                    "id": template_id,
                     "outputs": {"demux_fastq_files": fastq_files},
                 }
             ]
@@ -173,8 +173,8 @@ class FakeTemplate:
 
 
 class FakeContext:
-    def __init__(self, fastq_files: list[str]) -> None:
-        self.project = FakeProject(fastq_files)
+    def __init__(self, fastq_files: list[str], *, template_id: str = "demultiplex") -> None:
+        self.project = FakeProject(fastq_files, template_id=template_id)
         self.template = FakeTemplate()
         self.resolved_params = {}
 
@@ -211,9 +211,33 @@ def test_samplesheet_binding() -> None:
         assert rows[1][3] == ""
 
 
+def test_samplesheet_binding_accepts_nfcore_demultiplex_aviti_names() -> None:
+    with tempfile.TemporaryDirectory(prefix="linkar-methylseq-nfcore-demux-test-") as tmp:
+        tmpdir = Path(tmp)
+        project_dir = tmpdir / "results" / "output" / "methyl_project"
+        project_dir.mkdir(parents=True)
+        sample_r1 = project_dir / "MethylA_R1.fastq.gz"
+        sample_r2 = project_dir / "MethylA_R2.fastq.gz"
+        unassigned = project_dir / "Unassigned_R1.fastq.gz"
+        sample_r1.write_text("r1\n", encoding="utf-8")
+        sample_r2.write_text("r2\n", encoding="utf-8")
+        unassigned.write_text("skip\n", encoding="utf-8")
+
+        resolve = load_function("generate_nfcore_methylseq_samplesheet")
+        output = Path(resolve(FakeContext([str(sample_r1), str(sample_r2), str(unassigned)], template_id="nfcore_demultiplex")))
+        rows = list(csv.reader(output.open(encoding="utf-8")))
+        assert rows[0] == ["sample", "fastq_1", "fastq_2", "genome"]
+        assert len(rows) == 2
+        assert rows[1][0] == "MethylA"
+        assert rows[1][1] == str(sample_r1.resolve())
+        assert rows[1][2] == str(sample_r2.resolve())
+        assert rows[1][3] == ""
+
+
 def main() -> None:
     test_rendered_run_script()
     test_samplesheet_binding()
+    test_samplesheet_binding_accepts_nfcore_demultiplex_aviti_names()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
     run_py_text = (TEMPLATE_DIR / "run.py").read_text(encoding="utf-8")

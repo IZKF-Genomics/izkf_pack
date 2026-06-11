@@ -14,7 +14,7 @@ params:
   samplesheet:
     type: path
     required: true
-    description: nf-core/scrnaseq input samplesheet. With --binding default it can be generated from the latest demultiplex FASTQ outputs in the active project.
+    description: nf-core/scrnaseq input samplesheet. With --binding default it can be generated from the latest nfcore_demultiplex or legacy demultiplex FASTQ outputs in the active project.
   genome:
     type: str
     required: true

@@ -14,7 +14,7 @@ params:
   samplesheet:
     type: path
     required: true
-    description: nf-core/rnaseq input samplesheet. With --binding default it can be generated from the latest demultiplex outputs in the active project.
+    description: nf-core/rnaseq input samplesheet. With --binding default it can be generated from the latest nfcore_demultiplex or legacy demultiplex outputs in the active project.
   genome:
     type: str
     required: true

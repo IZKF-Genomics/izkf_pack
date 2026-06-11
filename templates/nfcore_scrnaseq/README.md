@@ -35,14 +35,14 @@ Exposed parameters:
 
 With `--binding default`, the pack can resolve:
 
-- `samplesheet` from the latest `demultiplex.demux_fastq_files` outputs in the active project
+- `samplesheet` from the latest `nfcore_demultiplex.demux_fastq_files` or legacy `demultiplex.demux_fastq_files` outputs in the active project
 - `genome` from Agendo organism metadata when `agendo_id` is available; otherwise render falls back to an editable placeholder and a guarded `run.sh`
 - `max_cpus` and `max_memory` from host capacity
 
 ## Samplesheet staging
 
 The default binding generates the `nf-core/scrnaseq` samplesheet from FASTQ names recorded by the
-latest `demultiplex` run.
+latest `nfcore_demultiplex` or legacy `demultiplex` run.
 
 The staged samplesheet always contains:
 

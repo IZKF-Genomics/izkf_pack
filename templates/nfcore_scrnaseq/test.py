@@ -346,11 +346,17 @@ def test_star_requires_explicit_protocol_message() -> None:
 
 
 class FakeProject:
-    def __init__(self, fastq_files: list[str], *, expected_cells: str = "") -> None:
+    def __init__(
+        self,
+        fastq_files: list[str],
+        *,
+        expected_cells: str = "",
+        template_id: str = "demultiplex",
+    ) -> None:
         self.data = {
             "templates": [
                 {
-                    "id": "demultiplex",
+                    "id": template_id,
                     "outputs": {"demux_fastq_files": fastq_files},
                 }
             ]
@@ -363,8 +369,14 @@ class FakeTemplate:
 
 
 class FakeContext:
-    def __init__(self, fastq_files: list[str], *, expected_cells: str = "") -> None:
-        self.project = FakeProject(fastq_files, expected_cells=expected_cells)
+    def __init__(
+        self,
+        fastq_files: list[str],
+        *,
+        expected_cells: str = "",
+        template_id: str = "demultiplex",
+    ) -> None:
+        self.project = FakeProject(fastq_files, expected_cells=expected_cells, template_id=template_id)
         self.template = FakeTemplate()
         self.resolved_params = {"expected_cells": expected_cells} if expected_cells else {}
 
@@ -396,6 +408,37 @@ def test_samplesheet_binding() -> None:
         assert rows[1][3] == "1234"
 
 
+def test_samplesheet_binding_accepts_nfcore_demultiplex_aviti_names() -> None:
+    with tempfile.TemporaryDirectory(prefix="linkar-scrnaseq-nfcore-demux-test-") as tmp:
+        tmpdir = Path(tmp)
+        project_dir = tmpdir / "results" / "output" / "scrna_project"
+        project_dir.mkdir(parents=True)
+        sample_r1 = project_dir / "SC_Project_R1.fastq.gz"
+        sample_r2 = project_dir / "SC_Project_R2.fastq.gz"
+        unassigned = project_dir / "Unassigned_R2.fastq.gz"
+        sample_r1.write_text("r1\n", encoding="utf-8")
+        sample_r2.write_text("r2\n", encoding="utf-8")
+        unassigned.write_text("skip\n", encoding="utf-8")
+
+        resolve = load_function("generate_nfcore_scrnaseq_samplesheet")
+        output = Path(
+            resolve(
+                FakeContext(
+                    [str(sample_r1), str(sample_r2), str(unassigned)],
+                    expected_cells="4321",
+                    template_id="nfcore_demultiplex",
+                )
+            )
+        )
+        rows = list(csv.reader(output.open(encoding="utf-8")))
+        assert rows[0] == ["sample", "fastq_1", "fastq_2", "expected_cells"]
+        assert len(rows) == 2
+        assert rows[1][0] == "SC_Project"
+        assert rows[1][1] == str(sample_r1.resolve())
+        assert rows[1][2] == str(sample_r2.resolve())
+        assert rows[1][3] == "4321"
+
+
 def test_agendo_genome_without_request_id_returns_placeholder() -> None:
     class MissingAgendoContext:
         def __init__(self) -> None:
@@ -424,6 +467,7 @@ def main() -> None:
     test_render_only_with_placeholder_genome_writes_guarded_run_script()
     test_star_requires_non_auto_protocol()
     test_samplesheet_binding()
+    test_samplesheet_binding_accepts_nfcore_demultiplex_aviti_names()
     test_agendo_genome_without_request_id_returns_placeholder()
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     run_sh_text = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")

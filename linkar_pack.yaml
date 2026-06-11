@@ -7,6 +7,16 @@ templates:
         function: get_api_samplesheet
       threads:
         function: get_host_max_cpus
+  nfcore_demultiplex:
+    outdir:
+      function: get_nfcore_demultiplex_render_outdir
+    params:
+      flowcell_samplesheet:
+        function: get_nfcore_demultiplex_flowcell_samplesheet
+      max_cpus:
+        function: get_host_max_cpus
+      max_memory:
+        function: get_host_max_memory
   nfcore_3mrnaseq:
     params:
       samplesheet:
