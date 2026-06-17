@@ -85,8 +85,14 @@ outputs:
   results_dir: {}
   rendered_flowcell_samplesheet:
     path: ../flowcell_samplesheet.csv
+  run_multiqc_report:
+    glob: multiqc/*multiqc_report.html
   nfcore_multiqc_report:
-    path: multiqc/multiqc_report.html
+    glob: multiqc/*multiqc_report.html
+  multiqcsav_report:
+    glob: multiqcsav/*.html
+  bclconvert_reports_dir:
+    glob: "*/Reports"
   pipeline_info_dir:
     path: pipeline_info
   software_versions:

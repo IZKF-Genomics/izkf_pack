@@ -148,6 +148,15 @@ are hardlinked under `qc/input`, then MultiQC is run per project when
 `project_multiqc=true`. Hardlinks keep each project self-contained without
 duplicating the underlying FASTQ bytes on disk.
 
+If the samplesheet does not contain a project column, all matched FASTQs are
+placed under `results/output/fastq/`.
+
+The run-level nf-core MultiQC report is kept under `results/multiqc/` and is
+also recorded in each project view metadata as `run_multiqc_report`. This report
+contains whole-run bcl-convert statistics such as lane, index mismatch, and
+undetermined summaries. `export_demux` can export project-level QC, run-level
+QC, or both.
+
 After project views are built successfully, the native nf-core flowcell-level
 folder `results/<flowcell_id>/` is removed. The project folders keep the real
 FASTQ and QC files, while `pipeline_info/`, `samplesheet/`, reports, and

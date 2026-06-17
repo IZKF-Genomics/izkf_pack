@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import gzip
 import importlib.util
 import json
 import os
@@ -285,6 +286,10 @@ def test_illumina_run_script() -> None:
         meta = json.loads((project_a / ".linkar" / "meta.json").read_text(encoding="utf-8"))
         assert meta["template"] == "nfcore_demultiplex"
         assert len(meta["outputs"]["demux_fastq_files"]) == 2
+        assert meta["outputs"]["run_multiqc_report"] == str(
+            (tmpdir / "results" / "multiqc" / "multiqc_report.html").resolve()
+        )
+        assert meta["outputs"]["nfcore_multiqc_report"] == meta["outputs"]["run_multiqc_report"]
         assert (tmpdir / "results" / "software_versions.json").exists()
 
 
@@ -317,6 +322,49 @@ def test_aviti_defaults_to_run_manifest_and_bases2fastq() -> None:
         assert "ExampleSample_1" not in lint_report
         args_text = (tmpdir / "args.log").read_text(encoding="utf-8")
         assert "--demultiplexer bases2fastq" in args_text
+
+
+def test_missing_project_column_uses_fastq_folder() -> None:
+    with tempfile.TemporaryDirectory(prefix="linkar-nfcore-demux-default-project-") as tmp:
+        tmpdir = Path(tmp)
+        copy_runtime_template(tmpdir)
+        fake_bin = make_fake_runtime_bin(tmpdir)
+        results = tmpdir / "results"
+        flowcell_dir = results / "FLOWCELL"
+        flowcell_dir.mkdir(parents=True)
+        with gzip.open(flowcell_dir / "S1_S1_R1_001.fastq.gz", "wt", encoding="ascii") as handle:
+            handle.write("@S1/1\nAC\n+\nII\n")
+        with gzip.open(flowcell_dir / "S1_S1_R2_001.fastq.gz", "wt", encoding="ascii") as handle:
+            handle.write("@S1/2\nTG\n+\nII\n")
+        samplesheet = tmpdir / "flowcell_samplesheet.csv"
+        samplesheet.write_text(
+            "[Data]\n"
+            "Sample_ID,Sample_Name,index\n"
+            "S1,S1,ACGTACGT\n",
+            encoding="utf-8",
+        )
+        completed = subprocess.run(
+            [
+                "python3",
+                "build_project_views.py",
+                "--results-dir",
+                str(results),
+                "--flowcell-samplesheet",
+                str(samplesheet),
+            ],
+            cwd=tmpdir,
+            env={**os.environ, "PATH": f"{fake_bin}:{os.environ.get('PATH', '')}"},
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert completed.returncode == 0, completed.stderr
+        project_dir = results / "output" / "fastq"
+        assert project_dir.is_dir()
+        assert (project_dir / "S1_S1_R1_001.fastq.gz").is_file()
+        assert not (results / "output" / "default_project").exists()
+        meta = json.loads((project_dir / ".linkar" / "meta.json").read_text(encoding="utf-8"))
+        assert meta["params"]["sample_project"] == "fastq"
 
 
 def test_cpu_overrides_are_written_to_runtime_env() -> None:
@@ -508,6 +556,7 @@ def test_render_outdir_shortens_yyyy_mm_dd_prefix() -> None:
 def main() -> None:
     test_illumina_run_script()
     test_aviti_defaults_to_run_manifest_and_bases2fastq()
+    test_missing_project_column_uses_fastq_folder()
     test_cpu_overrides_are_written_to_runtime_env()
     test_bindings_are_registered_and_aviti_manifest_resolves()
     test_illumina_binding_uses_flowcell_api_before_agendo()

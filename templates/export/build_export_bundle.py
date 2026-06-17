@@ -103,6 +103,55 @@ def extract_saved_credentials(results_dir: Path, spec_path: Path, project_data: 
     return "", ""
 
 
+def add_annotation_discussion_report(export_list: list[dict[str, object]], project_dir: Path, project_name: str) -> None:
+    report_dir = project_dir / "annotation_discussion_report"
+    report_html = report_dir / "report.html"
+    if not report_html.exists():
+        return
+
+    common = {
+        "host": "nextgen3",
+        "project": project_name,
+        "mode": "symlink",
+    }
+    export_list.append(
+        {
+            "src": str(report_html),
+            "dest": "3_Reports/annotation_discussion_report/report.html",
+            **common,
+            "report_links": [
+                {
+                    "path": ".",
+                    "section": "reports/Annotation",
+                    "description": (
+                        "One-time annotation discussion report with UMAPs, marker evidence, "
+                        "and cluster-level review context."
+                    ),
+                    "link_name": "Annotation discussion report",
+                }
+            ],
+        }
+    )
+    export_list.append(
+        {
+            "src": str(report_dir),
+            "dest": "3_Reports/annotation_discussion_report/source_folder",
+            **common,
+            "report_links": [
+                {
+                    "path": ".",
+                    "section": "reports/Annotation",
+                    "description": (
+                        "Folder containing annotation discussion report source files, labels, "
+                        "marker panels, figures, and tables."
+                    ),
+                    "link_name": "Annotation discussion report source folder",
+                }
+            ],
+        }
+    )
+
+
 def main() -> int:
     args = parse_args()
     project_dir = Path(args.project_dir).resolve()
@@ -218,6 +267,7 @@ def main() -> int:
     save_yaml(results_dir / "metadata_context.yaml", metadata_context)
 
     export_list = build_export_list(project_dir, project_data, template_dir)
+    add_annotation_discussion_report(export_list, project_dir, project_name)
     job_spec = {
         "project_name": project_name,
         "export_list": export_list,

@@ -15,16 +15,27 @@ That avoids ambiguity about where export state lives when the action is triggere
 If not overridden, the template expects:
 
 - FASTQ directory: `output_dir` from `<run_dir>/.linkar/meta.json`, the common parent of `demux_fastq_files`, then `<run_dir>/results/output`, then `<run_dir>/output`
-- MultiQC report: `multiqc_report` from `<run_dir>/.linkar/meta.json`, then `<run_dir>/results/multiqc/multiqc_report.html`, then `<run_dir>/multiqc/multiqc_report.html`
+- MultiQC report: selected by `export_qc_scope=auto`. Auto uses run-level MultiQC for single-project demultiplex runs and project-level MultiQC when exporting one project from a multi-project run.
 
-Optional overrides include `project_name`, `author`, `fastq_dir`, and `multiqc_report`.
+Optional overrides include `project_name`, `author`, `fastq_dir`, `multiqc_report`, and `export_qc_scope`.
+
+`export_qc_scope` accepts:
+
+- `auto`: run-level QC for single-project runs, project-level QC for selected projects in multi-project runs
+- `project`: export `results/output/<Sample_Project>/qc/multiqc/multiqc_report.html`
+- `run`: export the run-level nf-core/bcl-convert MultiQC report, including whole-run lane and demultiplex statistics
+- `both`: export both project-level and run-level MultiQC reports
 
 For a demultiplex run with multiple `Sample_Project` folders, use `sample_project` to export just
 one project. The template then defaults to:
 
 - FASTQ directory: `<run_dir>/results/output/<Sample_Project>`
-- MultiQC report: `<run_dir>/results/output/<Sample_Project>/qc/multiqc/multiqc_report.html`
+- MultiQC report: project-level for multi-project runs; run-level when the run contains only this project
 - export destination: `1_Raw_data/<Sample_Project>`
+
+If the demultiplex run contains exactly one project folder under `results/output/`, `sample_project`
+can be omitted. The template auto-selects that project for FASTQ export and keeps the default
+run-level MultiQC report.
 
 Example:
 

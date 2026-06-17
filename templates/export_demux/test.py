@@ -203,6 +203,94 @@ def main() -> int:
         assert project_spec["export_list"][0]["dest"] == "1_Raw_data/Project_A"
         assert project_spec["export_list"][1]["src"] == str(project_multiqc_report.resolve())
 
+        both_dry = subprocess.run(
+            [
+                "python3",
+                str(TEMPLATE_DIR / "run.py"),
+                "--results-dir",
+                str(results_dir),
+                "--run-dir",
+                str(run_dir),
+                "--project-name",
+                "Project_A_fastq_export",
+                "--sample-project",
+                "Project_A",
+                "--export-qc-scope",
+                "both",
+                "--dry-run",
+                "true",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert "Dry Run" in both_dry.stdout
+        both_spec = json.loads((latest / "export_job_spec.json").read_text(encoding="utf-8"))
+        assert len(both_spec["export_list"]) == 3
+        assert both_spec["export_list"][1]["src"] == str(project_multiqc_report.resolve())
+        assert both_spec["export_list"][1]["dest"] == "1_Raw_data/demultiplexing_project_multiqc_report.html"
+        assert both_spec["export_list"][2]["src"] == str(actual_multiqc_report.resolve())
+        assert both_spec["export_list"][2]["dest"] == "1_Raw_data/demultiplexing_run_multiqc_report.html"
+
+        single_run_dir = root / "single_demux_run"
+        single_project_dir = single_run_dir / "results" / "output" / "Only_Project"
+        single_project_multiqc = single_project_dir / "qc" / "multiqc" / "multiqc_report.html"
+        single_run_multiqc = single_run_dir / "results" / "multiqc" / "FLOWCELL_multiqc_report.html"
+        single_project_dir.mkdir(parents=True)
+        single_project_multiqc.parent.mkdir(parents=True)
+        single_run_multiqc.parent.mkdir(parents=True)
+        (single_project_dir / "single.fastq.gz").write_text("fq\n", encoding="utf-8")
+        single_project_multiqc.write_text("<html>single project</html>\n", encoding="utf-8")
+        single_run_multiqc.write_text("<html>single run</html>\n", encoding="utf-8")
+        single_dry = subprocess.run(
+            [
+                "python3",
+                str(TEMPLATE_DIR / "run.py"),
+                "--results-dir",
+                str(results_dir),
+                "--run-dir",
+                str(single_run_dir),
+                "--project-name",
+                "Only_Project_fastq_export",
+                "--sample-project",
+                "Only_Project",
+                "--dry-run",
+                "true",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert "Dry Run" in single_dry.stdout
+        single_latest = single_run_dir / ".linkar" / "export_demux" / "latest"
+        single_spec = json.loads((single_latest / "export_job_spec.json").read_text(encoding="utf-8"))
+        assert single_spec["export_list"][0]["src"] == str(single_project_dir.resolve())
+        assert single_spec["export_list"][1]["src"] == str(single_run_multiqc.resolve())
+        assert single_spec["export_list"][1]["dest"] == "1_Raw_data/demultiplexing_multiqc_report.html"
+
+        single_auto_project_dry = subprocess.run(
+            [
+                "python3",
+                str(TEMPLATE_DIR / "run.py"),
+                "--results-dir",
+                str(results_dir),
+                "--run-dir",
+                str(single_run_dir),
+                "--project-name",
+                "Only_Project_fastq_export",
+                "--dry-run",
+                "true",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert "Dry Run" in single_auto_project_dry.stdout
+        single_auto_spec = json.loads((single_latest / "export_job_spec.json").read_text(encoding="utf-8"))
+        assert single_auto_spec["export_list"][0]["src"] == str(single_project_dir.resolve())
+        assert single_auto_spec["export_list"][0]["dest"] == "1_Raw_data/Only_Project"
+        assert single_auto_spec["export_list"][1]["src"] == str(single_run_multiqc.resolve())
+
         (project_output_dir / ".linkar").mkdir()
         (project_output_dir / ".linkar" / "meta.json").write_text(
             json.dumps(

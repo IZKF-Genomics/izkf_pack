@@ -24,6 +24,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--author", default="")
     parser.add_argument("--fastq-dir", default="")
     parser.add_argument("--multiqc-report", default="")
+    parser.add_argument(
+        "--export-qc-scope",
+        default="auto",
+        choices=("auto", "project", "run", "both"),
+        help="Which demultiplex MultiQC report to export. auto uses run-level QC for single-project runs and project-level QC for multi-project runs.",
+    )
     parser.add_argument("--export-engine-api-url", default="http://genomics.rwth-aachen.de:9500/export")
     parser.add_argument("--export-engine-backends", default="apache, owncloud, sftp")
     parser.add_argument("--export-expiry-days", type=int, default=30)
@@ -216,6 +222,46 @@ def project_map_value(value: object, project: str) -> str:
 def first_glob_match(pattern: Path) -> str:
     matches = sorted(path for path in pattern.parent.glob(pattern.name) if path.is_file())
     return str(matches[0]) if matches else ""
+
+
+def first_value(value: object) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, list):
+        for item in value:
+            text = str(item or "").strip()
+            if text:
+                return text
+    return ""
+
+
+def project_dirs(run_dir: Path) -> list[Path]:
+    candidates: list[Path] = []
+    for root in (run_dir / "results" / "output", run_dir / "output"):
+        if not root.exists():
+            continue
+        candidates.extend(path for path in sorted(root.iterdir()) if path.is_dir())
+    return candidates
+
+
+def has_single_project(run_dir: Path) -> bool:
+    projects = [path for path in project_dirs(run_dir) if path.name != "unassigned"]
+    return len(projects) == 1
+
+
+def single_project_name(run_dir: Path) -> str:
+    projects = [path for path in project_dirs(run_dir) if path.name != "unassigned"]
+    return projects[0].name if len(projects) == 1 else ""
+
+
+def auto_qc_scope(run_dir: Path, sample_project: str, adopted_project_run: bool) -> str:
+    if adopted_project_run:
+        return "project"
+    if has_single_project(run_dir):
+        return "run"
+    if sample_project:
+        return "project"
+    return "run"
 
 
 def derive_parent_from_file_outputs(value: object) -> str:
@@ -466,6 +512,8 @@ def main() -> int:
     linkar_params = load_linkar_params(run_dir)
     contract_outputs = load_output_contract(run_dir)
     sample_project = args.sample_project.strip() or str(linkar_params.get("sample_project") or "").strip()
+    if not sample_project:
+        sample_project = single_project_name(run_dir)
     adopted_project_run = bool(sample_project) and path_points_to_run_dir(
         linkar_outputs.get("output_dir"), run_dir
     )
@@ -503,58 +551,98 @@ def main() -> int:
             host_default,
         )
 
-    if args.multiqc_report.strip():
-        multiqc_host, multiqc_report = resolve_input_path(args.multiqc_report.strip(), run_dir, host_default)
-    elif sample_project and adopted_project_run:
-        multiqc_host, multiqc_report = resolve_first_existing_input(
-            [
-                linkar_outputs.get("multiqc_report"),
-                run_dir / "qc" / "multiqc" / "multiqc_report.html",
-            ],
-            run_dir,
-            host_default,
-        )
+    if sample_project and adopted_project_run:
+        project_multiqc_candidates = [
+            linkar_outputs.get("multiqc_report"),
+            run_dir / "qc" / "multiqc" / "multiqc_report.html",
+        ]
     elif sample_project:
-        multiqc_host, multiqc_report = resolve_first_existing_input(
-            [
-                project_map_value(contract_outputs.get("project_multiqc_reports"), sample_project),
-                run_dir
-                / "results"
-                / "output"
-                / sample_project
-                / "qc"
-                / "multiqc"
-                / "multiqc_report.html",
-                run_dir
-                / "output"
-                / sample_project
-                / "qc"
-                / "multiqc"
-                / "multiqc_report.html",
-            ],
-            run_dir,
-            host_default,
-        )
+        project_multiqc_candidates = [
+            project_map_value(contract_outputs.get("project_multiqc_reports"), sample_project),
+            run_dir
+            / "results"
+            / "output"
+            / sample_project
+            / "qc"
+            / "multiqc"
+            / "multiqc_report.html",
+            run_dir
+            / "output"
+            / sample_project
+            / "qc"
+            / "multiqc"
+            / "multiqc_report.html",
+        ]
     else:
-        multiqc_host, multiqc_report = resolve_first_existing_input(
-            [
-                linkar_outputs.get("multiqc_report"),
-                Path(str(linkar_outputs.get("multiqc_dir") or "")) / "multiqc_report.html"
-                if linkar_outputs.get("multiqc_dir")
-                else "",
-                run_dir / "results" / "multiqc" / "multiqc_report.html",
-                first_glob_match(run_dir / "results" / "multiqc" / "*multiqc_report.html"),
-                run_dir / "multiqc" / "multiqc_report.html",
-                first_glob_match(run_dir / "multiqc" / "*multiqc_report.html"),
-            ],
-            run_dir,
-            host_default,
-        )
+        project_multiqc_candidates = []
+
+    run_multiqc_candidates = [
+        first_value(linkar_outputs.get("run_multiqc_report")),
+        first_value(linkar_outputs.get("nfcore_multiqc_report")),
+        project_map_value(contract_outputs.get("run_multiqc_reports"), "run"),
+        first_value(contract_outputs.get("run_multiqc_report")),
+        first_value(contract_outputs.get("nfcore_multiqc_report")),
+        Path(str(linkar_outputs.get("multiqc_dir") or "")) / "multiqc_report.html"
+        if linkar_outputs.get("multiqc_dir")
+        else "",
+        run_dir / "results" / "multiqc" / "multiqc_report.html",
+        first_glob_match(run_dir / "results" / "multiqc" / "*multiqc_report.html"),
+        run_dir / "multiqc" / "multiqc_report.html",
+        first_glob_match(run_dir / "multiqc" / "*multiqc_report.html"),
+    ]
+
+    if args.multiqc_report.strip():
+        multiqc_entries = [
+            (
+                *resolve_input_path(args.multiqc_report.strip(), run_dir, host_default),
+                "1_Raw_data/demultiplexing_multiqc_report.html",
+                "MultiQC report from demultiplex",
+            )
+        ]
+    else:
+        qc_scope = args.export_qc_scope.strip().lower()
+        if qc_scope == "auto":
+            qc_scope = auto_qc_scope(run_dir, sample_project, adopted_project_run)
+
+        multiqc_entries = []
+        if qc_scope in {"project", "both"}:
+            project_host, project_multiqc = resolve_first_existing_input(
+                project_multiqc_candidates,
+                run_dir,
+                host_default,
+            )
+            multiqc_entries.append(
+                (
+                    project_host,
+                    project_multiqc,
+                    "1_Raw_data/demultiplexing_multiqc_report.html"
+                    if qc_scope == "project"
+                    else "1_Raw_data/demultiplexing_project_multiqc_report.html",
+                    "Project-level MultiQC report from demultiplex",
+                )
+            )
+        if qc_scope in {"run", "both"}:
+            run_host, run_multiqc = resolve_first_existing_input(
+                run_multiqc_candidates,
+                run_dir,
+                host_default,
+            )
+            multiqc_entries.append(
+                (
+                    run_host,
+                    run_multiqc,
+                    "1_Raw_data/demultiplexing_multiqc_report.html"
+                    if qc_scope == "run"
+                    else "1_Raw_data/demultiplexing_run_multiqc_report.html",
+                    "Run-level MultiQC report from demultiplex",
+                )
+            )
 
     if fastq_host == host_default and not fastq_dir.exists():
         raise SystemExit(f"FASTQ dir not found: {fastq_dir}")
-    if multiqc_host == host_default and not multiqc_report.exists():
-        raise SystemExit(f"MultiQC report not found: {multiqc_report}")
+    for multiqc_host, multiqc_report, _dest, _description in multiqc_entries:
+        if multiqc_host == host_default and not multiqc_report.is_file():
+            raise SystemExit(f"MultiQC report not found: {multiqc_report}")
 
     include_default = parse_bool(args.include_in_report, True)
     include_fastq = parse_bool(args.include_in_report_fastq, include_default)
@@ -572,15 +660,18 @@ def main() -> int:
             include_fastq,
             "FASTQ output from demultiplex",
         ),
-        export_entry(
-            multiqc_report,
-            "1_Raw_data/demultiplexing_multiqc_report.html",
-            multiqc_host,
-            project_name,
-            include_multiqc,
-            "MultiQC report from demultiplex",
-        ),
     ]
+    for multiqc_host, multiqc_report, dest, description in multiqc_entries:
+        export_list.append(
+            export_entry(
+                multiqc_report,
+                dest,
+                multiqc_host,
+                project_name,
+                include_multiqc,
+                description,
+            )
+        )
 
     job_spec = {
         "project_name": project_name,

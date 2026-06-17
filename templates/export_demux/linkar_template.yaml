@@ -29,6 +29,10 @@ params:
     type: str
     default: ""
     description: Optional override for the MultiQC report path. Defaults to multiqc_report from .linkar/meta.json, then run_dir/results/multiqc/multiqc_report.html, then run_dir/multiqc/multiqc_report.html.
+  export_qc_scope:
+    type: str
+    default: auto
+    description: Which demultiplex MultiQC report to export. Use auto, project, run, or both. Auto exports run-level QC for single-project runs and project-level QC when a sample_project is selected from a multi-project run.
   export_engine_api_url:
     type: str
     default: http://genomics.rwth-aachen.de:9500/export
@@ -93,6 +97,7 @@ run:
       --author "${param:author}" \
       --fastq-dir "${param:fastq_dir}" \
       --multiqc-report "${param:multiqc_report}" \
+      --export-qc-scope "${param:export_qc_scope}" \
       --export-engine-api-url "${param:export_engine_api_url}" \
       --export-engine-backends "${param:export_engine_backends}" \
       --export-expiry-days "${param:export_expiry_days}" \

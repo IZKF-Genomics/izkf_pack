@@ -16,6 +16,7 @@ FASTQ_SUFFIXES = (".fastq.gz", ".fq.gz", ".fastq", ".fq")
 SKIP_DIR_NAMES = {"work", "output", ".nextflow", ".git", ".pixi"}
 PROJECT_KEYS = ("Sample_Project", "SampleProject", "Project", "ProjectName", "Project_Name")
 SAMPLE_KEYS = ("Sample_ID", "SampleID", "Sample_Name", "SampleName", "Sample")
+DEFAULT_PROJECT = "fastq"
 
 
 def parse_args() -> argparse.Namespace:
@@ -90,7 +91,7 @@ def samplesheet_projects(path: Path) -> dict[str, str]:
 
     for _section, rows in candidate_sections:
         for row in rows:
-            project = sanitize_name(pick(row, PROJECT_KEYS), fallback="default_project")
+            project = sanitize_name(pick(row, PROJECT_KEYS), fallback=DEFAULT_PROJECT)
             sample_values = {
                 pick(row, ("Sample_ID", "SampleID", "Sample")),
                 pick(row, ("Sample_Name", "SampleName")),
@@ -235,15 +236,24 @@ def fastq_outputs(project_dir: Path) -> list[str]:
     ]
 
 
+def first_glob(root: Path, pattern: str) -> str | None:
+    matches = sorted(path for path in root.glob(pattern) if path.is_file())
+    return str(matches[0].resolve()) if matches else None
+
+
 def build_outputs(project_dir: Path) -> dict[str, object]:
     multiqc_report = project_dir / "qc" / "multiqc" / "multiqc_report.html"
     qc_dir = project_dir / "qc"
+    results_dir = project_dir.parent.parent
+    run_multiqc_report = first_glob(results_dir, "multiqc/*multiqc_report.html")
     return {
         "results_dir": str(project_dir.resolve()),
         "output_dir": str(project_dir.resolve()),
         "demux_fastq_files": fastq_outputs(project_dir),
         "qc_dir": str(qc_dir.resolve()) if qc_dir.exists() else None,
         "multiqc_report": str(multiqc_report.resolve()) if multiqc_report.exists() else None,
+        "run_multiqc_report": run_multiqc_report,
+        "nfcore_multiqc_report": run_multiqc_report,
     }
 
 
@@ -255,6 +265,8 @@ def write_project_metadata(project_dir: Path, project: str) -> None:
         "demux_fastq_files": {"glob": "../*.fastq.gz"},
         "qc_dir": {"path": "../qc"},
         "multiqc_report": {"path": "../qc/multiqc/multiqc_report.html"},
+        "run_multiqc_report": {"glob": "../../multiqc/*multiqc_report.html"},
+        "nfcore_multiqc_report": {"glob": "../../multiqc/*multiqc_report.html"},
     }
     payload = {
         "declared_outputs": declared_outputs,
@@ -305,7 +317,7 @@ def main() -> int:
 
     project_dirs: list[Path] = []
     for project, paths in sorted(project_fastqs.items()):
-        project_dir = output_root / sanitize_name(project, fallback="default_project")
+        project_dir = output_root / sanitize_name(project, fallback=DEFAULT_PROJECT)
         qc_tokens = samples_by_project.get(project, [])
         if project == "unassigned":
             qc_tokens = [*qc_tokens, "Unassigned", "Undetermined"]
