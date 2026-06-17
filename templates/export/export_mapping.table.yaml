@@ -27,7 +27,7 @@ mappings:
         section: processed
         description: "This folder contains the rendered script bundle, configuration, and nf-core/rnaseq results."
         link_name: "{template_basename}"
-      - path: "results/multiqc/multiqc_report.html"
+      - path: "results/multiqc/star_salmon/multiqc_report.html"
         section: processed/MultiQC
         description: "MultiQC report from {template_basename}."
         link_name: "{template_basename} MultiQC"
