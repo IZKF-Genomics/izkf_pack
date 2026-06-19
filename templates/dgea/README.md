@@ -25,7 +25,7 @@ Instead of BPM Jinja rendering, Linkar now writes a small `dgea_inputs.R` file t
 
 - runs the standalone [run.sh](run.sh)
 - writes `dgea_inputs.R`
-- installs the Pixi environment quietly from the lockfile
+- installs the Pixi environment from the lockfile with bounded retries and a timeout
 - runs `install_bioc_data.sh` once per Pixi environment
 - executes `DGEA_constructor.R`
 - records `software_versions.json`
@@ -111,3 +111,35 @@ Only those blocks are replaced by the configurator.
 cd templates/dgea
 python3 test.py
 ```
+
+## Pixi install troubleshooting
+
+The first run may need to download many conda packages from the locked channels in
+[pixi.lock](pixi.lock). It also downloads Bioconductor annotation data packages after the Pixi
+environment is installed. These steps use bounded retries and timeouts instead of waiting
+indefinitely when a mirror stops responding. The defaults are:
+
+```bash
+LINKAR_PIXI_INSTALL_TIMEOUT_SECONDS=1800
+LINKAR_PIXI_INSTALL_RETRIES=2
+LINKAR_PIXI_CONCURRENT_DOWNLOADS=8
+LINKAR_BIOC_DATA_TIMEOUT_SECONDS=900
+LINKAR_BIOC_DATA_RETRIES=2
+```
+
+Override these only when the network or mirror is unusually slow, for example:
+
+```bash
+LINKAR_PIXI_INSTALL_TIMEOUT_SECONDS=3600 LINKAR_BIOC_DATA_TIMEOUT_SECONDS=1800 ./run.sh
+```
+
+Bioconductor data downloads are selected from the requested `organism` instead of installing every
+bundled organism package. The template always installs shared `genomeinfodbdata` and `go.db` data,
+then adds one organism-specific package when available:
+
+- `hsapiens`: `org.hs.eg.db`
+- `mmusculus`: `org.mm.eg.db`
+- `sscrofa`: `org.ss.eg.db`
+
+Each data package is stamped independently inside the Pixi environment, so already-installed
+packages are skipped on later runs.

@@ -187,8 +187,17 @@ def main() -> int:
         assert 'linkar collect "${script_dir}"' in run_sh_text
         assert 'linkar clean "${script_dir}" --yes' in run_sh_text
         assert "--configure" in run_sh_text
+        assert 'LINKAR_DGEA_ORGANISM="${ORGANISM:-}"' in run_sh_text
+        assert "export LINKAR_DGEA_ORGANISM" in run_sh_text
         assert "pixi run python ./configure_comparisons.py" in run_sh_text
-        assert "pixi install --frozen --quiet --no-progress" in run_sh_text
+        assert "run_pixi_install()" in run_sh_text
+        assert 'LINKAR_PIXI_INSTALL_TIMEOUT_SECONDS:-1800' in run_sh_text
+        assert 'LINKAR_PIXI_INSTALL_RETRIES:-2' in run_sh_text
+        assert 'LINKAR_PIXI_CONCURRENT_DOWNLOADS:-8' in run_sh_text
+        assert "pixi install" in run_sh_text
+        assert "--frozen" in run_sh_text
+        assert "--concurrent-downloads" in run_sh_text
+        assert "--quiet --no-progress" not in run_sh_text
         assert 'qmd_file <- "DGEA_all_samples.qmd"' in functions_text
         assert 'template_path = file.path(workspace_dir, "SimpleComparison_template.qmd")' in functions_text
         assert 'support_files <- c("references.bib", "thermofisher_LSG_manuals_cms_095046.txt")' in functions_text
@@ -205,7 +214,20 @@ def main() -> int:
         assert "  # GO Analysis" not in template_text
         assert "is_standard_nfcore_rnaseq(application)" in (TEMPLATE_DIR / "DGEA_all_samples.qmd").read_text(encoding="utf-8")
         assert "is_standard_nfcore_rnaseq(params$application)" in (TEMPLATE_DIR / "SimpleComparison_template.qmd").read_text(encoding="utf-8")
-        assert ".linkar_bioc_data_installed" in install_bioc_text
+        assert ".linkar_bioc_data_installed.${p}" in install_bioc_text
+        assert "install_bioc_data_package()" in install_bioc_text
+        assert 'LINKAR_BIOC_DATA_TIMEOUT_SECONDS:-900' in install_bioc_text
+        assert 'LINKAR_BIOC_DATA_RETRIES:-2' in install_bioc_text
+        assert 'timeout "${timeout_seconds}" installBiocDataPackage.sh "${package}"' in install_bioc_text
+        assert 'organism="${ORGANISM:-${LINKAR_DGEA_ORGANISM:-}}"' in install_bioc_text
+        assert '"genomeinfodbdata-1.2.13"' in install_bioc_text
+        assert '"go.db-3.20.0"' in install_bioc_text
+        assert 'hsapiens)' in install_bioc_text
+        assert 'required_packages+=("org.hs.eg.db-3.20.0")' in install_bioc_text
+        assert 'mmusculus)' in install_bioc_text
+        assert 'required_packages+=("org.mm.eg.db-3.20.0")' in install_bioc_text
+        assert 'sscrofa)' in install_bioc_text
+        assert 'required_packages+=("org.ss.eg.db-3.20.0")' in install_bioc_text
     return 0
 
 
