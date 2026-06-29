@@ -1,21 +1,25 @@
 id: demultiplex
-version: 0.2.1
-description: Clone and run the upstream demultiplexing_prefect pipeline through Linkar.
+version: 0.2.2
+description: Clone and run the upstream demultiplexing_prefect pipeline for Illumina or AVITI runs through Linkar.
 tools:
   required:
     - git
     - pixi
   required_any:
-    - [bcl-convert]
+    - [bcl-convert, bases2fastq]
 params:
   bcl_dir:
     type: path
     required: true
-    description: BCL run folder for bcl-convert.
+    description: Raw run folder. For compatibility this legacy parameter is mapped to the upstream --input-dir flag for either Illumina or AVITI runs.
+  platform:
+    type: str
+    default: illumina
+    description: Demultiplexing platform. Use illumina for bcl-convert runs or aviti for bases2fastq runs.
   use_api_samplesheet:
     type: bool
     default: true
-    description: When true and --samplesheet is not passed explicitly, resolve samplesheet from the facility API via the default binding.
+    description: When true and --samplesheet is not passed explicitly, resolve the Illumina samplesheet from the facility API via the default binding. For AVITI runs the binding prefers bcl_dir/RunManifest.csv.
   agendo_id:
     type: str
     default: ""
@@ -23,10 +27,10 @@ params:
   flowcell_id:
     type: str
     default: ""
-    description: Optional flowcell id override used for API samplesheet lookup. If omitted, it is derived from bcl_dir.
+    description: Optional flowcell id override used for Illumina API samplesheet lookup. If omitted, it is derived from bcl_dir.
   samplesheet:
     type: path
-    description: Optional sample sheet passed to bcl-convert. With --binding default it resolves from the facility API or falls back to the bundled samplesheet.csv.
+    description: Optional manifest passed to the upstream demultiplexer. Use an Illumina SampleSheet for platform=illumina or an AVITI RunManifest.csv for platform=aviti. With --binding default it resolves from the facility API for Illumina or from bcl_dir/RunManifest.csv for AVITI, then falls back to the bundled samplesheet.csv.
   qc_tool:
     type: str
     default: falco
@@ -58,10 +62,13 @@ outputs:
     path: results
   output_dir:
     path: results/output
+  samples_tsv:
+    path: results/samples.tsv
   software_versions:
     path: results/software_versions.json
   demux_fastq_files:
     glob: results/output/*/*.fastq.gz
+  aviti_auxiliary_dir: {}
   project_qc_dirs:
     glob: results/output/*/qc
   fastqc_dir: {}

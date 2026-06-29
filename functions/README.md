@@ -10,7 +10,7 @@ These functions should stay small, predictable, and easy to debug. If a function
 
 Source: [`get_api_samplesheet.py`](get_api_samplesheet.py)
 
-Resolves the demultiplexing samplesheet. It prefers an explicit `samplesheet` parameter, can query `/api/get/samplesheet/flowcell/{flowcell}` when `use_api_samplesheet=true`, and falls back to the template-level bundled samplesheet when no API result is available.
+Resolves the demultiplexing samplesheet. It prefers an explicit `samplesheet` parameter, uses `input_dir/RunManifest.csv` or `bcl_dir/RunManifest.csv` for `platform=aviti`, can query `/api/get/samplesheet/flowcell/{flowcell}` when `use_api_samplesheet=true`, and falls back to the template-level bundled samplesheet when no API result is available.
 
 Environment variables:
 
@@ -23,7 +23,7 @@ Environment variables:
 
 Source: [`get_demultiplex_render_outdir.py`](get_demultiplex_render_outdir.py)
 
-Builds the default render output directory for the `demultiplex` template from the basename of `bcl_dir`.
+Builds the default render output directory for the `demultiplex` template from the basename of `input_dir`, falling back to `bcl_dir` for legacy callers.
 
 Environment variables:
 

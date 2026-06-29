@@ -2,7 +2,7 @@
 set -euo pipefail
 
 upstream_repo_url="https://github.com/MoSafi2/demultiplexing_prefect"
-upstream_commit="8c2ebab05f9c49487cb01e226c77f27893f84d0b"
+upstream_commit="72c1550bc7c2941dbb9993ee60e4ff9a18bd36d4"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 upstream_repo_dir="${script_dir}/demultiplexing_prefect"
@@ -28,12 +28,20 @@ export UPSTREAM_COMMIT="${upstream_commit}"
 export UPSTREAM_REPO_URL="${upstream_repo_url}"
 python3 "${pack_root}/functions/software_versions.py" \
   --spec "${script_dir}/software_versions_spec.yaml" \
+  --command "demultiplexer=$(
+    if [[ "${PLATFORM:?}" == "aviti" ]]; then
+      printf '%s' 'bases2fastq --version'
+    else
+      printf '%s' 'bcl-convert --version'
+    fi
+  )" \
   --output "${results_dir}/software_versions.json"
 
 pushd "${upstream_repo_dir}" >/dev/null
 pixi run demux-pipeline \
   --outdir "${results_dir}" \
-  --bcl_dir "${BCL_DIR:?}" \
+  --platform "${PLATFORM:?}" \
+  --input-dir "${BCL_DIR:?}" \
   --samplesheet "${samplesheet_path}" \
   --qc-tool "${QC_TOOL:?}" \
   --contamination-tool "${CONTAMINATION_TOOL:?}" \

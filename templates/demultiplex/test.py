@@ -35,7 +35,9 @@ def make_fake_pixi_bin(root: Path) -> Path:
         "from pathlib import Path\n"
         "parser = argparse.ArgumentParser()\n"
         "parser.add_argument('--outdir', required=True, type=Path)\n"
-        "parser.add_argument('--bcl_dir', required=True, type=Path)\n"
+        "parser.add_argument('--platform', required=False, default='illumina')\n"
+        "parser.add_argument('--input-dir', required=False, type=Path)\n"
+        "parser.add_argument('--bcl_dir', required=False, type=Path)\n"
         "parser.add_argument('--samplesheet', required=True, type=Path)\n"
         "parser.add_argument('--qc-tool', required=True)\n"
         "parser.add_argument('--contamination-tool', default='none')\n"
@@ -45,6 +47,7 @@ def make_fake_pixi_bin(root: Path) -> Path:
         "parser.add_argument('--fastq-screen-conf', default='')\n"
         "parser.add_argument('--output-contract-file', required=True, type=Path)\n"
         "args = parser.parse_args()\n"
+        "args.input_dir = args.input_dir or args.bcl_dir\n"
         "args.outdir.mkdir(parents=True, exist_ok=True)\n"
         "project_dir = args.outdir / 'output' / 'sample_project'\n"
         "project_dir.mkdir(parents=True, exist_ok=True)\n"
@@ -82,6 +85,8 @@ def make_fake_pixi_bin(root: Path) -> Path:
         "payload = {\n"
         "    'outdir': str(args.outdir),\n"
         "    'outputs': {\n"
+        "        'aviti_auxiliary_dir': str(args.outdir / 'bases2fastq') if args.platform == 'aviti' else None,\n"
+        "        'samples_tsv': str(args.outdir / 'samples.tsv'),\n"
         "        'qc_dir': str(project_dir / 'qc'),\n"
         "        'project_qc_dirs': {'sample_project': str(project_dir / 'qc')},\n"
         "        'contamination_dir': None,\n"
@@ -148,6 +153,16 @@ def make_fake_demux_bin(root: Path) -> Path:
             "exit 0\n"
         )
         path.chmod(0o755)
+    bases2fastq = bin_dir / "bases2fastq"
+    bases2fastq.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        "if [[ \"${1:-}\" == \"--version\" ]]; then\n"
+        "  echo 'bases2fastq 1.2.3'\n"
+        "fi\n"
+        "exit 0\n"
+    )
+    bases2fastq.chmod(0o755)
     linkar = bin_dir / "linkar"
     linkar.write_text(
         "#!/usr/bin/env bash\n"
@@ -207,6 +222,7 @@ def main() -> None:
 
         results_dir = tmpdir / "results"
         env = {
+            "PLATFORM": "illumina",
             "QC_TOOL": "fastqc,fastp",
             "THREADS": "2",
             "BCL_DIR": str(demux_input),
@@ -247,6 +263,8 @@ def main() -> None:
 
         contract = json.loads((results_dir / "template_outputs.json").read_text(encoding="utf-8"))
         assert contract["outputs"]["contamination_dir"] is None
+        assert contract["outputs"]["samples_tsv"] == str(results_dir / "samples.tsv")
+        assert contract["outputs"]["aviti_auxiliary_dir"] is None
         assert contract["outputs"]["project_qc_dirs"] == {
             "sample_project": str(results_dir / "output" / "sample_project" / "qc")
         }
@@ -305,23 +323,23 @@ def main() -> None:
         versions_payload = json.loads((results_dir / "software_versions.json").read_text(encoding="utf-8"))
         versions = {entry["name"]: entry for entry in versions_payload["software"]}
         assert list(versions) == [
-            "bcl-convert",
             "pixi",
+            "demultiplexer",
             "demultiplexing_prefect",
             "qc_tool",
             "contamination_tool",
         ]
-        assert versions["bcl-convert"]["version"] == "bcl-convert v4.4.6"
         assert versions["pixi"]["version"] == "pixi 0.42.1"
-        assert versions["demultiplexing_prefect"]["version"] == "8c2ebab05f9c49487cb01e226c77f27893f84d0b"
+        assert versions["demultiplexer"]["version"] == "bcl-convert v4.4.6"
+        assert versions["demultiplexing_prefect"]["version"] == "72c1550bc7c2941dbb9993ee60e4ff9a18bd36d4"
         assert versions["demultiplexing_prefect"]["repository"] == "https://github.com/MoSafi2/demultiplexing_prefect"
         assert versions["qc_tool"]["version"] == "fastqc,fastp"
         assert versions["contamination_tool"]["version"] == "kraken"
         git_log = (tmpdir / "git_args.log").read_text(encoding="utf-8")
         staged_repo = TEMPLATE_DIR / "demultiplexing_prefect"
         assert f"clone={staged_repo}" in git_log
-        assert f"fetch={staged_repo}:8c2ebab05f9c49487cb01e226c77f27893f84d0b" in git_log
-        assert f"checkout={staged_repo}:8c2ebab05f9c49487cb01e226c77f27893f84d0b" in git_log
+        assert f"fetch={staged_repo}:72c1550bc7c2941dbb9993ee60e4ff9a18bd36d4" in git_log
+        assert f"checkout={staged_repo}:72c1550bc7c2941dbb9993ee60e4ff9a18bd36d4" in git_log
         assert not staged_repo.exists()
         assert not (tmpdir / "demultiplexing_prefect").exists()
 
@@ -334,16 +352,20 @@ def main() -> None:
         assert 'git -C "${upstream_repo_dir}" checkout "${upstream_commit}"' in template_run_sh
         assert 'python3 "${script_dir}/build_project_views.py" --results-dir "${results_dir}"' in template_run_sh
         assert 'pixi run demux-pipeline' in template_run_sh
+        assert '--platform "${PLATFORM:?}"' in template_run_sh
+        assert '--input-dir "${BCL_DIR:?}"' in template_run_sh
         assert 'find "${results_dir}/output" -type d -exec chmod 775 {} +' in template_run_sh
-        assert 'upstream_commit="8c2ebab05f9c49487cb01e226c77f27893f84d0b"' in template_run_sh
+        assert 'upstream_commit="72c1550bc7c2941dbb9993ee60e4ff9a18bd36d4"' in template_run_sh
         assert 'upstream_repo_url="https://github.com/MoSafi2/demultiplexing_prefect"' in template_run_sh
         assert "results/output/*/qc/contamination/**/*" in template_yaml
         assert "results/output/*/qc/multiqc/multiqc_report.html" in template_yaml
         assert "results/output/*/.linkar/meta.json" in template_yaml
         assert "results/output/*/template_outputs.json" in template_yaml
         assert "results/output/*/qc/fastp_passthrough/**/*.fastq.gz" in template_yaml
+        assert "path: results/samples.tsv" in template_yaml
         assert "software_versions.json" in template_run_sh
         assert 'python3 "${pack_root}/functions/software_versions.py"' in template_run_sh
+        assert '--command "demultiplexer=$(' in template_run_sh
         assert '--spec "${script_dir}/software_versions_spec.yaml"' in template_run_sh
         assert 'export UPSTREAM_COMMIT="${upstream_commit}"' in template_run_sh
         assert 'rm -rf "${upstream_repo_dir}"' in template_run_sh

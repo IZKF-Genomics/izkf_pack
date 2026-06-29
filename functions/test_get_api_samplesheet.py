@@ -33,6 +33,8 @@ def main() -> None:
 
         original_fetch = MODULE._fetch
         original_build_auth_header = MODULE._build_auth_header
+        original_linkar_home = os.environ.get("LINKAR_HOME")
+        os.environ["LINKAR_HOME"] = str(tmpdir / "linkar-home")
 
         try:
             ctx = make_ctx(tmpdir, samplesheet="/tmp/explicit.csv", use_api_samplesheet=True)
@@ -41,6 +43,18 @@ def main() -> None:
             ctx = make_ctx(tmpdir, samplesheet="", use_api_samplesheet=False)
             assert MODULE.resolve(ctx) == str(fallback.resolve())
             assert MODULE.API_BASE_FLOWCELL == EXPECTED_FLOWCELL_API_BASE
+
+            aviti_dir = tmpdir / "AVITI_RUN_001"
+            aviti_dir.mkdir()
+            run_manifest = aviti_dir / "RunManifest.csv"
+            run_manifest.write_text("manifest\n", encoding="utf-8")
+            ctx = make_ctx(
+                tmpdir,
+                platform="aviti",
+                bcl_dir=str(aviti_dir),
+                use_api_samplesheet=True,
+            )
+            assert MODULE.resolve(ctx) == str(run_manifest.resolve())
 
             ctx = make_ctx(
                 tmpdir,
@@ -110,6 +124,10 @@ def main() -> None:
         finally:
             MODULE._fetch = original_fetch
             MODULE._build_auth_header = original_build_auth_header
+            if original_linkar_home is None:
+                os.environ.pop("LINKAR_HOME", None)
+            else:
+                os.environ["LINKAR_HOME"] = original_linkar_home
 
     print("get_api_samplesheet tests passed")
 

@@ -1,5 +1,4 @@
 tools:
-  - bcl-convert
   - pixi
 
 params:

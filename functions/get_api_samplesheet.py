@@ -76,6 +76,10 @@ def _fallback_template_samplesheet(ctx) -> str:
     )
 
 
+def _input_dir_from_resolved(resolved: dict[str, object]) -> str:
+    return _nonempty(resolved.get("input_dir")) or _nonempty(resolved.get("bcl_dir"))
+
+
 def resolve(ctx) -> str:
     resolved = ctx.resolved_params or {}
 
@@ -87,12 +91,18 @@ def resolve(ctx) -> str:
     if not use_api:
         return _fallback_template_samplesheet(ctx)
 
-    bcl_dir = _nonempty(resolved.get("bcl_dir"))
-    if not bcl_dir:
+    platform = _nonempty(resolved.get("platform")).lower()
+    input_dir = _input_dir_from_resolved(resolved)
+    if platform == "aviti" and input_dir:
+        run_manifest = Path(input_dir).expanduser() / "RunManifest.csv"
+        if run_manifest.exists():
+            return str(run_manifest.resolve())
+
+    if not input_dir:
         return _fallback_template_samplesheet(ctx)
 
     agendo_id = _nonempty(resolved.get("agendo_id"))
-    flowcell_id = _nonempty(resolved.get("flowcell_id")) or (_parse_flowcell_id(bcl_dir) or "")
+    flowcell_id = _nonempty(resolved.get("flowcell_id")) or (_parse_flowcell_id(input_dir) or "")
     if not flowcell_id and not agendo_id:
         return _fallback_template_samplesheet(ctx)
 

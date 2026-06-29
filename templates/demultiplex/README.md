@@ -6,7 +6,7 @@ instead of vendoring a snapshot into the pack.
 ## Upstream source
 
 - repo: `https://github.com/MoSafi2/demultiplexing_prefect`
-- pinned commit: `8c2ebab05f9c49487cb01e226c77f27893f84d0b`
+- pinned commit: `72c1550bc7c2941dbb9993ee60e4ff9a18bd36d4`
 
 Each rendered or executed run clones the upstream repository into the run directory, checks out the
 pinned commit above, and launches the pipeline from that staged checkout.
@@ -19,6 +19,7 @@ Linkar owns the run directory, so the upstream `--outdir` parameter is mapped in
 Exposed parameters:
 
 - `bcl_dir`
+- `platform`
 - `samplesheet`
 - `use_api_samplesheet`
 - `agendo_id`
@@ -38,7 +39,7 @@ Pack defaults:
 - `get_host_max_cpus` returns `max(1, int(os.cpu_count() * 0.8))`
 
 That means a normal `linkar render demultiplex ...` run through `izkf_pack` renders into
-`/data/fastq/<bcl-dir-name>` unless you pass an explicit `--outdir` value, and upstream
+`/data/fastq/<run-folder-name>` unless you pass an explicit `--outdir` value, and upstream
 `--threads` uses 80% of the detected host CPUs unless you pass an explicit `--threads` value.
 
 Not exposed anymore:
@@ -55,10 +56,10 @@ The template keeps the execution logic in a standalone [run.sh](run.sh):
 
 ```bash
 git clone --depth 1 https://github.com/MoSafi2/demultiplexing_prefect ./demultiplexing_prefect
-git -C ./demultiplexing_prefect fetch --depth 1 origin 8c2ebab05f9c49487cb01e226c77f27893f84d0b
-git -C ./demultiplexing_prefect checkout 8c2ebab05f9c49487cb01e226c77f27893f84d0b
+git -C ./demultiplexing_prefect fetch --depth 1 origin 72c1550bc7c2941dbb9993ee60e4ff9a18bd36d4
+git -C ./demultiplexing_prefect checkout 72c1550bc7c2941dbb9993ee60e4ff9a18bd36d4
 cd ./demultiplexing_prefect
-pixi run demux-pipeline ...
+pixi run demux-pipeline --platform ... --input-dir ...
 ```
 
 `linkar_template.yaml` now points to `run.entry: run.sh`, and Linkar still renders the outer
@@ -103,9 +104,10 @@ linkar project init \
 When you run with `--binding default`, `samplesheet` resolves in this order:
 
 1. explicit `--samplesheet`
-2. facility API lookup at `/api/get/samplesheet/flowcell/{flowcell}` using `--flowcell-id` when provided, or a flowcell id derived from `--bcl-dir`
-3. optional Agendo request-id fallback by `--agendo-id` only when the flowcell lookup returns 404
-4. bundled template fallback [samplesheet.csv](samplesheet.csv) if the API lookup is unavailable or returns no record
+2. for `--platform aviti`, `bcl_dir/RunManifest.csv` when present
+3. for `--platform illumina`, facility API lookup at `/api/get/samplesheet/flowcell/{flowcell}` using `--flowcell-id` when provided, or a flowcell id derived from `--bcl-dir`
+4. optional Agendo request-id fallback by `--agendo-id` only when the flowcell lookup returns 404
+5. bundled template fallback [samplesheet.csv](samplesheet.csv) if no run-specific manifest is available
 
 That fallback file is only a generic placeholder. It is useful as a last-resort file default, but
 it may not be correct for a real sequencing run.
@@ -117,6 +119,16 @@ linkar render demultiplex \
   --binding default \
   --bcl-dir /data/bcl/260407_NB501289_0992_AHLHGVBGYX \
   --flowcell-id HLHGVBGYX
+```
+
+For AVITI runs, set the platform explicitly. With the default binding, the template uses
+`<run>/RunManifest.csv` when present:
+
+```bash
+linkar render demultiplex \
+  --binding default \
+  --platform aviti \
+  --bcl-dir /data/raw/AVITI_RUN_001
 ```
 
 ## Test commands
