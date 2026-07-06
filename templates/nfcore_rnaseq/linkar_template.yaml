@@ -1,0 +1,70 @@
+id: nfcore_rnaseq
+version: 0.1.0
+description: Facility-specific nf-core/rnaseq wrapper for total RNA-seq and mRNA-seq runs.
+tools:
+  required:
+    - pixi
+    - python3
+    - docker
+params:
+  agendo_id:
+    type: str
+    default: ""
+    description: Optional Agendo request id used to derive genome, UMI metadata, and spike-in metadata via the default binding.
+  samplesheet:
+    type: path
+    required: true
+    description: nf-core/rnaseq input samplesheet. With --binding default it can be generated with reverse strandedness from the latest nfcore_demultiplex or legacy demultiplex outputs in the active project.
+  genome:
+    type: str
+    required: true
+    description: Facility genome identifier such as GRCh38, GRCm39, mRatBN7.2, Sscrofa11.1, or GRCg7b.
+  umi:
+    type: str
+    default: ""
+    description: Optional UMI description. The facility default UMI metadata label enables the nf-core UMI flags. CLI shorthand values true, yes, on, and 1 resolve to the facility default UMI setting.
+  spikein:
+    type: str
+    default: ""
+    description: Optional spike-in description. Values containing ERCC append _with_ERCC to the selected genome. CLI shorthand values true, yes, on, and 1 resolve to the facility default ERCC spike-in.
+  max_cpus:
+    type: int
+    required: false
+    description: Optional CPU cap passed as nf-core --max_cpus. The default binding sets this to 80 percent of host CPUs.
+  max_memory:
+    type: str
+    default: ""
+    description: Optional memory cap passed as nf-core --max_memory. The default binding sets this to 80 percent of host RAM when detectable.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
+outputs:
+  results_dir: {}
+  rendered_samplesheet:
+    path: ../samplesheet.csv
+  multiqc_dir:
+    path: multiqc
+  multiqc_report:
+    path: multiqc/star_salmon/multiqc_report.html
+  salmon_dir:
+    path: star_salmon
+  pipeline_info_dir:
+    path: pipeline_info
+  software_versions:
+    path: pipeline_info/nf_core_rnaseq_software_mqc_versions.yml
+  runtime_command:
+    path: pipeline_info/params_*.json
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: work
+    type: dir
+  - path: .nextflow
+    type: dir
+  - glob: ".nextflow.log*"
+    type: file
+run:
+  mode: render
+  entry: run.sh
+render:
+  command: |
+    python3 ./run.py --prepare

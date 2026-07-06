@@ -936,6 +936,18 @@ def build_publication_summary(run: dict[str, Any]) -> str:
             "with STAR alignment and Salmon quantification."
         )
 
+    if template == "nfcore_rnaseq":
+        if pipeline:
+            return (
+                "RNA-seq libraries were processed with "
+                f"{pipeline} under a facility-specific configuration using Nextflow, "
+                "with STAR alignment and Salmon quantification."
+            )
+        return (
+            "RNA-seq libraries were processed under a facility-specific configuration "
+            "with STAR alignment and Salmon quantification."
+        )
+
     if template == "dgea":
         return (
             "Differential gene expression analysis was prepared in an editable R/Quarto workspace "
@@ -997,7 +1009,7 @@ def derive_annotation_version(gtf_path: str) -> str:
 
 def collect_reference_detail_bullets(run: dict[str, Any]) -> list[str]:
     template = str(run.get("template") or "").strip()
-    if template not in {"nfcore_3mrnaseq", "nfcore_methylseq"}:
+    if template not in {"nfcore_3mrnaseq", "nfcore_rnaseq", "nfcore_methylseq"}:
         return []
 
     params = merged_run_params(run)
@@ -1042,7 +1054,7 @@ def collect_reference_detail_bullets(run: dict[str, Any]) -> list[str]:
 
 def collect_command_parameter_bullets(run: dict[str, Any], context: dict[str, Any]) -> list[str]:
     template = str(run.get("template") or "").strip()
-    if template not in {"nfcore_3mrnaseq", "nfcore_methylseq"}:
+    if template not in {"nfcore_3mrnaseq", "nfcore_rnaseq", "nfcore_methylseq"}:
         return []
 
     runtime_command = run.get("runtime_command") if isinstance(run.get("runtime_command"), dict) else {}
@@ -1056,7 +1068,7 @@ def collect_command_parameter_bullets(run: dict[str, Any], context: dict[str, An
     if profile:
         items.append(("Execution profile", profile))
 
-    if template == "nfcore_3mrnaseq":
+    if template in {"nfcore_3mrnaseq", "nfcore_rnaseq"}:
         genome = format_publication_value(
             "genome",
             runtime_command_value_after_flag(run, "--genome") or params.get("effective_genome") or params.get("genome") or "",
@@ -1122,7 +1134,7 @@ def collect_command_parameter_bullets(run: dict[str, Any], context: dict[str, An
 
 def collect_recorded_command_block(run: dict[str, Any]) -> str:
     template = str(run.get("template") or "").strip()
-    if template not in {"nfcore_3mrnaseq", "nfcore_methylseq"}:
+    if template not in {"nfcore_3mrnaseq", "nfcore_rnaseq", "nfcore_methylseq"}:
         return ""
     runtime_command = run.get("runtime_command") if isinstance(run.get("runtime_command"), dict) else {}
     command = runtime_command.get("command")
@@ -1188,7 +1200,7 @@ def collect_setting_bullets(run: dict[str, Any], context: dict[str, Any]) -> lis
     params = merged_run_params(run)
     items: list[tuple[str, str]] = []
 
-    if template == "nfcore_3mrnaseq":
+    if template in {"nfcore_3mrnaseq", "nfcore_rnaseq"}:
         reference = format_publication_value(
             "genome",
             runtime_command_value_after_flag(run, "--genome") or params.get("effective_genome") or params.get("genome") or "",
@@ -1591,7 +1603,11 @@ def short_demultiplex_sentence(runs: list[dict[str, Any]], citation_map: dict[st
 
 
 def short_nfcore_sentence(runs: list[dict[str, Any]], citation_map: dict[str, int]) -> str:
-    nfcore_runs = [run for run in runs if str(run.get("template") or "").strip() == "nfcore_3mrnaseq"]
+    nfcore_runs = [
+        run
+        for run in runs
+        if str(run.get("template") or "").strip() in {"nfcore_3mrnaseq", "nfcore_rnaseq"}
+    ]
     if not nfcore_runs:
         return ""
     runtime_command = nfcore_runs[0].get("runtime_command") if isinstance(nfcore_runs[0].get("runtime_command"), dict) else {}
@@ -2063,7 +2079,7 @@ def important_short_version_phrases(context: dict[str, Any]) -> list[str]:
             continue
         template = str(run.get("template") or "").strip()
         version_map = version_map_for_run(run)
-        if template == "nfcore_3mrnaseq":
+        if template in {"nfcore_3mrnaseq", "nfcore_rnaseq"}:
             if version_map.get("star"):
                 phrases.append(f"STAR {version_map['star']}")
             if version_map.get("salmon"):

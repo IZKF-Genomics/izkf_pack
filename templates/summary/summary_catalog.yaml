@@ -709,6 +709,46 @@ templates:
       - star
       - salmon
 
+  nfcore_rnaseq:
+    category: analysis
+    publication_relevance: true
+    label: RNA-seq processing
+    summary: Total RNA-seq or mRNA-seq data were processed with the nf-core/rnaseq workflow using the configured genome and quantification settings.
+    method_core: RNA-seq libraries were processed with the nf-core/rnaseq workflow under a facility-specific configuration using Nextflow and containerized execution, with alignment, quantification, and QC coordinated under a pinned workflow revision.
+    method_details:
+      - The workflow represents a facility-specific total RNA-seq or mRNA-seq implementation of nf-core/rnaseq executed through Nextflow in a reproducible containerized environment.
+      - Within the workflow, reads were processed with STAR for alignment and Salmon for transcript quantification under the recorded nf-core/rnaseq revision.
+      - Gene-level summaries and workflow quality-control outputs were generated within the same nf-core/rnaseq execution context.
+      - When ERCC spike-ins are present, the effective reference includes the spike-in-augmented genome rather than only the original genome label.
+      - When UMI handling is enabled, the workflow includes UMI-aware extraction rather than generic RNA-seq processing alone.
+      - Sample-specific FASTQ structure is inherited from upstream demultiplexing outputs and translated into the nf-core/rnaseq input table used for this analysis.
+    important_params:
+      - genome
+      - samplesheet
+      - umi
+      - spikein
+    param_explanations:
+      genome: Selected facility genome identifier used to choose the reference bundle.
+      samplesheet: nf-core/rnaseq input samplesheet describing sample-level FASTQ pairing and strandedness.
+      umi: UMI kit description used to enable or disable UMI-aware extraction.
+      spikein: Spike-in description that may alter the effective reference choice.
+    param_context:
+      - genome, spikein, umi, and samplesheet strandedness jointly shape the biological interpretation of the workflow.
+    command_hints:
+      - Use runtime_command to recover the workflow revision, execution profile, and UMI-specific flags.
+      - Distinguish the requested genome from the effective genome after ERCC augmentation.
+    tools:
+      - Nextflow
+      - nf-core/rnaseq
+      - STAR
+      - Salmon
+    citations:
+      - nextflow
+      - nfcore_framework
+      - nfcore_rnaseq
+      - star
+      - salmon
+
   nfcore_methylseq:
     category: analysis
     publication_relevance: true

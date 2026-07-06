@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 
-UPSTREAM_TEMPLATE_IDS = ("nfcore_3mrnaseq",)
+UPSTREAM_TEMPLATE_IDS = ("nfcore_rnaseq", "nfcore_3mrnaseq")
 
 
 def _templates(ctx) -> list[dict[str, Any]]:

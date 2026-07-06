@@ -61,6 +61,16 @@ Environment variables:
 
 - `LINKAR_HOME`
 
+### `generate_nfcore_rnaseq_samplesheet_reverse`
+
+Source: [`generate_nfcore_rnaseq_samplesheet_reverse.py`](generate_nfcore_rnaseq_samplesheet_reverse.py)
+
+Generates an nf-core samplesheet with `reverse` strandedness from the latest recorded demultiplexed read pairs from `nfcore_demultiplex` or the legacy `demultiplex` template. It writes a cached samplesheet under the Linkar cache directory and returns that generated path.
+
+Environment variables:
+
+- `LINKAR_HOME`
+
 ### `generate_nfcore_methylseq_samplesheet`
 
 Source: [`generate_nfcore_methylseq_samplesheet.py`](generate_nfcore_methylseq_samplesheet.py)

@@ -405,7 +405,7 @@ def main() -> int:
         assert spec["authors"] == ["Example User, Example Org"]
         original_username = spec["username"]
         original_password = spec["password"]
-        assert len(spec["export_list"]) == 33
+        assert len(spec["export_list"]) == 32
         assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
         export_srcs = {entry["src"] for entry in spec["export_list"]}
         export_dests = {entry["dest"] for entry in spec["export_list"]}
@@ -425,7 +425,8 @@ def main() -> int:
             assert f"2_Processed_data/{template_id}/{template_id}/annotation_result.json" in export_dests
             assert f"2_Processed_data/{template_id}/{template_id}/adata.annotated.h5ad" in export_dests
             assert f"3_Reports/{template_id}/{template_id}/report.html" in export_dests
-            assert f"3_Reports/{template_id}/{template_id}/output.cloupe" in export_dests
+            if template_id != "scrna_annotate_manual_markers":
+                assert f"3_Reports/{template_id}/{template_id}/output.cloupe" in export_dests
         assert "3_Reports/dgea/DGEA_Liver" in export_dests
         assert "3_Reports/dgea/DGEA_Bile_Duct" in export_dests
         assert "3_Reports/methylation_array_analysis" in export_dests
@@ -524,6 +525,9 @@ def main() -> int:
                 for entry in spec["export_list"]
                 if entry["dest"] == f"3_Reports/{template_id}/{template_id}/output.cloupe"
             ]
+            if template_id == "scrna_annotate_manual_markers":
+                assert len(cloupe_entries) == 0
+                continue
             assert len(cloupe_entries) == 1
             cloupe_paths = {link["path"] for link in cloupe_entries[0].get("report_links", [])}
             assert "." in cloupe_paths

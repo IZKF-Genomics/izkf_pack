@@ -31,6 +31,20 @@ templates:
         function: get_host_max_cpus
       max_memory:
         function: get_host_max_memory
+  nfcore_rnaseq:
+    params:
+      samplesheet:
+        function: generate_nfcore_rnaseq_samplesheet_reverse
+      genome:
+        function: get_agendo_genome
+      umi:
+        function: get_agendo_umi
+      spikein:
+        function: get_agendo_spikein
+      max_cpus:
+        function: get_host_max_cpus
+      max_memory:
+        function: get_host_max_memory
   nfcore_methylseq:
     params:
       samplesheet:
