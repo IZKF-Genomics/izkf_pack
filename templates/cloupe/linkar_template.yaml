@@ -1,6 +1,6 @@
 id: cloupe
-version: 0.1.1
-description: Convert an H5AD object into a 10x Genomics Loupe Browser .cloupe file.
+version: 0.1.3
+description: Convert an H5AD object into a 10x Genomics Loupe Browser .cloupe file next to the input H5AD by default.
 tools:
   required:
     - bash
@@ -15,6 +15,14 @@ params:
     type: path
     default: ""
     description: Input H5AD file. Used when `input` is not supplied.
+  output_cloupe:
+    type: path
+    default: ""
+    description: Optional output .cloupe path. When empty, writes next to the input H5AD with the same basename.
+  metadata_json:
+    type: path
+    default: ""
+    description: Optional export metadata JSON path. When empty, writes next to the .cloupe file.
   counts_layer:
     type: str
     default: counts
@@ -26,9 +34,26 @@ params:
   obs_keys:
     type: str
     default: ""
-    description: Comma-separated additional `adata.obs` columns to export as Loupe categories.
-# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
-# which defaults to <template_workspace>/results.
+    description: Comma-separated `adata.obs` columns to export as Loupe categories. Empty or `*` exports all Loupe-compatible obs columns.
+  barcode_mode:
+    type: str
+    default: original
+    description: Barcode export mode. Use `synthetic_10x` for non-10x protocols such as PIPseq; original cell IDs are retained as Loupe metadata.
+  barcode_whitelist:
+    type: str
+    default: ""
+    description: Optional local path or URL with 10x-compatible barcodes, one per line. Used only when `barcode_mode=synthetic_10x`.
+  original_barcode_key:
+    type: str
+    default: original_cell_id
+    description: Loupe metadata column used to store original AnnData cell IDs when synthetic barcodes are used.
+  synthetic_barcode_key:
+    type: str
+    default: loupe_synthetic_barcode
+    description: Loupe metadata column used to store export-only synthetic barcodes when synthetic barcodes are used.
+# This template is usually run directly from templates/cloupe and writes next to
+# the target H5AD. The declared outputs are retained only for rendered Linkar
+# compatibility when explicit output paths are used.
 outputs:
   results_dir: {}
   software_versions:

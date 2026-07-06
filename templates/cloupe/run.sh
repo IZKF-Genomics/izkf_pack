@@ -3,7 +3,6 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 pack_root="${LINKAR_PACK_ROOT:-$(cd "${script_dir}/../.." && pwd)}"
-results_dir="${LINKAR_RESULTS_DIR:-${script_dir}/results}"
 cd "${script_dir}"
 
 say() {
@@ -12,28 +11,30 @@ say() {
 
 say "starting Loupe Browser export"
 say "workspace: ${script_dir}"
-say "results: ${results_dir}"
 
 if command -v pixi >/dev/null 2>&1; then
   say "checking pixi environment"
   pixi install
   say "converting H5AD to cloupe"
-  pixi run python run.py
+  pixi run python run.py "$@"
 else
   say "pixi was not found; using system python3"
-  python3 run.py
+  python3 run.py "$@"
 fi
 
-python3 "${pack_root}/functions/software_versions.py" \
-  --spec "${script_dir}/software_versions_spec.yaml" \
-  --output "${results_dir}/software_versions.json"
+if [[ "${WRITE_SOFTWARE_VERSIONS:-0}" == "1" ]]; then
+  versions_output="${SOFTWARE_VERSIONS_JSON:-${LINKAR_RESULTS_DIR:-${script_dir}/results}/software_versions.json}"
+  mkdir -p "$(dirname "${versions_output}")"
+  python3 "${pack_root}/functions/software_versions.py" \
+    --spec "${script_dir}/software_versions_spec.yaml" \
+    --output "${versions_output}"
+  say "software versions: ${versions_output}"
+fi
 
-say "outputs:"
-say "  ${results_dir}/output.cloupe"
-say "  ${results_dir}/cloupe_export.json"
+if [[ "${LINKAR_COLLECT:-0}" == "1" ]]; then
+  linkar collect "${script_dir}"
+fi
 
-# Record outputs in Linkar after successful manual execution.
-linkar collect "${script_dir}"
-
-# Remove template-declared runtime artifacts.
-linkar clean "${script_dir}" --yes
+if [[ "${LINKAR_CLEAN:-0}" == "1" ]]; then
+  linkar clean "${script_dir}" --yes
+fi
