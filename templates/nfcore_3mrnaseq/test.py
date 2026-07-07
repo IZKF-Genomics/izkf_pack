@@ -163,6 +163,7 @@ def test_prepare_and_run_script() -> None:
         assert "--igenomes_base /data/shared/igenomes/ \\" in run_sh_text
         assert '--extra_salmon_quant_args="--noLengthCorrection" \\' in run_sh_text
         assert '--extra_star_align_args="--alignIntronMax 1000000 --alignIntronMin 20 --alignMatesGapMax 1000000 --alignSJoverhangMin 8 --outFilterMismatchNmax 999 --outFilterMultimapNmax 20 --outFilterType BySJout --outFilterMismatchNoverLmax 0.1 --clip3pAdapterSeq AAAAAAAA" \\' in run_sh_text
+        assert 'QC_ARGS+=(--skip_biotype_qc)' in run_sh_text
         assert 'UMI_ARGS+=(' in run_sh_text
         assert 'linkar collect "${script_dir}"' in run_sh_text
         args_text = (tmpdir / "args.log").read_text(encoding="utf-8")
@@ -172,6 +173,7 @@ def test_prepare_and_run_script() -> None:
         assert "--input samplesheet.csv" in args_text
         assert "--outdir results" in args_text
         assert "--genome GRCh38_with_ERCC" in args_text
+        assert "--skip_biotype_qc" in args_text
         assert "--with_umi" in args_text
         assert "--umitools_extract_method regex" in args_text
         assert "--max_cpus 16" in args_text
@@ -232,6 +234,7 @@ def test_toggle_shorthand_normalization() -> None:
 
         args_text = (tmpdir / "args.log").read_text(encoding="utf-8")
         assert "--genome Sscrofa11.1_with_ERCC" in args_text
+        assert "--skip_biotype_qc" in args_text
         assert "--with_umi" in args_text
         run_params_text = (tmpdir / "config" / "run_params.env").read_text(encoding="utf-8")
         assert f"UMI={shlex.quote(UMI_KIT)}" in run_params_text
@@ -453,6 +456,7 @@ def main() -> None:
     assert '-r 3.26.0' in run_sh_text
     assert '-profile docker' in run_sh_text
     assert '"${RESOURCE_ARGS[@]}"' in run_sh_text
+    assert '"${QC_ARGS[@]}"' in run_sh_text
     assert '"${UMI_ARGS[@]}"' in run_sh_text
     assert 'linkar collect "${script_dir}"' in run_sh_text
     assert 'linkar clean "${script_dir}" --yes' in run_sh_text

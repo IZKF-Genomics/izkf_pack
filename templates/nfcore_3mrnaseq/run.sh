@@ -24,6 +24,11 @@ if [[ -n "${MAX_MEMORY}" ]]; then
   RESOURCE_ARGS+=(--max_memory "${MAX_MEMORY}")
 fi
 
+QC_ARGS=()
+if [[ "${SPIKEIN}" == *"ERCC"* ]]; then
+  QC_ARGS+=(--skip_biotype_qc)
+fi
+
 UMI_ARGS=()
 if [[ "${UMI}" == "UMI Second Strand SynthesisModule for QuantSeq FWD" ]]; then
   UMI_ARGS+=(
@@ -50,6 +55,7 @@ pixi run nextflow run nf-core/rnaseq \
   --igenomes_base /data/shared/igenomes/ \
   --gencode \
   "${RESOURCE_ARGS[@]}" \
+  "${QC_ARGS[@]}" \
   "${UMI_ARGS[@]}"
 
 # Record outputs in Linkar after successful manual execution.
