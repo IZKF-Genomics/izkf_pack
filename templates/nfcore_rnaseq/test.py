@@ -166,7 +166,7 @@ def test_prepare_and_run_script() -> None:
         assert "--extra_star_align_args" not in run_sh_text
         assert "clip3pAdapterSeq" not in run_sh_text
         assert 'UMI_ARGS+=(' in run_sh_text
-        assert 'linkar collect "${script_dir}"' in run_sh_text
+        assert 'linkar collect --project "${LINKAR_PROJECT_DIR}" "${script_dir}"' in run_sh_text
         args_text = (tmpdir / "args.log").read_text(encoding="utf-8")
         assert "nf-core/rnaseq" in args_text
         assert "-profile docker" in args_text
@@ -459,7 +459,7 @@ def main() -> None:
     assert '"${RESOURCE_ARGS[@]}"' in run_sh_text
     assert '"${QC_ARGS[@]}"' in run_sh_text
     assert '"${UMI_ARGS[@]}"' in run_sh_text
-    assert 'linkar collect "${script_dir}"' in run_sh_text
+    assert 'linkar collect --project "${LINKAR_PROJECT_DIR}" "${script_dir}"' in run_sh_text
     assert 'linkar clean "${script_dir}" --yes' in run_sh_text
     assert 'config" / "run_params.env"' in run_py_text
     assert 'copy_samplesheet' in run_py_text

@@ -58,8 +58,14 @@ pixi run nextflow run nf-core/rnaseq \
   "${QC_ARGS[@]}" \
   "${UMI_ARGS[@]}"
 
-# Record outputs in Linkar after successful manual execution.
-linkar collect "${script_dir}"
+# Record outputs in Linkar after successful manual execution. When this
+# rendered workspace belongs to a project, update that project ledger even
+# though this script runs from inside the workspace.
+if [[ -n "${LINKAR_PROJECT_DIR:-}" ]]; then
+  linkar collect --project "${LINKAR_PROJECT_DIR}" "${script_dir}"
+else
+  linkar collect "${script_dir}"
+fi
 
 # Remove template-declared runtime artifacts.
 linkar clean "${script_dir}" --yes
