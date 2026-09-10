@@ -43,7 +43,7 @@ Environment variables:
 
 Source: [`get_nfcore_demultiplex_flowcell_samplesheet.py`](get_nfcore_demultiplex_flowcell_samplesheet.py)
 
-Resolves the demultiplexer-specific flowcell samplesheet for `nfcore_demultiplex`. It prefers an explicit `flowcell_samplesheet`, uses `raw_run_dir/RunManifest.csv` for AVITI runs, and otherwise delegates Illumina lookup to `get_api_samplesheet`.
+Resolves the demultiplexer-specific flowcell samplesheet for `nfcore_demultiplex`. It prefers an explicit `flowcell_samplesheet`, uses `raw_run_dir/RunManifest.csv` for AVITI runs, and otherwise delegates Illumina lookup to `get_api_samplesheet`. When API lookup is explicitly disabled and no `raw_run_dir/SampleSheet.csv` exists, it returns the template's sample-row-free `samplesheet.csv` so `linkar render` produces an editable manual-entry file.
 
 ### `get_demultiplex_fastq_dir`
 

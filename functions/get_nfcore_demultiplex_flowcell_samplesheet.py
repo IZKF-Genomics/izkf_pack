@@ -10,6 +10,8 @@ def _nonempty(value: object | None) -> str:
 
 
 def _truthy(value: object | None, *, default: bool = True) -> bool:
+    if isinstance(value, bool):
+        return value
     text = _nonempty(value)
     if not text:
         return default
@@ -113,6 +115,11 @@ def resolve(ctx) -> str:
 
     if api_error:
         raise RuntimeError(api_error)
+
+    if raw_run_dir_value and not use_api:
+        manual_samplesheet = Path(ctx.template.root).resolve() / "samplesheet.csv"
+        if manual_samplesheet.exists():
+            return str(manual_samplesheet)
 
     raise RuntimeError(
         "flowcell_samplesheet could not be resolved. Pass --flowcell-samplesheet, enable "

@@ -42,6 +42,8 @@ With `--binding default`, the pack can resolve:
   - explicit `--flowcell-samplesheet` first
   - AVITI `raw_run_dir/RunManifest.csv` when present
   - Illumina facility API lookup via flowcell id, with `agendo_id` as request fallback
+  - an editable, sample-row-free `samplesheet.csv` in the rendered bundle when
+    `--use-api-samplesheet false` and no `raw_run_dir/SampleSheet.csv` exists
 - `max_cpus` and `max_memory` from host capacity
 - render `outdir` from `raw_run_dir`, under `/data/fastq` by default
 
@@ -121,6 +123,18 @@ pixi run nextflow run nf-core/demultiplex \
 ```
 
 Users can edit the rendered `run.sh` directly before rerunning.
+
+For manual Illumina samplesheet entry, render with API lookup disabled:
+
+```bash
+linkar render nfcore_demultiplex \
+  --raw-run-dir /data/raw/illumina/RUN_DIRECTORY \
+  --use-api-samplesheet false
+```
+
+Then edit the generated `samplesheet.csv` before executing `run.sh`. During
+preparation, the edited file is copied to `flowcell_samplesheet.csv`, which is
+the file passed to `nf-core/demultiplex`.
 
 `remove_samplesheet_adapter` defaults to `false`. This preserves complete
 bcl-convert adapter trimming settings in facility SampleSheets, especially when

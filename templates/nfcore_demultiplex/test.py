@@ -415,6 +415,9 @@ def test_bindings_are_registered_and_aviti_manifest_resolves() -> None:
     assert params["max_memory"]["function"] == "get_host_max_memory"
     assert pack_data["templates"]["nfcore_demultiplex"]["outdir"]["function"] == "get_nfcore_demultiplex_render_outdir"
 
+    template_params = yaml.safe_load((TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8"))["params"]
+    assert list(template_params).index("use_api_samplesheet") < list(template_params).index("flowcell_samplesheet")
+
     with tempfile.TemporaryDirectory(prefix="linkar-nfcore-demux-binding-") as tmp:
         tmpdir = Path(tmp)
         raw_run_dir = write_aviti_run(tmpdir)
@@ -540,6 +543,33 @@ def test_illumina_binding_falls_back_to_agendo_after_flowcell_404() -> None:
         shutil.rmtree(fake.cache, ignore_errors=True)
 
 
+def test_illumina_binding_returns_editable_empty_samplesheet_when_api_is_disabled() -> None:
+    module = load_function_module("get_nfcore_demultiplex_flowcell_samplesheet")
+
+    original = module._load_api_module
+    module._load_api_module = lambda: (_ for _ in ()).throw(AssertionError("API lookup must be disabled"))
+    try:
+        value = module.resolve(
+            FakeContext(
+                TEMPLATE_DIR,
+                {
+                    "raw_run_dir": "/data/run/20260826_SH00427_0028_ASC2243277-SC3",
+                    "platform": "illumina",
+                    "demultiplexer": "bclconvert",
+                    "flowcell_samplesheet": "",
+                    "use_api_samplesheet": False,
+                },
+            )
+        )
+        samplesheet = Path(value)
+        assert samplesheet == TEMPLATE_DIR / "samplesheet.csv"
+        assert samplesheet.read_text(encoding="utf-8") == (
+            "[Data]\nSample_ID,Sample_Name,Sample_Project,index,index2\n"
+        )
+    finally:
+        module._load_api_module = original
+
+
 def test_render_outdir_shortens_yyyy_mm_dd_prefix() -> None:
     resolve = load_function("get_nfcore_demultiplex_render_outdir")
     value = resolve(
@@ -561,6 +591,7 @@ def main() -> None:
     test_bindings_are_registered_and_aviti_manifest_resolves()
     test_illumina_binding_uses_flowcell_api_before_agendo()
     test_illumina_binding_falls_back_to_agendo_after_flowcell_404()
+    test_illumina_binding_returns_editable_empty_samplesheet_when_api_is_disabled()
     test_render_outdir_shortens_yyyy_mm_dd_prefix()
     print("nfcore_demultiplex template test passed")
 

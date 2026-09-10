@@ -19,14 +19,14 @@ params:
     type: str
     default: ""
     description: Optional flowcell id override. If omitted, it is derived from raw_run_dir.
-  flowcell_samplesheet:
-    type: path
-    required: false
-    description: Demultiplexer-specific flowcell samplesheet. For Illumina this is SampleSheet.csv; for AVITI this is RunManifest.csv. With --binding default, Illumina can resolve from the facility API and AVITI defaults to raw_run_dir/RunManifest.csv.
   use_api_samplesheet:
     type: bool
     default: true
     description: When true and --flowcell-samplesheet is not passed explicitly, resolve Illumina samplesheets from the facility API via the default binding.
+  flowcell_samplesheet:
+    type: path
+    required: false
+    description: Demultiplexer-specific flowcell samplesheet. For Illumina this is SampleSheet.csv; for AVITI this is RunManifest.csv. With --binding default, Illumina can resolve from the facility API and AVITI defaults to raw_run_dir/RunManifest.csv.
   flowcell_lane:
     type: int
     required: false
