@@ -28,6 +28,24 @@ def save_yaml(path: Path, data: dict[str, Any]) -> None:
     path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
 
 
+def save_private_json(path: Path, data: dict[str, Any]) -> None:
+    """Write secret-bearing JSON with owner-only permissions from creation."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(path, flags, 0o600)
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            descriptor = -1
+            json.dump(data, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
 def now_utc() -> str:
     return datetime.now(timezone.utc).isoformat()
 

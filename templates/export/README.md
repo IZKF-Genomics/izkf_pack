@@ -13,6 +13,7 @@ It keeps the export mapping table as data, and makes the old BPM hook chain expl
 
 - rebuilds the export bundle into `results/` by default
 - generates new credentials by default unless credential reuse is requested
+- stores credentials only in `results/export_credentials.json` with owner-only (`0600`) permissions
 - submits the prepared spec with `POST /export`
 - polls `GET /export/{job_id}/poll`, then reads `GET /export/final_message/{job_id}`
 - records submission artifacts into `results/`
@@ -20,7 +21,7 @@ It keeps the export mapping table as data, and makes the old BPM hook chain expl
 `linkar run export --prepare-only`:
 
 - rebuilds the export bundle into `results/`
-- writes `results/export_job_spec.json` and related metadata
+- writes a credential-free `results/export_job_spec.json`, the private credentials file, and related metadata
 - does not contact the export engine
 
 `linkar run export --refresh-export true`:
@@ -57,7 +58,18 @@ linkar run export
 ```
 
 This rebuilds `results/export_job_spec.json`, generates a new credential pair,
-and submits the export.
+stores that pair privately, and submits the export. Credentials are injected into
+the API request in memory and are not retained in the public job spec.
+
+To choose a password explicitly without placing it in shell arguments or Linkar metadata, set it
+only for the command environment:
+
+```bash
+read -rsp 'Export password: ' LINKAR_EXPORT_PASSWORD
+export LINKAR_EXPORT_PASSWORD
+linkar run export
+unset LINKAR_EXPORT_PASSWORD
+```
 
 Useful alternate modes:
 
@@ -72,11 +84,13 @@ linkar render export --reuse-credentials
 
 Credential reuse looks for a complete username/password pair in this order:
 
-- `results/export_submission.json`
-- `results/export_job_spec.json`
-- export template params in `project.yaml`
+- `results/export_credentials.json`
+- legacy `results/export_submission.json`
+- legacy `results/export_job_spec.json`
+- legacy export template params in `project.yaml`
 
-`--reuse-spec` keeps the current `results/export_job_spec.json` untouched and submits it as-is.
+`--reuse-spec` submits the current `results/export_job_spec.json`. If it finds credentials in an
+older spec, it migrates them into the private credentials file and rewrites the public spec without them.
 `--reuse-credentials` rebuilds the spec but preserves saved credentials.
 `--prepare-only` performs the selected preparation mode without submission.
 `--refresh-export true` rebuilds the spec, reuses saved credentials automatically, and updates the existing export in place.
@@ -105,6 +119,7 @@ python3 submit_export.py --help
 Generated artifacts include:
 
 - `results/export_job_spec.json`
+- `results/export_credentials.json` with mode `0600`; intentionally omitted from the Linkar output contract
 - `results/export_refresh_spec.json` when refreshing
 - `results/metadata_context.yaml`
 - `results/metadata_raw.json`
@@ -112,6 +127,11 @@ Generated artifacts include:
 - `results/project_summary.md`
 - `results/summary_context.yaml`
 - `results/export_state.json` after submission or refresh
+
+Passwords are removed from terminal output, `export_submission.json`, and
+`export_final_message.txt`. Those public artifacts retain non-secret status, URLs, and usernames;
+password occurrences in API messages are replaced with `[REDACTED]`. Authorized operators can read
+the private credentials file directly when delivery credentials are needed.
 
 ## Notes
 

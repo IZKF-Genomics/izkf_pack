@@ -29,7 +29,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--export-engine-backends", default="apache, owncloud, sftp", help="Comma-separated export backends.")
     parser.add_argument("--export-expiry-days", type=int, default=30, help="Retention period recorded in the export spec.")
     parser.add_argument("--export-username", default="", help="Optional username override; derived from project name if omitted.")
-    parser.add_argument("--export-password", default="", help="Optional password override; generated if omitted.")
     parser.add_argument("--agendo-id", default="", help="Optional Agendo request id for metadata lookup.")
     parser.add_argument("--flowcell-id", default="", help="Optional flowcell id for metadata lookup.")
     parser.add_argument("--metadata-source", default="auto", help="Metadata source mode: auto, api, file, mock, or none.")
@@ -179,8 +178,6 @@ def main() -> int:
                 str(args.export_expiry_days),
                 "--export-username",
                 args.export_username,
-                "--export-password",
-                args.export_password,
                 "--reuse-saved-credentials",
                 "true" if reuse_credentials else "false",
                 "--agendo-id",

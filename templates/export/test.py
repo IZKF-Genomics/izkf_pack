@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
+import os
 import socket
+import stat
 import subprocess
 import tempfile
 import threading
@@ -473,8 +475,13 @@ def main() -> int:
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
-        original_username = spec["username"]
-        original_password = spec["password"]
+        assert "username" not in spec
+        assert "password" not in spec
+        credentials_path = export_dir / "results" / "export_credentials.json"
+        credentials = json.loads(credentials_path.read_text(encoding="utf-8"))
+        original_username = credentials["username"]
+        original_password = credentials["password"]
+        assert stat.S_IMODE(credentials_path.stat().st_mode) == 0o600
         assert len(spec["export_list"]) == 35
         assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
         export_srcs = {entry["src"] for entry in spec["export_list"]}
@@ -642,8 +649,12 @@ def main() -> int:
         )
         assert "rebuilding existing" in rebuilt.stdout
         rebuilt_spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
-        assert rebuilt_spec["username"] == original_username
-        assert rebuilt_spec["password"] == original_password
+        assert "username" not in rebuilt_spec
+        assert "password" not in rebuilt_spec
+        rebuilt_credentials = json.loads(credentials_path.read_text(encoding="utf-8"))
+        assert rebuilt_credentials["username"] == original_username
+        assert rebuilt_credentials["password"] == original_password
+        assert stat.S_IMODE(credentials_path.stat().st_mode) == 0o600
 
         reset_build = subprocess.run(
             [
@@ -668,8 +679,38 @@ def main() -> int:
         )
         assert "rebuilding existing" in reset_build.stdout
         reset_spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
-        assert reset_spec["username"] == "project"
-        assert reset_spec["password"] != original_password
+        assert "username" not in reset_spec
+        assert "password" not in reset_spec
+        reset_credentials = json.loads(credentials_path.read_text(encoding="utf-8"))
+        assert reset_credentials["username"] == "project"
+        assert reset_credentials["password"] != original_password
+
+        password_override = "operator_selected_password"
+        override_build = subprocess.run(
+            [
+                "python3",
+                str(TEMPLATE_DIR / "run.py"),
+                "--prepare-only",
+                "true",
+                "--export-engine-api-url",
+                "http://127.0.0.1:9",
+                "--project-dir",
+                str(project_dir),
+                "--template-dir",
+                str(TEMPLATE_DIR),
+                "--results-dir",
+                str(export_dir / "results"),
+                "--metadata-source",
+                "mock",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "LINKAR_EXPORT_PASSWORD": password_override},
+        )
+        assert password_override not in override_build.stdout
+        override_credentials = json.loads(credentials_path.read_text(encoding="utf-8"))
+        assert override_credentials["password"] == password_override
 
         server = HTTPServer(("127.0.0.1", 0), ExportHandler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -706,7 +747,8 @@ def main() -> int:
             assert "- URL: https://example.org/data/example_project_001/main_report.html" in submit.stdout
             assert "Access Credentials" in submit.stdout
             assert "- Username: example_user" in submit.stdout
-            assert "- Password: example_password" in submit.stdout
+            assert f"- Private file: {credentials_path}" in submit.stdout
+            assert "example_password" not in submit.stdout
             assert "Publisher Results" in submit.stdout
             assert "1. SFTP" in submit.stdout
             assert "- Username: example_user_example_project_001" in submit.stdout
@@ -714,17 +756,78 @@ def main() -> int:
             assert "3. OWNCLOUD" in submit.stdout
             assert "JSON Patch for MS Planner" in submit.stdout
             assert "'Project ID': 'example_project_001'," in submit.stdout
+            assert "[REDACTED]" in submit.stdout
+            request_payload = server.payload  # type: ignore[attr-defined]
+            assert request_payload["username"] == override_credentials["username"]
+            assert request_payload["password"] == override_credentials["password"]
             assert (export_dir / "results" / "export_job_id.txt").read_text(encoding="utf-8").strip() == "job-123"
-            assert "'Report URL': 'https://example.org/data/example_project_001/main_report.html'," in (
-                export_dir / "results" / "export_final_message.txt"
-            ).read_text(encoding="utf-8")
+            final_message_text = (export_dir / "results" / "export_final_message.txt").read_text(encoding="utf-8")
+            assert "'Report URL': 'https://example.org/data/example_project_001/main_report.html'," in final_message_text
+            assert "example_password" not in final_message_text
+            assert "[REDACTED]" in final_message_text
             payload = json.loads((export_dir / "results" / "export_submission.json").read_text(encoding="utf-8"))
             assert payload["job_id"] == "job-123"
             assert payload["poll"]["status"] == "completed"
+            assert "example_password" not in json.dumps(payload)
             assert getattr(server, "poll_attempts", 0) >= 2
             state = json.loads((export_dir / "results" / "export_state.json").read_text(encoding="utf-8"))
             assert state["job_id"] == "job-123"
             assert state["username"] == "example_user"
+            submitted_credentials = json.loads(credentials_path.read_text(encoding="utf-8"))
+            assert submitted_credentials["username"] == "example_user"
+            assert submitted_credentials["password"] == "example_password"
+            assert len(submitted_credentials["publishers"]) == 3
+            assert stat.S_IMODE(credentials_path.stat().st_mode) == 0o600
+
+            legacy_results = export_dir / "legacy_results"
+            legacy_results.mkdir()
+            legacy_spec_path = legacy_results / "export_job_spec.json"
+            legacy_spec_path.write_text(
+                json.dumps(
+                    {
+                        "project_name": "legacy_project",
+                        "export_list": [],
+                        "backend": ["apache"],
+                        "username": "legacy_user",
+                        "password": "legacy_password",
+                        "authors": [],
+                        "expiry_days": 30,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            legacy_submit = subprocess.run(
+                [
+                    "python3",
+                    str(TEMPLATE_DIR / "submit_export.py"),
+                    "--results-dir",
+                    str(legacy_results),
+                    "--api-url",
+                    f"http://127.0.0.1:{server.server_port}",
+                    "--poll-interval-seconds",
+                    "1",
+                    "--timeout-seconds",
+                    "5",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            assert "legacy_password" not in legacy_submit.stdout
+            legacy_request = server.payload  # type: ignore[attr-defined]
+            assert legacy_request["username"] == "legacy_user"
+            assert legacy_request["password"] == "legacy_password"
+            migrated_spec = json.loads(legacy_spec_path.read_text(encoding="utf-8"))
+            assert "username" not in migrated_spec
+            assert "password" not in migrated_spec
+            migrated_credentials_path = legacy_results / "export_credentials.json"
+            migrated_credentials = json.loads(migrated_credentials_path.read_text(encoding="utf-8"))
+            assert migrated_credentials["username"] == "example_user"
+            assert migrated_credentials["password"] == "example_password"
+            assert stat.S_IMODE(migrated_credentials_path.stat().st_mode) == 0o600
+            assert "legacy_password" not in (
+                legacy_results / "export_submission.json"
+            ).read_text(encoding="utf-8")
 
             post_submit_reuse = subprocess.run(
                 [
@@ -751,8 +854,11 @@ def main() -> int:
             )
             assert "rebuilding existing" in post_submit_reuse.stdout
             reused_spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
-            assert reused_spec["username"] == "example_user"
-            assert reused_spec["password"] == "example_password"
+            assert "username" not in reused_spec
+            assert "password" not in reused_spec
+            reused_credentials = json.loads(credentials_path.read_text(encoding="utf-8"))
+            assert reused_credentials["username"] == "example_user"
+            assert reused_credentials["password"] == "example_password"
 
             refresh = subprocess.run(
                 [
@@ -795,6 +901,7 @@ def main() -> int:
             assert '--reuse-saved-credentials "${reuse_saved_credentials}"' in render_command
             assert "refresh" not in template_config["params"]
             assert "refresh_export" in template_config["params"]
+            assert "export_password" not in template_config["params"]
         finally:
             server.shutdown()
             thread.join(timeout=5)

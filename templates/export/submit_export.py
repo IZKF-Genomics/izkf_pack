@@ -12,6 +12,8 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from export_common import save_private_json
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -159,27 +161,25 @@ def print_list_item(label: str, value: str) -> None:
     print(f"- {label}: {value}")
 
 
-def print_final_export_summary(final_payload: dict[str, object]) -> None:
+def print_final_export_summary(final_payload: dict[str, object], credentials_path: Path) -> None:
     print_section("Final Export Summary", CYAN)
     print("Export complete.")
 
     raw_fields = parse_raw_api_message(str(final_payload.get("message") or ""))
     main_report = str(final_payload.get("main_report") or raw_fields.get("Report URL") or "").strip()
     username = str(final_payload.get("username") or raw_fields.get("Username") or "").strip()
-    password = str(final_payload.get("password") or raw_fields.get("Password") or "").strip()
 
     if main_report:
         print("")
         print("Main Report")
         print_list_item("URL", main_report)
 
-    if username or password:
+    if username or credentials_path.exists():
         print("")
         print("Access Credentials")
         if username:
             print_list_item("Username", username)
-        if password:
-            print_list_item("Password", password)
+        print_list_item("Private file", str(credentials_path))
 
     publisher_results = final_payload.get("publisher_results")
     if isinstance(publisher_results, list) and publisher_results:
@@ -192,13 +192,81 @@ def print_final_export_summary(final_payload: dict[str, object]) -> None:
             print(f"{index}. {publisher_name}")
             url = str(publisher.get("url") or "").strip()
             publisher_username = str(publisher.get("username") or "").strip()
-            publisher_password = str(publisher.get("password") or "").strip()
             if url:
                 print_list_item("URL", url)
             if publisher_username:
                 print_list_item("Username", publisher_username)
-            if publisher_password:
-                print_list_item("Password", publisher_password)
+
+
+def load_json_object(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def merge_credentials(current: dict[str, object], payload: dict[str, object]) -> dict[str, object]:
+    merged = dict(current)
+    raw_fields = parse_raw_api_message(str(payload.get("message") or ""))
+    username = str(payload.get("username") or raw_fields.get("Username") or "").strip()
+    password = str(payload.get("password") or raw_fields.get("Password") or "").strip()
+    if username:
+        merged["username"] = username
+    if password:
+        merged["password"] = password
+
+    publishers: list[dict[str, str]] = []
+    raw_publishers = payload.get("publisher_results")
+    if isinstance(raw_publishers, list):
+        for raw_publisher in raw_publishers:
+            if not isinstance(raw_publisher, dict):
+                continue
+            publisher = {
+                key: str(raw_publisher.get(key) or "").strip()
+                for key in ("publisher", "url", "username", "password")
+            }
+            publishers.append({key: value for key, value in publisher.items() if value})
+    if publishers:
+        merged["publishers"] = publishers
+    return merged
+
+
+def collect_passwords(value: object) -> set[str]:
+    secrets: set[str] = set()
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if "password" in str(key).lower() and isinstance(item, str) and item:
+                secrets.add(item)
+            else:
+                secrets.update(collect_passwords(item))
+    elif isinstance(value, list):
+        for item in value:
+            secrets.update(collect_passwords(item))
+    return secrets
+
+
+def redact_text(text: str, secrets: set[str]) -> str:
+    redacted = text
+    for secret in sorted((item for item in secrets if item), key=len, reverse=True):
+        redacted = redacted.replace(secret, "[REDACTED]")
+    return redacted
+
+
+def redact_payload(value: object, secrets: set[str]) -> object:
+    if isinstance(value, dict):
+        return {
+            key: redact_payload(item, secrets)
+            for key, item in value.items()
+            if "password" not in str(key).lower()
+        }
+    if isinstance(value, list):
+        return [redact_payload(item, secrets) for item in value]
+    if isinstance(value, str):
+        return redact_text(value, secrets)
+    return value
 
 
 def read_saved_job_id(results_dir: Path) -> str:
@@ -272,11 +340,23 @@ def main() -> int:
     args = parse_args()
     results_dir = Path(args.results_dir).resolve()
     spec_path = results_dir / "export_job_spec.json"
+    credentials_path = results_dir / "export_credentials.json"
     if not spec_path.exists():
         raise SystemExit(f"export spec not found: {spec_path}")
     payload = json.loads(spec_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise SystemExit("export spec must be a JSON object")
+    credentials = load_json_object(credentials_path)
+    legacy_username = str(payload.pop("username", "") or "").strip()
+    legacy_password = str(payload.pop("password", "") or "").strip()
+    if legacy_username and not credentials.get("username"):
+        credentials["username"] = legacy_username
+    if legacy_password and not credentials.get("password"):
+        credentials["password"] = legacy_password
+    if legacy_username or legacy_password:
+        spec_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    if credentials:
+        save_private_json(credentials_path, credentials)
     export_url = endpoint(args.api_url)
     refresh = parse_bool(args.refresh)
     job_id = args.job_id.strip() or (read_saved_job_id(results_dir) if refresh else "")
@@ -293,6 +373,14 @@ def main() -> int:
             json.dumps(submit_payload, indent=2, sort_keys=True), encoding="utf-8"
         )
         action_label = "Refreshing export job"
+    else:
+        username = str(credentials.get("username") or "").strip()
+        password = str(credentials.get("password") or "").strip()
+        if not username or not password:
+            raise SystemExit(
+                f"create export requires complete credentials in {credentials_path}; rebuild the bundle first"
+            )
+        submit_payload = {**payload, "username": username, "password": password}
 
     req = Request(
         url=submit_url,
@@ -343,8 +431,19 @@ def main() -> int:
     if final_error:
         status_payload["final_message_error"] = final_error
 
+    credentials = merge_credentials(credentials, response)
+    credentials = merge_credentials(credentials, final_payload)
+    if credentials:
+        save_private_json(credentials_path, credentials)
+    secrets = collect_passwords(credentials) | collect_passwords(response) | collect_passwords(final_payload)
+    public_status = redact_payload(status_payload, secrets)
+    public_final_payload = redact_payload(final_payload, secrets)
+    if not isinstance(public_status, dict) or not isinstance(public_final_payload, dict):
+        raise SystemExit("failed to sanitize export response")
+    raw_final_message = redact_text(raw_final_message, secrets)
+
     (results_dir / "export_submission.json").write_text(
-        json.dumps(status_payload, indent=2, sort_keys=True), encoding="utf-8"
+        json.dumps(public_status, indent=2, sort_keys=True), encoding="utf-8"
     )
     (results_dir / "export_job_id.txt").write_text(job_id + "\n", encoding="utf-8")
     (results_dir / "export_final_message.txt").write_text(raw_final_message + ("\n" if raw_final_message else ""), encoding="utf-8")
@@ -362,7 +461,7 @@ def main() -> int:
 
     if final_payload:
         print("")
-        print_final_export_summary(final_payload)
+        print_final_export_summary(public_final_payload, credentials_path)
 
     if raw_final_message:
         print("")

@@ -1,5 +1,5 @@
 id: export
-version: 0.1.2
+version: 0.1.3
 description: Prepare and submit an export bundle from Linkar project history.
 tools:
   required:
@@ -41,10 +41,6 @@ params:
     type: str
     default: ""
     description: Optional export username override. If omitted, the template derives it from the project name when possible.
-  export_password:
-    type: str
-    default: ""
-    description: Optional export password override. If omitted, a random token is generated during bundle creation.
   agendo_id:
     type: str
     default: ""
@@ -134,7 +130,6 @@ run:
       --export-engine-backends "${param:export_engine_backends}" \
       --export-expiry-days "${param:export_expiry_days}" \
       --export-username "${param:export_username}" \
-      --export-password "${param:export_password}" \
       --agendo-id "${param:agendo_id}" \
       --flowcell-id "${param:flowcell_id}" \
       --metadata-source "${param:metadata_source}" \
@@ -167,7 +162,6 @@ render:
       --export-engine-backends "${param:export_engine_backends}"
       --export-expiry-days "${param:export_expiry_days}"
       --export-username "${param:export_username}"
-      --export-password "${param:export_password}"
       --reuse-saved-credentials "${reuse_saved_credentials}"
       --agendo-id "${param:agendo_id}"
       --flowcell-id "${param:flowcell_id}"

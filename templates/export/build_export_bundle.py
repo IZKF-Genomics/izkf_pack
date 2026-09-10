@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from export_common import (
     now_utc,
     project_authors,
     resolve_metadata_identifiers,
+    save_private_json,
     save_yaml,
     split_csv,
 )
@@ -34,7 +36,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--export-engine-backends", default="apache, owncloud, sftp", help="Comma-separated export backends.")
     parser.add_argument("--export-expiry-days", type=int, default=30, help="Retention period recorded in the export spec.")
     parser.add_argument("--export-username", default="", help="Optional username override; derived from project name if omitted.")
-    parser.add_argument("--export-password", default="", help="Optional password override; generated if omitted.")
     parser.add_argument("--reuse-saved-credentials", default="false", help="Preserve saved username/password when rebuilding the spec.")
     parser.add_argument("--agendo-id", default="", help="Optional Agendo request id for metadata lookup.")
     parser.add_argument("--flowcell-id", default="", help="Optional flowcell id for metadata lookup.")
@@ -73,6 +74,14 @@ def extract_message_credentials(text: object) -> tuple[str, str]:
 
 
 def extract_saved_credentials(results_dir: Path, spec_path: Path, project_data: dict[str, object]) -> tuple[str, str]:
+    credentials_payload = load_json_object(results_dir / "export_credentials.json")
+    username = str(credentials_payload.get("username") or "").strip()
+    password = str(credentials_payload.get("password") or "").strip()
+    if username and password:
+        return username, password
+
+    # Compatibility migration for exports created before credentials were split
+    # from the public job spec and submission artifacts.
     submission_payload = load_json_object(results_dir / "export_submission.json")
     final_message = submission_payload.get("final_message")
     if isinstance(final_message, dict):
@@ -178,7 +187,7 @@ def main() -> int:
         "agendo_id": args.agendo_id,
         "flowcell_id": args.flowcell_id,
         "export_username": args.export_username,
-        "export_password": args.export_password,
+        "export_password": os.environ.get("LINKAR_EXPORT_PASSWORD", ""),
     }
     if to_bool(args.reuse_saved_credentials):
         existing_username, existing_password = extract_saved_credentials(results_dir, spec_path, project_data)
@@ -188,6 +197,10 @@ def main() -> int:
             params["export_password"] = existing_password
     identifiers = resolve_metadata_identifiers(params, project_data)
     username, password = derive_export_credentials(project_name, params)
+    save_private_json(
+        results_dir / "export_credentials.json",
+        {"username": username, "password": password},
+    )
 
     metadata_context = {
         "metadata_identifiers": {
@@ -275,8 +288,6 @@ def main() -> int:
         "project_name": project_name,
         "export_list": export_list,
         "backend": split_csv(args.export_engine_backends),
-        "username": username,
-        "password": password,
         "authors": project_authors(project_data),
         "expiry_days": int(args.export_expiry_days or 0),
         "metadata_identifiers": metadata_context["metadata_identifiers"],
