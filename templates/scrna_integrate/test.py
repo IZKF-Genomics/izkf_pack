@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,18 @@ import yaml
 
 TEMPLATE_DIR = Path(__file__).resolve().parent
 FUNCTIONS_DIR = TEMPLATE_DIR.parent.parent / "functions"
+
+
+def find_pixi_executable() -> str:
+    configured = os.environ.get("PIXI_EXE")
+    if configured:
+        resolved = shutil.which(configured)
+        if resolved:
+            return resolved
+    resolved = shutil.which("pixi")
+    if resolved:
+        return resolved
+    raise RuntimeError("pixi is required to run the scientific integration checks")
 
 
 def load_module(path: Path, name: str):
@@ -151,9 +164,11 @@ def main() -> int:
 
     subprocess.run(
         [
-            "bash",
-            "-lc",
-            """pixi run python - <<'PY'
+            find_pixi_executable(),
+            "run",
+            "python",
+            "-c",
+            """
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path("lib").resolve()))
@@ -192,7 +207,7 @@ metrics = compare_baseline_and_integrated(
 )
 assert "batch_entropy_mean" in metrics["metric"].tolist()
 assert "graph_connectivity" in metrics["metric"].tolist()
-PY""",
+""",
         ],
         cwd=TEMPLATE_DIR,
         check=True,
