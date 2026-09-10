@@ -378,10 +378,10 @@ templates:
       salmon_dir:
         function: get_dgea_salmon_dir
 
-  multiqc:
+  consumer:
     params:
       input_dir:
-        template: demultiplex
+        template: producer
         output: results_dir
 ```
 
