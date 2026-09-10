@@ -68,10 +68,15 @@ def main() -> int:
         assert run_info["params"]["sample_count"] == 2
         assert run_info["params"]["authors"] == "A, B"
         assert '--output "${results_dir}/software_versions.json"' in run_sh
+        assert 'pixi run python "${script_dir}/build_ercc_inputs.py"' in run_sh
+        assert 'pixi run python "${pack_root}/functions/software_versions.py"' in run_sh
         assert 'linkar collect "${script_dir}"' in run_sh
         assert 'linkar clean "${script_dir}" --yes' in run_sh
         assert "default pack bindings" in readme
         assert "quarto" in spec
+        pixi_manifest = (TEMPLATE_DIR / "pixi.toml").read_text(encoding="utf-8")
+        assert 'python = ">=3.14,<3.15"' in pixi_manifest
+        assert 'pyyaml = ">=6,<7"' in pixi_manifest
     return 0
 
 

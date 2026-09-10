@@ -50,5 +50,7 @@ bash run.sh
 
 - The run writes `ercc_inputs.R` and `ERCC.runtime.qmd` so the report uses resolved
   absolute paths instead of Jinja-time placeholders.
+- Python helpers run inside the template Pixi environment, which explicitly provides Python and
+  PyYAML instead of relying on packages installed on the host.
 - The report validates that `salmon.merged.gene_tpm.tsv` exists, the samplesheet
   contains a `sample` column, and every listed sample appears in the merged TPM table.
