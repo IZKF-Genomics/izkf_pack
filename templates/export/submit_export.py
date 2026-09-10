@@ -14,13 +14,16 @@ from urllib.request import Request, urlopen
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Submit a prepared export_job_spec.json to the export engine.")
-    parser.add_argument("--results-dir", default="./results")
-    parser.add_argument("--api-url", required=True)
-    parser.add_argument("--refresh", default="false")
-    parser.add_argument("--job-id", default="")
-    parser.add_argument("--poll-interval-seconds", type=int, default=2)
-    parser.add_argument("--timeout-seconds", type=int, default=3600)
+    parser = argparse.ArgumentParser(
+        description="Submit a prepared export_job_spec.json to the export engine.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument("--results-dir", default="./results", help="Directory containing export_job_spec.json.")
+    parser.add_argument("--api-url", required=True, help="Base URL of the export engine; /export is appended if needed.")
+    parser.add_argument("--refresh", default="false", help="Refresh an existing export job instead of creating a new one.")
+    parser.add_argument("--job-id", default="", help="Existing export job id for refresh; falls back to saved state.")
+    parser.add_argument("--poll-interval-seconds", type=int, default=2, help="Poll interval for GET /export/{job_id}/poll.")
+    parser.add_argument("--timeout-seconds", type=int, default=3600, help="Timeout while polling for final export status.")
     return parser.parse_args()
 
 
@@ -44,6 +47,10 @@ def parse_bool(value: object, default: bool = False) -> bool:
 
 def refresh_endpoint(export_url: str, job_id: str) -> str:
     return f"{export_url}/{job_id}/refresh"
+
+
+def poll_endpoint(export_url: str, job_id: str) -> str:
+    return f"{export_url}/{job_id}/poll"
 
 
 def final_message_endpoint(export_url: str, job_id: str) -> str:
@@ -123,7 +130,7 @@ def run_with_spinner(message: str, func):
         thread.join()
 
 
-def fetch_final_message(url: str) -> dict[str, object]:
+def fetch_json(url: str) -> dict[str, object]:
     req = Request(url=url, headers={"Accept": "application/json"}, method="GET")
     with urlopen(req, timeout=30) as resp:
         body = resp.read().decode("utf-8", errors="replace")
@@ -230,13 +237,27 @@ def build_export_state(job_id: str, final_payload: dict[str, object], final_path
     return {key: value for key, value in state.items() if value not in {"", None}}
 
 
-def wait_for_final_message(url: str, *, poll_interval_seconds: int, timeout_seconds: int) -> tuple[dict[str, object], str | None]:
+TERMINAL_STATUSES = {"completed", "completed_with_warning", "failed"}
+
+
+def wait_for_final_message(
+    export_url: str,
+    job_id: str,
+    *,
+    poll_interval_seconds: int,
+    timeout_seconds: int,
+) -> tuple[dict[str, object], dict[str, object], str | None]:
     deadline = time.monotonic() + max(timeout_seconds, 1)
     last_error: str | None = None
+    last_poll: dict[str, object] = {}
+    poll_url = poll_endpoint(export_url, job_id)
+    final_url = final_message_endpoint(export_url, job_id)
     while time.monotonic() < deadline:
         try:
-            payload = fetch_final_message(url)
-            return payload, None
+            last_poll = fetch_json(poll_url)
+            status = str(last_poll.get("status") or "").strip().lower()
+            if status in TERMINAL_STATUSES:
+                return fetch_json(final_url), last_poll, None
         except HTTPError as exc:
             last_error = f"{exc.code}: {exc.reason}"
             if exc.code not in {404, 425}:
@@ -244,7 +265,7 @@ def wait_for_final_message(url: str, *, poll_interval_seconds: int, timeout_seco
         except Exception as exc:
             last_error = str(exc)
         time.sleep(max(poll_interval_seconds, 1))
-    return {}, last_error or f"timed out after {timeout_seconds} seconds"
+    return {}, last_poll, last_error or f"timed out after {timeout_seconds} seconds"
 
 
 def main() -> int:
@@ -302,15 +323,17 @@ def main() -> int:
     }
     raw_final_message = ""
     final_path = ""
-    final_payload, final_error = run_with_spinner(
+    final_payload, poll_payload, final_error = run_with_spinner(
         "Waiting for final export status",
         lambda: wait_for_final_message(
-            final_message_endpoint(export_url, job_id),
+            export_url,
+            job_id,
             poll_interval_seconds=args.poll_interval_seconds,
             timeout_seconds=args.timeout_seconds,
         ),
     )
     try:
+        status_payload["poll"] = poll_payload
         status_payload["final_message"] = final_payload
         raw_final_message = str(final_payload.get("message") or "").strip()
         final_path = str(final_payload.get("final_path") or "").strip()

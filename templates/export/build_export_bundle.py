@@ -24,25 +24,28 @@ from export_common import (
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build export bundle artifacts for the Linkar export template.")
-    parser.add_argument("--project-dir", required=True)
-    parser.add_argument("--template-dir", default=".")
-    parser.add_argument("--results-dir", default="./results")
-    parser.add_argument("--export-engine-backends", default="apache, owncloud, sftp")
-    parser.add_argument("--export-expiry-days", type=int, default=30)
-    parser.add_argument("--export-username", default="")
-    parser.add_argument("--export-password", default="")
-    parser.add_argument("--reuse-saved-credentials", default="false")
-    parser.add_argument("--agendo-id", default="")
-    parser.add_argument("--flowcell-id", default="")
-    parser.add_argument("--metadata-source", default="auto")
-    parser.add_argument("--metadata-file", default="")
-    parser.add_argument("--metadata-api-url", default="https://genomics.rwth-aachen.de/api")
-    parser.add_argument("--metadata-api-endpoint", default="/project-output")
-    parser.add_argument("--metadata-api-timeout", type=int, default=20)
-    parser.add_argument("--include-summary-in-spec", default="true")
-    parser.add_argument("--summary-style", default="full")
-    parser.add_argument("--skip-if-spec-exists", action="store_true")
+    parser = argparse.ArgumentParser(
+        description="Build export bundle artifacts for the Linkar export template.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument("--project-dir", required=True, help="Linkar project directory containing project.yaml.")
+    parser.add_argument("--template-dir", default=".", help="Export template directory containing mapping and summary helpers.")
+    parser.add_argument("--results-dir", default="./results", help="Directory for generated export artifacts.")
+    parser.add_argument("--export-engine-backends", default="apache, owncloud, sftp", help="Comma-separated export backends.")
+    parser.add_argument("--export-expiry-days", type=int, default=30, help="Retention period recorded in the export spec.")
+    parser.add_argument("--export-username", default="", help="Optional username override; derived from project name if omitted.")
+    parser.add_argument("--export-password", default="", help="Optional password override; generated if omitted.")
+    parser.add_argument("--reuse-saved-credentials", default="false", help="Preserve saved username/password when rebuilding the spec.")
+    parser.add_argument("--agendo-id", default="", help="Optional Agendo request id for metadata lookup.")
+    parser.add_argument("--flowcell-id", default="", help="Optional flowcell id for metadata lookup.")
+    parser.add_argument("--metadata-source", default="auto", help="Metadata source mode: auto, api, file, mock, or none.")
+    parser.add_argument("--metadata-file", default="", help="Optional JSON/YAML metadata file, resolved relative to the project.")
+    parser.add_argument("--metadata-api-url", default="https://genomics.rwth-aachen.de/api", help="Base URL for metadata enrichment.")
+    parser.add_argument("--metadata-api-endpoint", default="/project-output", help="Metadata API endpoint path.")
+    parser.add_argument("--metadata-api-timeout", type=int, default=20, help="Metadata API timeout in seconds.")
+    parser.add_argument("--include-summary-in-spec", default="true", help="Include generated project summary context in the export spec.")
+    parser.add_argument("--summary-style", default="full", help="Summary report style: full or concise.")
+    parser.add_argument("--skip-if-spec-exists", action="store_true", help="Keep an existing export_job_spec.json untouched.")
     return parser.parse_args()
 
 

@@ -19,9 +19,39 @@ mappings:
         description: "MultiQC report from the demultiplex template."
         link_name: "Demultiplex MultiQC report"
 
+  - template_id: nfcore_demultiplex
+    src_project_key: "templates[id=nfcore_demultiplex].outputs.output_dir"
+    src: "{template_root}"
+    dest: "1_Raw_data/nfcore_demultiplex/FASTQ"
+    report_links:
+      - path: "."
+        section: raw
+        description: "FASTQ output from the nfcore_demultiplex template."
+        link_name: "nfcore_demultiplex FASTQ output"
+
+  - template_id: nfcore_demultiplex
+    src_project_key: "templates[id=nfcore_demultiplex].outputs.multiqc_report"
+    src: "{template_root}/qc/multiqc/multiqc_report.html"
+    dest: "1_Raw_data/nfcore_demultiplex/demultiplexing_multiqc_report.html"
+    report_links:
+      - path: "."
+        section: raw/MultiQC
+        description: "Project-level MultiQC report from the nfcore_demultiplex template."
+        link_name: "nfcore_demultiplex project MultiQC report"
+
+  - template_id: nfcore_demultiplex
+    src_project_key: "templates[id=nfcore_demultiplex].outputs.run_multiqc_report"
+    src: "{template_root}/multiqc_report.html"
+    dest: "1_Raw_data/nfcore_demultiplex/run_multiqc_report.html"
+    report_links:
+      - path: "."
+        section: raw/MultiQC
+        description: "Run-level MultiQC report from the nfcore_demultiplex template."
+        link_name: "nfcore_demultiplex run MultiQC report"
+
   - template_id: nfcore_3mrnaseq
     src: "{template_root}"
-    dest: "2_Processed_data/nfcore_3mrnaseq/{template_basename}"
+    dest: "2_Processed_data/nfcore_3mrnaseq{template_basename_suffix}"
     report_links:
       - path: "."
         section: processed
@@ -34,7 +64,7 @@ mappings:
 
   - template_id: nfcore_rnaseq
     src: "{template_root}"
-    dest: "2_Processed_data/nfcore_rnaseq/{template_basename}"
+    dest: "2_Processed_data/nfcore_rnaseq{template_basename_suffix}"
     report_links:
       - path: "."
         section: processed
@@ -149,7 +179,7 @@ mappings:
         link_name: "methylation_array_analysis report tables"
 
   - template_id: scrna_prep
-    src: "{template_root}/reports"
+    src: "{template_root}/results"
     dest: "3_Reports/{template_basename}"
     report_links:
       - path: "scrna_prep.html"
@@ -418,7 +448,7 @@ mappings:
     
   - template_id: dgea
     src: "{template_root}/results"
-    dest: "3_Reports/dgea/{template_basename}"
+    dest: "3_Reports/dgea{template_basename_suffix}"
     report_links:
       - path: "*.html"
         section: "reports/DGEA {template_label}"

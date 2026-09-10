@@ -13,7 +13,8 @@ It keeps the export mapping table as data, and makes the old BPM hook chain expl
 
 - rebuilds the export bundle into `results/` by default
 - generates new credentials by default unless credential reuse is requested
-- submits the prepared spec
+- submits the prepared spec with `POST /export`
+- polls `GET /export/{job_id}/poll`, then reads `GET /export/final_message/{job_id}`
 - records submission artifacts into `results/`
 
 `linkar run export --prepare-only`:
@@ -22,10 +23,12 @@ It keeps the export mapping table as data, and makes the old BPM hook chain expl
 - writes `results/export_job_spec.json` and related metadata
 - does not contact the export engine
 
-`linkar run export --refresh`:
+`linkar run export --refresh-export true`:
 
 - rebuilds the export bundle from the current project history
-- submits `results/export_refresh_spec.json` to the existing export job
+- reuses saved username/password credentials while rebuilding
+- submits `results/export_refresh_spec.json` to the existing export job with `POST /export/{job_id}/refresh`
+- polls `GET /export/{job_id}/poll`, then reads `GET /export/final_message/{job_id}`
 - preserves the existing job id, username, password, and download link through the export engine refresh endpoint
 
 `linkar render export`:
@@ -47,10 +50,10 @@ If you want to rebuild the bundle manually:
 python3 build_export_bundle.py --project-dir "${LINKAR_PROJECT_DIR:-..}" --template-dir . --results-dir ./results
 ```
 
-Default launcher behavior:
+Default run behavior:
 
 ```bash
-./run.sh
+linkar run export
 ```
 
 This rebuilds `results/export_job_spec.json`, generates a new credential pair,
@@ -60,9 +63,11 @@ Useful alternate modes:
 
 ```bash
 linkar run export --prepare-only
-linkar run export --refresh
-bash run.sh --reuse-spec
-bash run.sh --reuse-credentials
+linkar run export --refresh-export true
+linkar run export --reuse-spec
+linkar run export --reuse-credentials
+linkar render export
+linkar render export --reuse-credentials
 ```
 
 Credential reuse looks for a complete username/password pair in this order:
@@ -71,15 +76,30 @@ Credential reuse looks for a complete username/password pair in this order:
 - `results/export_job_spec.json`
 - export template params in `project.yaml`
 
-`--reuse-spec` keeps the current spec untouched and submits it as-is.
+`--reuse-spec` keeps the current `results/export_job_spec.json` untouched and submits it as-is.
 `--reuse-credentials` rebuilds the spec but preserves saved credentials.
 `--prepare-only` performs the selected preparation mode without submission.
-`--refresh` rebuilds the spec and updates the existing export in place.
+`--refresh-export true` rebuilds the spec, reuses saved credentials automatically, and updates the existing export in place.
+
+Export engine endpoints:
+
+- Create: `POST /export`
+- Refresh: `POST /export/{job_id}/refresh`
+- Status: `GET /export/{job_id}/poll`
+- Final delivery message: `GET /export/final_message/{job_id}`
 
 You can also prepare without submission:
 
 ```bash
 python3 run.py --project-dir "${LINKAR_PROJECT_DIR:-..}" --template-dir . --results-dir ./results --prepare-only true --export-engine-api-url http://127.0.0.1:9500
+```
+
+For direct script usage, inspect the available options with:
+
+```bash
+python3 run.py --help
+python3 build_export_bundle.py --help
+python3 submit_export.py --help
 ```
 
 Generated artifacts include:

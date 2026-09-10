@@ -9,10 +9,10 @@ params:
     type: bool
     default: false
     description: When true, prepare the selected export bundle state and stop before API submission.
-  refresh:
+  refresh_export:
     type: bool
     default: false
-    description: When true, refresh an existing export job in place instead of creating a new export.
+    description: When true, rebuild the bundle, reuse saved credentials, and refresh an existing export job in place.
   job_id:
     type: str
     default: ""
@@ -24,7 +24,7 @@ params:
   reuse_credentials:
     type: bool
     default: false
-    description: When true, rebuild export_job_spec.json while preserving saved credentials from prior export artifacts.
+    description: When true, rebuild export_job_spec.json while preserving saved credentials; refresh enables this automatically.
   export_engine_api_url:
     type: str
     default: http://genomics.rwth-aachen.de:9500
@@ -84,11 +84,11 @@ params:
   poll_interval_seconds:
     type: int
     default: 2
-    description: Poll interval in seconds while waiting for the export engine to return the final status.
+    description: Poll interval in seconds for GET /export/{job_id}/poll.
   timeout_seconds:
     type: int
     default: 3600
-    description: Timeout in seconds while waiting for the export engine final status.
+    description: Timeout in seconds while polling for the export engine final status.
 # Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
 # which defaults to <template_workspace>/results.
 outputs:
@@ -126,7 +126,7 @@ run:
       --project-dir "${LINKAR_PROJECT_DIR:-..}" \
       --template-dir "." \
       --prepare-only "${param:prepare_only}" \
-      --refresh "${param:refresh}" \
+      --refresh "${param:refresh_export}" \
       --job-id "${param:job_id}" \
       --reuse-spec "${param:reuse_spec}" \
       --reuse-credentials "${param:reuse_credentials}" \
@@ -154,6 +154,11 @@ render:
       exit 2
     fi
 
+    reuse_saved_credentials="${param:reuse_credentials}"
+    if [[ "${param:refresh_export}" == "true" ]]; then
+      reuse_saved_credentials="true"
+    fi
+
     build_args=(
       python3 ./build_export_bundle.py
       --project-dir "${project_dir}"
@@ -163,7 +168,7 @@ render:
       --export-expiry-days "${param:export_expiry_days}"
       --export-username "${param:export_username}"
       --export-password "${param:export_password}"
-      --reuse-saved-credentials "${param:reuse_credentials}"
+      --reuse-saved-credentials "${reuse_saved_credentials}"
       --agendo-id "${param:agendo_id}"
       --flowcell-id "${param:flowcell_id}"
       --metadata-source "${param:metadata_source}"

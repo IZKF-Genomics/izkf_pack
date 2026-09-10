@@ -236,11 +236,13 @@ def template_placeholders(template_id: str, entry: dict[str, Any]) -> dict[str, 
             params_name = raw_name.strip()
     template_label = params_name or template_basename
     template_slug = safe_slug(template_label) or safe_slug(template_basename) or template_id
+    template_basename_suffix = "" if template_basename == template_id else f"/{template_basename}"
     return {
         "template_id": template_id,
         "template_root": template_path,
         "template_path": template_path,
         "template_basename": template_basename,
+        "template_basename_suffix": template_basename_suffix,
         "template_label": template_label,
         "template_slug": template_slug,
         "instance_id": str(entry.get("instance_id") or "").strip(),
@@ -548,19 +550,102 @@ def normalize_metadata_payload(raw: dict[str, Any], ids: dict[str, str], mode_us
     }
 
 
-def generate_summary_markdown(project_dir: Path, style: str) -> tuple[str, int, int]:
-    try:
-        from bpm.core import agent_methods
+def _summary_result_dirs(project_dir: Path, project_data: dict[str, Any]) -> list[Path]:
+    candidates: list[Path] = []
+    templates = project_data.get("templates") or []
+    if isinstance(templates, list):
+        for entry in reversed(templates):
+            if not isinstance(entry, dict) or str(entry.get("id") or "") != "summary":
+                continue
+            outputs = entry.get("outputs") or {}
+            if isinstance(outputs, dict) and outputs.get("results_dir"):
+                candidates.append(Path(str(outputs["results_dir"])))
+            for key in ("history_path", "path"):
+                raw_path = str(entry.get(key) or "").strip()
+                if not raw_path:
+                    continue
+                candidate = Path(raw_path)
+                if not candidate.is_absolute():
+                    candidate = project_dir / candidate
+                candidates.append(candidate / "results")
+    candidates.append(project_dir / "summary" / "results")
 
-        result = agent_methods.generate_methods_markdown(project_dir, style=style)
-        return result.markdown, int(result.templates_count), int(result.citation_count)
-    except Exception as exc:
-        note = (
-            "# Project Summary\n\n"
-            f"Automatic generation failed: {exc}\n"
-            "Regenerate manually after installing BPM summary support.\n"
-        )
-        return note, 0, 0
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        marker = str(candidate)
+        if marker not in seen:
+            seen.add(marker)
+            unique.append(candidate)
+    return unique
+
+
+def _summary_counts(context: dict[str, Any], project_data: dict[str, Any]) -> tuple[int, int]:
+    runs = context.get("runs")
+    templates_count = len(runs) if isinstance(runs, list) else 0
+    citation_ids = context.get("citation_ids")
+    citation_count = len(citation_ids) if isinstance(citation_ids, list) else 0
+    if not citation_count and isinstance(runs, list):
+        citations = {
+            str(citation)
+            for run in runs
+            if isinstance(run, dict) and isinstance(run.get("citations"), list)
+            for citation in run["citations"]
+            if str(citation).strip()
+        }
+        citation_count = len(citations)
+    if not templates_count:
+        templates = project_data.get("templates") or []
+        if isinstance(templates, list):
+            templates_count = sum(
+                1
+                for entry in templates
+                if isinstance(entry, dict) and str(entry.get("id") or "") not in {"", "export", "summary"}
+            )
+    return templates_count, citation_count
+
+
+def generate_summary_markdown(project_dir: Path, style: str) -> tuple[str, int, int]:
+    """Reuse a Linkar summary, or build a deterministic project overview.
+
+    Export must remain standalone, so summary generation deliberately has no BPM
+    or other optional Python package dependency.
+    """
+    project_data = load_yaml(project_dir / "project.yaml")
+    summary_name = "summary_short.md" if style == "concise" else "summary_long.md"
+    for results_dir in _summary_result_dirs(project_dir, project_data):
+        summary_path = results_dir / summary_name
+        if not summary_path.is_file():
+            continue
+        markdown = summary_path.read_text(encoding="utf-8")
+        context = load_yaml(results_dir / "summary_context.yaml")
+        templates_count, citation_count = _summary_counts(context, project_data)
+        return markdown, templates_count, citation_count
+
+    templates = project_data.get("templates") or []
+    analyses = [
+        entry
+        for entry in templates
+        if isinstance(entry, dict) and str(entry.get("id") or "") not in {"", "export", "summary"}
+    ] if isinstance(templates, list) else []
+    project_name = str(project_data.get("id") or project_dir.name)
+    lines = [
+        "# Project Summary",
+        "",
+        f"Project `{project_name}` contains {len(analyses)} recorded analysis run(s).",
+    ]
+    if analyses:
+        lines.extend(["", "## Recorded analyses", ""])
+        for entry in analyses:
+            template_id = str(entry.get("id"))
+            version = str(entry.get("template_version") or "").strip()
+            state = str(entry.get("state") or "").strip()
+            details = [value for value in (version, state) if value]
+            suffix = f" ({', '.join(details)})" if details else ""
+            lines.append(f"- {template_id}{suffix}")
+    else:
+        lines.extend(["", "No analysis runs are recorded in `project.yaml`."])
+    return "\n".join(lines) + "\n", len(analyses), 0
 
 
 def extract_citations(markdown: str) -> list[str]:

@@ -11,6 +11,8 @@ from pathlib import Path
 
 import yaml
 
+from export_common import generate_summary_markdown, template_placeholders
+
 
 TEMPLATE_DIR = Path(__file__).resolve().parent
 
@@ -45,12 +47,22 @@ class ExportHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
-        if self.path != "/export/final_message/job-123":
-            self.send_error(404)
+        if self.path == "/export/job-123/poll":
+            attempts = getattr(self.server, "poll_attempts", 0) + 1  # type: ignore[attr-defined]
+            self.server.poll_attempts = attempts  # type: ignore[attr-defined]
+            body = json.dumps(
+                {
+                    "job_id": "job-123",
+                    "status": "completed" if attempts >= 2 else "running",
+                }
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
             return
-        attempts = getattr(self.server, "final_message_attempts", 0) + 1  # type: ignore[attr-defined]
-        self.server.final_message_attempts = attempts  # type: ignore[attr-defined]
-        if attempts < 2:
+        if self.path != "/export/final_message/job-123":
             self.send_error(404)
             return
         body = json.dumps(
@@ -101,11 +113,51 @@ class ExportHandler(BaseHTTPRequestHandler):
 
 
 def main() -> int:
+    assert template_placeholders("nfcore_rnaseq", {"path": "nfcore_rnaseq"})["template_basename_suffix"] == ""
+    assert template_placeholders("dgea", {"path": "dgea"})["template_basename_suffix"] == ""
+    assert template_placeholders("dgea", {"path": "DGEA_Liver"})["template_basename_suffix"] == "/DGEA_Liver"
+
+    with tempfile.TemporaryDirectory() as summary_tmpdir:
+        summary_project = Path(summary_tmpdir)
+        (summary_project / "project.yaml").write_text(
+            yaml.safe_dump(
+                {
+                    "id": "summary_fallback_test",
+                    "templates": [
+                        {"id": "demultiplex", "template_version": "0.2.2", "state": "rendered"},
+                        {"id": "nfcore_3mrnaseq", "state": "completed"},
+                        {"id": "export", "state": "rendered"},
+                    ],
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+        markdown, templates_count, citation_count = generate_summary_markdown(summary_project, "full")
+        assert "demultiplex" in markdown and "nfcore_3mrnaseq" in markdown
+        assert "bpm" not in markdown.lower() and "Automatic generation failed" not in markdown
+        assert templates_count == 2
+        assert citation_count == 0
+
+        summary_results = summary_project / "summary" / "results"
+        summary_results.mkdir(parents=True)
+        (summary_results / "summary_long.md").write_text("# Existing long summary\n", encoding="utf-8")
+        (summary_results / "summary_short.md").write_text("# Existing short summary\n", encoding="utf-8")
+        (summary_results / "summary_context.yaml").write_text(
+            yaml.safe_dump({"runs": [{"template": "a"}, {"template": "b"}], "citation_ids": ["x", "y"]}),
+            encoding="utf-8",
+        )
+        markdown, templates_count, citation_count = generate_summary_markdown(summary_project, "concise")
+        assert markdown == "# Existing short summary\n"
+        assert templates_count == 2
+        assert citation_count == 2
+
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
         project_dir = root / "study"
         export_dir = project_dir / "export"
         demux_dir = project_dir / "demultiplex"
+        nfcore_demux_dir = project_dir / "nfcore_demultiplex"
         rnaseq_dir = project_dir / "nfcore_liver"
         rnaseq_bile_dir = project_dir / "nfcore_bile_duct"
         dgea_liver_dir = project_dir / "DGEA_Liver"
@@ -123,6 +175,9 @@ def main() -> int:
         summary_dir = project_dir / "summary"
         (demux_dir / "results" / "output").mkdir(parents=True)
         (demux_dir / "results" / "multiqc").mkdir(parents=True)
+        (nfcore_demux_dir / "output").mkdir(parents=True)
+        (nfcore_demux_dir / "output" / "qc" / "multiqc").mkdir(parents=True)
+        (nfcore_demux_dir / "multiqc").mkdir(parents=True)
         (rnaseq_dir / "results" / "multiqc").mkdir(parents=True)
         (rnaseq_bile_dir / "results" / "multiqc").mkdir(parents=True)
         (dgea_liver_dir / "results").mkdir(parents=True)
@@ -146,6 +201,10 @@ def main() -> int:
         (summary_dir / "results").mkdir(parents=True)
         (demux_dir / "results" / "output" / "sample.fastq.gz").write_text("fq\n", encoding="utf-8")
         (demux_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
+        (nfcore_demux_dir / "output" / "sample_R1.fastq.gz").write_text("fq\n", encoding="utf-8")
+        (nfcore_demux_dir / "output" / "sample_R2.fastq.gz").write_text("fq\n", encoding="utf-8")
+        (nfcore_demux_dir / "output" / "qc" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
+        (nfcore_demux_dir / "multiqc" / "run_multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
         (rnaseq_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
         (rnaseq_bile_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
         (rnaseq_dir / "run.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
@@ -167,7 +226,7 @@ def main() -> int:
         (prep_dir / "results" / "run_info.yaml").write_text("template: scrna_prep\n", encoding="utf-8")
         (prep_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
         (prep_dir / "results" / "tables" / "qc_summary.csv").write_text("metric,value\n", encoding="utf-8")
-        (prep_dir / "reports" / "scrna_prep.html").write_text("<html></html>\n", encoding="utf-8")
+        (prep_dir / "results" / "scrna_prep.html").write_text("<html></html>\n", encoding="utf-8")
         (integrate_dir / "results" / "adata.integrated.h5ad").write_text("h5ad\n", encoding="utf-8")
         (integrate_dir / "results" / "run_info.yaml").write_text("template: scrna_integrate\n", encoding="utf-8")
         (integrate_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
@@ -234,6 +293,17 @@ def main() -> int:
                         "multiqc_report": str((demux_dir / "results" / "multiqc" / "multiqc_report.html").resolve()),
                     },
                     "params": {"agendo_id": "1001", "flowcell_id": "EXAMPLEFC"},
+                },
+                {
+                    "id": "nfcore_demultiplex",
+                    "path": str(nfcore_demux_dir / "output"),
+                    "outputs": {
+                        "output_dir": str((nfcore_demux_dir / "output").resolve()),
+                        "multiqc_report": str(
+                            (nfcore_demux_dir / "output" / "qc" / "multiqc" / "multiqc_report.html").resolve()
+                        ),
+                        "run_multiqc_report": str((nfcore_demux_dir / "multiqc" / "run_multiqc_report.html").resolve()),
+                    },
                 },
                 {
                     "id": "nfcore_3mrnaseq",
@@ -399,18 +469,22 @@ def main() -> int:
         )
         assert "Prepare Only Complete" in prepare_only.stdout
         assert "Project templates:" in prepare_only.stdout
-        assert "demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_prep (1), scrna_integrate (1), scrna_annotate (1), scrna_annotate_celltypist (1), scrna_annotate_manual_markers (1), scrna_annotate_sctype (1), scrna_annotate_audit (1), scrna_annotate_zebrafish (1), ercc (1), summary (2)" in prepare_only.stdout
+        assert "demultiplex (1), nfcore_demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_prep (1), scrna_integrate (1), scrna_annotate (1), scrna_annotate_celltypist (1), scrna_annotate_manual_markers (1), scrna_annotate_sctype (1), scrna_annotate_audit (1), scrna_annotate_zebrafish (1), ercc (1), summary (2)" in prepare_only.stdout
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
         original_username = spec["username"]
         original_password = spec["password"]
-        assert len(spec["export_list"]) == 32
+        assert len(spec["export_list"]) == 35
         assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
         export_srcs = {entry["src"] for entry in spec["export_list"]}
         export_dests = {entry["dest"] for entry in spec["export_list"]}
         assert str((ercc_dir / "results").resolve()) in export_srcs
         assert str((summary_dir / "results").resolve()) in export_srcs
+        assert str((nfcore_demux_dir / "output").resolve()) in export_srcs
+        assert "1_Raw_data/nfcore_demultiplex/FASTQ" in export_dests
+        assert "1_Raw_data/nfcore_demultiplex/demultiplexing_multiqc_report.html" in export_dests
+        assert "1_Raw_data/nfcore_demultiplex/run_multiqc_report.html" in export_dests
         assert "2_Processed_data/nfcore_3mrnaseq/nfcore_liver" in export_dests
         assert "2_Processed_data/nfcore_3mrnaseq/nfcore_bile_duct" in export_dests
         assert "2_Processed_data/methylation_array_analysis/results" in export_dests
@@ -646,6 +720,8 @@ def main() -> int:
             ).read_text(encoding="utf-8")
             payload = json.loads((export_dir / "results" / "export_submission.json").read_text(encoding="utf-8"))
             assert payload["job_id"] == "job-123"
+            assert payload["poll"]["status"] == "completed"
+            assert getattr(server, "poll_attempts", 0) >= 2
             state = json.loads((export_dir / "results" / "export_state.json").read_text(encoding="utf-8"))
             assert state["job_id"] == "job-123"
             assert state["username"] == "example_user"
@@ -711,6 +787,14 @@ def main() -> int:
             assert "password" not in refresh_payload
             refresh_spec = json.loads((export_dir / "results" / "export_refresh_spec.json").read_text(encoding="utf-8"))
             assert refresh_spec == refresh_payload
+
+            template_config = yaml.safe_load((TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8"))
+            render_command = template_config["render"]["command"]
+            assert 'reuse_saved_credentials="${param:reuse_credentials}"' in render_command
+            assert 'if [[ "${param:refresh_export}" == "true" ]]' in render_command
+            assert '--reuse-saved-credentials "${reuse_saved_credentials}"' in render_command
+            assert "refresh" not in template_config["params"]
+            assert "refresh_export" in template_config["params"]
         finally:
             server.shutdown()
             thread.join(timeout=5)
