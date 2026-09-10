@@ -149,8 +149,10 @@ Important local conventions:
 ### `export`
 
 - Builds `export_job_spec.json` and submits export jobs.
-- If `export_job_spec.json` already exists, current logic can reuse it instead of rebuilding.
-- When export output looks stale, inspect the existing spec before changing mappings.
+- Rebuilds `export_job_spec.json` by default; reuses it only when `--reuse-spec` is requested.
+- Stores credentials only in the private `results/export_credentials.json`; public specs and
+  submission artifacts must remain password-free.
+- When export output looks stale, inspect the existing spec and rebuild it before changing mappings.
 - `report_links` in the spec come from `templates/export/export_mapping.table.yaml`.
 - README-backed practice:
   prefer `linkar render export`, inspect `results/export_job_spec.json`, then run `bash run.sh` when the user wants review before submission.
@@ -190,8 +192,8 @@ When exported reports do not match the latest mapping:
 
 1. inspect `templates/export/export_mapping.table.yaml`
 2. inspect `export/results/export_job_spec.json`
-3. confirm whether the builder reused an existing spec
-4. regenerate the spec before assuming the mapping change failed
+3. confirm whether `--reuse-spec` was explicitly requested
+4. rebuild the spec before assuming the mapping change failed
 
 When the export summary looks noisy:
 

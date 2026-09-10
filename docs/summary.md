@@ -3,6 +3,9 @@
 The [`summary`](../templates/summary/README.md) template generates
 bioinformatics analysis summaries from Linkar project history.
 
+Summary generation is Linkar-native and has no runtime dependency on the legacy `bpm` Python
+package. A missing BPM installation must not produce placeholder report text.
+
 It is not just a text summarizer. It combines:
 
 - recorded project runs from `project.yaml`

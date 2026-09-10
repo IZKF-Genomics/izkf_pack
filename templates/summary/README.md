@@ -3,6 +3,8 @@
 Generate bioinformatics analysis summaries from Linkar project history, template-specific catalog
 entries, recorded software versions, and runtime command metadata.
 
+The implementation is Linkar-native and does not import or require the legacy `bpm` package.
+
 This template is designed to synthesize:
 
 - template-level scientific descriptions from [summary_catalog.yaml](summary_catalog.yaml)

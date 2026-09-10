@@ -3,13 +3,18 @@
 The [`export`](../templates/export/README.md) template prepares a reviewable
 export bundle and, when requested, submits it to the export backend.
 
-The most important artifact is:
+The most important public artifact is:
 
 - `results/export_job_spec.json`
 
 This file is the structured export plan. It records what should be copied,
 where it should go, and which report links should appear in the final export
 report.
+
+Credentials are stored separately in `results/export_credentials.json` with owner-only (`0600`)
+permissions. This private file is intentionally omitted from the Linkar output contract; the public
+job spec, submission record, terminal messages, and final-message artifact do not retain the
+password.
 
 ## How export mappings work
 
@@ -93,9 +98,11 @@ bash run.sh --reuse-credentials --prepare-only
 less results/export_job_spec.json
 ```
 
-With credential reuse enabled, the export template looks for a complete
-username/password pair in `export_submission.json` first, then
-`export_job_spec.json`, then export params recorded in `project.yaml`.
+With credential reuse enabled, the export template first reads
+`results/export_credentials.json`. For backward compatibility it can migrate a complete
+username/password pair from legacy `export_submission.json`, `export_job_spec.json`, or export
+params recorded in `project.yaml`; after migration, the public artifacts are rewritten without the
+password.
 
 Recommended review flow:
 

@@ -321,9 +321,11 @@ cd example_scrnaseq_project
 linkar project view
 ```
 
-Run the facility wrapper around `nf-core/scrnaseq`. The default binding can generate the
-nf-core samplesheet from recorded demultiplex FASTQs, resolve `genome` from `agendo_id`, and set
-host CPU and memory caps.
+Run the facility wrapper around `nf-core/scrnaseq`, currently pinned to pipeline revision `4.2.0`.
+The default binding can generate the nf-core samplesheet from recorded demultiplex FASTQs, resolve
+`genome` from `agendo_id`, and set host CPU and memory caps. The pipeline revision is independent
+of the 10x library chemistry: set `--protocol` to the chemistry actually used (`10XV2`, `10XV3`, or
+`10XV4`) rather than inferring it from the nf-core version.
 
 ```bash
 linkar run nfcore_scrnaseq \
@@ -470,6 +472,10 @@ linkar run export --prepare-only
 less export/results/export_job_spec.json
 ```
 
+The public job spec does not retain the export password. Credentials are stored separately in
+`export/results/export_credentials.json` with owner-only (`0600`) permissions and are intentionally
+omitted from Linkar's output contract.
+
 Submit the first export:
 
 ```bash
@@ -478,7 +484,7 @@ linkar run export
 
 Update an existing export after regenerating reports or adding files. This uses
 the export engine refresh endpoint, so the existing job id, username, password,
-and download link are preserved:
+and download link are preserved through the private credentials file:
 
 ```bash
 linkar run export --refresh
