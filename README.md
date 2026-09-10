@@ -616,6 +616,17 @@ references = recommended_references(organism="example_organism", workflow="examp
 
 ## Development Checks
 
+Install the shared CI dependencies, run every template/helper test, and validate the complete pack:
+
+```bash
+python3 -m pip install --requirement requirements-ci.txt
+python3 scripts/run_tests.py
+linkar pack validate .
+```
+
+`requirements-ci.txt` tracks Linkar's `main` branch intentionally so CI checks the current
+interaction contract between Linkar and this pack.
+
 Run focused template tests:
 
 ```bash

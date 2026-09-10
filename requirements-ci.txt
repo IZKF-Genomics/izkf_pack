@@ -1,0 +1,5 @@
+linkar @ git+https://github.com/chaochungkuo/linkar.git@main
+leidenalg==0.10.2
+python-igraph==0.11.9
+PyYAML==6.0.3
+scanpy==1.12.1
