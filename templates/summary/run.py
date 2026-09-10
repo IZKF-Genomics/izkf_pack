@@ -636,6 +636,16 @@ def select_catalog_entry(catalog: dict[str, Any], template_id: str) -> dict[str,
 
 def resolve_catalog_citations(template_id: str, catalog_entry: dict[str, Any], params: dict[str, Any]) -> list[str]:
     citations = [str(item).strip() for item in (catalog_entry.get("citations") or []) if str(item).strip()]
+    if template_id in {"demultiplex", "nfcore_demultiplex"}:
+        platform = normalize_id_value(params.get("platform")).lower()
+        demultiplexer = normalize_id_value(params.get("demultiplexer")).lower()
+        if platform == "aviti" or demultiplexer == "bases2fastq":
+            citations.append("bases2fastq")
+        elif platform == "illumina" or demultiplexer in {"bclconvert", "bcl-convert"}:
+            citations.append("bcl_convert")
+        qc_tool = normalize_id_value(params.get("qc_tool")).lower()
+        if "falco" in {part.strip() for part in qc_tool.split(",")}:
+            citations.append("falco")
     if template_id == "scrna_prep":
         doublet_method = normalize_id_value(params.get("doublet_method"))
         if doublet_method == "scrublet":
@@ -913,8 +923,16 @@ def build_publication_summary(run: dict[str, Any]) -> str:
 
     if template == "demultiplex":
         outputs = run.get("outputs") if isinstance(run.get("outputs"), dict) else {}
-        qc_tool = format_publication_value("qc_tool", merged_run_params(run).get("qc_tool", ""))
-        summary = "Raw sequencing output was demultiplexed into sample-specific FASTQ files using Illumina BCL conversion."
+        params = merged_run_params(run)
+        qc_tool = format_publication_value("qc_tool", params.get("qc_tool", ""))
+        platform = normalize_id_value(params.get("platform")).lower()
+        method = "BCL Convert"
+        if platform == "aviti":
+            method = "bases2fastq"
+        summary = (
+            "Raw sequencing output was demultiplexed into sample-specific FASTQ files "
+            f"using the pinned demultiplexing_prefect workflow with {method}."
+        )
         qc_parts = []
         if qc_tool:
             qc_parts.append(f"Read quality was assessed with {qc_tool}")
@@ -922,6 +940,24 @@ def build_publication_summary(run: dict[str, Any]) -> str:
             qc_parts.append("summarized with MultiQC")
         if qc_parts:
             summary += " " + " and ".join(qc_parts) + "."
+        return summary
+
+    if template == "nfcore_demultiplex":
+        params = merged_run_params(run)
+        outputs = run.get("outputs") if isinstance(run.get("outputs"), dict) else {}
+        pipeline = pipeline or "`nf-core/demultiplex`"
+        demultiplexer = normalize_id_value(params.get("demultiplexer")).lower()
+        platform = format_publication_value("platform", params.get("platform", ""))
+        method = ""
+        if demultiplexer == "bclconvert":
+            method = " with BCL Convert"
+        elif demultiplexer == "bases2fastq":
+            method = " with bases2fastq"
+        summary = f"Raw sequencer output was processed with {pipeline}{method} to generate project-level FASTQ files."
+        if platform:
+            summary += f" The configured platform was {platform}."
+        if any("multiqc" in key and value for key, value in outputs.items()):
+            summary += " Run-level or project-level quality-control summaries were compiled with MultiQC."
         return summary
 
     if template == "nfcore_3mrnaseq":
@@ -1567,6 +1603,7 @@ def short_demultiplex_sentence(runs: list[dict[str, Any]], citation_map: dict[st
     run = next((run for run in runs if str(run.get("template") or "").strip() == "demultiplex"), None)
     if not isinstance(run, dict):
         return ""
+    params = merged_run_params(run)
     version_map = {
         str(item.get("name") or "").lower(): clean_runtime_version(
             str(item.get("name") or ""),
@@ -1576,30 +1613,63 @@ def short_demultiplex_sentence(runs: list[dict[str, Any]], citation_map: dict[st
         for item in (run.get("software_versions") or [])
         if isinstance(item, dict)
     }
-    bcl_version = version_map.get("bcl-convert", "")
-    bcl_phrase = "BCL Convert"
-    if bcl_version:
-        match = re.search(r"Version\s+([0-9][^\s]*)", bcl_version)
+    platform = normalize_id_value(params.get("platform")).lower()
+    if platform == "aviti":
+        demux_version = version_map.get("bases2fastq", "")
+        demux_phrase = "bases2fastq"
+    else:
+        demux_version = version_map.get("bcl-convert", "")
+        demux_phrase = "BCL Convert"
+    if demux_version and demux_phrase == "BCL Convert":
+        match = re.search(r"Version\s+([0-9][^\s]*)", demux_version)
         if match:
-            bcl_phrase += f" v{match.group(1)}"
-    qc_tool = format_publication_value("qc_tool", merged_run_params(run).get("qc_tool") or "")
+            demux_phrase += f" v{match.group(1)}"
+    elif demux_version and demux_phrase == "bases2fastq":
+        demux_phrase += f" {demux_version}"
+    qc_tool = format_publication_value("qc_tool", params.get("qc_tool") or "")
     qc_bits = []
     if qc_tool:
         qc_bits.append(qc_tool)
     if (run.get("outputs") if isinstance(run.get("outputs"), dict) else {}).get("multiqc_report"):
         qc_bits.append("MultiQC")
-    citations = ["bcl_convert"]
+    citations = ["demultiplexing_prefect", "bases2fastq" if platform == "aviti" else "bcl_convert"]
     if qc_tool.lower() == "falco":
         citations.append("falco")
     if "MultiQC" in qc_bits:
         citations.append("multiqc")
-    sentence = f"Sequencing reads were demultiplexed into FASTQ files with {bcl_phrase}."
+    sentence = f"Sequencing reads were demultiplexed into FASTQ files with demultiplexing_prefect and {demux_phrase}."
     if qc_bits:
         if len(qc_bits) == 1:
             sentence += f" Read quality was assessed with {qc_bits[0]}."
         else:
             sentence += f" Read quality was assessed with {qc_bits[0]} and summarized with {qc_bits[1]}."
     return sentence.rstrip(".") + inline_citations(citations, citation_map) + "."
+
+
+def short_nfcore_demultiplex_sentence(runs: list[dict[str, Any]], citation_map: dict[str, int]) -> str:
+    run = next((run for run in runs if str(run.get("template") or "").strip() == "nfcore_demultiplex"), None)
+    if not isinstance(run, dict):
+        return ""
+    params = merged_run_params(run)
+    demultiplexer = normalize_id_value(params.get("demultiplexer")).lower()
+    demultiplexer_phrase = ""
+    citations = ["nfcore_framework", "nfcore_demultiplex"]
+    if demultiplexer == "bclconvert":
+        demultiplexer_phrase = " with BCL Convert"
+        citations.append("bcl_convert")
+    elif demultiplexer == "bases2fastq":
+        demultiplexer_phrase = " with bases2fastq"
+    outputs = run.get("outputs") if isinstance(run.get("outputs"), dict) else {}
+    qc_phrase = ""
+    if any("multiqc" in key and value for key, value in outputs.items()):
+        qc_phrase = " and MultiQC reporting"
+        citations.append("multiqc")
+    return (
+        "Raw sequencer output was demultiplexed into project-level FASTQ files with "
+        f"nf-core/demultiplex{demultiplexer_phrase}{qc_phrase}"
+        + inline_citations(citations, citation_map)
+        + "."
+    )
 
 
 def short_nfcore_sentence(runs: list[dict[str, Any]], citation_map: dict[str, int]) -> str:
@@ -1803,6 +1873,7 @@ def deterministic_short_methods(context: dict[str, Any], catalog: dict[str, Any]
     sentences = [
         short_assay_sentence(context, runs),
         short_demultiplex_sentence(runs, citation_map),
+        short_nfcore_demultiplex_sentence(runs, citation_map),
         short_nfcore_sentence(runs, citation_map),
         short_downstream_sentence(runs, citation_map),
     ]

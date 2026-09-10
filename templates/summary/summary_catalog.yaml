@@ -30,31 +30,77 @@ templates:
     category: preprocessing
     publication_relevance: true
     label: Demultiplexing and sequencing quality control
-    summary: Sequencing output was demultiplexed into sample-specific sequencing files and quality-control reports.
-    method_core: Raw sequencing output was demultiplexed into sample-specific FASTQ files using a facility-managed demultiplexing pipeline based on Illumina BCL conversion, followed by aggregate quality-control reporting.
+    summary: Sequencing output was demultiplexed into sample-specific sequencing files and quality-control reports with the pinned demultiplexing_prefect workflow.
+    method_core: Raw sequencing output was demultiplexed into sample-specific FASTQ files using the pinned demultiplexing_prefect workflow, which dispatches to BCL Convert for Illumina runs or bases2fastq for AVITI runs and then stages project-level quality-control outputs.
     method_details:
       - Base calls were converted into sample-specific FASTQ files according to the sequencing run sample sheet, establishing the sequencing inputs used for downstream analysis.
-      - Per-sample FASTQ quality metrics were reviewed after demultiplexing, and aggregate quality-control summaries were compiled across the sequencing run.
+      - The configured platform determines whether the upstream workflow uses BCL Convert or bases2fastq as the demultiplexer.
+      - Per-sample FASTQ quality metrics were reviewed according to the configured QC tool, and aggregate quality-control summaries were compiled across the sequencing run when generated.
       - Optional contamination or secondary screening modules represent post-demultiplexing technical quality control.
     important_params:
       - samplesheet
+      - platform
       - qc_tool
       - contamination_tool
     param_explanations:
       samplesheet: Sample sheet used for sample demultiplexing and lane/sample assignment.
+      platform: Demultiplexing platform, usually illumina or aviti, used by demultiplexing_prefect to select the underlying demultiplexer.
       qc_tool: Quality-control tools selected for FASTQ summarization.
       contamination_tool: Optional contamination-screening tools applied after demultiplexing.
     param_context:
+      - platform determines whether BCL Convert or bases2fastq is expected as the primary demultiplexer.
       - qc_tool and contamination_tool determine which technical QC outputs are produced.
     command_hints:
-      - Use runtime_command and software_versions to recover the demultiplexing and QC tool combination.
+      - Use runtime_command and software_versions to recover the pinned demultiplexing_prefect commit, demultiplexer, and QC tool combination.
       - Mention only optional QC modules that were actually enabled.
     tools:
+      - demultiplexing_prefect
       - BCL Convert
+      - bases2fastq
+      - Falco
       - MultiQC
     citations:
-      - bcl_convert
-      - falco
+      - demultiplexing_prefect
+      - multiqc
+
+  nfcore_demultiplex:
+    category: preprocessing
+    publication_relevance: true
+    label: nf-core demultiplexing and sequencing quality control
+    summary: Raw sequencer output was demultiplexed into project-level FASTQ files and quality-control reports with nf-core/demultiplex.
+    method_core: Raw sequencer output was demultiplexed into sample-specific FASTQ files with nf-core/demultiplex using the configured demultiplexer, followed by run-level and project-level quality-control reporting.
+    method_details:
+      - Base calls were converted into project-specific FASTQ files according to the configured flow-cell sample sheet or run manifest.
+      - The selected demultiplexer, such as BCL Convert for Illumina data or bases2fastq for AVITI data, determines the primary conversion engine used by nf-core/demultiplex.
+      - Per-project FASTQ views and MultiQC reports were generated for downstream Linkar templates.
+    important_params:
+      - raw_run_dir
+      - flowcell_samplesheet
+      - platform
+      - demultiplexer
+      - skip_tools
+      - project_multiqc
+    param_explanations:
+      raw_run_dir: Raw sequencer run folder used as the demultiplexing input.
+      flowcell_samplesheet: Flow-cell SampleSheet or RunManifest used for sample assignment.
+      platform: Sequencing platform hint used to choose Illumina or AVITI handling.
+      demultiplexer: Demultiplexing engine selected for nf-core/demultiplex.
+      skip_tools: Optional nf-core/demultiplex quality-control tools skipped during processing.
+      project_multiqc: Whether project-level MultiQC reports were generated after demultiplexing.
+    param_context:
+      - platform and demultiplexer define whether Illumina BCL Convert or AVITI bases2fastq-style demultiplexing was used.
+      - project_multiqc determines whether project-specific QC summaries are expected under the demultiplexed project folders.
+    command_hints:
+      - Use runtime_command and software_versions to recover the nf-core/demultiplex version and selected demultiplexer.
+      - Mention skipped QC tools only when skip_tools is populated.
+    tools:
+      - nf-core/demultiplex
+      - BCL Convert
+      - bases2fastq
+      - MultiQC
+    citations:
+      - nfcore_framework
+      - nfcore_demultiplex
       - multiqc
 
   dgea:
@@ -781,9 +827,15 @@ templates:
       - bismark
 
 references:
+  demultiplexing_prefect:
+    text: "demultiplexing_prefect pipeline repository."
+    url: "https://github.com/MoSafi2/demultiplexing_prefect"
   bcl_convert:
     text: "Illumina. BCL Convert software documentation."
     url: "https://support-docs.illumina.com/SW/BCL_Convert/Content/SW/BCLConvert/BCLConvert.htm"
+  bases2fastq:
+    text: "Element Biosciences. bases2fastq documentation."
+    url: "https://docs.elembio.io/docs/bases2fastq/"
   falco:
     text: "de Sena Brandine G and Smith AD. Falco: high-speed FastQC emulation for quality control of sequencing data. F1000Research 2021, 8:1874."
     url: "https://doi.org/10.12688/f1000research.21142.2"
@@ -796,6 +848,9 @@ references:
   nfcore_framework:
     text: "Ewels PA, Peltzer A, Fillinger S, et al. The nf-core framework for community-curated bioinformatics pipelines. Nature Biotechnology. 2020."
     url: "https://doi.org/10.1038/s41587-020-0439-x"
+  nfcore_demultiplex:
+    text: "nf-core/demultiplex pipeline documentation."
+    url: "https://nf-co.re/demultiplex"
   nfcore_rnaseq:
     text: "nf-core/rnaseq pipeline documentation."
     url: "https://nf-co.re/rnaseq"

@@ -384,6 +384,37 @@ def test_run_sh_resolves_project_dir_from_linkar_runtime_copy() -> None:
         assert context["project"]["path"] == str(project_dir.resolve())
 
 
+def test_run_sh_defaults_results_dir_for_direct_execution() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project_dir = Path(tmpdir) / "project"
+        workspace_dir = project_dir / "summary"
+        workspace_dir.mkdir(parents=True)
+
+        (project_dir / "project.yaml").write_text(
+            yaml.safe_dump({"id": "example_project_005", "templates": []}, sort_keys=False),
+            encoding="utf-8",
+        )
+        for filename in ("run.py", "run.sh", "summary_catalog.yaml"):
+            shutil.copy2(TEMPLATE_DIR / filename, workspace_dir / filename)
+        (workspace_dir / "run.sh").chmod(0o755)
+
+        env = os.environ.copy()
+        env.pop("LINKAR_RESULTS_DIR", None)
+        env["USE_LLM"] = "false"
+        completed = subprocess.run(
+            [str(workspace_dir / "run.sh")],
+            check=True,
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=workspace_dir,
+        )
+
+        results_dir = workspace_dir / "results"
+        assert "summary_context.yaml" in completed.stdout
+        assert (results_dir / "summary_context.yaml").is_file()
+
+
 def test_llm_config_resolution() -> None:
     module = load_run_module()
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -727,6 +758,80 @@ def test_run_display_label_ignores_run_directory_suffix() -> None:
     assert label == "Demultiplexing and sequencing quality control"
 
 
+def test_nfcore_demultiplex_is_summarized() -> None:
+    module = load_run_module()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project_dir = Path(tmpdir)
+        (project_dir / "project.yaml").write_text("", encoding="utf-8")
+        project_data = {
+            "templates": [
+                {
+                    "id": "nfcore_demultiplex",
+                    "instance_id": "nfcore_demultiplex_001",
+                    "path": "nfcore_demultiplex",
+                    "params": {
+                        "platform": "illumina",
+                        "demultiplexer": "bclconvert",
+                        "project_multiqc": True,
+                    },
+                    "outputs": {
+                        "demux_fastq_files": [
+                            str(project_dir / "nfcore_demultiplex" / "results" / "output" / "sample" / "R1.fastq.gz")
+                        ],
+                        "project_multiqc_reports": [
+                            str(project_dir / "nfcore_demultiplex" / "results" / "output" / "sample" / "qc" / "multiqc" / "multiqc_report.html")
+                        ],
+                    },
+                }
+            ]
+        }
+        catalog = yaml.safe_load((TEMPLATE_DIR / "summary_catalog.yaml").read_text(encoding="utf-8"))
+        runs, citation_ids = module.collect_run_context(project_dir, project_data, catalog)
+        assert runs[0]["template"] == "nfcore_demultiplex"
+        assert runs[0]["catalog"]["method_core"]
+        assert runs[0]["summary"]
+        text = module.deterministic_short_methods({"runs": runs, "citation_ids": citation_ids}, catalog)
+        assert "nf-core/demultiplex" in text
+        assert "project-level FASTQ files" in text
+        assert "BCL Convert" in text
+        assert "MultiQC" in text
+
+
+def test_demultiplex_citations_are_template_specific() -> None:
+    module = load_run_module()
+    catalog = yaml.safe_load((TEMPLATE_DIR / "summary_catalog.yaml").read_text(encoding="utf-8"))
+    legacy_entry = catalog["templates"]["demultiplex"]
+    nfcore_entry = catalog["templates"]["nfcore_demultiplex"]
+
+    legacy_illumina = module.resolve_catalog_citations(
+        "demultiplex",
+        legacy_entry,
+        {"platform": "illumina", "qc_tool": "falco"},
+    )
+    assert "demultiplexing_prefect" in legacy_illumina
+    assert "bcl_convert" in legacy_illumina
+    assert "falco" in legacy_illumina
+    assert "nfcore_demultiplex" not in legacy_illumina
+
+    legacy_aviti = module.resolve_catalog_citations(
+        "demultiplex",
+        legacy_entry,
+        {"platform": "aviti", "qc_tool": "fastqc"},
+    )
+    assert "bases2fastq" in legacy_aviti
+    assert "bcl_convert" not in legacy_aviti
+
+    nfcore_illumina = module.resolve_catalog_citations(
+        "nfcore_demultiplex",
+        nfcore_entry,
+        {"platform": "illumina", "demultiplexer": "bclconvert"},
+    )
+    assert "nfcore_framework" in nfcore_illumina
+    assert "nfcore_demultiplex" in nfcore_illumina
+    assert "bcl_convert" in nfcore_illumina
+    assert "demultiplexing_prefect" not in nfcore_illumina
+
+
 def test_collect_run_context_adds_variant_names_for_duplicate_nfcore_runs() -> None:
     module = load_run_module()
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -936,6 +1041,7 @@ def main() -> int:
     test_dgea_label_and_software_version_fallback()
     test_ercc_catalog_entry_shapes_summary_text()
     test_run_sh_resolves_project_dir_from_linkar_runtime_copy()
+    test_run_sh_defaults_results_dir_for_direct_execution()
     test_llm_config_resolution()
     test_project_api_metadata_resolution_and_rendering()
     test_nfcore_reference_and_command_details_ignore_project_umi()
@@ -945,6 +1051,8 @@ def main() -> int:
     test_short_technical_terms_are_highlighted()
     test_humanize_ercc_augmented_genome_names()
     test_run_display_label_ignores_run_directory_suffix()
+    test_nfcore_demultiplex_is_summarized()
+    test_demultiplex_citations_are_template_specific()
     test_collect_run_context_adds_variant_names_for_duplicate_nfcore_runs()
     test_recorded_command_block_is_multiline()
     test_scrna_prep_citations_and_short_sentence()
@@ -967,6 +1075,7 @@ def main() -> int:
     assert "runtime_command.json" in readme_text
     assert "results/summary_long.html" in readme_text
     assert "results/summary_short.html" in readme_text
+    assert "nfcore_demultiplex:" in catalog_text
     assert "nfcore_methylseq:" in catalog_text
     assert "methylation_array_analysis:" in catalog_text
     assert "scrna_prep:" in catalog_text

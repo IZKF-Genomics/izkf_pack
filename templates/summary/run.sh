@@ -15,8 +15,12 @@ else
   project_dir="${derived_project_dir}"
 fi
 
+# Linkar sets LINKAR_RESULTS_DIR during managed runs. For direct execution of a
+# rendered workspace, use the conventional local results directory.
+results_dir="${LINKAR_RESULTS_DIR:-${script_dir}/results}"
+
 python3 "${script_dir}/run.py" \
-  --results-dir "${LINKAR_RESULTS_DIR}" \
+  --results-dir "${results_dir}" \
   --project-dir "${project_dir}" \
   --style "${STYLE:-publication}" \
   --metadata-api-url "${METADATA_API_URL:-}" \
