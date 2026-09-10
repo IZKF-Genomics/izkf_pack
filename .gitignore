@@ -1,4 +1,12 @@
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.VSCodeCounter/
 .pixi/
+.linkar/
+results/
+templates/*/.nextflow/
+templates/*/.nextflow.log*
+templates/*/work/
+templates/*/.quarto/
 templates/*/config/project.toml
