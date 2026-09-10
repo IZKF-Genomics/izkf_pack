@@ -97,7 +97,9 @@ def main() -> None:
     assert 'linkar collect "${script_dir}"' in run_sh_text
     assert 'linkar clean "${script_dir}" --yes' in run_sh_text
     assert 'source("dnam_inputs.R")' in constructor_text
-    assert "default_comparisons_from_samples" in constructor_text
+    assert "# Add study-specific comparisons here." in constructor_text
+    assert "comparisons <- list()" in constructor_text
+    assert "default_comparisons_from_samples" not in constructor_text
     assert "comparison_report.qmd" in (TEMPLATE_DIR / "DNAm_functions.R").read_text(encoding="utf-8")
     assert "config/datasets.toml" in readme_text
     assert "DNAm_constructor.R" in readme_text
