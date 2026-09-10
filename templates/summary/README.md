@@ -86,7 +86,7 @@ The runtime side then contributes:
 - recorded template params from `project.yaml`
 - recorded runtime command metadata from `runtime_command.json`
 - software and reference versions from `software_versions.json`
-- Linkar runtime status from `.linkar/runtime.json`
+- Linkar runtime status from project-central `.linkar/runtime/<instance_id>.json`, with legacy per-run `.linkar/runtime.json` support
 - optional project-level assay metadata from the Agendo combined metadata API when an `agendo_id` is present in project history
 
 When repeated templates appear in one project, the analysis summary generator uses the

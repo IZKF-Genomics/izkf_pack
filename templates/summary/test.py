@@ -36,8 +36,10 @@ def test_generation_with_runtime_command() -> None:
         project_dir = root / "project"
         results_dir = root / "results"
         run_dir = project_dir / "analysis"
-        (run_dir / ".linkar").mkdir(parents=True)
-        (run_dir / ".linkar" / "runtime.json").write_text(
+        run_dir.mkdir(parents=True)
+        central_runtime = project_dir / ".linkar" / "runtime"
+        central_runtime.mkdir(parents=True)
+        (central_runtime / "cellranger_atac_001.json").write_text(
             json.dumps(
                 {
                     "success": True,
@@ -87,6 +89,7 @@ def test_generation_with_runtime_command() -> None:
                             "template_version": "0.1.0",
                             "instance_id": "cellranger_atac_001",
                             "path": str(run_dir),
+                            "meta": ".linkar/meta/cellranger_atac_001.json",
                             "outputs": {
                                 "results_dir": str(results_source),
                                 "software_versions": str(results_source / "software_versions.json"),
@@ -1093,7 +1096,8 @@ def main() -> int:
     assert "scib:" in catalog_text
     assert "celltypist:" in catalog_text
     assert 'python3 "${script_dir}/run.py"' in run_sh_text
-    assert '[[ -f "${script_dir}/.linkar/meta.json" ]]' in run_sh_text
+    assert '-f "${script_dir}/.linkar/meta.json"' in run_sh_text
+    assert '.linkar/meta/${LINKAR_INSTANCE_ID:-summary}.json' in run_sh_text
     assert 'linkar collect "${script_dir}"' in run_sh_text
     assert 'linkar clean "${script_dir}" --yes' in run_sh_text
     assert "skipping in-script collect/clean" in run_sh_text

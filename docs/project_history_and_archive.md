@@ -11,8 +11,11 @@ When working with a project, it helps to separate:
   for example `summary/` or `nfcore_bile_duct/`
 - the project ledger in `project.yaml`
 - historical run snapshots under `.linkar/runs/...`
+- centralized run metadata under `.linkar/meta/` and runtime records under `.linkar/runtime/`
 
-These are related, but they are not the same thing.
+These are related, but they are not the same thing. New Linkar projects keep this managed state
+inside the single project-root `.linkar/`; older per-workspace `.linkar/meta.json` and
+`.linkar/runtime.json` records remain supported.
 
 ## Visible workspaces
 

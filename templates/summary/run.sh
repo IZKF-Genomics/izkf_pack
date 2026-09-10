@@ -31,9 +31,11 @@ python3 "${script_dir}/run.py" \
   --llm-temperature "${LLM_TEMPERATURE:-0.2}"
 
 # Record outputs after successful manual execution of a rendered workspace.
-# During `linkar run summary`, Linkar writes .linkar/meta.json after this script
-# returns, so the outer run owns collection in that mode.
-if [[ -f "${script_dir}/.linkar/meta.json" ]]; then
+# During a first `linkar run summary`, Linkar writes metadata after this script
+# returns, so the outer run owns collection. Manual and reused rendered bundles
+# already have either portable local metadata or a project-central record.
+central_meta="${LINKAR_PROJECT_DIR:-${project_dir}}/.linkar/meta/${LINKAR_INSTANCE_ID:-summary}.json"
+if [[ -f "${script_dir}/.linkar/meta.json" || -f "${central_meta}" ]]; then
   linkar collect "${script_dir}"
   linkar clean "${script_dir}" --yes
 else

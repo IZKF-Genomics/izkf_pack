@@ -473,10 +473,28 @@ def project_assay_description(context: dict[str, Any]) -> str:
     return " ".join(part for part in [sentence, sequencing_sentence] if part).strip()
 
 
-def read_linkar_runtime(run_dir: Path | None) -> dict[str, Any]:
+def read_linkar_runtime(
+    project_dir: Path,
+    entry: dict[str, Any],
+    run_dir: Path | None,
+) -> dict[str, Any]:
     if run_dir is None:
         return {}
-    runtime = load_json(run_dir / ".linkar" / "runtime.json")
+    candidates = [run_dir / ".linkar" / "runtime.json"]
+    meta_value = entry.get("meta")
+    if isinstance(meta_value, str) and meta_value.strip():
+        meta_path = Path(meta_value).expanduser()
+        if not meta_path.is_absolute():
+            meta_path = project_dir / meta_path
+        if meta_path.parent.name == "meta" and meta_path.parent.parent.name == ".linkar":
+            candidates.insert(0, meta_path.parent.parent / "runtime" / meta_path.name)
+        else:
+            candidates.insert(0, meta_path.with_name("runtime.json"))
+    runtime: dict[str, Any] = {}
+    for candidate in candidates:
+        runtime = load_json(candidate)
+        if runtime:
+            break
     return compact_mapping(
         runtime,
         keys=["command", "cwd", "returncode", "success", "started_at", "finished_at", "duration_seconds"],
@@ -733,7 +751,7 @@ def collect_run_context(
                 "organism_or_reference": infer_organism_or_reference(params),
                 "software_versions": load_software_versions(project_dir, run_dir, outputs),
                 "outputs": summarize_outputs(outputs),
-                "runtime": read_linkar_runtime(run_dir),
+                "runtime": read_linkar_runtime(project_dir, entry, run_dir),
                 "runtime_command": runtime_command,
                 "citations": citations,
                 "run_dir": str(run_dir) if run_dir is not None else "",
