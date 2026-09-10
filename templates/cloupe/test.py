@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -212,6 +213,17 @@ def test_software_versions_contract() -> None:
     assert "barcode_mode" in template_text
 
 
+def test_help_does_not_require_template_dependencies() -> None:
+    result = subprocess.run(
+        [sys.executable, "-S", str(TEMPLATE_DIR / "run.py"), "--help"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "--counts-layer" in result.stdout
+
+
 def main() -> int:
     test_obs_key_selection()
     test_obs_preparation_skips_high_cardinality_columns()
@@ -223,6 +235,7 @@ def main() -> int:
     test_failed_system_exit_writes_metadata()
     test_synthetic_barcode_mode_preserves_original_ids()
     test_software_versions_contract()
+    test_help_does_not_require_template_dependencies()
     print("cloupe tests passed")
     return 0
 

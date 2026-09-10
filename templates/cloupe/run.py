@@ -9,9 +9,10 @@ import tomllib
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import anndata as ad
+if TYPE_CHECKING:
+    import anndata as ad
 
 
 TEMPLATE_DIR = Path(__file__).resolve().parent
@@ -46,6 +47,12 @@ def progress(message: str) -> None:
 def main() -> int:
     started_at = utc_now()
     params = load_params(parse_args())
+    try:
+        import anndata as ad
+    except ImportError as exc:
+        raise SystemExit(
+            "[cloupe] anndata is required for conversion; run this script through the template Pixi environment."
+        ) from exc
     warnings: list[str] = []
     errors: list[str] = []
 

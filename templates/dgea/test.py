@@ -87,6 +87,14 @@ def test_dgea_samplesheet_binding_resolves_upstream_relative_param() -> None:
 def main() -> int:
     test_dgea_samplesheet_binding_prefers_rendered_output()
     test_dgea_samplesheet_binding_resolves_upstream_relative_param()
+    help_result = subprocess.run(
+        [sys.executable, "-S", str(TEMPLATE_DIR / "configure_comparisons.py"), "--help"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert help_result.returncode == 0, help_result.stderr
+    assert "--samplesheet" in help_result.stdout
     with tempfile.TemporaryDirectory() as tmpdir:
         workspace = Path(tmpdir)
         results_dir = workspace / "results"

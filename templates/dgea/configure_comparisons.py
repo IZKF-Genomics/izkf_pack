@@ -590,10 +590,11 @@ def write_constructor(path: Path, metadata_code: str, comparisons: list[Comparis
 
 
 def main() -> int:
+    args = parse_args()
+
     if not sys.stdin.isatty():
         raise SystemExit("Interactive configuration requires a terminal.")
 
-    args = parse_args()
     samplesheet_path = Path(args.samplesheet).resolve()
     constructor_path = Path(args.constructor).resolve()
     columns, rows = read_samplesheet(samplesheet_path)
