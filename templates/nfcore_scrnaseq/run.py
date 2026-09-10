@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 PIPELINE_NAME = "nf-core/scrnaseq"
-PIPELINE_VERSION = "4.1.0"
+PIPELINE_VERSION = "4.2.0"
 EXECUTION_PROFILE = "docker"
 GENOME_PLACEHOLDER = "__EDIT_ME_GENOME__"
 FASTA_PLACEHOLDER = "__EDIT_ME_FASTA__"
@@ -418,6 +418,8 @@ def write_resolved_run_script(
     script = (
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n\n"
+        "# nf-core/scrnaseq and the facility config require the legacy configuration parser under Nextflow 26.04.\n"
+        "export NXF_SYNTAX_PARSER=v1\n\n"
         'script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"\n'
         'cd "${script_dir}"\n\n'
         f"{guard}"

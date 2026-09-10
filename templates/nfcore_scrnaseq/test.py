@@ -38,6 +38,10 @@ def make_fake_runtime_bin(root: Path) -> Path:
         "  exit 0\n"
         "fi\n"
         "if [[ \"${1:-}\" == \"run\" ]]; then\n"
+        "  if [[ \"${NXF_SYNTAX_PARSER:-}\" != \"v1\" ]]; then\n"
+        "    echo 'NXF_SYNTAX_PARSER=v1 is required' >&2\n"
+        "    exit 2\n"
+        "  fi\n"
         "  printf '%s\\n' \"$*\" > \"${NFCORE_ARGS_LOG:?}\"\n"
         "  outdir=''\n"
         "  aligner=''\n"
@@ -194,7 +198,7 @@ def test_rendered_run_script_star() -> None:
         runtime_payload = json.loads((results_dir / "runtime_command.json").read_text(encoding="utf-8"))
         assert runtime_payload["template"] == "nfcore_scrnaseq"
         assert runtime_payload["pipeline"] == "nf-core/scrnaseq"
-        assert runtime_payload["pipeline_version"] == "4.1.0"
+        assert runtime_payload["pipeline_version"] == "4.2.0"
         assert runtime_payload["params"]["genome"] == "GRCz11"
         assert runtime_payload["params"]["aligner"] == "star"
         assert runtime_payload["params"]["protocol"] == "10XV3"
@@ -487,6 +491,7 @@ def main() -> None:
     assert 'SUPPORTED_ALIGNERS' in run_py_text
     assert 'protocol=auto is only supported when aligner=cellranger' in run_py_text
     assert 'command.append("-resume")' in run_py_text
+    assert 'export NXF_SYNTAX_PARSER=v1' in run_py_text
     assert 'selected_matrix.h5ad' in readme_text
     pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
     pack_data = yaml.safe_load(pack_text)

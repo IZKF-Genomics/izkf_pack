@@ -1,5 +1,5 @@
 id: nfcore_scrnaseq
-version: 0.1.1
+version: 0.1.2
 description: Facility-focused nf-core/scrnaseq wrapper for single-cell RNA-seq runs.
 tools:
   required:

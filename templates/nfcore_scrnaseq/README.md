@@ -7,9 +7,9 @@ It expects shared reference genomes, STAR indices, and optional Cell Ranger
 references to be maintained by the companion facility repository
 [`genomics-assets`](https://github.com/IZKF-Genomics/genomics-assets).
 
-The first version is intentionally conservative:
+The wrapper is intentionally conservative:
 
-- fixed pipeline revision: `4.1.0`
+- fixed pipeline revision: `4.2.0`
 - fixed execution profile: `docker`
 - template-local `pixi.toml` provides `nextflow`
 - `aligner` is required and has no default
@@ -81,6 +81,7 @@ generated command remains readable while still resolving to the facility-managed
 When Linkar renders this template, it asks `run.py` to write `./run.sh` in the rendered workspace.
 That generated `run.sh` contains:
 
+- `NXF_SYNTAX_PARSER=v1` for compatibility with the pipeline configuration under Nextflow 26.04
 - `pixi install`
 - the exact resolved `nextflow run nf-core/scrnaseq ...` command with explicit nf-core parameters instead of only `-params-file`
 
