@@ -42,7 +42,8 @@ compatible with the Nextflow 26 parser.
 - For species whose current miRBase download does not provide a genome GFF3,
   set `mirna_gtf`, `mature`, and `hairpin` together to local files from one
   database release. Do not mix coordinate and sequence identifiers from
-  different databases. This is required for the `Sscrofa11.1` pig example.
+  different databases. The GFF3 header must identify a database schema that
+  miRTop recognizes. This is required for the `Sscrofa11.1` pig example.
 - Enable `with_umi` only for UMI-bearing libraries and provide the correct
   `umitools_extract_method` and `umitools_bc_pattern` for that kit.
 - `save_intermediates` is off by default to limit disk use.

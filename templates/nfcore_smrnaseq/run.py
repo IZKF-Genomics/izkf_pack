@@ -74,6 +74,20 @@ def validate_samplesheet(path: Path) -> None:
         raise SystemExit("[error] samplesheet header must be exactly: sample,fastq_1,fastq_2")
 
 
+def validate_mirtop_annotation(path: Path) -> None:
+    recognized_markers = ("miRBase", "MirGeneDB", "microRNAs")
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if not line.startswith("#"):
+                break
+            if any(marker in line for marker in recognized_markers):
+                return
+    raise SystemExit(
+        "[error] MIRNA_GTF header does not identify a miRTop-compatible database "
+        "(expected miRBase, MirGeneDB, or microRNAs)"
+    )
+
+
 def write_resource_config(path: Path, *, max_cpus: str, max_memory: str) -> None:
     limits: list[str] = []
     if max_cpus:
@@ -134,6 +148,8 @@ def prepare() -> None:
     for reference in reference_values:
         if reference and not Path(reference).is_file():
             raise SystemExit(f"[error] miRNA reference file does not exist: {reference}")
+    if values["MIRNA_GTF"]:
+        validate_mirtop_annotation(Path(values["MIRNA_GTF"]))
     if values["GENOME"] == GENOME_PLACEHOLDER:
         print("[warn] genome is unresolved; edit config/run_params.env before running", flush=True)
     if values["WITH_UMI"] == "true" and not values["UMITOOLS_EXTRACT_METHOD"]:

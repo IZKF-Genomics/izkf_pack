@@ -70,7 +70,7 @@ def test_prepare_and_run() -> None:
         mirna_gtf = work / "ssc.gff3"
         mature = work / "ssc_mature.fa"
         hairpin = work / "ssc_hairpin.fa"
-        mirna_gtf.write_text("##gff-version 3\n", encoding="utf-8")
+        mirna_gtf.write_text("##gff-version 3\n# database: miRBase\n", encoding="utf-8")
         mature.write_text(">ssc-miR-1\nACGT\n", encoding="utf-8")
         hairpin.write_text(">ssc-mir-1\nACGTACGT\n", encoding="utf-8")
         fake_bin = make_fake_bin(work)
@@ -185,7 +185,7 @@ def main() -> None:
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
     assert "id: nfcore_smrnaseq" in template_text
-    assert "version: 0.2.0" in template_text
+    assert "version: 0.2.1" in template_text
     assert "mode: render" in template_text
     assert "entry: run.sh" in template_text
     assert "nfcore_smrnaseq:" in pack_text

@@ -1,5 +1,5 @@
 id: nfcore_smrnaseq
-version: 0.2.0
+version: 0.2.1
 description: Facility-specific nf-core/smrnaseq wrapper for small RNA and miRNA sequencing.
 tools:
   required:
@@ -26,7 +26,7 @@ params:
   mirna_gtf:
     type: path
     default: ""
-    description: Optional local GFF3/GTF containing matching precursor and mature miRNA coordinates. Set together with mature and hairpin for species without a current miRBase genome GFF3.
+    description: Optional local GFF3/GTF containing matching precursor and mature miRNA coordinates. Its header must identify a miRTop-compatible database. Set together with mature and hairpin for species without a current miRBase genome GFF3.
   mature:
     type: path
     default: ""
