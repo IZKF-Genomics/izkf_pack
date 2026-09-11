@@ -275,7 +275,10 @@ curated demultiplex FASTQ outputs:
 
 ```bash
 linkar render nfcore_smrnaseq \
-  --genome Sscrofa11.1
+  --genome Sscrofa11.1 \
+  --mirna-gtf /path/to/ssc.gff3 \
+  --mature /path/to/ssc_mature.fa \
+  --hairpin /path/to/ssc_hairpin.fa
 
 cd nfcore_smrnaseq
 bash run.sh
@@ -286,6 +289,9 @@ Nextflow `-resume`, and saves generated reference indices by default. Before
 execution, inspect `samplesheet.csv` and `config/run_params.env`, and confirm
 that `three_prime_adapter` and any UMI settings match the library kit. For pig,
 the facility configuration maps `Sscrofa11.1` to miRTrace species code `ssc`.
+The current miRBase genome download does not provide `ssc.gff3`, so pig runs
+must provide the matching `mirna_gtf`, `mature`, and `hairpin` reference files
+explicitly. All three must come from the same database release.
 
 ### Run Differential Gene Expression Analysis
 

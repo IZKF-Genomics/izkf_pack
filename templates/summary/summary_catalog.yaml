@@ -811,6 +811,9 @@ templates:
       - genome
       - samplesheet
       - mirtrace_species
+      - mirna_gtf
+      - mature
+      - hairpin
       - three_prime_adapter
       - with_umi
       - umitools_extract_method
@@ -819,16 +822,20 @@ templates:
       genome: Selected facility genome identifier used to choose the reference FASTA.
       samplesheet: nf-core/smrnaseq input samplesheet describing sample-level FASTQ files.
       mirtrace_species: Three-letter species code used for miRTrace quality control.
+      mirna_gtf: Coordinate annotation for precursor and mature miRNAs used by miRTop.
+      mature: Mature-miRNA FASTA used for sequence filtering and quantification.
+      hairpin: Precursor-miRNA FASTA used for mapping and miRTop annotation.
       three_prime_adapter: Adapter sequence removed from small-RNA reads before alignment and quantification.
       with_umi: Whether UMI-aware processing was enabled.
       umitools_extract_method: UMI-tools extraction mode used when UMI processing was enabled.
       umitools_bc_pattern: Barcode pattern defining the UMI layout when supplied.
     param_context:
-      - genome, mirtrace_species, and three_prime_adapter are the principal reference and library-specific settings.
+      - genome, mirtrace_species, mirna_gtf, mature, hairpin, and three_prime_adapter are the principal reference and library-specific settings.
+      - mirna_gtf, mature, and hairpin must be reported as a matched reference set when explicitly supplied.
       - UMI parameters should be described only when with_umi is enabled.
     command_hints:
       - Use runtime_command to recover the nf-core/smrnaseq revision, execution profile, adapter, UMI flags, and resource caps.
-      - Report the selected genome and miRTrace species code together when both are available.
+      - Report the selected genome, miRTrace species code, and explicit miRNA reference set together when available.
     tools:
       - Nextflow
       - nf-core/smrnaseq

@@ -67,6 +67,12 @@ def test_prepare_and_run() -> None:
         copy_runtime_template(work)
         samplesheet = work / "source.csv"
         samplesheet.write_text("sample,fastq_1,fastq_2\nPig_1,/reads/Pig_1_R1.fastq.gz,\n", encoding="utf-8")
+        mirna_gtf = work / "ssc.gff3"
+        mature = work / "ssc_mature.fa"
+        hairpin = work / "ssc_hairpin.fa"
+        mirna_gtf.write_text("##gff-version 3\n", encoding="utf-8")
+        mature.write_text(">ssc-miR-1\nACGT\n", encoding="utf-8")
+        hairpin.write_text(">ssc-mir-1\nACGTACGT\n", encoding="utf-8")
         fake_bin = make_fake_bin(work)
         env = os.environ.copy()
         env.update(
@@ -78,6 +84,9 @@ def test_prepare_and_run() -> None:
                 "SAMPLESHEET": str(samplesheet),
                 "GENOME": "Sscrofa11.1",
                 "MIRTRACE_SPECIES": "ssc",
+                "MIRNA_GTF": str(mirna_gtf),
+                "MATURE": str(mature),
+                "HAIRPIN": str(hairpin),
                 "THREE_PRIME_ADAPTER": "ADAPTER",
                 "WITH_UMI": "true",
                 "UMITOOLS_EXTRACT_METHOD": "regex",
@@ -96,6 +105,9 @@ def test_prepare_and_run() -> None:
         runtime = (work / "config" / "run_params.env").read_text(encoding="utf-8")
         assert "GENOME=Sscrofa11.1" in runtime
         assert "MIRTRACE_SPECIES=ssc" in runtime
+        assert f"MIRNA_GTF={mirna_gtf}" in runtime
+        assert f"MATURE={mature}" in runtime
+        assert f"HAIRPIN={hairpin}" in runtime
         assert "MAX_MEMORY=64.GB" in runtime
         assert "WITH_UMI=true" in runtime
         assert (work / "samplesheet.csv").read_text(encoding="utf-8") == samplesheet.read_text(encoding="utf-8")
@@ -106,7 +118,8 @@ def test_prepare_and_run() -> None:
 
         run_env = env.copy()
         for name in (
-            "SAMPLESHEET", "GENOME", "MIRTRACE_SPECIES", "THREE_PRIME_ADAPTER", "WITH_UMI",
+            "SAMPLESHEET", "GENOME", "MIRTRACE_SPECIES", "MIRNA_GTF", "MATURE", "HAIRPIN",
+            "THREE_PRIME_ADAPTER", "WITH_UMI",
             "UMITOOLS_EXTRACT_METHOD", "UMITOOLS_BC_PATTERN", "SKIP_UMI_EXTRACT_BEFORE_DEDUP",
             "SAVE_REFERENCE", "SAVE_INTERMEDIATES", "MAX_CPUS", "MAX_MEMORY", "LINKAR_RESULTS_DIR",
         ):
@@ -120,6 +133,7 @@ def test_prepare_and_run() -> None:
             "nf-core/smrnaseq", "-r 2.4.1", "-profile docker", "-resume",
             "-c config/resources.config",
             "--input samplesheet.csv", "--genome Sscrofa11.1", "--mirtrace_species ssc",
+            f"--mirna_gtf {mirna_gtf}", f"--mature {mature}", f"--hairpin {hairpin}",
             "--three_prime_adapter ADAPTER", "--with_umi", "--umitools_extract_method regex",
             "--skip_umi_extract_before_dedup false", "--save_reference", "--save_intermediates",
         ):
@@ -171,6 +185,7 @@ def main() -> None:
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
     assert "id: nfcore_smrnaseq" in template_text
+    assert "version: 0.2.0" in template_text
     assert "mode: render" in template_text
     assert "entry: run.sh" in template_text
     assert "nfcore_smrnaseq:" in pack_text

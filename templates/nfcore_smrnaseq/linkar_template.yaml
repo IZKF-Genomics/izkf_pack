@@ -1,5 +1,5 @@
 id: nfcore_smrnaseq
-version: 0.1.0
+version: 0.2.0
 description: Facility-specific nf-core/smrnaseq wrapper for small RNA and miRNA sequencing.
 tools:
   required:
@@ -23,6 +23,18 @@ params:
     type: str
     default: ""
     description: Optional miRTrace three-letter species code overriding the code derived from a supported facility genome, for example hsa, mmu, rno, ssc, or gga.
+  mirna_gtf:
+    type: path
+    default: ""
+    description: Optional local GFF3/GTF containing matching precursor and mature miRNA coordinates. Set together with mature and hairpin for species without a current miRBase genome GFF3.
+  mature:
+    type: path
+    default: ""
+    description: Optional local mature-miRNA FASTA. Its identifiers and database release must match mirna_gtf and hairpin.
+  hairpin:
+    type: path
+    default: ""
+    description: Optional local precursor-miRNA FASTA. Its identifiers and database release must match mirna_gtf and mature.
   three_prime_adapter:
     type: str
     default: AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
@@ -86,9 +98,9 @@ outputs:
   pipeline_info_dir:
     path: pipeline_info
   software_versions:
-    path: pipeline_info/software_versions.yml
+    path: pipeline_info/*software*.yml
   runtime_command:
-    path: pipeline_info/params.json
+    path: pipeline_info/params_*.json
 cleanup:
   - path: .pixi
     type: dir

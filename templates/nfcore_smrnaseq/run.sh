@@ -11,6 +11,26 @@ fi
 # shellcheck disable=SC1091
 source config/run_params.env
 
+# Defaults keep workspaces rendered with template 0.1.x runnable.
+MIRNA_GTF="${MIRNA_GTF:-}"
+MATURE="${MATURE:-}"
+HAIRPIN="${HAIRPIN:-}"
+
+reference_count=0
+for reference_path in "${MIRNA_GTF}" "${MATURE}" "${HAIRPIN}"; do
+  if [[ -n "${reference_path}" ]]; then
+    ((reference_count += 1))
+    if [[ ! -f "${reference_path}" ]]; then
+      echo "[error] miRNA reference file does not exist: ${reference_path}" >&2
+      exit 1
+    fi
+  fi
+done
+if [[ "${reference_count}" -ne 0 && "${reference_count}" -ne 3 ]]; then
+  echo "[error] MIRNA_GTF, MATURE, and HAIRPIN must be set together" >&2
+  exit 1
+fi
+
 if [[ "${GENOME}" == "__EDIT_ME_GENOME__" ]]; then
   echo "[error] genome is unresolved. Edit config/run_params.env or rerender with --genome." >&2
   exit 1
@@ -19,6 +39,15 @@ fi
 REFERENCE_ARGS=()
 if [[ -n "${MIRTRACE_SPECIES}" ]]; then
   REFERENCE_ARGS+=(--mirtrace_species "${MIRTRACE_SPECIES}")
+fi
+if [[ -n "${MIRNA_GTF}" ]]; then
+  REFERENCE_ARGS+=(--mirna_gtf "${MIRNA_GTF}")
+fi
+if [[ -n "${MATURE}" ]]; then
+  REFERENCE_ARGS+=(--mature "${MATURE}")
+fi
+if [[ -n "${HAIRPIN}" ]]; then
+  REFERENCE_ARGS+=(--hairpin "${HAIRPIN}")
 fi
 if [[ "${SAVE_REFERENCE}" == "true" ]]; then
   REFERENCE_ARGS+=(--save_reference)

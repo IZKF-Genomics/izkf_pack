@@ -108,6 +108,9 @@ def prepare() -> None:
     values = {
         "GENOME": genome,
         "MIRTRACE_SPECIES": mirtrace_species,
+        "MIRNA_GTF": optional_env("MIRNA_GTF"),
+        "MATURE": optional_env("MATURE"),
+        "HAIRPIN": optional_env("HAIRPIN"),
         "THREE_PRIME_ADAPTER": optional_env(
             "THREE_PRIME_ADAPTER", "AGATCGGAAGAGCACACGTCTGAACTCCAGTCA"
         ),
@@ -125,6 +128,12 @@ def prepare() -> None:
         "MAX_CPUS": optional_env("MAX_CPUS"),
         "MAX_MEMORY": normalize_memory(optional_env("MAX_MEMORY")),
     }
+    reference_values = [values["MIRNA_GTF"], values["MATURE"], values["HAIRPIN"]]
+    if any(reference_values) and not all(reference_values):
+        raise SystemExit("[error] MIRNA_GTF, MATURE, and HAIRPIN must be set together")
+    for reference in reference_values:
+        if reference and not Path(reference).is_file():
+            raise SystemExit(f"[error] miRNA reference file does not exist: {reference}")
     if values["GENOME"] == GENOME_PLACEHOLDER:
         print("[warn] genome is unresolved; edit config/run_params.env before running", flush=True)
     if values["WITH_UMI"] == "true" and not values["UMITOOLS_EXTRACT_METHOD"]:

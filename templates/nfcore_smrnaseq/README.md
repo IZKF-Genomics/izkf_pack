@@ -11,7 +11,11 @@ From a Linkar project containing completed `nfcore_demultiplex` or legacy
 `demultiplex` outputs:
 
 ```bash
-linkar render nfcore_smrnaseq --genome Sscrofa11.1
+linkar render nfcore_smrnaseq \
+  --genome Sscrofa11.1 \
+  --mirna-gtf /path/to/ssc.gff3 \
+  --mature /path/to/ssc_mature.fa \
+  --hairpin /path/to/ssc_hairpin.fa
 cd nfcore_smrnaseq
 bash run.sh
 ```
@@ -35,6 +39,10 @@ compatible with the Nextflow 26 parser.
   is the nf-core/smrnaseq Illumina adapter value.
 - `mirtrace_species` is derived from supported facility genome names unless it
   is overridden; for `Sscrofa11.1`, it is `ssc`.
+- For species whose current miRBase download does not provide a genome GFF3,
+  set `mirna_gtf`, `mature`, and `hairpin` together to local files from one
+  database release. Do not mix coordinate and sequence identifiers from
+  different databases. This is required for the `Sscrofa11.1` pig example.
 - Enable `with_umi` only for UMI-bearing libraries and provide the correct
   `umitools_extract_method` and `umitools_bc_pattern` for that kit.
 - `save_intermediates` is off by default to limit disk use.
