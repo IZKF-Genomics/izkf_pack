@@ -1,0 +1,106 @@
+id: nfcore_smrnaseq
+version: 0.1.0
+description: Facility-specific nf-core/smrnaseq wrapper for small RNA and miRNA sequencing.
+tools:
+  required:
+    - pixi
+    - python3
+    - docker
+params:
+  agendo_id:
+    type: str
+    default: ""
+    description: Optional Agendo request id used by the default binding to derive the genome.
+  samplesheet:
+    type: path
+    required: true
+    description: nf-core/smrnaseq input samplesheet. With --binding default it is generated from the latest curated nfcore_demultiplex or legacy demultiplex FASTQ outputs.
+  genome:
+    type: str
+    required: true
+    description: Facility genome identifier such as GRCh38, GRCm39, mRatBN7.2, Sscrofa11.1, or GRCg7b.
+  mirtrace_species:
+    type: str
+    default: ""
+    description: Optional miRTrace three-letter species code overriding the code derived from a supported facility genome, for example hsa, mmu, rno, ssc, or gga.
+  three_prime_adapter:
+    type: str
+    default: AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+    description: 3-prime adapter sequence passed to nf-core/smrnaseq.
+  with_umi:
+    type: bool
+    default: false
+    description: Enable UMI-aware processing. Also set the extraction method and barcode pattern appropriate for the library kit.
+  umitools_extract_method:
+    type: str
+    default: string
+    description: UMI-tools extraction method, usually string or regex.
+  umitools_bc_pattern:
+    type: str
+    default: ""
+    description: Optional UMI-tools barcode pattern. Leave empty for libraries without UMIs.
+  skip_umi_extract_before_dedup:
+    type: bool
+    default: true
+    description: Defer UMI extraction until the deduplication stage, matching the nf-core/smrnaseq default.
+  save_reference:
+    type: bool
+    default: true
+    description: Save generated Bowtie indices. Recommended because facility FASTA references may not yet have a reusable Bowtie 1 index.
+  save_intermediates:
+    type: bool
+    default: false
+    description: Retain intermediate pipeline files for troubleshooting.
+  max_cpus:
+    type: int
+    required: false
+    description: Optional per-process CPU ceiling written to a Nextflow resourceLimits config. The default binding sets this to 80 percent of host CPUs.
+  max_memory:
+    type: str
+    default: ""
+    description: Optional per-process memory ceiling written to a Nextflow resourceLimits config. The default binding sets this to 80 percent of host RAM when detectable.
+# Output paths and globs are resolved relative to LINKAR_RESULTS_DIR,
+# which defaults to <template_workspace>/results.
+outputs:
+  results_dir: {}
+  rendered_samplesheet:
+    path: ../samplesheet.csv
+  resource_config:
+    path: ../config/resources.config
+  multiqc_dir:
+    path: multiqc
+  multiqc_report:
+    path: multiqc/multiqc_report.html
+  mirna_quant_dir:
+    path: mirna_quant
+  mirna_counts:
+    path: mirna_quant/mirtop/mirna.tsv
+  mirtop_table:
+    path: mirna_quant/mirtop/joined_samples_mirtop.tsv
+  edger_qc_dir:
+    path: mirna_quant/edger_qc
+  mirdeep2_dir:
+    path: mirdeep2
+  mirtrace_dir:
+    path: mirtrace
+  pipeline_info_dir:
+    path: pipeline_info
+  software_versions:
+    path: pipeline_info/software_versions.yml
+  runtime_command:
+    path: pipeline_info/params.json
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: work
+    type: dir
+  - path: .nextflow
+    type: dir
+  - glob: ".nextflow.log*"
+    type: file
+run:
+  mode: render
+  entry: run.sh
+render:
+  command: |
+    python3 ./run.py --prepare

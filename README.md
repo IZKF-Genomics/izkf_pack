@@ -267,6 +267,26 @@ linkar render nfcore_3mrnaseq \
   --genome Sscrofa11.1
 ```
 
+### Run nf-core small RNA-seq Processing
+
+After demultiplexing, render the editable `nf-core/smrnaseq` workspace. The
+default binding generates the official three-column samplesheet from the latest
+curated demultiplex FASTQ outputs:
+
+```bash
+linkar render nfcore_smrnaseq \
+  --genome Sscrofa11.1
+
+cd nfcore_smrnaseq
+bash run.sh
+```
+
+The wrapper is pinned to `nf-core/smrnaseq` `2.4.1`, runs with Docker and
+Nextflow `-resume`, and saves generated reference indices by default. Before
+execution, inspect `samplesheet.csv` and `config/run_params.env`, and confirm
+that `three_prime_adapter` and any UMI settings match the library kit. For pig,
+the facility configuration maps `Sscrofa11.1` to miRTrace species code `ssc`.
+
 ### Run Differential Gene Expression Analysis
 
 Run the editable DGEA workspace after RNA-seq quantification outputs are recorded:

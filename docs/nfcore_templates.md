@@ -5,6 +5,8 @@ This pack uses a consistent pattern for the nf-core style templates, especially:
 - [`nfcore_3mrnaseq`](../templates/nfcore_3mrnaseq/README.md)
 - [`nfcore_demultiplex`](../templates/nfcore_demultiplex/README.md)
 - [`nfcore_methylseq`](../templates/nfcore_methylseq/README.md)
+- [`nfcore_rnaseq`](../templates/nfcore_rnaseq/README.md)
+- [`nfcore_smrnaseq`](../templates/nfcore_smrnaseq/README.md)
 - [`nfcore_scrnaseq`](../templates/nfcore_scrnaseq/README.md)
 
 The goal is to make the final command easy to inspect, rerun, and cite later in
@@ -46,10 +48,11 @@ Instead of absolute project paths in every flag.
 
 ## Recorded provenance
 
-These templates should also emit machine-readable provenance, especially:
+These templates should also expose machine-readable provenance, especially:
 
-- `runtime_command.json`
-- `software_versions.json`
+- Linkar-native `runtime_command.json` and `software_versions.json`, or
+- nf-core-native `pipeline_info/params.json` and
+  `pipeline_info/software_versions.yml`
 
 That combination is useful for:
 
@@ -78,15 +81,16 @@ reliable source for later interpretation. For example:
 - which nf-core revision was run
 - which extra aligner or quantification arguments were applied
 
-That is why downstream consumers such as `summary` should prefer
-`runtime_command.json` when it is available.
+That is why downstream consumers such as `summary` should prefer the recorded
+runtime command when it is available, then fall back to nf-core's native
+parameter and software-version files.
 
 ## Recommended maintenance rule
 
 When editing nf-core templates in this pack:
 
 - keep `run.sh` readable first
-- keep `runtime_command.json` complete
+- keep the declared runtime-command or nf-core parameter output complete
 - avoid duplicating command truth across too many places
 - prefer visible workspace files over hidden history paths when users inspect runs
 

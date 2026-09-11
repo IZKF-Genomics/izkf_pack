@@ -45,6 +45,16 @@ templates:
         function: get_host_max_cpus
       max_memory:
         function: get_host_max_memory
+  nfcore_smrnaseq:
+    params:
+      samplesheet:
+        function: generate_nfcore_smrnaseq_samplesheet
+      genome:
+        function: get_agendo_genome
+      max_cpus:
+        function: get_host_max_cpus
+      max_memory:
+        function: get_host_max_memory
   nfcore_methylseq:
     params:
       samplesheet:

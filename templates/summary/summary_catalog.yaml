@@ -795,6 +795,53 @@ templates:
       - star
       - salmon
 
+  nfcore_smrnaseq:
+    category: analysis
+    publication_relevance: true
+    label: Small RNA-seq and miRNA processing
+    summary: Small RNA-seq libraries were processed with nf-core/smrnaseq using the configured genome, adapter, and optional UMI settings.
+    method_core: Small RNA-seq libraries were processed with a pinned nf-core/smrnaseq workflow revision using Nextflow and containerized execution, including adapter trimming, genome alignment, miRNA quantification, quality control, and miRNA discovery outputs where supported by the selected reference.
+    method_details:
+      - Demultiplexed FASTQ files were translated into the official nf-core/smrnaseq samplesheet format and processed under a facility-specific reference configuration.
+      - The configured 3-prime adapter controls read trimming and should reflect the library preparation kit.
+      - miRTrace provides species-aware small-RNA quality control, while miRNA quantification and miRTop outputs provide cross-sample abundance tables.
+      - miRDeep2 outputs support known and candidate miRNA reporting within the workflow's configured reference context.
+      - When UMI handling is enabled, the recorded UMI-tools extraction method and barcode pattern define how molecular barcodes are processed.
+    important_params:
+      - genome
+      - samplesheet
+      - mirtrace_species
+      - three_prime_adapter
+      - with_umi
+      - umitools_extract_method
+      - umitools_bc_pattern
+    param_explanations:
+      genome: Selected facility genome identifier used to choose the reference FASTA.
+      samplesheet: nf-core/smrnaseq input samplesheet describing sample-level FASTQ files.
+      mirtrace_species: Three-letter species code used for miRTrace quality control.
+      three_prime_adapter: Adapter sequence removed from small-RNA reads before alignment and quantification.
+      with_umi: Whether UMI-aware processing was enabled.
+      umitools_extract_method: UMI-tools extraction mode used when UMI processing was enabled.
+      umitools_bc_pattern: Barcode pattern defining the UMI layout when supplied.
+    param_context:
+      - genome, mirtrace_species, and three_prime_adapter are the principal reference and library-specific settings.
+      - UMI parameters should be described only when with_umi is enabled.
+    command_hints:
+      - Use runtime_command to recover the nf-core/smrnaseq revision, execution profile, adapter, UMI flags, and resource caps.
+      - Report the selected genome and miRTrace species code together when both are available.
+    tools:
+      - Nextflow
+      - nf-core/smrnaseq
+      - miRDeep2
+      - miRTrace
+      - miRTop
+      - MultiQC
+    citations:
+      - nextflow
+      - nfcore_framework
+      - nfcore_smrnaseq
+      - multiqc
+
   nfcore_methylseq:
     category: analysis
     publication_relevance: true
@@ -854,6 +901,9 @@ references:
   nfcore_rnaseq:
     text: "nf-core/rnaseq pipeline documentation."
     url: "https://nf-co.re/rnaseq"
+  nfcore_smrnaseq:
+    text: "nf-core/smrnaseq pipeline documentation."
+    url: "https://nf-co.re/smrnaseq"
   nfcore_methylseq:
     text: "nf-core/methylseq pipeline documentation."
     url: "https://nf-co.re/methylseq"

@@ -21,7 +21,8 @@ maintenance notes that apply across multiple templates.
 - [export.md](export.md): how export mappings, visible paths, and
   `export_job_spec.json` behave.
 - [nfcore_templates.md](nfcore_templates.md): common conventions shared by
-  `nfcore_3mrnaseq` and `nfcore_methylseq`.
+  the pack's nf-core processing templates, including RNA-seq, small RNA-seq,
+  methylation-seq, single-cell RNA-seq, and demultiplexing.
 - [project_history_and_archive.md](project_history_and_archive.md): how pack
   templates interact with Linkar project history, visible workspaces, and
   archive workflows.
