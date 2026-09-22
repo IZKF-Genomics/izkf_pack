@@ -1,0 +1,193 @@
+---
+title: "How mature miRNA expression changed across study time points"
+subtitle: "Biological overview with separate reports for each comparison"
+author: "Genomics Facility, IZKF"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+    page-layout: full
+    theme: lumen
+    css: report-style.css
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+source("mirna_inputs.R")
+source("report_helpers.R")
+results_dir <- "results"
+download_root <- "../results"
+cfg <- yaml::read_yaml("config/analysis.yaml")
+metadata <- read_result_table(file.path(results_dir, "tables", "sample_inventory.csv"))
+input_summary <- read_result_table(file.path(results_dir, "tables", "input_summary.csv"))
+filter_summary <- read_result_table(file.path(results_dir, "tables", "filter_summary.csv"))
+sample_qc <- read_result_table(file.path(results_dir, "tables", "sample_qc.csv"))
+contrast_summary <- read_result_table(file.path(results_dir, "tables", "contrast_summary.csv"))
+hairpin_status <- read_result_table(file.path(results_dir, "tables", "hairpin_status.csv"))
+primary_id <- cfg$analysis$primary_contrast
+primary_contrast <- cfg$contrasts[[which(vapply(cfg$contrasts, `[[`, character(1), "id") == primary_id)]]
+primary_summary <- contrast_summary |> filter(contrast_id == primary_id) |> slice(1)
+```
+
+# Main conclusion
+
+This analysis asks whether mature-miRNA expression changed differently between the **`r primary_contrast$target_group`** and **`r primary_contrast$base_group`** groups from **`r primary_contrast$base_time`** to **`r primary_contrast$target_time`**.
+
+```{r headline}
+interpretation_box(
+  "Primary result",
+  paste0(
+    evidence_summary_text(primary_summary, cfg$analysis$alpha, cfg$analysis$lfc_threshold),
+    " The data therefore do not provide evidence for a group-specific time response at the prespecified threshold."
+  ),
+  "conclusion"
+)
+```
+
+The secondary comparisons describe the observed pattern, but they do not overturn the primary result. In particular, a difference at 96 h or a change within one group does **not** by itself demonstrate a stimulation-specific response.
+
+```{r overview-cards}
+metric_cards(list(
+  list(value = nrow(metadata), label = "samples"),
+  list(value = length(unique(metadata$subject_nested)), label = "animals"),
+  list(value = filter_summary$n_features_retained, label = "miRNAs tested"),
+  list(value = primary_summary$n_evidence_threshold, label = "primary hits")
+))
+```
+
+# Four comparisons, four biological questions
+
+Each link opens a short report devoted to one comparison. Read the primary interaction first; use the other three to understand the pattern behind it.
+
+```{r comparison-guide, results='asis'}
+for (contrast in cfg$contrasts) {
+  row <- contrast_summary |> filter(contrast_id == contrast$id) |> slice(1)
+  result <- read_result_table(file.path(results_dir, "tables", "contrasts", paste0(contrast$id, ".csv")))
+  cat("\n## ", contrast$label, "\n\n", sep = "")
+  cat("**Biological question:** ", contrast_biological_question(contrast), "\n\n", sep = "")
+  cat("**Role:** ", contrast_role_text(contrast, primary_id), "\n\n", sep = "")
+  cat("**Direction:** ", contrast_direction_text(contrast), "\n\n", sep = "")
+  cat("**Result:** ", contrast_result_text(row, result, cfg$analysis$alpha, cfg$analysis$lfc_threshold), "\n\n", sep = "")
+  cat("[Open this comparison report](comparisons/", contrast$id, ".html)\n\n", sep = "")
+}
+```
+
+# How the comparisons fit together
+
+The primary interaction is a difference in changes:
+
+$$
+(\mathrm{Target\ group}_{late}-\mathrm{Target\ group}_{baseline})
+-
+(\mathrm{Reference\ group}_{late}-\mathrm{Reference\ group}_{baseline}).
+$$
+
+It directly tests whether the two groups followed different trajectories. The endpoint comparison asks only whether the groups differ at 96 h. The two paired comparisons ask what changed over time within each group. Those three secondary views are useful descriptions, but only the interaction supports a claim that the groups changed differently.
+
+```{r design-figure}
+#| fig-cap: "Each line connects repeated measurements from the same animal."
+knitr::include_graphics(file.path(results_dir, "figures", "qc", "study_design.png"))
+```
+
+```{r design-limit}
+interpretation_box(
+  "Power and interpretation",
+  "With four animals per group, modest or heterogeneous effects may remain unresolved. A non-significant result does not prove that the true biological effect is exactly zero.",
+  "limit"
+)
+```
+
+# What the secondary results show
+
+```{r secondary-summary, results='asis'}
+for (contrast in cfg$contrasts[vapply(cfg$contrasts, `[[`, character(1), "id") != primary_id]) {
+  row <- contrast_summary |> filter(contrast_id == contrast$id) |> slice(1)
+  cat("- **", contrast$label, ":** ", row$n_evidence_threshold,
+      " miRNA(s) met both the FDR and effect-size criteria.\n", sep = "")
+}
+```
+
+These findings indicate where the descriptive signal lies. They should not be combined into a treatment-effect claim because the primary interaction did not reach the evidence threshold. Use the individual comparison pages to see the miRNA names, directions, uncertainty, expression patterns, and complete result tables.
+
+```{r agreement}
+agreement_figure <- file.path(results_dir, "figures", "comparison", "interaction_vs_endpoint.png")
+if (file.exists(agreement_figure)) knitr::include_graphics(agreement_figure)
+```
+
+The figure compares endpoint and interaction estimates. Similar signs can support a coherent pattern, but the two axes still represent different biological questions.
+
+# Data quality and global structure
+
+Raw integer counts were used. A miRNA was retained when it had at least **`r cfg$analysis$min_count` counts** in at least **`r cfg$analysis$min_samples` samples**.
+
+```{r filter-cards}
+metric_cards(list(
+  list(value = input_summary$n_features_raw, label = "raw miRNAs"),
+  list(value = filter_summary$n_features_retained, label = "retained miRNAs"),
+  list(value = sprintf("%.1f%%", 100 * filter_summary$fraction_retained), label = "retained"),
+  list(value = format(sum(sample_qc$library_size), big.mark = ","), label = "total counts")
+))
+```
+
+```{r qc-figures}
+#| layout-ncol: 2
+#| fig-cap: ["Library size per sample.", "PCA of variance-stabilized counts."]
+knitr::include_graphics(c(
+  file.path(results_dir, "figures", "qc", "library_size.png"),
+  file.path(results_dir, "figures", "qc", "pca.png")
+))
+```
+
+Library size helps identify sequencing-depth differences. PCA summarizes the dominant expression patterns and is descriptive; it is not a formal test of group or time effects.
+
+```{r qc-downloads}
+download_links(c(
+  file.path(download_root, "tables", "sample_qc.csv"),
+  file.path(download_root, "tables", "sample_inventory.csv"),
+  file.path(download_root, "tables", "normalized_counts.csv")
+))
+```
+
+# Biological interpretation and follow-up
+
+The strongest defensible conclusion is that this dataset did not resolve a group-specific miRNA time response under the prespecified interaction test. The endpoint and within-group findings are candidate-generating observations. Useful next steps are:
+
+1. Validate a small, prespecified candidate set with an orthogonal assay.
+2. Check whether candidate patterns reproduce in an independent cohort.
+3. Relate candidates to target genes or pathways using pig-appropriate resources.
+4. Avoid presenting predicted targets as measured regulation without matching molecular data.
+
+Effect size, confidence intervals, abundance, paired consistency, and biological plausibility should be considered together. Ranking candidates only by p value is not sufficient.
+
+# Methods and reproducibility
+
+DESeq2 modeled raw mature-miRNA counts. Paired within-group analyses used `~ subject_nested + time`; the endpoint comparison used `~ group`; and the interaction used `~ subject_nested + time + group_time_interaction`. This interaction encoding estimates the difference-in-differences without adding a non-estimable group main effect beside the animal term. Model matrices were checked for full rank.
+
+Benjamini–Hochberg adjusted p values are reported as FDR. A miRNA was flagged as evidence only when both **FDR < `r cfg$analysis$alpha`** and **|shrunken log2 fold change| ≥ `r cfg$analysis$lfc_threshold`**. Raw estimates and confidence intervals remain available in the downloadable tables.
+
+```{r audit-table}
+render_report_table(
+  contrast_summary,
+  c("contrast_label", "model_formula", "n_samples", "n_features_tested", "n_fdr_significant", "n_evidence_threshold", "min_fdr", "is_primary"),
+  max_rows = 10,
+  caption = "Comparison-level audit summary"
+)
+```
+
+Hairpin analysis status: **`r hairpin_status$note`**
+
+```{r final-downloads}
+download_links(c(
+  file.path(download_root, "tables", "miRNA_differential_results.xlsx"),
+  file.path(download_root, "tables", "contrast_summary.csv"),
+  file.path(download_root, "runtime_command.json"),
+  file.path(download_root, "software_versions.json")
+))
+```
+
+The HTML reports embed their displayed figures for portability. Complete tables and publication-ready figures remain under `results/`.

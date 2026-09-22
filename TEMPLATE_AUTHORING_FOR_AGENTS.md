@@ -157,11 +157,15 @@ Use:
 
 Best practices:
 
-- `path` and `glob` should match the template's real runtime layout. In this pack, many outputs live
-  under `results/`, but that is a convention, not a hard rule.
-- If an output is written under `results/`, prefer being explicit, for example
-  `path: results/software_versions.json` or `glob: results/**/*.fastq.gz`, unless the template is
-  already intentionally collecting from a different root.
+- `path` and `glob` are resolved relative to `<template_workspace>/results`, which is also exposed to
+  runtime code as `LINKAR_RESULTS_DIR`.
+- Do not prefix ordinary declarations with `results/`: use `path: software_versions.json` or
+  `glob: "**/*.fastq.gz"`. Writing `path: results/software_versions.json` declares
+  `<template_workspace>/results/results/software_versions.json`.
+- Use `../...` only when an intentional output lives outside the results root, such as a generated
+  editable file in the workspace.
+- Globs use Python `pathlib.Path.glob` syntax, not shell expansion. Declare separate outputs instead
+  of brace expressions such as `*.{csv,xlsx}`.
 - Declare the outputs you expect other templates to reuse.
 - Prefer stable names like `multiqc_report`, `salmon_dir`, `demux_fastq_files`.
 - Do not rely on undocumented files if they matter downstream.
@@ -175,9 +179,11 @@ Use either:
 - `run.command` for short, thin launchers
 - `run.entry` for real scripts
 
-Use `mode: direct` when the template should execute immediately with `linkar run`.
+Use `mode: direct` when runs should use Linkar's normal run workspace and history behavior.
 
-Use `mode: render` when the template should render a bundle that humans may inspect or edit before execution.
+Use `mode: render` when the template should maintain a visible, editable workspace. `linkar run`
+still executes render-mode templates; inside a project it reuses the visible bundle unless the user
+passes Linkar's `--refresh` option.
 
 Rule of thumb:
 
@@ -185,6 +191,26 @@ Rule of thumb:
 - If the logic includes multiline shell flow, heredocs, nontrivial environment handling, or embedded Python, use `run.sh`.
 
 For this pack, prefer `run.entry: run.sh` once the command stops being trivial.
+
+### `render.command`
+
+Use the optional top-level `render.command` hook for preparation that must run after Linkar stages
+the bundle but before the user inspects or executes it. Current examples use it to generate editable
+configuration, samplesheets, launchers, or workspace settings.
+
+```yaml
+run:
+  mode: render
+  entry: run.sh
+render:
+  command: |
+    python3 ./run.py --prepare
+```
+
+Keep `render.command` idempotent because users may render the same template repeatedly. It runs with
+the rendered workspace as its working directory and receives the normal Linkar runtime environment,
+including `LINKAR_RESULTS_DIR`, `LINKAR_PROJECT_DIR`, and `LINKAR_PACK_ROOT`. It complements the run
+entrypoint; it does not replace `run.entry` or `run.command`.
 
 ## Organize The Runtime Files Well
 
@@ -542,21 +568,21 @@ Run the narrowest useful tests before handoff.
 For template-local tests:
 
 ```bash
-rtk python3 /home/ckuo/github/izkf_pack/templates/<template_id>/test.py
+rtk python3 templates/<template_id>/test.py
 ```
 
-When possible, also run a Linkar-driven test from the Linkar repo:
+Also run a Linkar-driven test when the change affects rendering, bindings, collection, or the
+template contract:
 
 ```bash
-cd /home/ckuo/github/linkar
-rtk python3 -m pytest tests -k <template_id>
+rtk linkar test <template_id> --pack .
 ```
 
-or:
+For a new template or a cross-cutting change, run the repository-wide checks from the pack root:
 
 ```bash
-cd /home/ckuo/github/linkar
-rtk pixi run linkar test <template_id> --pack /home/ckuo/github/izkf_pack
+rtk python3 scripts/run_tests.py
+rtk linkar pack validate .
 ```
 
 Do not claim a template is done if you did not run any verification. If something cannot be tested locally, say so explicitly.
@@ -575,7 +601,8 @@ Use this order:
 8. Update template `README.md`.
 9. Update pack `README.md` if the template is user-facing.
 10. Run the narrowest useful tests.
-11. Review outputs and naming for downstream reuse.
+11. Run the full pack checks for a new template or cross-cutting contract change.
+12. Review outputs and naming for downstream reuse.
 
 ## Output Naming Best Practices
 
@@ -689,7 +716,7 @@ When in doubt:
 
 - copy the style of the closest existing `izkf_pack` template
 - keep `linkar_template.yaml` declarative
-- prefer `run.sh` for nontrivial execution logic
+- prefer a thin `run.sh` entrypoint with nontrivial logic in `run.py`
 - expose fewer, better params
 - use bindings for reusable inference
 - test before handoff

@@ -185,6 +185,7 @@ def main() -> None:
     template_text = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
     pack_text = (TEMPLATE_DIR.parent.parent / "linkar_pack.yaml").read_text(encoding="utf-8")
     assert "id: nfcore_smrnaseq" in template_text
+    assert "path: __pycache__" in template_text
     assert "version: 0.2.1" in template_text
     assert "mode: render" in template_text
     assert "entry: run.sh" in template_text

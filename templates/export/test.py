@@ -118,6 +118,8 @@ def main() -> int:
     assert template_placeholders("nfcore_rnaseq", {"path": "nfcore_rnaseq"})["template_basename_suffix"] == ""
     assert template_placeholders("dgea", {"path": "dgea"})["template_basename_suffix"] == ""
     assert template_placeholders("dgea", {"path": "DGEA_Liver"})["template_basename_suffix"] == "/DGEA_Liver"
+    assert template_placeholders("mirna_differential", {"path": "mirna_differential"})["template_basename_suffix"] == ""
+    assert template_placeholders("mirna_differential", {"path": "miRNA_Pig_OIM"})["template_basename_suffix"] == "/miRNA_Pig_OIM"
 
     with tempfile.TemporaryDirectory() as summary_tmpdir:
         summary_project = Path(summary_tmpdir)
@@ -174,6 +176,7 @@ def main() -> int:
         annotate_audit_dir = project_dir / "scrna_annotate_audit"
         annotate_zebrafish_dir = project_dir / "scrna_annotate_zebrafish"
         ercc_dir = project_dir / "ercc"
+        mirna_dir = project_dir / "mirna_differential"
         summary_dir = project_dir / "summary"
         (demux_dir / "results" / "output").mkdir(parents=True)
         (demux_dir / "results" / "multiqc").mkdir(parents=True)
@@ -200,6 +203,11 @@ def main() -> int:
         (annotate_audit_dir / "results" / "tables").mkdir(parents=True)
         (annotate_zebrafish_dir / "results" / "tables").mkdir(parents=True)
         (ercc_dir / "results").mkdir(parents=True)
+        (mirna_dir / "results" / "tables").mkdir(parents=True)
+        (mirna_dir / "results" / "figures").mkdir(parents=True)
+        (mirna_dir / "results" / "hairpin").mkdir(parents=True)
+        (mirna_dir / "config").mkdir(parents=True)
+        (mirna_dir / "reports").mkdir(parents=True)
         (summary_dir / "results").mkdir(parents=True)
         (demux_dir / "results" / "output" / "sample.fastq.gz").write_text("fq\n", encoding="utf-8")
         (demux_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
@@ -276,6 +284,13 @@ def main() -> int:
         (ercc_dir / "results" / "ERCC.html").write_text("<html></html>\n", encoding="utf-8")
         (ercc_dir / "results" / "run_info.yaml").write_text("template: ercc\n", encoding="utf-8")
         (ercc_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
+        (mirna_dir / "results" / "tables" / "miRNA_differential_results.xlsx").write_text("xlsx\n", encoding="utf-8")
+        (mirna_dir / "results" / "figures" / "pca.png").write_text("png\n", encoding="utf-8")
+        (mirna_dir / "results" / "hairpin" / "status.txt").write_text("enabled\n", encoding="utf-8")
+        (mirna_dir / "results" / "run_info.yaml").write_text("template: mirna_differential\n", encoding="utf-8")
+        (mirna_dir / "config" / "analysis.yaml").write_text("contrasts: []\n", encoding="utf-8")
+        (mirna_dir / "config" / "samples.csv").write_text("sample,include\n", encoding="utf-8")
+        (mirna_dir / "reports" / "miRNA_differential_report.html").write_text("<html></html>\n", encoding="utf-8")
         (summary_dir / "results" / "summary_long.md").write_text("# Long analysis summary\n", encoding="utf-8")
         (summary_dir / "results" / "summary_short.md").write_text("# Short analysis summary\n", encoding="utf-8")
         (summary_dir / "results" / "summary_references.md").write_text("# References\n", encoding="utf-8")
@@ -427,6 +442,15 @@ def main() -> int:
                     },
                 },
                 {
+                    "id": "mirna_differential",
+                    "path": str(mirna_dir),
+                    "params": {"name": "Pig OIM", "organism": "sscrofa"},
+                    "outputs": {
+                        "results_dir": str((mirna_dir / "results").resolve()),
+                        "report_html": str((mirna_dir / "reports" / "miRNA_differential_report.html").resolve()),
+                    },
+                },
+                {
                     "id": "summary",
                     "instance_id": "summary_001",
                     "path": "summary",
@@ -471,7 +495,7 @@ def main() -> int:
         )
         assert "Prepare Only Complete" in prepare_only.stdout
         assert "Project templates:" in prepare_only.stdout
-        assert "demultiplex (1), nfcore_demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_prep (1), scrna_integrate (1), scrna_annotate (1), scrna_annotate_celltypist (1), scrna_annotate_manual_markers (1), scrna_annotate_sctype (1), scrna_annotate_audit (1), scrna_annotate_zebrafish (1), ercc (1), summary (2)" in prepare_only.stdout
+        assert "demultiplex (1), nfcore_demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_prep (1), scrna_integrate (1), scrna_annotate (1), scrna_annotate_celltypist (1), scrna_annotate_manual_markers (1), scrna_annotate_sctype (1), scrna_annotate_audit (1), scrna_annotate_zebrafish (1), ercc (1), mirna_differential (1), summary (2)" in prepare_only.stdout
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
@@ -482,7 +506,7 @@ def main() -> int:
         original_username = credentials["username"]
         original_password = credentials["password"]
         assert stat.S_IMODE(credentials_path.stat().st_mode) == 0o600
-        assert len(spec["export_list"]) == 35
+        assert len(spec["export_list"]) == 38
         assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
         export_srcs = {entry["src"] for entry in spec["export_list"]}
         export_dests = {entry["dest"] for entry in spec["export_list"]}
@@ -518,7 +542,22 @@ def main() -> int:
         assert "3_Reports/scrna_annotate_audit/scrna_annotate_audit" in export_dests
         assert "3_Reports/scrna_annotate_zebrafish/scrna_annotate_zebrafish/report.html" in export_dests
         assert "3_Reports/ercc/ercc" in export_dests
+        assert "2_Processed_data/mirna_differential/results" in export_dests
+        assert "2_Processed_data/mirna_differential/config" in export_dests
+        assert "3_Reports/mirna_differential" in export_dests
         assert "3_Reports/summary" in export_dests
+        mirna_results_entry = next(
+            entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/mirna_differential/results"
+        )
+        assert mirna_results_entry["src"] == str((mirna_dir / "results").resolve())
+        mirna_result_paths = {link["path"] for link in mirna_results_entry.get("report_links", [])}
+        assert {".", "tables", "figures", "hairpin"} <= mirna_result_paths
+        mirna_report_entry = next(
+            entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/mirna_differential"
+        )
+        assert {link["path"] for link in mirna_report_entry.get("report_links", [])} == {
+            "miRNA_differential_report.html"
+        }
         summary_entries = [entry for entry in spec["export_list"] if entry["dest"] == "3_Reports/summary"]
         assert len(summary_entries) == 1
         assert summary_entries[0]["src"] == str((summary_dir / "results").resolve())
@@ -747,8 +786,9 @@ def main() -> int:
             assert "- URL: https://example.org/data/example_project_001/main_report.html" in submit.stdout
             assert "Access Credentials" in submit.stdout
             assert "- Username: example_user" in submit.stdout
+            assert "- Password: example_password" in submit.stdout
             assert f"- Private file: {credentials_path}" in submit.stdout
-            assert "example_password" not in submit.stdout
+            assert "example_password" in submit.stdout
             assert "Publisher Results" in submit.stdout
             assert "1. SFTP" in submit.stdout
             assert "- Username: example_user_example_project_001" in submit.stdout
@@ -756,7 +796,8 @@ def main() -> int:
             assert "3. OWNCLOUD" in submit.stdout
             assert "JSON Patch for MS Planner" in submit.stdout
             assert "'Project ID': 'example_project_001'," in submit.stdout
-            assert "[REDACTED]" in submit.stdout
+            assert "'Password': 'example_password'," in submit.stdout
+            assert "[REDACTED]" not in submit.stdout
             request_payload = server.payload  # type: ignore[attr-defined]
             assert request_payload["username"] == override_credentials["username"]
             assert request_payload["password"] == override_credentials["password"]
@@ -778,6 +819,44 @@ def main() -> int:
             assert submitted_credentials["password"] == "example_password"
             assert len(submitted_credentials["publishers"]) == 3
             assert stat.S_IMODE(credentials_path.stat().st_mode) == 0o600
+
+            hidden_password_submit = subprocess.run(
+                [
+                    "python3",
+                    str(TEMPLATE_DIR / "run.py"),
+                    "--results-dir",
+                    str(export_dir / "results"),
+                    "--project-dir",
+                    str(project_dir),
+                    "--template-dir",
+                    str(TEMPLATE_DIR),
+                    "--reuse-spec",
+                    "true",
+                    "--show-password",
+                    "false",
+                    "--export-engine-api-url",
+                    f"http://127.0.0.1:{server.server_port}",
+                    "--metadata-source",
+                    "mock",
+                    "--poll-interval-seconds",
+                    "1",
+                    "--timeout-seconds",
+                    "5",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            assert "- Password: example_password" not in hidden_password_submit.stdout
+            assert "'Password': 'example_password'," not in hidden_password_submit.stdout
+            assert "example_password" not in hidden_password_submit.stdout
+            assert "[REDACTED]" in hidden_password_submit.stdout
+            assert "example_password" not in (
+                export_dir / "results" / "export_final_message.txt"
+            ).read_text(encoding="utf-8")
+            assert "example_password" not in (
+                export_dir / "results" / "export_submission.json"
+            ).read_text(encoding="utf-8")
 
             legacy_results = export_dir / "legacy_results"
             legacy_results.mkdir()
@@ -895,6 +974,8 @@ def main() -> int:
             assert refresh_spec == refresh_payload
 
             template_config = yaml.safe_load((TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8"))
+            assert template_config["params"]["show_password"]["default"] is True
+            assert '--show-password "${param:show_password}"' in template_config["run"]["command"]
             render_command = template_config["render"]["command"]
             assert 'reuse_saved_credentials="${param:reuse_credentials}"' in render_command
             assert 'if [[ "${param:refresh_export}" == "true" ]]' in render_command

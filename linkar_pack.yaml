@@ -95,6 +95,20 @@ templates:
         function: get_dgea_name
       authors:
         function: get_dgea_authors
+  mirna_differential:
+    params:
+      counts_file:
+        function: get_mirna_mature_counts
+      hairpin_counts_file:
+        function: get_mirna_hairpin_counts
+      samplesheet:
+        function: get_mirna_samplesheet
+      organism:
+        function: get_mirna_organism
+      name:
+        function: get_dgea_name
+      authors:
+        function: get_dgea_authors
   ercc:
     params:
       salmon_dir:

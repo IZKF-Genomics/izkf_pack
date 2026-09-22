@@ -89,6 +89,10 @@ The runtime side then contributes:
 - Linkar runtime status from project-central `.linkar/runtime/<instance_id>.json`, with legacy per-run `.linkar/runtime.json` support
 - optional project-level assay metadata from the Agendo combined metadata API when an `agendo_id` is present in project history
 
+The catalog includes `mirna_differential`, so its mature-miRNA DESeq2 models, configured
+contrasts, effect-size-aware reporting, and optional independently modeled hairpin supplement are
+represented in project summaries alongside the upstream `nfcore_smrnaseq` processing step.
+
 When repeated templates appear in one project, the analysis summary generator uses the
 run-specific `params.name` when available, otherwise the rendered folder name,
 to disambiguate sections such as `Differential gene expression analysis: Liver`

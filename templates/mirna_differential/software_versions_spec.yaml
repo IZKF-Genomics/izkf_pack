@@ -1,0 +1,10 @@
+software:
+  - name: R
+    command: Rscript --version
+    stream: stderr
+  - name: DESeq2
+    command: Rscript -e 'cat(as.character(packageVersion("DESeq2")))'
+  - name: Quarto
+    command: quarto --version
+  - name: Pixi
+    command: pixi --version

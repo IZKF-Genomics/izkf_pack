@@ -104,6 +104,8 @@ outputs:
 cleanup:
   - path: .pixi
     type: dir
+  - path: __pycache__
+    type: dir
   - path: work
     type: dir
   - path: .nextflow

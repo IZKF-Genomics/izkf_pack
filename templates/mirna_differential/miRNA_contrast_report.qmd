@@ -1,0 +1,141 @@
+---
+title: "miRNA comparison report"
+subtitle: "One biological question, one statistical comparison"
+author: "Genomics Facility, IZKF"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+    page-layout: full
+    theme: lumen
+    css: report-style.css
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+source("mirna_inputs.R")
+source("report_helpers.R")
+results_dir <- "results"
+download_root <- "../../results"
+cfg <- yaml::read_yaml("config/analysis.yaml")
+contrast_id <- Sys.getenv("MIRNA_CONTRAST_ID")
+if (!nzchar(contrast_id)) stop("MIRNA_CONTRAST_ID is required.", call. = FALSE)
+contrast_index <- which(vapply(cfg$contrasts, `[[`, character(1), "id") == contrast_id)
+if (length(contrast_index) != 1) stop("Unknown or duplicate contrast id: ", contrast_id, call. = FALSE)
+contrast <- cfg$contrasts[[contrast_index]]
+primary_id <- cfg$analysis$primary_contrast
+contrast_summary <- read_result_table(file.path(results_dir, "tables", "contrast_summary.csv"))
+row <- contrast_summary |> filter(contrast_id == !!contrast_id) |> slice(1)
+result <- read_result_table(file.path(results_dir, "tables", "contrasts", paste0(contrast_id, ".csv")))
+hits <- result |> filter(evidence_threshold %in% TRUE)
+```
+
+# `r contrast$label`
+
+```{r role}
+interpretation_box("Role in the analysis", contrast_role_text(contrast, primary_id), "read")
+```
+
+## Biological question
+
+**`r contrast_biological_question(contrast)`**
+
+This comparison uses **`r row$n_samples` samples** and tests **`r row$n_features_tested` mature miRNAs** after filtering.
+
+```{r direction}
+interpretation_box("How to read the direction", contrast_direction_text(contrast), "read")
+```
+
+## Result at a glance
+
+```{r result-cards}
+metric_cards(list(
+  list(value = row$n_features_tested, label = "miRNAs tested"),
+  list(value = row$n_fdr_significant, label = "FDR < alpha"),
+  list(value = row$n_evidence_threshold, label = "FDR + effect hits"),
+  list(value = format_report_value(row$min_fdr, "min_fdr"), label = "lowest FDR")
+))
+```
+
+```{r result-text}
+interpretation_box(
+  "Plain-language result",
+  contrast_result_text(row, result, cfg$analysis$alpha, cfg$analysis$lfc_threshold),
+  "conclusion"
+)
+interpretation_box("Important limitation", contrast_caution_text(contrast), "limit")
+```
+
+`r if (nrow(hits) > 0) "The table below lists the miRNAs that met both prespecified criteria. Their direction follows the definition above." else "Because no miRNA met both criteria, the figures and leading rows below are exploratory rather than a list of confirmed changes."`
+
+```{r evidence-hits}
+if (nrow(hits) > 0) {
+  render_report_table(
+    hits,
+    c("mirna_id", "baseMean", "shrunken_log2FoldChange", "conf_low", "conf_high", "padj"),
+    max_rows = 20,
+    caption = "miRNAs meeting both the FDR and effect-size criteria"
+  )
+}
+```
+
+## Effect size and uncertainty
+
+```{r forest}
+#| fig-cap: "Leading raw log2 fold-change estimates with 95% Wald confidence intervals."
+knitr::include_graphics(file.path(results_dir, "figures", "contrasts", paste0(contrast_id, "_forest.png")))
+```
+
+The point shows the estimated effect; the horizontal interval shows its uncertainty. Wide intervals mean that the exact effect remains uncertain, even when the point estimate is large.
+
+## Expression pattern in individual samples
+
+```{r heatmap}
+#| fig-cap: "Row-standardized expression of leading miRNAs. Colors show relative expression within each miRNA, not abundance differences between miRNAs."
+knitr::include_graphics(file.path(results_dir, "figures", "contrasts", paste0(contrast_id, "_heatmap.png")))
+```
+
+Use this heatmap to inspect whether a result is broadly consistent across animals or driven by a small number of samples. It is descriptive and does not replace the statistical model.
+
+## Additional statistical diagnostics
+
+```{r diagnostics}
+#| layout-ncol: 2
+#| fig-cap: ["Mean abundance versus shrunken effect size.", "Effect size versus statistical evidence."]
+knitr::include_graphics(c(
+  file.path(results_dir, "figures", "contrasts", paste0(contrast_id, "_ma.png")),
+  file.path(results_dir, "figures", "contrasts", paste0(contrast_id, "_volcano.png"))
+))
+```
+
+Threshold lines are decision aids, not biological boundaries. Effects at low abundance and results close to a threshold require particular caution.
+
+## Leading result rows
+
+```{r leading-table}
+render_report_table(
+  result,
+  c("mirna_id", "baseMean", "log2FoldChange", "shrunken_log2FoldChange", "conf_low", "conf_high", "pvalue", "padj", "evidence_threshold"),
+  max_rows = 20,
+  caption = paste("Leading results for", contrast$label)
+)
+```
+
+## Downloads and method
+
+```{r downloads}
+download_links(c(
+  file.path(download_root, "tables", "contrasts", paste0(contrast_id, ".csv")),
+  file.path(download_root, "figures", "contrasts", paste0(contrast_id, "_forest.pdf")),
+  file.path(download_root, "figures", "contrasts", paste0(contrast_id, "_heatmap.svg"))
+))
+```
+
+The model was **`r row$model_formula`** and the tested coefficient or contrast was **`r row$coefficient`**. Benjamini–Hochberg adjusted p values control the false-discovery rate across tested miRNAs. The combined evidence flag requires both **FDR < `r cfg$analysis$alpha`** and **|shrunken log2 fold change| ≥ `r cfg$analysis$lfc_threshold`**. The complete CSV retains raw and shrunken effects, standard errors, confidence intervals, p values, and adjusted p values.
+
+[Return to the overview report](../miRNA_differential_report.html)

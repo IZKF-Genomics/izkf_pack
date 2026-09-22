@@ -18,6 +18,10 @@ LLM_DISCLAIMER = (
     "This analysis summary was generated with large language model assistance from recorded project and "
     "workflow metadata. Please review the text carefully before use, as it may contain omissions or errors."
 )
+AUTOMATED_DISCLAIMER = (
+    "This analysis summary was generated automatically from recorded project and workflow metadata without "
+    "large language model assistance. Please review the text carefully before use, as it may contain omissions or errors."
+)
 
 
 def load_run_module():
@@ -137,8 +141,10 @@ def test_generation_with_runtime_command() -> None:
         assert "example_reference" in long_text
         assert "Cell Ranger ATAC" in long_text
         assert "2.2.0" in long_text
-        assert LLM_DISCLAIMER in long_text
-        assert LLM_DISCLAIMER in short_text
+        assert AUTOMATED_DISCLAIMER in long_text
+        assert AUTOMATED_DISCLAIMER in short_text
+        assert LLM_DISCLAIMER not in long_text
+        assert LLM_DISCLAIMER not in short_text
         assert "### Computational Approach" not in long_text
         assert "### Relevant Settings" in long_text
         assert "### Software" in long_text
@@ -761,6 +767,19 @@ def test_run_display_label_ignores_run_directory_suffix() -> None:
     assert label == "Demultiplexing and sequencing quality control"
 
 
+def test_demultiplex_summary_without_qc_tool_is_grammatical() -> None:
+    module = load_run_module()
+    text = module.build_publication_summary(
+        {
+            "template": "demultiplex",
+            "params": {},
+            "outputs": {"multiqc_report": "/tmp/multiqc_report.html"},
+        }
+    )
+    assert ". summarized with MultiQC" not in text
+    assert "Quality-control results were summarized with MultiQC." in text
+
+
 def test_nfcore_demultiplex_is_summarized() -> None:
     module = load_run_module()
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -1054,6 +1073,7 @@ def main() -> int:
     test_short_technical_terms_are_highlighted()
     test_humanize_ercc_augmented_genome_names()
     test_run_display_label_ignores_run_directory_suffix()
+    test_demultiplex_summary_without_qc_tool_is_grammatical()
     test_nfcore_demultiplex_is_summarized()
     test_demultiplex_citations_are_template_specific()
     test_collect_run_context_adds_variant_names_for_duplicate_nfcore_runs()
@@ -1081,6 +1101,7 @@ def main() -> int:
     assert "nfcore_demultiplex:" in catalog_text
     assert "nfcore_methylseq:" in catalog_text
     assert "methylation_array_analysis:" in catalog_text
+    assert "mirna_differential:" in catalog_text
     assert "scrna_prep:" in catalog_text
     assert "scrna_integrate:" in catalog_text
     assert "scrna_annotate:" in catalog_text
@@ -1088,6 +1109,11 @@ def main() -> int:
     assert "scanpy:" in catalog_text
     assert "umap:" in catalog_text
     assert "leiden:" in catalog_text
+    catalog = yaml.safe_load(catalog_text)
+    mirna_entry = catalog["templates"]["mirna_differential"]
+    assert mirna_entry["category"] == "downstream_analysis"
+    assert mirna_entry["citations"] == ["deseq2", "quarto"]
+    assert "hairpin" in " ".join(mirna_entry["method_details"]).lower()
     assert "scvi:" in catalog_text
     assert "scanvi:" in catalog_text
     assert "harmony:" in catalog_text
@@ -1098,7 +1124,7 @@ def main() -> int:
     assert 'python3 "${script_dir}/run.py"' in run_sh_text
     assert '-f "${script_dir}/.linkar/meta.json"' in run_sh_text
     assert '.linkar/meta/${LINKAR_INSTANCE_ID:-summary}.json' in run_sh_text
-    assert 'linkar collect "${script_dir}"' in run_sh_text
+    assert 'linkar collect "${script_dir}" --project "${LINKAR_PROJECT_DIR:-${project_dir}}"' in run_sh_text
     assert 'linkar clean "${script_dir}" --yes' in run_sh_text
     assert "skipping in-script collect/clean" in run_sh_text
     assert '--metadata-api-url "${METADATA_API_URL:-}"' in run_sh_text

@@ -25,6 +25,10 @@ LLM_DISCLAIMER = (
     "This analysis summary was generated with large language model assistance from recorded project and "
     "workflow metadata. Please review the text carefully before use, as it may contain omissions or errors."
 )
+AUTOMATED_DISCLAIMER = (
+    "This analysis summary was generated automatically from recorded project and workflow metadata without "
+    "large language model assistance. Please review the text carefully before use, as it may contain omissions or errors."
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -955,7 +959,9 @@ def build_publication_summary(run: dict[str, Any]) -> str:
         if qc_tool:
             qc_parts.append(f"Read quality was assessed with {qc_tool}")
         if outputs.get("multiqc_report"):
-            qc_parts.append("summarized with MultiQC")
+            qc_parts.append(
+                "summarized with MultiQC" if qc_tool else "Quality-control results were summarized with MultiQC"
+            )
         if qc_parts:
             summary += " " + " and ".join(qc_parts) + "."
         return summary
@@ -1934,14 +1940,15 @@ def replace_references_section(text: str, references_block: str) -> str:
     return body + "\n\n" + references_block.strip() + "\n"
 
 
-def add_llm_disclaimer(markdown_text: str) -> str:
+def add_generation_disclaimer(markdown_text: str, *, used_llm: bool) -> str:
     text = markdown_text.strip()
-    if LLM_DISCLAIMER in text:
+    disclaimer = LLM_DISCLAIMER if used_llm else AUTOMATED_DISCLAIMER
+    if disclaimer in text:
         return text + "\n"
     lines = text.splitlines()
     if lines and lines[0].startswith("# "):
-        return "\n".join([lines[0], "", LLM_DISCLAIMER, *lines[1:]]).rstrip() + "\n"
-    return LLM_DISCLAIMER + "\n\n" + text.rstrip() + "\n"
+        return "\n".join([lines[0], "", disclaimer, *lines[1:]]).rstrip() + "\n"
+    return disclaimer + "\n\n" + text.rstrip() + "\n"
 
 
 def render_inline_html(text: str) -> str:
@@ -1988,7 +1995,7 @@ def markdown_fragment_to_html(markdown_text: str) -> tuple[str, list[dict[str, s
         nonlocal paragraph
         if paragraph:
             text = " ".join(line.strip() for line in paragraph if line.strip())
-            if text == LLM_DISCLAIMER:
+            if text in {LLM_DISCLAIMER, AUTOMATED_DISCLAIMER}:
                 html_lines.append(f'<p class="llm-disclaimer">{render_inline_html(text)}</p>')
             else:
                 html_lines.append(f"<p>{render_inline_html(text)}</p>")
@@ -2465,8 +2472,9 @@ def main() -> int:
             }
 
     short_draft = emphasize_short_technical_terms(short_draft, context)
-    long_draft = add_llm_disclaimer(long_draft)
-    short_draft = add_llm_disclaimer(short_draft)
+    used_llm = parse_bool(response_payload.get("used_llm"), default=False)
+    long_draft = add_generation_disclaimer(long_draft, used_llm=used_llm)
+    short_draft = add_generation_disclaimer(short_draft, used_llm=used_llm)
 
     write_yaml(results_dir / "summary_context.yaml", context)
     (results_dir / "summary_long.md").write_text(long_draft, encoding="utf-8")

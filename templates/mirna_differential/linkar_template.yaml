@@ -1,0 +1,67 @@
+id: mirna_differential
+version: 0.1.0
+description: Editable DESeq2 miRNA differential analysis workspace with paired, two-group, and longitudinal interaction models.
+tools:
+  required:
+    - pixi
+    - python3
+params:
+  counts_file:
+    type: path
+    required: true
+    description: Raw nf-core/smrnaseq mature_counts.csv file; samples may be rows or columns.
+  hairpin_counts_file:
+    type: path
+    default: ""
+    description: Optional raw hairpin_counts.csv for a separate supplementary analysis.
+  samplesheet:
+    type: path
+    required: true
+    description: nf-core samplesheet containing a sample column; analysis metadata are stored separately in config/samples.csv.
+  organism:
+    type: str
+    required: true
+    description: Organism identifier such as hsapiens, mmusculus, rnorvegicus, sscrofa, or ggallus.
+  name:
+    type: str
+    default: ""
+    description: Project name shown in the report.
+  authors:
+    type: str
+    default: ""
+    description: Comma-separated author names shown in the report.
+outputs:
+  results_dir: {}
+  run_info:
+    path: run_info.yaml
+  software_versions:
+    path: software_versions.json
+  runtime_command:
+    path: runtime_command.json
+  report_html:
+    path: ../reports/miRNA_differential_report.html
+  comparison_reports:
+    glob: ../reports/comparisons/*.html
+  analysis_config:
+    path: ../config/analysis.yaml
+  sample_metadata:
+    path: ../config/samples.csv
+  tables:
+    glob: tables/**/*
+  figures:
+    glob: figures/**/*
+  hairpin_supplement:
+    glob: hairpin/**/*
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: __pycache__
+    type: dir
+run:
+  mode: render
+  entry: run.sh
+render:
+  command: |
+    python3 "${LINKAR_PACK_ROOT}/functions/materialize_vscode_settings.py" \
+      --template-dir "." \
+      --workspace-dir "."

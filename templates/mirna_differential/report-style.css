@@ -1,0 +1,35 @@
+:root {
+  --ink: #20303c;
+  --muted: #5f6b73;
+  --blue: #0072b2;
+  --orange: #d55e00;
+  --green: #009e73;
+  --line: #dce3e7;
+  --soft: #f5f8fa;
+}
+
+body { color: var(--ink); font-size: 16px; line-height: 1.62; }
+h1, h2, h3 { color: #172733; letter-spacing: -0.015em; }
+h2 { margin-top: 2.8rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--line); }
+h3 { margin-top: 2rem; }
+.quarto-title-banner { background: linear-gradient(120deg, #eaf4f8, #f7f3eb); color: var(--ink); }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.9rem; margin: 1.2rem 0 1.8rem; }
+.metric-card { padding: 1rem 1.1rem; background: var(--soft); border: 1px solid var(--line); border-radius: 0.55rem; }
+.metric-value { font-size: 1.55rem; font-weight: 750; color: var(--blue); font-variant-numeric: tabular-nums; }
+.metric-label { margin-top: 0.2rem; color: var(--muted); font-size: 0.9rem; }
+.interpretation-box { border-left: 5px solid var(--blue); background: #f4f9fc; padding: 0.9rem 1.1rem; margin: 1.2rem 0; border-radius: 0.25rem; }
+.interpretation-box p { margin: 0.35rem 0 0; }
+.interpretation-limit { border-color: var(--orange); background: #fff8f2; }
+.interpretation-conclusion { border-color: var(--green); background: #f2fbf7; }
+.report-table-wrap { overflow-x: auto; margin: 1rem 0 0.35rem; }
+table.report-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table.report-table th { background: #edf3f6; text-align: left; padding: 0.6rem; border-bottom: 2px solid #aebbc3; white-space: nowrap; }
+table.report-table td { padding: 0.55rem 0.6rem; border-bottom: 1px solid #e8edef; }
+table.report-table tr:nth-child(even) { background: #fafcfd; }
+.table-note { color: var(--muted); font-size: 0.9rem; }
+.asset-links { display: flex; gap: 0.55rem; flex-wrap: wrap; margin: 0.6rem 0 1.4rem; }
+.asset-link { display: inline-block; border: 1px solid #b9c7cf; padding: 0.28rem 0.65rem; border-radius: 0.35rem; text-decoration: none; font-size: 0.9rem; }
+.cell-output-display img { display: block; width: 100%; max-width: 1120px; height: auto; margin: 0.8rem auto 1.4rem; }
+.callout { margin-top: 1.2rem; }
+code { color: #7b2d43; }
+@media print { .asset-links { display: none; } body { font-size: 11pt; } }

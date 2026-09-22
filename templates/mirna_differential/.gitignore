@@ -1,0 +1,5 @@
+.pixi/
+__pycache__/
+mirna_inputs.R
+results/
+reports/

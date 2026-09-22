@@ -36,7 +36,7 @@ python3 "${script_dir}/run.py" \
 # already have either portable local metadata or a project-central record.
 central_meta="${LINKAR_PROJECT_DIR:-${project_dir}}/.linkar/meta/${LINKAR_INSTANCE_ID:-summary}.json"
 if [[ -f "${script_dir}/.linkar/meta.json" || -f "${central_meta}" ]]; then
-  linkar collect "${script_dir}"
+  linkar collect "${script_dir}" --project "${LINKAR_PROJECT_DIR:-${project_dir}}"
   linkar clean "${script_dir}" --yes
 else
   echo "[info] no Linkar run metadata found yet; skipping in-script collect/clean"

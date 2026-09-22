@@ -78,9 +78,16 @@ linkar run export --prepare-only
 linkar run export --refresh-export true
 linkar run export --reuse-spec
 linkar run export --reuse-credentials
+linkar run export --reuse-spec true --show-password false
 linkar render export
 linkar render export --reuse-credentials
 ```
+
+The export command prints the real password in the terminal `Access Credentials` and
+`JSON Patch for MS Planner` sections by default so the block can be copied to MS Teams. Use
+`--show-password false` when running in CI, a shared terminal, or a screen-sharing session.
+Public result artifacts remain redacted, and the complete credentials remain stored in
+`export_credentials.json` with mode `0600`.
 
 Credential reuse looks for a complete username/password pair in this order:
 
@@ -128,10 +135,21 @@ Generated artifacts include:
 - `results/summary_context.yaml`
 - `results/export_state.json` after submission or refresh
 
-Passwords are removed from terminal output, `export_submission.json`, and
-`export_final_message.txt`. Those public artifacts retain non-secret status, URLs, and usernames;
-password occurrences in API messages are replaced with `[REDACTED]`. Authorized operators can read
-the private credentials file directly when delivery credentials are needed.
+For `mirna_differential`, the export layout intentionally separates reusable analysis results and
+configuration from the standalone report:
+
+- `2_Processed_data/mirna_differential[/<instance>]/results`
+- `2_Processed_data/mirna_differential[/<instance>]/config`
+- `3_Reports/mirna_differential[/<instance>]`
+
+The optional instance level is added only when the rendered folder name differs from the template
+id. Workspace source files, Pixi environments, and caches are not exported.
+
+Passwords are displayed in terminal output by default but always removed from
+`export_submission.json` and `export_final_message.txt`. Passing `--show-password false` redacts
+the terminal output as well. Public artifacts retain non-secret status, URLs, and usernames;
+password occurrences in saved API messages are replaced with `[REDACTED]`. Authorized operators
+can also read the private credentials file directly.
 
 ## Notes
 

@@ -25,6 +25,10 @@ params:
     type: bool
     default: false
     description: When true, rebuild export_job_spec.json while preserving saved credentials; refresh enables this automatically.
+  show_password:
+    type: bool
+    default: true
+    description: Print the export password in the terminal final message by default. Set false to redact terminal output; saved public artifacts always remain redacted.
   export_engine_api_url:
     type: str
     default: http://genomics.rwth-aachen.de:9500
@@ -126,6 +130,7 @@ run:
       --job-id "${param:job_id}" \
       --reuse-spec "${param:reuse_spec}" \
       --reuse-credentials "${param:reuse_credentials}" \
+      --show-password "${param:show_password}" \
       --export-engine-api-url "${param:export_engine_api_url}" \
       --export-engine-backends "${param:export_engine_backends}" \
       --export-expiry-days "${param:export_expiry_days}" \

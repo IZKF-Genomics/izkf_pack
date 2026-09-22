@@ -142,6 +142,50 @@ templates:
       - clusterprofiler
       - quarto
 
+  mirna_differential:
+    category: downstream_analysis
+    publication_relevance: true
+    label: miRNA differential expression analysis
+    summary: Mature-miRNA counts were analyzed in an editable DESeq2 workspace supporting two-group, paired-time, and longitudinal interaction contrasts, with optional independent hairpin analysis.
+    method_core: Raw mature-miRNA counts from nf-core/smrnaseq were analyzed with DESeq2 in an editable R/Quarto workspace using configured sample metadata, count filtering, negative-binomial models, false-discovery-rate correction, and effect-size-aware reporting.
+    method_details:
+      - Sample identifiers in the count matrix were matched exactly to the analysis metadata before modeling, and low-abundance miRNAs were filtered using the thresholds recorded in the rendered workspace configuration.
+      - Two-group, paired-time, and longitudinal group-by-time interaction contrasts are supported; paired longitudinal models use a nested subject term, and every model matrix is checked for full column rank before fitting.
+      - DESeq2 estimates size factors and negative-binomial dispersion parameters separately for each configured contrast, with raw Wald estimates and confidence intervals retained alongside normal-prior shrunken log2 fold changes used for ranking and visualization.
+      - Benjamini-Hochberg adjusted p values are reported as false discovery rates, while the combined evidence flag additionally requires the configured absolute shrunken-effect threshold.
+      - Sample quality control, global expression structure, contrast-level tables, uncertainty-aware figures, cross-contrast agreement, limitations, and reproducibility details are assembled in a standalone Quarto HTML report.
+      - When enabled, hairpin counts are filtered, normalized, and modeled independently as a supplementary analysis and are never pooled with mature-miRNA counts.
+    important_params:
+      - counts_file
+      - hairpin_counts_file
+      - samplesheet
+      - organism
+      - name
+      - authors
+    param_explanations:
+      counts_file: Raw mature-miRNA count matrix used as the primary analysis input.
+      hairpin_counts_file: Optional raw precursor-miRNA count matrix used only for a separate supplementary analysis.
+      samplesheet: Upstream nf-core/smrnaseq sample sheet used to identify and validate the analyzed samples.
+      organism: Organism identifier used to retain the biological reference context of the miRNA data.
+      name: Human-readable project or analysis name shown in the report.
+      authors: Report authors recorded in the rendered analysis workspace.
+    param_context:
+      - The mature count matrix is the primary molecular feature space; a supplied hairpin matrix remains a separate supplementary analysis.
+      - Contrast definitions, reference levels, filtering thresholds, FDR level, and effect-size threshold are recorded in config/analysis.yaml inside the rendered workspace.
+      - config/samples.csv records inclusion, group, time, and subject assignments used by the statistical models.
+    command_hints:
+      - Use runtime_command and software_versions to report the recorded R, DESeq2, Quarto, and Pixi versions when available.
+      - Describe only contrast types present in the rendered analysis configuration, and distinguish the primary interaction from secondary endpoint or within-group comparisons.
+      - Mention hairpin analysis only when a hairpin input was supplied and supplementary analysis was enabled.
+    tools:
+      - R
+      - DESeq2
+      - Quarto
+      - Pixi
+    citations:
+      - deseq2
+      - quarto
+
   ercc:
     category: quality_control
     publication_relevance: true

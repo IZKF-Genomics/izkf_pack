@@ -170,6 +170,30 @@ Source: [`get_dgea_organism.py`](get_dgea_organism.py)
 
 Maps upstream genome or organism metadata to the organism value expected by the DGEA workspace.
 
+### `get_mirna_mature_counts`
+
+Source: [`get_mirna_mature_counts.py`](get_mirna_mature_counts.py)
+
+Resolves `mature_counts.csv` from the `edger_qc_dir` output of the latest recorded `nfcore_smrnaseq` run.
+
+### `get_mirna_hairpin_counts`
+
+Source: [`get_mirna_hairpin_counts.py`](get_mirna_hairpin_counts.py)
+
+Resolves the optional matching `hairpin_counts.csv`; returns an empty value when the upstream file is unavailable.
+
+### `get_mirna_samplesheet`
+
+Source: [`get_mirna_samplesheet.py`](get_mirna_samplesheet.py)
+
+Returns the rendered samplesheet from the latest `nfcore_smrnaseq` workspace, resolving relative paths against that workspace.
+
+### `get_mirna_organism`
+
+Source: [`get_mirna_organism.py`](get_mirna_organism.py)
+
+Maps the upstream small-RNA genome or organism parameter to the normalized organism identifier used by the miRNA differential report.
+
 ### `get_dgea_application`
 
 Source: [`get_dgea_application.py`](get_dgea_application.py)

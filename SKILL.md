@@ -36,7 +36,9 @@ Default user workflow:
 
 1. `linkar render <template>` to inspect or edit the rendered bundle.
 2. `bash run.sh` inside the rendered directory when the template is render-first.
-3. `linkar collect <outdir>` to record outputs.
+3. Current rendered launchers normally collect outputs and clean declared runtime artifacts after a
+   successful run. Use `linkar collect <outdir>` explicitly for older bundles or after manual output
+   changes.
 4. `linkar run <template>` for one-shot execution when inspection is not needed.
 
 Inside an active Linkar project:
@@ -50,7 +52,8 @@ Follow the repository README usage patterns unless the user explicitly wants a d
 1. start from a processed sequencing run or project directory
 2. render first when the user wants to inspect generated files
 3. run `bash run.sh` in the rendered directory for render-first templates
-4. run `linkar collect <outdir>` after manual execution or edits
+4. run `linkar collect <outdir>` when the launcher did not collect automatically or outputs were
+   edited afterward
 5. use `linkar run <template>` for one-shot execution when inspection is not needed
 
 When the task involves a new project, prefer the README pattern:
@@ -65,7 +68,7 @@ When the task involves a new project, prefer the README pattern:
 - Use `rg` for searching.
 - Use `apply_patch` for file edits.
 - Do not overwrite unrelated user edits.
-- Commit each logical fix separately when making repo changes.
+- Commit only when the user asks; keep each requested commit logically focused.
 - Keep README paths GitHub-friendly; do not write workstation-specific paths in docs.
 - Prefer the examples and naming patterns from `README.md` when drafting commands for users.
 
@@ -94,6 +97,8 @@ Important local conventions:
 - Keep `run.sh` thin and human-friendly.
 - For command-wrapper templates, prefer:
   `run.py` resolves parameters -> writes exact editable `run.sh` -> executes it.
+- Use top-level `render.command` for preparation that must happen while staging a rendered bundle,
+  such as materializing configs or editable workspace files.
 - Record stable outputs in `linkar_template.yaml` so downstream templates can reuse them.
 - Add or update `test.py` whenever runtime behavior changes.
 
@@ -123,12 +128,29 @@ Important local conventions:
 - Similar class of template to `nfcore_3mrnaseq`.
 - Good candidate for the same `run.py -> generated run.sh` pattern.
 
+### `nfcore_smrnaseq`
+
+- Wraps pinned `nf-core/smrnaseq` processing in an editable render-first workspace.
+- The default binding generates a three-column samplesheet from curated demultiplex outputs and
+  resolves genome and host resource limits.
+- Treat `mirna_gtf`, `mature`, and `hairpin` as one provenance-sensitive reference set. When local
+  references are supplied, all three must come from the same database release.
+- Before execution, inspect the generated samplesheet and adapter/UMI settings.
+
 ### `dgea`
 
 - Editable downstream analysis workspace.
 - Uses quantified RNA-seq outputs and generates HTML reports.
 - GO / GSEA references should match the actual package used by the template.
 - If multiple upstream nf-core runs exist, prefer explicit `--salmon-dir` and `--samplesheet` values.
+
+### `mirna_differential`
+
+- Editable DESeq2 workspace downstream of `nfcore_smrnaseq`.
+- Default bindings resolve mature counts, optional hairpin counts, the upstream samplesheet,
+  organism, project name, and authors from recorded project context.
+- Keep comparison design and sample annotations visible in the rendered configuration; do not infer
+  scientific groupings silently.
 
 ### `ercc`
 
@@ -144,7 +166,8 @@ Important local conventions:
 - For nf-core sections, UMI, genome, spike-in, and key parameters should come from the rendered or recorded command when available, not only from Agendo metadata.
 - `summary_short.md` should be a clean condensation of the long version, not an unrelated summary.
 - README-backed practice:
-  keep LLM secrets in the environment, not in `project.yaml`, and use `linkar run summary --outdir ./summary --refresh` for reruns.
+  keep LLM secrets in the environment, not in `project.yaml`, and rerun with
+  `linkar run summary --outdir ./summary`. The template has no template-specific `--refresh` flag.
 
 ### `export`
 
@@ -226,6 +249,9 @@ After template changes, run the smallest relevant verification:
 - targeted render/run dry-run checks when safe
 - YAML validation for `linkar_template.yaml` edits
 - CLI help checks when Linkar core behavior is uncertain
+
+For a new template or cross-cutting contract change, also run `python3 scripts/run_tests.py` and
+`linkar pack validate .` from the repository root.
 
 If a change affects docs and runtime behavior, update both.
 

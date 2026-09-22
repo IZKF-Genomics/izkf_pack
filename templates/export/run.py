@@ -25,6 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--job-id", default="", help="Existing export job id for refresh; falls back to saved state.")
     parser.add_argument("--reuse-spec", default="false", help="Submit or inspect the current export_job_spec.json without rebuilding it.")
     parser.add_argument("--reuse-credentials", default="false", help="Rebuild the spec while preserving saved username/password; refresh enables this automatically.")
+    parser.add_argument("--show-password", default="true", help="Print the export password in terminal output; set false to redact it. Saved public artifacts remain redacted.")
     parser.add_argument("--export-engine-api-url", required=True, help="Base URL of the export engine; /export is appended if needed.")
     parser.add_argument("--export-engine-backends", default="apache, owncloud, sftp", help="Comma-separated export backends.")
     parser.add_argument("--export-expiry-days", type=int, default=30, help="Retention period recorded in the export spec.")
@@ -218,6 +219,8 @@ def main() -> int:
         str(args.poll_interval_seconds),
         "--timeout-seconds",
         str(args.timeout_seconds),
+        "--show-password",
+        "true" if parse_bool(args.show_password) else "false",
     ]
     if refresh:
         submit_args.extend(["--refresh", "true"])

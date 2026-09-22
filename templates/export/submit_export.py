@@ -26,6 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--job-id", default="", help="Existing export job id for refresh; falls back to saved state.")
     parser.add_argument("--poll-interval-seconds", type=int, default=2, help="Poll interval for GET /export/{job_id}/poll.")
     parser.add_argument("--timeout-seconds", type=int, default=3600, help="Timeout while polling for final export status.")
+    parser.add_argument("--show-password", default="true", help="Print passwords in terminal output; set false to redact them. Saved public artifacts remain redacted.")
     return parser.parse_args()
 
 
@@ -161,13 +162,22 @@ def print_list_item(label: str, value: str) -> None:
     print(f"- {label}: {value}")
 
 
-def print_final_export_summary(final_payload: dict[str, object], credentials_path: Path) -> None:
+def print_final_export_summary(
+    final_payload: dict[str, object],
+    credentials_path: Path,
+    *,
+    show_password: bool = True,
+    credentials: dict[str, object] | None = None,
+) -> None:
     print_section("Final Export Summary", CYAN)
     print("Export complete.")
 
     raw_fields = parse_raw_api_message(str(final_payload.get("message") or ""))
     main_report = str(final_payload.get("main_report") or raw_fields.get("Report URL") or "").strip()
     username = str(final_payload.get("username") or raw_fields.get("Username") or "").strip()
+    password = str(final_payload.get("password") or raw_fields.get("Password") or "").strip()
+    if not password and isinstance(credentials, dict):
+        password = str(credentials.get("password") or "").strip()
 
     if main_report:
         print("")
@@ -179,6 +189,8 @@ def print_final_export_summary(final_payload: dict[str, object], credentials_pat
         print("Access Credentials")
         if username:
             print_list_item("Username", username)
+        if show_password and password:
+            print_list_item("Password", password)
         print_list_item("Private file", str(credentials_path))
 
     publisher_results = final_payload.get("publisher_results")
@@ -359,6 +371,7 @@ def main() -> int:
         save_private_json(credentials_path, credentials)
     export_url = endpoint(args.api_url)
     refresh = parse_bool(args.refresh)
+    show_password = parse_bool(args.show_password)
     job_id = args.job_id.strip() or (read_saved_job_id(results_dir) if refresh else "")
     submit_url = export_url
     submit_payload = payload
@@ -440,13 +453,15 @@ def main() -> int:
     public_final_payload = redact_payload(final_payload, secrets)
     if not isinstance(public_status, dict) or not isinstance(public_final_payload, dict):
         raise SystemExit("failed to sanitize export response")
-    raw_final_message = redact_text(raw_final_message, secrets)
+    redacted_final_message = redact_text(raw_final_message, secrets)
 
     (results_dir / "export_submission.json").write_text(
         json.dumps(public_status, indent=2, sort_keys=True), encoding="utf-8"
     )
     (results_dir / "export_job_id.txt").write_text(job_id + "\n", encoding="utf-8")
-    (results_dir / "export_final_message.txt").write_text(raw_final_message + ("\n" if raw_final_message else ""), encoding="utf-8")
+    (results_dir / "export_final_message.txt").write_text(
+        redacted_final_message + ("\n" if redacted_final_message else ""), encoding="utf-8"
+    )
     (results_dir / "export_final_path.txt").write_text(final_path + ("\n" if final_path else ""), encoding="utf-8")
     (results_dir / "export_state.json").write_text(
         json.dumps(build_export_state(job_id, final_payload, final_path), indent=2, sort_keys=True),
@@ -461,12 +476,17 @@ def main() -> int:
 
     if final_payload:
         print("")
-        print_final_export_summary(public_final_payload, credentials_path)
+        print_final_export_summary(
+            final_payload if show_password else public_final_payload,
+            credentials_path,
+            show_password=show_password,
+            credentials=credentials,
+        )
 
     if raw_final_message:
         print("")
         print_section("JSON Patch for MS Planner", YELLOW)
-        print(raw_final_message)
+        print(raw_final_message if show_password else redacted_final_message)
     elif final_path:
         print_section("Export Result", GREEN)
         print_key_value("Final path", final_path)

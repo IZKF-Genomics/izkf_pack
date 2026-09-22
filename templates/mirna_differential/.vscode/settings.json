@@ -1,0 +1,6 @@
+{
+  "r.rterm.linux": "${workspaceFolder}/.pixi/envs/default/bin/R",
+  "r.rpath.linux": "${workspaceFolder}/.pixi/envs/default/bin/R",
+  "quarto.path": "${workspaceFolder}/.pixi/envs/default/bin/quarto",
+  "python.defaultInterpreterPath": "${workspaceFolder}/.pixi/envs/default/bin/python"
+}
