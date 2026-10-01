@@ -1,0 +1,28 @@
+[reference]
+# A Cell Ranger transcriptome reference is required for GEX. Render fills these
+# values when a reference or a known facility genome can be resolved.
+genome = "__EDIT_ME_GENOME__"
+transcriptome = "__EDIT_ME_TRANSCRIPTOME_REFERENCE__"
+
+[gene_expression]
+# Cell Ranger 10 requires this choice explicitly.
+create_bam = true
+
+[feature]
+# Choose exactly one source after rendering:
+#   "catalog" - compile a checked-in catalog snapshot
+#   "file"    - validate and use config/custom_feature_reference.csv
+#   "none"    - only valid when samples.csv contains no Feature Barcode library
+source = "__EDIT_ME__"
+catalog = ""
+file = "config/custom_feature_reference.csv"
+
+[sample_assignment]
+# Optional antibody-hashing assignments. Leave file empty for singleplex runs.
+# The CSV columns are: gem_well,sample_id,hashtag_ids
+file = "config/sample_assignments.csv"
+
+[runtime]
+cellranger_bin = "/data/shared/10xGenomics/bin/cellranger-10.0.0/bin/cellranger"
+localcores = 0
+localmem = 0

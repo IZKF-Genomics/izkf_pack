@@ -1,0 +1,102 @@
+id: cellranger_multi
+version: 0.1.0
+description: Render and run one Cell Ranger multi analysis per paired GEX/Feature Barcode sample.
+tools:
+  required:
+    - python3
+params:
+  samplesheet:
+    type: str
+    required: true
+    description: Paired GEX/Feature Barcode sample manifest. The default binding discovers and pairs libraries ending in _GEX and _FB.
+  genome:
+    type: str
+    default: ""
+    description: Optional facility genome label such as GRCm39 or GRCh38. The default binding reuses existing project metadata when available.
+  reference:
+    type: str
+    default: ""
+    description: Optional explicit Cell Ranger transcriptome reference. It overrides the facility reference selected by genome.
+  cellranger_bin:
+    type: str
+    default: /data/shared/10xGenomics/bin/cellranger-10.0.0/bin/cellranger
+    description: Cell Ranger executable name or absolute path.
+  localcores:
+    type: int
+    default: 0
+    description: Optional Cell Ranger local core limit. The default binding uses 80 percent of host CPUs.
+  localmem:
+    type: int
+    default: 0
+    description: Optional Cell Ranger local memory limit in GB.
+outputs:
+  results_dir: {}
+  sample_manifest:
+    path: ../config/samples.csv
+  settings:
+    path: ../config/cellranger_multi.toml
+  sample_assignments:
+    path: ../config/sample_assignments.csv
+  custom_feature_reference:
+    path: ../config/custom_feature_reference.csv
+  generated_feature_reference:
+    path: ../generated/feature_reference.csv
+  generated_multi_configs:
+    glob: ../generated/multi/*.csv
+  cellranger_outs_dirs:
+    glob: "*/outs"
+  qc_reports:
+    glob: "*/outs/qc_report.html"
+  per_sample_web_summaries:
+    glob: "*/outs/per_sample_outs/*/web_summary.html"
+  all_html_reports:
+    glob: "*/outs/**/*.html"
+  qc_library_metrics:
+    glob: "*/outs/qc_library_metrics.csv"
+  qc_sample_metrics:
+    glob: "*/outs/qc_sample_metrics.csv"
+  per_sample_metrics:
+    glob: "*/outs/per_sample_outs/*/metrics_summary.csv"
+  all_metrics_csvs:
+    glob: "*/outs/**/*metrics*.csv"
+  multiplexing_analysis:
+    glob: "*/outs/multiplexing_analysis/*"
+  filtered_feature_matrices:
+    glob: "*/outs/filtered_feature_bc_matrix.h5"
+  raw_feature_matrices:
+    glob: "*/outs/raw_feature_bc_matrix.h5"
+  raw_molecule_info:
+    glob: "*/outs/raw_molecule_info.h5"
+  raw_cloupe_files:
+    glob: "*/outs/raw_cloupe.cloupe"
+  per_sample_filtered_matrices:
+    glob: "*/outs/per_sample_outs/**/sample_filtered_feature_bc_matrix.h5"
+  per_sample_molecule_info:
+    glob: "*/outs/per_sample_outs/**/sample_molecule_info.h5"
+  per_sample_cloupe_files:
+    glob: "*/outs/per_sample_outs/**/sample_cloupe.cloupe"
+  per_sample_bams:
+    glob: "*/outs/per_sample_outs/**/*.bam"
+  per_sample_bam_indexes:
+    glob: "*/outs/per_sample_outs/**/*.bai"
+  per_sample_bam_csi_indexes:
+    glob: "*/outs/per_sample_outs/**/*.csi"
+  runtime_command:
+    path: runtime_command.json
+  software_versions:
+    path: software_versions.json
+cleanup:
+  - path: __pycache__
+    type: dir
+run:
+  mode: render
+  entry: run.sh
+render:
+  command: |
+    python3 ./run.py render \
+      --samplesheet "${param:samplesheet}" \
+      --genome "${param:genome}" \
+      --reference "${param:reference}" \
+      --cellranger-bin "${param:cellranger_bin}" \
+      --localcores "${param:localcores}" \
+      --localmem "${param:localmem}"

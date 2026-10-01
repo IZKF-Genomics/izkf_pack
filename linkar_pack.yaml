@@ -81,6 +81,14 @@ templates:
         function: get_demultiplex_fastq_dir
       localcores:
         function: get_host_max_cpus
+  cellranger_multi:
+    params:
+      samplesheet:
+        function: generate_cellranger_multi_samplesheet
+      genome:
+        function: get_cellranger_multi_genome
+      localcores:
+        function: get_host_max_cpus
   dgea:
     params:
       salmon_dir:

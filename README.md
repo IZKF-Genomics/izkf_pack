@@ -578,6 +578,7 @@ If a required parameter cannot be resolved automatically, pass it explicitly wit
 | [`nfcore_demultiplex`](templates/nfcore_demultiplex/linkar_template.yaml) | Run `nf-core/demultiplex` for Illumina and Element AVITI raw run folders with project-level FASTQ and MultiQC views. | [README](templates/nfcore_demultiplex/README.md) |
 | [`nfcore_3mrnaseq`](templates/nfcore_3mrnaseq/linkar_template.yaml) | Run the site-specific `nf-core/rnaseq` wrapper for 3' mRNA-seq projects. | [README](templates/nfcore_3mrnaseq/README.md) |
 | [`nfcore_scrnaseq`](templates/nfcore_scrnaseq/linkar_template.yaml) | Run the facility-focused `nf-core/scrnaseq` wrapper for single-cell RNA-seq projects. | [README](templates/nfcore_scrnaseq/README.md) |
+| [`cellranger_multi`](templates/cellranger_multi/linkar_template.yaml) | Pair GEX and Feature Barcode libraries and render one Cell Ranger multi analysis per GEM well. | [README](templates/cellranger_multi/README.md) |
 | [`scrna_prep`](templates/scrna_prep/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq preprocessing workspace with Quarto QC reporting. | [README](templates/scrna_prep/README.md) |
 | [`scrna_integrate`](templates/scrna_integrate/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq dataset integration workspace with baseline and integrated QC reporting. | [README](templates/scrna_integrate/README.md) |
 | [`scrna_annotate`](templates/scrna_annotate/linkar_template.yaml) | Run a provider-based single-cell RNA-seq annotation workspace with marker-gene evidence, standard provider JSON, and Quarto method reports. | [README](templates/scrna_annotate/README.md) |
@@ -664,6 +665,7 @@ Run focused template tests:
 
 ```bash
 python3 templates/cellranger_atac/test.py
+python3 templates/cellranger_multi/test.py
 python3 templates/summary/test.py
 python3 templates/methods_from_paths/test.py
 python3 templates/dgea/test.py

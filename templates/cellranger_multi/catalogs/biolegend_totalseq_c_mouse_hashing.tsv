@@ -1,0 +1,73 @@
+id	name	read	pattern	sequence	feature_type	catalog_id	vendor	product_family	species	catalog_number	barcode_id	target	clone	application	gene_ids	rrid	released	source_url
+HTO_C0301	Ms.Hashtag_1	R2	5PNNNNNNNNNN(BC)	ACCCACCAGTAAGAC	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155861	0301	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2800693	02/06/2019	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0302	Ms.Hashtag_2	R2	5PNNNNNNNNNN(BC)	GGTCGAGAGCATTCA	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155863	0302	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2800694	02/06/2019	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0303	Ms.Hashtag_3	R2	5PNNNNNNNNNN(BC)	CTTGCCGCATGTCAT	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155865	0303	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2800695	02/06/2019	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0304	Ms.Hashtag_4	R2	5PNNNNNNNNNN(BC)	AAAGCATTCTTCACG	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155867	0304	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2800696	02/06/2019	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0305	Ms.Hashtag_5	R2	5PNNNNNNNNNN(BC)	CTTTGTCTTTGTGAG	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155869	0305	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2800697	02/06/2019	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0306	Ms.Hashtag_6	R2	5PNNNNNNNNNN(BC)	TATGCTGCCACGGTA	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155871	0306	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2819910	10/03/2019	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0307	Ms.Hashtag_7	R2	5PNNNNNNNNNN(BC)	GAGTCTGCCAGTATC	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155873	0307	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2819911	10/03/2019	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0308	Ms.Hashtag_8	R2	5PNNNNNNNNNN(BC)	TATAGAACGCCAGGC	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155875	0308	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2819912	10/03/2019	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0309	Ms.Hashtag_9	R2	5PNNNNNNNNNN(BC)	TGCCTATGAAACAAG	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155877	0309	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2819913	10/03/2019	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0310	Ms.Hashtag_10	R2	5PNNNNNNNNNN(BC)	CCGATTGTAACAGAC	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155879	0310	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2819914	10/03/2019	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0311	Ms.Hashtag_11	R2	5PNNNNNNNNNN(BC)	GCTTACCGAATTAAC	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155881	0311	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2924482	07/13/2022	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0312	Ms.Hashtag_12	R2	5PNNNNNNNNNN(BC)	CTGCAAATATAACGG	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155883	0312	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2924483	07/13/2022	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0313	Ms.Hashtag_13	R2	5PNNNNNNNNNN(BC)	CTACATTGCGATTTG	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155885	0313	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2922483	06/30/2022	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0314	Ms.Hashtag_14	R2	5PNNNNNNNNNN(BC)	CTTTCGCCAACTCTG	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155887	0314	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2922484	06/30/2022	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0315	Ms.Hashtag_15	R2	5PNNNNNNNNNN(BC)	CCCTCTCTGGATTCT	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155889	0315	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2924484	07/13/2022	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0316	Mu.Hashtag_16	R2	5PNNNNNNNNNN(BC)	GATGTATCCGTTGTC	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155891	0316	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2924485	07/06/2022	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0317	Mu.Hashtag_17	R2	5PNNNNNNNNNN(BC)	CTGCCGTTGTGCTAT	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	113931	0317	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2941396	04/14/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0318	Mu.Hashtag_18	R2	5PNNNNNNNNNN(BC)	GAATTAAGAGCCGGA	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	113929	0318	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2941395	04/14/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0321	Mu.Hashtag_21	R2	5PNNNNNNNNNN(BC)	CTTTAGTTCGTTGTG	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	113933	0321	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2941397	04/14/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0322	Mu.Hashtag_22	R2	5PNNNNNNNNNN(BC)	GTGTTGTTCCCACAT	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	113935	0322	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2941398	04/14/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0323	Mu.Hashtag_23	R2	5PNNNNNNNNNN(BC)	TTATTGGGCCGTATC	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	113937	0323	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2941399	04/14/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0324	Mu.Hashtag_24	R2	5PNNNNNNNNNN(BC)	GCTGGAGTATATCCG	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	113939	0324	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2941400	04/14/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0325	Mu.Hashtag_19	R2	5PNNNNNNNNNN(BC)	GAATTAGCTGTGCAA	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155893	0325	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2927982	12/08/2022	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_C0326	Mu.Hashtag_20	R2	5PNNNNNNNNNN(BC)	CAAGTATCTGCCGTG	Antibody Capture	biolegend_totalseq_c_mouse_hashing	BioLegend	TotalSeq-C	Mouse	155895	0326	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2927981	12/08/2022	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml

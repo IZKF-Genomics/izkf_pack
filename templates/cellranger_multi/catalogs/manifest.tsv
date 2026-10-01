@@ -1,0 +1,13 @@
+catalog_id	file	vendor	product_family	species	application	row_count	source_url	retrieved_at
+biolegend_totalseq_a_human	biolegend_totalseq_a_human.tsv	BioLegend	TotalSeq-A	Human	surface_protein	322	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-antibodies	2026-10-01
+biolegend_totalseq_a_mouse	biolegend_totalseq_a_mouse.tsv	BioLegend	TotalSeq-A	Mouse	surface_protein	209	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-antibodies	2026-10-01
+biolegend_totalseq_a_human_hashing	biolegend_totalseq_a_human_hashing.tsv	BioLegend	TotalSeq-A	Human	hashing	48	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags	2026-10-01
+biolegend_totalseq_a_mouse_hashing	biolegend_totalseq_a_mouse_hashing.tsv	BioLegend	TotalSeq-A	Mouse	hashing	48	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags	2026-10-01
+biolegend_totalseq_b_human	biolegend_totalseq_b_human.tsv	BioLegend	TotalSeq-B	Human	surface_protein	354	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-b-antibodies	2026-10-01
+biolegend_totalseq_b_mouse	biolegend_totalseq_b_mouse.tsv	BioLegend	TotalSeq-B	Mouse	surface_protein	205	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-b-antibodies	2026-10-01
+biolegend_totalseq_b_human_hashing	biolegend_totalseq_b_human_hashing.tsv	BioLegend	TotalSeq-B	Human	hashing	48	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-b-hashtags	2026-10-01
+biolegend_totalseq_b_mouse_hashing	biolegend_totalseq_b_mouse_hashing.tsv	BioLegend	TotalSeq-B	Mouse	hashing	48	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-b-hashtags	2026-10-01
+biolegend_totalseq_c_human	biolegend_totalseq_c_human.tsv	BioLegend	TotalSeq-C	Human	surface_protein	392	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-antibodies	2026-10-01
+biolegend_totalseq_c_mouse	biolegend_totalseq_c_mouse.tsv	BioLegend	TotalSeq-C	Mouse	surface_protein	251	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-antibodies	2026-10-01
+biolegend_totalseq_c_human_hashing	biolegend_totalseq_c_human_hashing.tsv	BioLegend	TotalSeq-C	Human	hashing	24	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags	2026-10-01
+biolegend_totalseq_c_mouse_hashing	biolegend_totalseq_c_mouse_hashing.tsv	BioLegend	TotalSeq-C	Mouse	hashing	24	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-c-hashtags	2026-10-01

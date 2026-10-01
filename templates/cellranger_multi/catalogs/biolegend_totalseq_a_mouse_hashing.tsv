@@ -1,0 +1,97 @@
+id	name	read	pattern	sequence	feature_type	catalog_id	vendor	product_family	species	catalog_number	barcode_id	target	clone	application	gene_ids	rrid	released	source_url
+HTO_A0301	Ms.Hashtag_1	R2	5P(BC)	ACCCACCAGTAAGAC	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155801	0301	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2750032	07/10/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0302	Ms.Hashtag_2	R2	5P(BC)	GGTCGAGAGCATTCA	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155803	0302	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2750033	07/10/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0303	Ms.Hashtag_3	R2	5P(BC)	CTTGCCGCATGTCAT	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155805	0303	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2750034	07/10/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0304	Ms.Hashtag_4	R2	5P(BC)	AAAGCATTCTTCACG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155807	0304	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2750035	07/10/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0305	Ms.Hashtag_5	R2	5P(BC)	CTTTGTCTTTGTGAG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155809	0305	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2750036	07/10/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0306	Ms.Hashtag_6	R2	5P(BC)	TATGCTGCCACGGTA	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155811	0306	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2750037	07/10/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0307	Ms.Hashtag_7	R2	5P(BC)	GAGTCTGCCAGTATC	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155813	0307	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2750039	07/10/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0308	Ms.Hashtag_8	R2	5P(BC)	TATAGAACGCCAGGC	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155815	0308	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2750040	07/10/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0309	Ms.Hashtag_9	R2	5P(BC)	TGCCTATGAAACAAG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155817	0309	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2750042	07/10/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0310	Ms.Hashtag_10	R2	5P(BC)	CCGATTGTAACAGAC	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155819	0310	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2750043	07/10/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0311	Ms.Hashtag_11	R2	5P(BC)	GCTTACCGAATTAAC	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155821	0311	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2750136	07/10/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0312	Ms.Hashtag_12	R2	5P(BC)	CTGCAAATATAACGG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155823	0312	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2750137	07/10/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0313	Ms.Hashtag_13	R2	5P(BC)	CTACATTGCGATTTG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155825	0313	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2750138	07/10/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0314	Ms.Hashtag_14	R2	5P(BC)	CTTTCGCCAACTCTG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155827	0314	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2783128	10/05/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0315	Ms.Hashtag_15	R2	5P(BC)	CCCTCTCTGGATTCT	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155829	0315	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2783129	10/15/2018	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0316	Mu.Hashtag_16	R2	5P(BC)	GATGTATCCGTTGTC	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	113921	0316	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2936664	03/29/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0317	Mu.Hashtag_17	R2	5P(BC)	CTGCCGTTGTGCTAT	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	113923	0317	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2941392	04/14/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0318	Mu.Hashtag_18	R2	5P(BC)	GAATTAAGAGCCGGA	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	113925	0318	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2941393	04/14/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0321	Mu.Hashtag_21	R2	5P(BC)	CTTTAGTTCGTTGTG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	113927	0321	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2941394	04/14/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0322	Mu.Hashtag_22	R2	5P(BC)	GTGTTGTTCCCACAT	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	113943	0322	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2941402	04/26/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0323	Mu.Hashtag_23	R2	5P(BC)	TTATTGGGCCGTATC	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	113947	0323	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2941404	04/26/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0324	Mu.Hashtag_24	R2	5P(BC)	GCTGGAGTATATCCG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	113951	0324	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2941406	04/26/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0325	Mu.Hashtag_19	R2	5P(BC)	GAATTAGCTGTGCAA	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155897	0325	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2936562	01/30/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0326	Mu.Hashtag_20	R2	5P(BC)	CAAGTATCTGCCGTG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	155899	0326	"H-2/CD45
+
+"	M1/42; 30-F11	hashing	ENSMUSG00000026395	AB_2936563	01/30/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0451	Nuclear_Hashtag_1	R2	5P(BC)	TTCCTGCCATTACTA	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682205	0451	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861054	04/28/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0452	Nuclear_Hashtag_2	R2	5P(BC)	CCGTACCTCATTGTT	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682207	0452	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861055	04/28/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0453	Nuclear_Hashtag_3	R2	5P(BC)	GGTAGATGTCCTCAG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682209	0453	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861056	04/28/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0454	Nuclear_Hashtag_4	R2	5P(BC)	TGGTGTCATTCTTGA	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682211	0454	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861057	04/28/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0455	Nuclear_Hashtag_5	R2	5P(BC)	ATGATGAACAGCCAG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682213	0455	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861058	05/04/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0456	Nuclear_Hashtag_6	R2	5P(BC)	CTCGAACGCTTATCG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682215	0456	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861059	04/28/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0457	Nuclear_Hashtag_7	R2	5P(BC)	CTTATCACCGCTCAA	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682217	0457	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861060	04/28/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0458	Nuclear_Hashtag_8	R2	5P(BC)	TGACGCCGTTGTTGT	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682219	0458	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861061	04/28/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0459	Nuclear_Hashtag_9	R2	5P(BC)	GCCTAGTATGATCCA	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682221	0459	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861062	04/28/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0460	Nuclear_Hashtag_10	R2	5P(BC)	AGTCACAGTATTCCA	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682223	0460	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861063	04/28/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0461	Nuclear_Hashtag_11	R2	5P(BC)	TTGGCCTTTGTATCG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682225	0461	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861064	05/04/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0462	Nuclear_Hashtag_12	R2	5P(BC)	AACGCCAGTATGAAC	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682227	0462	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861065	05/04/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0463	Nuclear_Hashtag_13	R2	5P(BC)	GCTTCCGTATATCTG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682229	0463	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861066	05/04/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0464	Nuclear_Hashtag_14	R2	5P(BC)	AGCAACTCACTCTTT	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682231	0464	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861067	05/04/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0465	Nuclear_Hashtag_15	R2	5P(BC)	CACTAGAGCTTGGAT	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682233	0465	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2861068	05/04/2020	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0466	Nuclear_Hashtag_16	R2	5P(BC)	TCCAAACCGTAGAAA	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682283	0466	Nuclear Pore Complex Proteins	MAb414	hashing		AB_3068134	08/10/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0467	Nuclear_Hashtag_17	R2	5P(BC)	TGACCCTTCCTTCTC	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682285	0467	Nuclear Pore Complex Proteins	MAb414	hashing		AB_3068135	08/10/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0468	Nuclear_Hashtag_18	R2	5P(BC)	TGGTATCCCTATGCC	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682295	0468	Nuclear Pore Complex Proteins	MAb414	hashing		AB_3068203	08/10/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0469	Nuclear_Hashtag_19	R2	5P(BC)	TAGATGCGCCTTGGA	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682265	0469	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2936621	03/17/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0470	Nuclear_Hashtag_20	R2	5P(BC)	AACCTACCTAGCAGG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682267	0470	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2936622	03/20/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0471	Nuclear_Hashtag_21	R2	5P(BC)	ACCCACTTCAGTTCG	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682269	0471	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2936633	03/17/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0472	Nuclear_Hashtag_22	R2	5P(BC)	ACGCCGGTAGTATCT	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682271	0472	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2936623	03/17/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0473	Nuclear_Hashtag_23	R2	5P(BC)	TTTACGACCTATTCC	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682273	0473	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2941626	04/14/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml
+HTO_A0474	Nuclear_Hashtag_24	R2	5P(BC)	TATCGTCTCCGACTA	Antibody Capture	biolegend_totalseq_a_mouse_hashing	BioLegend	TotalSeq-A	Mouse	682275	0474	Nuclear Pore Complex Proteins	MAb414	hashing		AB_2941627	04/14/2023	https://fo-biolegend-sbx1.mydwsite.com/en-us/totalseq/barcode-lookup/totalseq-a-hashtags?LayoutTemplate=Designs/BioLegend/jsonRetriever.cshtml

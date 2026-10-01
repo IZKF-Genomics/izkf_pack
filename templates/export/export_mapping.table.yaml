@@ -139,6 +139,23 @@ mappings:
         description: "Aggregated web summary report from the cellranger_atac template."
         link_name: "cellranger_atac aggregated web summary"
 
+  - template_id: cellranger_multi
+    src: "{template_root}"
+    dest: "2_Processed_data/cellranger_multi"
+    report_links:
+      - path: "."
+        section: processed
+        description: "Rendered Cell Ranger multi configuration, Feature Reference provenance, and per-sample results."
+        link_name: "cellranger_multi results"
+      - path: "results/*/outs/qc_report.html"
+        section: processed/QC
+        description: "GEM-well Cell Ranger multi quality-control report."
+        link_name: "cellranger_multi GEM-well QC reports"
+      - path: "results/*/outs/per_sample_outs/*/web_summary.html"
+        section: processed/QC
+        description: "Biological-sample Cell Ranger multi web summary."
+        link_name: "cellranger_multi per-sample web summaries"
+
   - template_id: summary
     src: "{template_root}/results"
     dest: "3_Reports/summary"
