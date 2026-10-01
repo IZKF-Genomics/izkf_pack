@@ -484,6 +484,39 @@ mappings:
         section: "reports/DGEA {template_label}"
         description: "Rendered DGEA HTML report from {template_basename}."
 
+  - template_id: dgea_interaction
+    src: "{template_root}/results"
+    dest: "2_Processed_data/dgea_interaction{template_basename_suffix}/results"
+    report_links:
+      - path: "tables"
+        section: processed/Tables
+        description: "Differential-expression, interaction, response-class, and pathway tables from {template_basename}."
+        link_name: "{template_label} interaction-analysis tables"
+      - path: "figures"
+        section: processed/Figures
+        description: "QC, contrast, response-class, and pathway figures from {template_basename}."
+        link_name: "{template_label} interaction-analysis figures"
+
+  - template_id: dgea_interaction
+    src: "{template_root}/config"
+    dest: "2_Processed_data/dgea_interaction{template_basename_suffix}/config"
+    report_links:
+      - path: "."
+        section: processed/Configuration
+        description: "Paired-design sample metadata and predefined contrast configuration from {template_basename}."
+
+  - template_id: dgea_interaction
+    src: "{template_root}/reports"
+    dest: "3_Reports/dgea_interaction{template_basename_suffix}"
+    report_links:
+      - path: "DGEA_interaction_report.html"
+        section: reports/DGEA interaction
+        description: "Integrated paired genotype-by-stimulation differential-expression report."
+        link_name: "{template_label} interaction overview"
+      - path: "comparisons/*.html"
+        section: reports/DGEA interaction comparisons
+        description: "One evidence-oriented report for each configured biological comparison."
+
   - template_id: mirna_differential
     src: "{template_root}/results"
     dest: "2_Processed_data/mirna_differential{template_basename_suffix}/results"

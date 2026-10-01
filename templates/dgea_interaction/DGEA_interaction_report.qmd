@@ -1,0 +1,211 @@
+---
+title: "Paired genotype × stimulation RNA-seq analysis"
+subtitle: "Baseline, normal stimulation, AF-like response, and interaction tests"
+author: "Genomics Facility, IZKF"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+    page-layout: full
+    theme: lumen
+    css: report-style.css
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+source("dgea_interaction_inputs.R")
+source("report_helpers.R")
+results_dir <- "results"
+download_root <- "../results"
+cfg <- yaml::read_yaml("config/analysis.yaml")
+metadata <- read_result_table(file.path(results_dir, "tables", "sample_inventory.csv"))
+input_summary <- read_result_table(file.path(results_dir, "tables", "input_summary.csv"))
+filter_summary <- read_result_table(file.path(results_dir, "tables", "filter_summary.csv"))
+contrast_summary <- read_result_table(file.path(results_dir, "tables", "contrast_summary.csv"))
+pathway_status <- read_result_table(file.path(results_dir, "tables", "pathways", "status.csv"))
+primary_id <- cfg$analysis$primary_contrast
+primary <- contrast_summary |> filter(contrast_id == primary_id) |> slice(1)
+summary_row <- function(id) contrast_summary |> filter(contrast_id == id) |> slice(1)
+baseline <- summary_row("baseline_ttn")
+wt_sr <- summary_row("wt_sr_vs_control")
+ttn_sr <- summary_row("ttn_sr_vs_control")
+sr_interaction <- summary_row("ttn_sr_response_interaction")
+wt_af <- summary_row("wt_af_vs_sr")
+ttn_af <- summary_row("ttn_af_vs_sr")
+af_interaction <- summary_row("ttn_af_response_interaction")
+primary_pathway_status <- pathway_status |> filter(contrast_id == primary_id) |> slice(1)
+```
+
+# Executive summary
+
+This analysis separates three biological stages: differences already present before stimulation, responses to normal electrical stimulation, and the additional response to AF-like stimulation. Within-genotype comparisons describe what changes in WT or TTN; interaction comparisons directly test whether those changes differ between genotypes.
+
+The primary question is whether the **AF-like versus sinus-rhythm change differs between TTN and WT**. This is tested by the interaction
+
+$$
+(\mathrm{TTN}_{AF}-\mathrm{TTN}_{SR})-(\mathrm{WT}_{AF}-\mathrm{WT}_{SR}).
+$$
+
+```{r primary-box}
+interpretation_box(
+  "Primary interaction",
+  evidence_summary_text(primary, cfg$analysis$alpha, cfg$analysis$lfc_threshold),
+  "conclusion"
+)
+```
+
+```{r cards}
+metric_cards(list(
+  list(value = nrow(metadata), label = "samples"),
+  list(value = length(unique(metadata$subject_nested)), label = "individuals"),
+  list(value = filter_summary$n_features_retained, label = "genes retained"),
+  list(value = primary$n_fdr_significant, label = "primary interaction FDR hits")
+))
+```
+
+- **Before stimulation:** `r baseline$n_fdr_significant` genes differed between TTN and WT at FDR < `r cfg$analysis$alpha`; `r baseline$n_evidence_threshold` also reached the prespecified effect-size threshold.
+- **Normal electrical stimulation:** WT and TTN had `r wt_sr$n_fdr_significant` and `r ttn_sr$n_fdr_significant` FDR-significant within-genotype changes, respectively. The direct genotype-by-response interaction identified `r sr_interaction$n_fdr_significant` gene, with `r sr_interaction$n_evidence_threshold` reaching the combined FDR and effect-size threshold.
+- **AF-specific stimulation:** WT and TTN had `r wt_af$n_fdr_significant` and `r ttn_af$n_fdr_significant` FDR-significant changes from sinus rhythm to AF-like stimulation. The direct interaction identified `r af_interaction$n_fdr_significant` genes, with `r af_interaction$n_evidence_threshold` reaching the combined threshold.
+- The unequal numbers of within-genotype DEGs do **not** by themselves demonstrate different genotype responses. That conclusion must come from the interaction reports. `r primary_pathway_status$pathways_fdr` GO biological-process gene sets reached the pathway FDR threshold for the primary AF-response interaction, suggesting coordinated but exploratory pathway-level differences despite modest individual interaction effect sizes.
+
+# How the seven reports fit together
+
+Each detailed report answers one specific question. Read the within-genotype reports to understand the response in each genotype, and use the interaction report to decide whether those responses differ statistically.
+
+## Stage 1 — Differences present before stimulation
+
+### Is TTN already different from WT at baseline?
+
+**Comparison:** TTN Control versus WT Control.
+
+**Biological meaning:** This identifies genotype-associated expression differences already present before electrical stimulation. It does not test whether TTN changes a stimulation response.
+
+**Result:** `r evidence_summary_text(baseline, cfg$analysis$alpha, cfg$analysis$lfc_threshold)`
+
+[Open the baseline genotype report](comparisons/baseline_ttn.html)
+
+## Stage 2 — Response to normal electrical stimulation
+
+### What changes after normal stimulation in WT?
+
+**Comparison:** WT sinus rhythm versus WT control, paired within individuals.
+
+**Biological meaning:** This describes the normal stimulation response in WT. A significant change here does not by itself mean that WT and TTN respond differently.
+
+**Result:** `r evidence_summary_text(wt_sr, cfg$analysis$alpha, cfg$analysis$lfc_threshold)`
+
+[Open the WT normal-stimulation report](comparisons/wt_sr_vs_control.html)
+
+### What changes after normal stimulation in TTN?
+
+**Comparison:** TTN sinus rhythm versus TTN control, paired within individuals.
+
+**Biological meaning:** This describes the normal stimulation response in TTN. Differences in DEG counts between this report and the WT report are descriptive, not an interaction test.
+
+**Result:** `r evidence_summary_text(ttn_sr, cfg$analysis$alpha, cfg$analysis$lfc_threshold)`
+
+[Open the TTN normal-stimulation report](comparisons/ttn_sr_vs_control.html)
+
+### Does TTN change the response to normal stimulation?
+
+**Comparison:** (TTN sinus rhythm − TTN control) − (WT sinus rhythm − WT control).
+
+**Biological meaning:** This interaction is the direct statistical test of whether the normal-stimulation response differs between TTN and WT. Its detailed report contains the response-pattern classifications and their gene-level interpretation.
+
+**Result:** `r evidence_summary_text(sr_interaction, cfg$analysis$alpha, cfg$analysis$lfc_threshold)`
+
+[Open the normal-stimulation interaction report](comparisons/ttn_sr_response_interaction.html)
+
+## Stage 3 — Additional response to AF-like stimulation
+
+### What is the AF-specific response in WT?
+
+**Comparison:** WT AF-like stimulation versus WT sinus rhythm, paired within individuals.
+
+**Biological meaning:** Using sinus rhythm as the reference separates the additional AF-like response from the general effect of electrical stimulation.
+
+**Result:** `r evidence_summary_text(wt_af, cfg$analysis$alpha, cfg$analysis$lfc_threshold)`
+
+[Open the WT AF-specific response report](comparisons/wt_af_vs_sr.html)
+
+### What is the AF-specific response in TTN?
+
+**Comparison:** TTN AF-like stimulation versus TTN sinus rhythm, paired within individuals.
+
+**Biological meaning:** This describes the additional AF-like response in TTN, but the larger DEG count cannot alone establish that the response differs from WT.
+
+**Result:** `r evidence_summary_text(ttn_af, cfg$analysis$alpha, cfg$analysis$lfc_threshold)`
+
+[Open the TTN AF-specific response report](comparisons/ttn_af_vs_sr.html)
+
+### Does TTN change the AF-specific response?
+
+**Comparison:** (TTN AF − TTN sinus rhythm) − (WT AF − WT sinus rhythm).
+
+**Biological meaning:** This is the primary interaction and directly tests whether the change from normal to AF-like stimulation differs between TTN and WT. Its detailed report contains the response-pattern classifications and gene-level evidence.
+
+**Result:** `r evidence_summary_text(af_interaction, cfg$analysis$alpha, cfg$analysis$lfc_threshold)`
+
+[Open the primary AF-response interaction report](comparisons/ttn_af_response_interaction.html)
+
+# Pathway analysis
+
+GO biological-process GSEA uses the full ranked Wald statistic for each contrast. It is interpreted as pathway-level association, not proof of mechanism.
+
+```{r primary-pathway}
+#| fig-cap: "Leading GO biological-process enrichment for the primary TTN × AF-response interaction. Positive NES indicates stronger positive ranking in the TTN-versus-WT response difference; negative NES indicates the reverse."
+primary_pathway_figure <- file.path(results_dir, "figures", "pathways", paste0(primary_id, "_gsea_go_bp.png"))
+if (file.exists(primary_pathway_figure)) knitr::include_graphics(primary_pathway_figure)
+```
+
+```{r primary-pathway-table}
+primary_workbook <- file.path(results_dir, "tables", "comparisons", paste0(primary_id, ".xlsx"))
+if (file.exists(primary_workbook) && "GO_BP_GSEA" %in% openxlsx::getSheetNames(primary_workbook)) {
+  primary_pathways <- read_result_sheet(primary_workbook, "GO_BP_GSEA") |> arrange(p.adjust)
+  render_report_table(primary_pathways, c("ID", "Description", "setSize", "enrichmentScore", "NES", "p.adjust"), 20, "Leading pathways for the primary interaction")
+}
+```
+
+```{r pathway-status}
+render_report_table(pathway_status, max_rows = 20, caption = "Annotation coverage and pathway results")
+```
+
+# Study design and data quality
+
+```{r design}
+#| fig-cap: "Repeated observations from the same individual are connected."
+knitr::include_graphics(file.path(results_dir, "figures", "qc", "study_design.png"))
+```
+
+```{r qc}
+#| layout-ncol: 2
+#| fig-cap: ["Raw library sizes.", "PCA of variance-stabilized expression."]
+knitr::include_graphics(c(file.path(results_dir, "figures", "qc", "library_size.png"), file.path(results_dir, "figures", "qc", "pca.png")))
+```
+
+# Methods and audit trail
+
+Salmon transcript estimates were summarized to genes with `tximport`. DESeq2 models use `~ genotype` for the baseline comparison, `~ subject_nested + condition` for within-genotype paired comparisons, and `~ subject_nested + condition + genotype_condition_interaction` for response interactions. Every design matrix is checked for full column rank. Benjamini–Hochberg adjusted p values are reported as FDR; effect-aware evidence additionally requires the configured shrunken log2-fold-change threshold.
+
+```{r audit}
+render_report_table(contrast_summary, c("contrast_label", "model_formula", "coefficient", "n_samples", "n_features_tested", "n_fdr_significant", "n_evidence_threshold", "min_fdr", "is_primary"), 20, "Model audit summary")
+```
+
+```{r downloads}
+download_links(c(
+  file.path(download_root, "tables", "gene_differential_results.xlsx"),
+  file.path(download_root, "tables", "contrast_summary.csv"),
+  file.path(download_root, "tables", "response_class_summary.csv"),
+  file.path(download_root, "interpretation.md"),
+  file.path(download_root, "interpretation_context.yaml"),
+  file.path(download_root, "interpretation_prompt.md"),
+  file.path(download_root, "interpretation_response.json"),
+  file.path(download_root, "runtime_command.json"),
+  file.path(download_root, "software_versions.json")
+))
+```

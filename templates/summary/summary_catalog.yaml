@@ -142,6 +142,40 @@ templates:
       - clusterprofiler
       - quarto
 
+  dgea_interaction:
+    category: downstream_analysis
+    publication_relevance: true
+    label: Paired genotype-by-stimulation differential expression analysis
+    summary: Gene-level RNA-seq counts were analyzed with paired DESeq2 models and genotype-by-condition difference-in-differences tests, followed by interaction-gated response classification and ranked pathway analysis.
+    method_core: Salmon transcript estimates were summarized to genes with tximport and analyzed with DESeq2 using baseline genotype, within-genotype paired condition, and genotype-by-condition interaction models.
+    method_details:
+      - Repeated Control, normal-stimulation, and AF-like measurements from the same individual were represented by a nested subject term in paired and interaction models.
+      - Interaction coefficients directly test whether the Control-to-SR or SR-to-AF change differs between genotypes; unequal numbers of significant genes in separate within-genotype analyses are not treated as evidence of interaction.
+      - Model matrices are checked for full rank, Benjamini-Hochberg adjusted p values are reported, and shrunken effects are retained for ranking and visualization.
+      - Enhanced, reduced or blunted, genotype-specific, and opposite response patterns are assigned only among genes passing the corresponding interaction threshold.
+      - GO biological-process GSEA uses the complete ranked Wald statistic when organism annotation is available.
+      - Interpretation is deterministically generated from result tables and may optionally be polished by an OpenAI-compatible model with prompt, context, and response provenance retained.
+    important_params:
+      - samplesheet
+      - organism
+      - application
+      - use_llm
+    param_explanations:
+      samplesheet: Sample table used to infer and validate genotype, individual, and condition assignments.
+      organism: Organism identifier used for gene annotation and pathway mapping.
+      application: Upstream workflow label used to select tximport count summarization.
+      use_llm: Whether to attempt optional evidence-bound narrative polishing; statistical results do not depend on it.
+    tools:
+      - R
+      - Quarto
+      - tximport
+      - DESeq2
+      - clusterProfiler
+    citations:
+      - deseq2
+      - clusterprofiler
+      - quarto
+
   mirna_differential:
     category: downstream_analysis
     publication_relevance: true

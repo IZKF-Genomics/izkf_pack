@@ -1,0 +1,87 @@
+id: dgea_interaction
+version: 0.1.1
+description: Paired DESeq2 genotype-by-stimulation analysis with response classification, pathways, Quarto reports, and optional evidence-bound LLM interpretation.
+tools:
+  required:
+    - pixi
+    - python3
+params:
+  salmon_dir:
+    type: path
+    required: true
+    description: Salmon quantification directory from nf-core/rnaseq or nf-core/3mrnaseq.
+  samplesheet:
+    type: path
+    required: true
+    description: nf-core samplesheet with sample names that identify genotype, individual, and condition.
+  organism:
+    type: str
+    required: true
+    description: Organism identifier such as hsapiens, mmusculus, rnorvegicus, or sscrofa.
+  application:
+    type: str
+    default: ""
+    description: Upstream application; nfcore_rnaseq selects lengthScaledTPM count summarization.
+  name:
+    type: str
+    default: ""
+    description: Project name shown in report provenance.
+  authors:
+    type: str
+    default: ""
+    description: Comma-separated report authors.
+  use_llm:
+    type: bool
+    default: true
+    description: Use an OpenAI-compatible endpoint when fully configured; deterministic interpretation is always available.
+  llm_config:
+    type: path
+    default: ""
+    description: Optional YAML with base_url, model, temperature, and api_key_env.
+  llm_base_url:
+    type: str
+    default: ""
+    description: Optional OpenAI-compatible API base URL; environment variables can also provide it.
+  llm_model:
+    type: str
+    default: ""
+    description: Optional model name for interpretation polishing.
+  llm_temperature:
+    type: str
+    default: "0.2"
+    description: Sampling temperature for optional interpretation polishing.
+outputs:
+  results_dir: {}
+  run_info:
+    path: run_info.yaml
+  software_versions:
+    path: software_versions.json
+  runtime_command:
+    path: runtime_command.json
+  report_html:
+    path: ../reports/DGEA_interaction_report.html
+  comparison_reports:
+    glob: ../reports/comparisons/*.html
+  analysis_config:
+    path: ../config/analysis.yaml
+  sample_metadata:
+    path: ../config/samples.csv
+  tables:
+    glob: tables/**/*
+  figures:
+    glob: figures/**/*
+  interpretation:
+    glob: interpretation*
+cleanup:
+  - path: .pixi
+    type: dir
+  - path: __pycache__
+    type: dir
+run:
+  mode: render
+  entry: run.sh
+render:
+  command: |
+    python3 "${LINKAR_PACK_ROOT}/functions/materialize_vscode_settings.py" \
+      --template-dir "." \
+      --workspace-dir "."

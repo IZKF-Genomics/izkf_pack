@@ -1,0 +1,10 @@
+tools:
+  - pixi
+  - quarto
+  - R
+
+params:
+  - name: organism
+    env: ORGANISM
+  - name: application
+    env: APPLICATION

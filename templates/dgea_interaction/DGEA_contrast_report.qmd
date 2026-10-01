@@ -1,0 +1,244 @@
+---
+title: "Gene-expression comparison report"
+subtitle: "One biological question, one statistical comparison"
+author: "Genomics Facility, IZKF"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+    page-layout: full
+    theme: lumen
+    css: report-style.css
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+source("dgea_interaction_inputs.R")
+source("report_helpers.R")
+results_dir <- "results"
+download_root <- "../../results"
+cfg <- yaml::read_yaml("config/analysis.yaml")
+contrast_id <- Sys.getenv("DGEA_CONTRAST_ID")
+if (!nzchar(contrast_id)) stop("DGEA_CONTRAST_ID is required.", call. = FALSE)
+contrast_index <- which(vapply(cfg$contrasts, `[[`, character(1), "id") == contrast_id)
+if (length(contrast_index) != 1) stop("Unknown or duplicate contrast id: ", contrast_id, call. = FALSE)
+contrast <- cfg$contrasts[[contrast_index]]
+primary_id <- cfg$analysis$primary_contrast
+contrast_summary <- read_result_table(file.path(results_dir, "tables", "contrast_summary.csv"))
+row <- contrast_summary |> filter(contrast_id == !!contrast_id) |> slice(1)
+workbook_path <- file.path(results_dir, "tables", "comparisons", paste0(contrast_id, ".xlsx"))
+result <- read_result_sheet(workbook_path, "statistics")
+hits <- result |> filter(evidence_threshold %in% TRUE)
+response_rows <- tibble()
+response_significant <- tibble()
+if (contrast$type == "interaction" && "response_classification" %in% openxlsx::getSheetNames(workbook_path)) {
+  response_rows <- read_result_sheet(workbook_path, "response_classification")
+  response_significant <- response_rows |>
+    filter(interaction_significant %in% TRUE) |>
+    arrange(interaction_fdr)
+}
+```
+
+# `r contrast$label`
+
+```{r role}
+interpretation_box("Role in the analysis", contrast_role_text(contrast, primary_id), "read")
+```
+
+## Biological question
+
+**`r contrast_biological_question(contrast)`**
+
+This comparison uses **`r format_report_value(row$n_samples, "n_samples")` samples** and tests **`r format_report_value(row$n_features_tested, "n_features_tested")` genes** after filtering.
+
+```{r direction}
+interpretation_box("How to read the direction", contrast_direction_text(contrast), "read")
+```
+
+## Result at a glance
+
+```{r result-cards}
+metric_cards(list(
+  list(value = format_report_value(row$n_features_tested, "n_features_tested"), label = "genes tested"),
+  list(value = format_report_value(row$n_fdr_significant, "n_fdr_significant"), label = "FDR < alpha"),
+  list(value = format_report_value(row$n_evidence_threshold, "n_evidence_threshold"), label = "FDR + effect hits"),
+  list(value = format_report_value(row$min_fdr, "min_fdr"), label = "lowest FDR")
+))
+```
+
+```{r result-text}
+interpretation_box(
+  "Plain-language result",
+  contrast_result_text(row, result, cfg$analysis$alpha, cfg$analysis$lfc_threshold),
+  "conclusion"
+)
+interpretation_box("Important limitation", contrast_caution_text(contrast), "limit")
+```
+
+`r if (nrow(hits) > 0) "The table below lists the genes that met both prespecified criteria. Their direction follows the definition above." else "Because no gene met both criteria, the figures and leading rows below are exploratory rather than a list of confirmed changes."`
+
+```{r evidence-hits}
+if (nrow(hits) > 0) {
+  render_report_table(
+    hits,
+    c("gene_symbol", "gene_id", "baseMean", "shrunken_log2FoldChange", "conf_low", "conf_high", "padj"),
+    max_rows = 20,
+    caption = "genes meeting both the FDR and effect-size criteria"
+  )
+}
+```
+
+```{r response-pattern-section, results='asis'}
+if (contrast$type == "interaction") {
+  cat("\n## How TTN modifies the response\n\n")
+  cat(
+    "This interaction compares the change from **", contrast$base_condition,
+    "** to **", contrast$target_condition, "** in ", contrast$target_group,
+    " with the corresponding change in ", contrast$base_group,
+    ". It is the direct test of whether genotype changes the response.\n\n",
+    sep = ""
+  )
+  cat(
+    "The response-pattern labels below are descriptive summaries applied only after the interaction reaches **FDR < ",
+    cfg$analysis$alpha,
+    "**. They are not additional statistical tests and should be read together with both within-genotype effect estimates.\n\n",
+    sep = ""
+  )
+  cat(as.character(interpretation_box(
+    "Interaction-significant response patterns",
+    response_pattern_summary_text(response_significant, contrast$base_group, contrast$target_group),
+    "conclusion"
+  )), "\n\n")
+}
+```
+
+```{r response-pattern-plot}
+#| out-width: "100%"
+#| fig-cap: "Within-genotype response estimates. The diagonal represents equal responses in WT and TTN; classifications are shown only for genes with a significant interaction."
+if (contrast$type == "interaction") {
+  knitr::include_graphics(file.path(results_dir, "figures", "response_classes", paste0(contrast_id, ".png")))
+}
+```
+
+```{r response-pattern-definitions}
+if (contrast$type == "interaction") {
+  render_report_table(
+    response_class_definitions(contrast$base_group, contrast$target_group),
+    max_rows = 10,
+    caption = "How to interpret the descriptive response patterns"
+  )
+}
+```
+
+```{r response-pattern-genes}
+if (contrast$type == "interaction" && nrow(response_significant) > 0) {
+  response_display <- response_significant |>
+    transmute(
+      gene_symbol = ifelse(is.na(gene_symbol) | gene_symbol == "", gene_id, gene_symbol),
+      gene_id,
+      reference_response_log2FC = reference_lfc,
+      target_response_log2FC = target_lfc,
+      interaction_log2FC = interaction_lfc,
+      interaction_FDR = interaction_fdr,
+      response_pattern = response_class_label(response_class)
+    )
+  names(response_display)[names(response_display) == "reference_response_log2FC"] <- paste0(contrast$base_group, "_response_log2FC")
+  names(response_display)[names(response_display) == "target_response_log2FC"] <- paste0(contrast$target_group, "_response_log2FC")
+  render_report_table(
+    response_display,
+    max_rows = 30,
+    caption = "Genes passing the interaction FDR threshold and their descriptive response patterns"
+  )
+}
+```
+
+```{r response-pattern-caution, results='asis'}
+if (contrast$type == "interaction") {
+  cat("\nThe absence of a response pattern for other genes means that this dataset did not resolve a genotype-dependent difference at the configured interaction FDR threshold. It does not prove that the two genotypes are biologically identical.\n\n")
+}
+```
+
+## Effect size and uncertainty
+
+```{r forest}
+#| fig-cap: "Leading raw log2 fold-change estimates with 95% Wald confidence intervals."
+knitr::include_graphics(file.path(results_dir, "figures", "contrasts", paste0(contrast_id, "_forest.png")))
+```
+
+The point shows the estimated effect; the horizontal interval shows its uncertainty. Wide intervals mean that the exact effect remains uncertain, even when the point estimate is large.
+
+## Expression pattern in individual samples
+
+```{r heatmap}
+#| fig-cap: "Row-standardized expression of top-ranked genes, ordered by combined evidence, FDR, and absolute shrunken log2 fold change. Columns are clustered by Pearson correlation; annotation bars identify genotype and condition. Colors show relative expression within each gene, not abundance differences between genes."
+knitr::include_graphics(file.path(results_dir, "figures", "contrasts", paste0(contrast_id, "_heatmap.png")))
+```
+
+Use this heatmap to inspect whether a result is broadly consistent across animals or driven by a small number of samples. It is descriptive and does not replace the statistical model.
+
+## Additional statistical diagnostics
+
+```{r ma-diagnostic}
+#| out-width: "100%"
+#| fig-cap: "Mean abundance versus shrunken effect size."
+knitr::include_graphics(
+  file.path(results_dir, "figures", "contrasts", paste0(contrast_id, "_ma.png"))
+)
+```
+
+```{r volcano-diagnostic}
+#| out-width: "100%"
+#| fig-cap: "Effect size versus statistical evidence."
+knitr::include_graphics(
+  file.path(results_dir, "figures", "contrasts", paste0(contrast_id, "_volcano.png"))
+)
+```
+
+Threshold lines are decision aids, not biological boundaries. Effects at low abundance and results close to a threshold require particular caution.
+
+## Leading result rows
+
+```{r leading-table}
+render_report_table(
+  result,
+  c("gene_symbol", "gene_id", "baseMean", "log2FoldChange", "shrunken_log2FoldChange", "conf_low", "conf_high", "pvalue", "padj", "evidence_threshold"),
+  max_rows = 20,
+  caption = paste("Leading results for", contrast$label)
+)
+```
+
+## Ranked pathway analysis
+
+GO biological-process GSEA uses the complete ranked Wald statistic, so it can identify coordinated pathway shifts even when few individual genes cross the FDR threshold. It does not establish a causal mechanism.
+
+```{r pathway-figure}
+#| fig-cap: "Leading GO biological-process gene sets ranked by adjusted p value."
+pathway_figure <- file.path(results_dir, "figures", "pathways", paste0(contrast_id, "_gsea_go_bp.png"))
+if (file.exists(pathway_figure)) knitr::include_graphics(pathway_figure)
+```
+
+```{r pathway-table}
+if ("GO_BP_GSEA" %in% openxlsx::getSheetNames(workbook_path)) {
+  pathways <- read_result_sheet(workbook_path, "GO_BP_GSEA") |> arrange(p.adjust)
+  render_report_table(pathways, c("ID", "Description", "setSize", "enrichmentScore", "NES", "p.adjust"), 20, caption = "Leading GO biological-process GSEA results")
+}
+```
+
+## Downloads and method
+
+```{r downloads}
+download_links(c(
+  file.path(download_root, "tables", "comparisons", paste0(contrast_id, ".xlsx")),
+  file.path(download_root, "figures", "contrasts", paste0(contrast_id, "_forest.pdf")),
+  file.path(download_root, "figures", "contrasts", paste0(contrast_id, "_heatmap.svg"))
+))
+```
+
+The model was **`r row$model_formula`** and the tested coefficient or contrast was **`r row$coefficient`**. Benjamini–Hochberg adjusted p values control the false-discovery rate across tested genes. The combined evidence flag requires both **FDR < `r cfg$analysis$alpha`** and **|shrunken log2 fold change| ≥ `r cfg$analysis$lfc_threshold`**. The XLSX workbook retains complete statistics, FDR hits, effect-threshold hits, pathway results, and—where applicable—response classifications.
+
+[Return to the overview report](../DGEA_interaction_report.html)

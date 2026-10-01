@@ -1,0 +1,7 @@
+{
+  "positron.r.interpreters.default": "${workspaceFolder}/.pixi/envs/default/bin/R",
+  "positron.r.customBinaries": [
+    "${workspaceFolder}/.pixi/envs/default/bin/R"
+  ],
+  "quarto.path": "${workspaceFolder}/.pixi/envs/default/bin/quarto"
+}
