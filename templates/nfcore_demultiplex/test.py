@@ -236,8 +236,14 @@ def test_illumina_run_script() -> None:
         run_env = os.environ.copy()
         run_env["PATH"] = f"{fake_bin}:{run_env.get('PATH', '')}"
         run_env["NFCORE_ARGS_LOG"] = str(tmpdir / "args.log")
-        for name in ("RAW_RUN_DIR", "FLOWCELL_SAMPLESHEET", "MAX_CPUS", "MAX_MEMORY"):
+        for name in (
+            "RAW_RUN_DIR",
+            "FLOWCELL_SAMPLESHEET",
+            "MAX_CPUS",
+            "MAX_MEMORY",
+        ):
             run_env.pop(name, None)
+        run_env["LINKAR_RESULTS_DIR"] = ""
         completed = run_template(tmpdir, run_env)
         assert completed.returncode == 0, completed.stderr
 

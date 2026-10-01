@@ -55,10 +55,23 @@ Template authors and AI agents should also read [TEMPLATE_AUTHORING_FOR_AGENTS.m
 
 ## Install
 
+Make sure `linkar` and `pixi` are available on `PATH`:
+
+```bash
+linkar --version
+pixi --version
+```
+
 For most users, register the published GitHub pack as a global Linkar pack:
 
 ```bash
 linkar config pack add github:IZKF-Genomics/izkf_pack --id izkf_pack
+```
+
+Verify the installation:
+
+```bash
+linkar templates
 ```
 
 Linkar caches Git-backed packs under `~/.linkar/assets/` and records the
@@ -97,9 +110,10 @@ Check the active global pack:
 linkar config pack show
 ```
 
-## Configure User Defaults
+## Configure User Defaults (Optional)
 
-Configure author metadata once per user. New projects will copy these values into `project.yaml`.
+Author metadata is not required to use the pack. Configure it once if you want
+new projects to copy these values into `project.yaml` automatically.
 
 ```bash
 linkar config author set \
@@ -129,28 +143,27 @@ linkar project init \
 
 Use this when starting from a raw sequencing run folder for Illumina or AVITI.
 
-Inspect first, then execute manually:
-
-```bash
-cd /path/to/processed_runs/
-
-linkar render demultiplex \
-  --bcl-dir /path/to/raw_runs/example_run
-
-cd example_run
-bash run.sh
-cd ..
-linkar collect example_run
-```
-
-One-shot execution:
+The shortest command is:
 
 ```bash
 cd /path/to/processed_runs/
 
 linkar run demultiplex \
   --bcl-dir /path/to/raw_runs/example_run \
-  --verbose
+  --outdir ./example_run
+```
+
+To inspect the rendered workspace before running it:
+
+```bash
+cd /path/to/processed_runs/
+
+linkar render demultiplex \
+  --bcl-dir /path/to/raw_runs/example_run \
+  --outdir ./example_run
+
+cd example_run
+bash run.sh
 ```
 
 For AVITI runs, add `--platform aviti`. With the default binding, the template uses
@@ -160,7 +173,7 @@ For AVITI runs, add `--platform aviti`. With the default binding, the template u
 linkar run demultiplex \
   --platform aviti \
   --bcl-dir /path/to/raw_runs/AVITI_RUN_001 \
-  --verbose
+  --outdir ./AVITI_RUN_001
 ```
 
 `linkar run` includes render, execution, output collection, and `.linkar` metadata writing in one command. When it runs inside an active Linkar project, it also records the run in `project.yaml`.
@@ -577,15 +590,25 @@ If a required parameter cannot be resolved automatically, pass it explicitly wit
 | [`demultiplex`](templates/demultiplex/linkar_template.yaml) | Clone and run the pinned demultiplexing workflow, writing processed outputs under `results/`. | [README](templates/demultiplex/README.md) |
 | [`nfcore_demultiplex`](templates/nfcore_demultiplex/linkar_template.yaml) | Run `nf-core/demultiplex` for Illumina and Element AVITI raw run folders with project-level FASTQ and MultiQC views. | [README](templates/nfcore_demultiplex/README.md) |
 | [`nfcore_3mrnaseq`](templates/nfcore_3mrnaseq/linkar_template.yaml) | Run the site-specific `nf-core/rnaseq` wrapper for 3' mRNA-seq projects. | [README](templates/nfcore_3mrnaseq/README.md) |
+| [`nfcore_rnaseq`](templates/nfcore_rnaseq/linkar_template.yaml) | Run the facility-specific `nf-core/rnaseq` wrapper for total RNA-seq and mRNA-seq projects. | [README](templates/nfcore_rnaseq/README.md) |
+| [`nfcore_smrnaseq`](templates/nfcore_smrnaseq/linkar_template.yaml) | Run the facility-specific `nf-core/smrnaseq` wrapper for small-RNA and miRNA sequencing projects. | [README](templates/nfcore_smrnaseq/README.md) |
+| [`nfcore_methylseq`](templates/nfcore_methylseq/linkar_template.yaml) | Run the facility-specific `nf-core/methylseq` wrapper for RRBS projects. | [README](templates/nfcore_methylseq/README.md) |
 | [`nfcore_scrnaseq`](templates/nfcore_scrnaseq/linkar_template.yaml) | Run the facility-focused `nf-core/scrnaseq` wrapper for single-cell RNA-seq projects. | [README](templates/nfcore_scrnaseq/README.md) |
 | [`cellranger_multi`](templates/cellranger_multi/linkar_template.yaml) | Pair GEX and Feature Barcode libraries and render one Cell Ranger multi analysis per GEM well. | [README](templates/cellranger_multi/README.md) |
+| [`cellranger_aggr`](templates/cellranger_aggr/linkar_template.yaml) | Aggregate compatible Cell Ranger count, multi, or V(D)J outputs with automatic input discovery and explicit normalization control. | [README](templates/cellranger_aggr/README.md) |
 | [`scrna_prep`](templates/scrna_prep/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq preprocessing workspace with Quarto QC reporting. | [README](templates/scrna_prep/README.md) |
 | [`scrna_integrate`](templates/scrna_integrate/linkar_template.yaml) | Create and run an editable scverse/Scanpy single-cell RNA-seq dataset integration workspace with baseline and integrated QC reporting. | [README](templates/scrna_integrate/README.md) |
 | [`scrna_annotate`](templates/scrna_annotate/linkar_template.yaml) | Run a provider-based single-cell RNA-seq annotation workspace with marker-gene evidence, standard provider JSON, and Quarto method reports. | [README](templates/scrna_annotate/README.md) |
+| [`scrna_annotate_celltypist`](templates/scrna_annotate_celltypist/linkar_template.yaml) | Annotate human or mouse single-cell data with CellTypist models and standardized review outputs. | [README](templates/scrna_annotate_celltypist/README.md) |
+| [`scrna_annotate_manual_markers`](templates/scrna_annotate_manual_markers/linkar_template.yaml) | Annotate single-cell clusters from explicit marker programs with Scanpy scores and a Quarto review report. | [README](templates/scrna_annotate_manual_markers/README.md) |
+| [`scrna_annotate_scanvi_reference`](templates/scrna_annotate_scanvi_reference/linkar_template.yaml) | Transfer single-cell labels from a reference dataset with scVI/scANVI and standardized review outputs. | [README](templates/scrna_annotate_scanvi_reference/README.md) |
+| [`scrna_annotate_sctype`](templates/scrna_annotate_sctype/linkar_template.yaml) | Annotate human or mouse single-cell clusters with ScType marker catalogs and standardized review outputs. | [README](templates/scrna_annotate_sctype/README.md) |
 | [`scrna_annotate_zebrafish`](templates/scrna_annotate_zebrafish/linkar_template.yaml) | Run a focused zebrafish scRNA-seq annotation workspace using cluster markers, an explicit zebrafish marker catalog, and a Quarto review report. | [README](templates/scrna_annotate_zebrafish/README.md) |
+| [`scrna_annotate_audit`](templates/scrna_annotate_audit/linkar_template.yaml) | Audit and reconcile multiple single-cell annotation providers into reviewed final labels and exportable outputs. | [README](templates/scrna_annotate_audit/README.md) |
 | [`cloupe`](templates/cloupe/linkar_template.yaml) | Convert an annotated H5AD file into a 10x Genomics Loupe Browser `.cloupe` export in a separate EULA-aware workspace. | [README](templates/cloupe/README.md) |
 | [`dgea`](templates/dgea/linkar_template.yaml) | Create and run an editable R/Quarto differential expression workspace. | [README](templates/dgea/README.md) |
 | [`mirna_differential`](templates/mirna_differential/linkar_template.yaml) | Create and run an editable DESeq2 workspace for mature-miRNA two-group, paired, and longitudinal interaction analyses. | [README](templates/mirna_differential/README.md) |
+| [`dgea_interaction`](templates/dgea_interaction/linkar_template.yaml) | Analyze paired genotype-by-stimulation RNA-seq data with interaction tests, response classes, pathways, and optional evidence-bound LLM interpretation. | [README](templates/dgea_interaction/README.md) |
 | [`ercc`](templates/ercc/linkar_template.yaml) | Create and run an editable ERCC spike-in QC workspace with Quarto reporting. | [README](templates/ercc/README.md) |
 | [`methylation_array_analysis`](templates/methylation_array_analysis/linkar_template.yaml) | Create and run an editable Illumina methylation array study workspace with preprocessing, batch-aware analysis, and ordered Quarto reports. | [README](templates/methylation_array_analysis/README.md) |
 | [`cellranger_atac`](templates/cellranger_atac/linkar_template.yaml) | Discover ATAC samples, run `cellranger-atac count`, and optionally aggregate libraries. | [README](templates/cellranger_atac/README.md) |
@@ -666,6 +689,7 @@ Run focused template tests:
 ```bash
 python3 templates/cellranger_atac/test.py
 python3 templates/cellranger_multi/test.py
+python3 templates/cellranger_aggr/test.py
 python3 templates/summary/test.py
 python3 templates/methods_from_paths/test.py
 python3 templates/dgea/test.py

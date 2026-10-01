@@ -89,7 +89,27 @@ templates:
         function: get_cellranger_multi_genome
       localcores:
         function: get_host_max_cpus
+  cellranger_aggr:
+    params:
+      aggregation_csv:
+        function: generate_cellranger_aggr_csv
+      localcores:
+        function: get_host_max_cpus
   dgea:
+    params:
+      salmon_dir:
+        function: get_dgea_salmon_dir
+      samplesheet:
+        function: get_dgea_samplesheet
+      organism:
+        function: get_dgea_organism
+      application:
+        function: get_dgea_application
+      name:
+        function: get_dgea_name
+      authors:
+        function: get_dgea_authors
+  dgea_interaction:
     params:
       salmon_dir:
         function: get_dgea_salmon_dir
