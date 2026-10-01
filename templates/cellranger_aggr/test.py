@@ -307,6 +307,8 @@ def test_manifest() -> None:
         "software_versions",
     ):
         assert name in outputs
+    run_script = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
+    assert 'collect_args+=(--project "${LINKAR_PROJECT_DIR}")' in run_script
 
 
 def main() -> int:

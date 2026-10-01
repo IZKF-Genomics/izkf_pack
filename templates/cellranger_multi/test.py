@@ -262,6 +262,11 @@ def test_pack_registration() -> None:
     assert params["genome"]["function"] == "get_cellranger_multi_genome"
 
 
+def test_collection_uses_active_project() -> None:
+    run_script = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
+    assert 'collect_args+=(--project "${LINKAR_PROJECT_DIR}")' in run_script
+
+
 def test_checked_in_catalog() -> None:
     spec = importlib.util.spec_from_file_location("cellranger_multi_run", TEMPLATE_DIR / "run.py")
     if spec is None or spec.loader is None:
@@ -284,6 +289,7 @@ def main() -> None:
     test_render_and_execute()
     test_binding_pairs_gex_and_fb()
     test_pack_registration()
+    test_collection_uses_active_project()
     test_checked_in_catalog()
     print("cellranger_multi template test passed")
 
