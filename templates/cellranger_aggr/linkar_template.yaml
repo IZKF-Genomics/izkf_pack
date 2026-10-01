@@ -1,0 +1,84 @@
+id: cellranger_aggr
+version: 0.1.0
+description: Aggregate compatible Cell Ranger count, multi, or V(D)J outputs into one analysis.
+tools:
+  required:
+    - python3
+params:
+  aggregation_csv:
+    type: str
+    required: true
+    description: Cell Ranger aggregation CSV. The default binding builds it from the latest compatible Cell Ranger outputs in the project.
+  cellranger_bin:
+    type: str
+    default: /data/shared/10xGenomics/bin/cellranger-10.0.0/bin/cellranger
+    description: Cell Ranger executable name or absolute path.
+  localcores:
+    type: int
+    default: 0
+    description: Optional local core limit. The default binding uses 80 percent of host CPUs.
+  localmem:
+    type: int
+    default: 64
+    description: Local memory limit in GB. Cell Ranger recommends at least 64 GB for up to 250,000 cells.
+outputs:
+  results_dir: {}
+  aggregation_csv:
+    path: ../config/aggregation.csv
+  runtime_aggregation_csv:
+    path: ../generated/aggregation.csv
+  settings:
+    path: ../config/cellranger_aggr.toml
+  cellranger_outs_dirs:
+    glob: "*/outs"
+  web_summaries:
+    glob: "*/outs/**/web_summary.html"
+  all_html_reports:
+    glob: "*/outs/**/*.html"
+  summary_json:
+    glob: "*/outs/**/summary.json"
+  metrics_csvs:
+    glob: "*/outs/**/*metrics*.csv"
+  filtered_feature_matrices_h5:
+    glob: "*/outs/**/filtered_feature_bc_matrix.h5"
+  filtered_feature_matrices_mex:
+    glob: "*/outs/**/filtered_feature_bc_matrix"
+  cloupe_files:
+    glob: "*/outs/**/*.cloupe"
+  vloupe_files:
+    glob: "*/outs/**/*.vloupe"
+  analysis_dirs:
+    glob: "*/outs/**/analysis"
+  antibody_analysis_dirs:
+    glob: "*/outs/**/antibody_analysis"
+  crispr_analysis_dirs:
+    glob: "*/outs/**/crispr_analysis"
+  clonotype_tables:
+    glob: "*/outs/**/clonotypes.csv"
+  filtered_contig_annotations:
+    glob: "*/outs/**/filtered_contig_annotations.csv"
+  consensus_annotations:
+    glob: "*/outs/**/consensus_annotations.csv"
+  airr_rearrangements:
+    glob: "*/outs/**/airr_rearrangements.tsv"
+  consensus_fastas:
+    glob: "*/outs/**/consensus.fasta"
+  donor_regions:
+    glob: "*/outs/**/donor_regions.fa"
+  runtime_command:
+    path: runtime_command.json
+  software_versions:
+    path: software_versions.json
+cleanup:
+  - path: __pycache__
+    type: dir
+run:
+  mode: render
+  entry: run.sh
+render:
+  command: |
+    python3 ./run.py render \
+      --aggregation-csv "${param:aggregation_csv}" \
+      --cellranger-bin "${param:cellranger_bin}" \
+      --localcores "${param:localcores}" \
+      --localmem "${param:localmem}"

@@ -1,0 +1,3 @@
+sample_id,molecule_h5,batch,condition
+sample_v2,/absolute/path/sample_v2/outs/molecule_info.h5,chemistry_v2,control
+sample_v3,/absolute/path/sample_v3/outs/molecule_info.h5,chemistry_v3,treated

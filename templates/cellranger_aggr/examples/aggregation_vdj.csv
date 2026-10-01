@@ -1,0 +1,3 @@
+sample_id,vdj_contig_info,donor,origin
+sample_1,/absolute/path/run_1/outs/vdj_contig_info.pb,donor_1,blood_t0
+sample_2,/absolute/path/run_2/outs/vdj_contig_info.pb,donor_1,blood_t1

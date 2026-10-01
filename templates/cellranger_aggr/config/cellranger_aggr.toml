@@ -1,0 +1,15 @@
+[run]
+id = "aggregated"
+
+[aggregation]
+normalize = "none"
+
+[analysis]
+nosecondary = false
+enable_tsne = false
+min_crispr_umi = 3
+
+[runtime]
+cellranger_bin = "/data/shared/10xGenomics/bin/cellranger-10.0.0/bin/cellranger"
+localcores = 0
+localmem = 64

@@ -101,6 +101,22 @@ Environment variables:
 
 - `LINKAR_HOME`
 
+### `generate_cellranger_aggr_csv`
+
+Source: [`generate_cellranger_aggr_csv.py`](generate_cellranger_aggr_csv.py)
+
+Builds the Cell Ranger aggregation CSV from the newest collected compatible
+`cellranger_multi`, `cellranger_count`, or `cellranger_vdj` result. It uses
+`molecule_h5` for GEX/Feature Barcode outputs, switches to `sample_outs` when
+complete multi outputs contain V(D)J data, and uses `vdj_contig_info` for pure
+V(D)J results. Paths are validated and cached; biological `donor` and `origin`
+values are deliberately left as blocking placeholders when they cannot be
+inferred safely.
+
+Environment variables:
+
+- `LINKAR_HOME`
+
 ### `get_agendo_genome`
 
 Source: [`get_agendo_genome.py`](get_agendo_genome.py)
