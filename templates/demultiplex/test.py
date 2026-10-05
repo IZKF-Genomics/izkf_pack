@@ -331,15 +331,15 @@ def main() -> None:
         ]
         assert versions["pixi"]["version"] == "pixi 0.42.1"
         assert versions["demultiplexer"]["version"] == "bcl-convert v4.4.6"
-        assert versions["demultiplexing_prefect"]["version"] == "72c1550bc7c2941dbb9993ee60e4ff9a18bd36d4"
+        assert versions["demultiplexing_prefect"]["version"] == "4d0c98aa2c4ebe5b3a4aafcee48760d70ee991ca"
         assert versions["demultiplexing_prefect"]["repository"] == "https://github.com/MoSafi2/demultiplexing_prefect"
         assert versions["qc_tool"]["version"] == "fastqc,fastp"
         assert versions["contamination_tool"]["version"] == "kraken"
         git_log = (tmpdir / "git_args.log").read_text(encoding="utf-8")
         staged_repo = TEMPLATE_DIR / "demultiplexing_prefect"
         assert f"clone={staged_repo}" in git_log
-        assert f"fetch={staged_repo}:72c1550bc7c2941dbb9993ee60e4ff9a18bd36d4" in git_log
-        assert f"checkout={staged_repo}:72c1550bc7c2941dbb9993ee60e4ff9a18bd36d4" in git_log
+        assert f"fetch={staged_repo}:4d0c98aa2c4ebe5b3a4aafcee48760d70ee991ca" in git_log
+        assert f"checkout={staged_repo}:4d0c98aa2c4ebe5b3a4aafcee48760d70ee991ca" in git_log
         assert not staged_repo.exists()
         assert not (tmpdir / "demultiplexing_prefect").exists()
 
@@ -355,7 +355,7 @@ def main() -> None:
         assert '--platform "${PLATFORM:?}"' in template_run_sh
         assert '--input-dir "${BCL_DIR:?}"' in template_run_sh
         assert 'find "${results_dir}/output" -type d -exec chmod 775 {} +' in template_run_sh
-        assert 'upstream_commit="72c1550bc7c2941dbb9993ee60e4ff9a18bd36d4"' in template_run_sh
+        assert 'upstream_commit="4d0c98aa2c4ebe5b3a4aafcee48760d70ee991ca"' in template_run_sh
         assert 'upstream_repo_url="https://github.com/MoSafi2/demultiplexing_prefect"' in template_run_sh
         assert "results/output/*/qc/contamination/**/*" in template_yaml
         assert "results/output/*/qc/multiqc/multiqc_report.html" in template_yaml
