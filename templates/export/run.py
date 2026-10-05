@@ -8,24 +8,46 @@ import subprocess
 import sys
 from collections import OrderedDict
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 import yaml
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Prepare and optionally submit an export bundle.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description=(
+            "Create or update a project export. The first run creates an export; "
+            "later runs automatically update the saved export while preserving its "
+            "job ID, username, password, and publisher links."
+        ),
+        epilog=(
+            "Typical use:\n"
+            "  linkar run export\n"
+            "  linkar run export --refresh\n"
+            "  linkar run export --refresh --prepare\n\n"
+            "Existing specifications are preserved unless Linkar runs with --refresh."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--results-dir", default="./results", help="Directory for generated export artifacts.")
     parser.add_argument("--project-dir", default="..", help="Linkar project directory containing project.yaml.")
     parser.add_argument("--template-dir", default=".", help="Export template directory containing helper scripts.")
-    parser.add_argument("--prepare-only", default="false", help="Build or reuse the selected spec but do not submit it.")
-    parser.add_argument("--refresh", default="false", help="Rebuild, reuse saved credentials, and refresh an existing export job.")
-    parser.add_argument("--job-id", default="", help="Existing export job id for refresh; falls back to saved state.")
-    parser.add_argument("--reuse-spec", default="false", help="Submit or inspect the current export_job_spec.json without rebuilding it.")
-    parser.add_argument("--reuse-credentials", default="false", help="Rebuild the spec while preserving saved username/password; refresh enables this automatically.")
-    parser.add_argument("--show-password", default="true", help="Print the export password in terminal output; set false to redact it. Saved public artifacts remain redacted.")
+    parser.add_argument("--prepare", action="store_true", help="Prepare the export without contacting the export service.")
+    parser.add_argument(
+        "--new",
+        action="store_true",
+        help=(
+            "Create a new export identity and credentials. This also rebuilds the specification "
+            "and is refused while the saved export is active."
+        ),
+    )
+    parser.add_argument(
+        "--job-id",
+        default="",
+        help="Update this existing job; normally the job ID is read from results/export_state.json.",
+    )
+    parser.add_argument("--hide-password", action="store_true", help="Do not print passwords in terminal output.")
     parser.add_argument("--export-engine-api-url", required=True, help="Base URL of the export engine; /export is appended if needed.")
     parser.add_argument("--export-engine-backends", default="apache, owncloud, sftp", help="Comma-separated export backends.")
     parser.add_argument("--export-expiry-days", type=int, default=30, help="Retention period recorded in the export spec.")
@@ -99,8 +121,59 @@ def run_python_script(script_path: Path, args: list[str]) -> None:
 
 
 def load_json(path: Path) -> dict:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def read_saved_job_id(results_dir: Path) -> str:
+    state = load_json(results_dir / "export_state.json")
+    job_id = str(state.get("job_id") or "").strip()
+    if job_id:
+        return job_id
+    job_id_path = results_dir / "export_job_id.txt"
+    if job_id_path.exists():
+        return job_id_path.read_text(encoding="utf-8").strip()
+    return ""
+
+
+def export_endpoint(base_url: str) -> str:
+    base = base_url.strip().rstrip("/")
+    return base if base.endswith("/export") else f"{base}/export"
+
+
+def ensure_new_export_is_safe(api_url: str, job_id: str) -> None:
+    """Refuse to replace local credentials while the saved export is active."""
+    request = Request(
+        url=f"{export_endpoint(api_url)}/{job_id}",
+        headers={"Accept": "application/json"},
+        method="GET",
+    )
+    try:
+        with urlopen(request, timeout=30) as response:
+            body = response.read().decode("utf-8", errors="replace")
+    except HTTPError as exc:
+        if exc.code == 404:
+            return
+        raise SystemExit(f"Could not verify saved export {job_id}: HTTP {exc.code}") from exc
+    except (OSError, URLError) as exc:
+        raise SystemExit(f"Could not verify saved export {job_id}: {exc}") from exc
+
+    try:
+        record = json.loads(body) if body else {}
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"Could not verify saved export {job_id}: invalid API response") from exc
+    if not isinstance(record, dict):
+        raise SystemExit(f"Could not verify saved export {job_id}: invalid API response")
+    if str(record.get("record_status") or "").strip().lower() == "active":
+        raise SystemExit(
+            f"Cannot use --new while saved export {job_id} is active. "
+            "Use the normal command to update it, or clean the active export first."
+        )
 
 
 def load_project_template_counts(project_path: Path) -> list[tuple[str, int]]:
@@ -151,15 +224,19 @@ def main() -> int:
     spec_path = results_dir / "export_job_spec.json"
     build_script = template_dir / "build_export_bundle.py"
     submit_script = template_dir / "submit_export.py"
-    reuse_spec = parse_bool(args.reuse_spec)
-    refresh = parse_bool(args.refresh)
-    prepare_only = parse_bool(args.prepare_only)
-    reuse_credentials = parse_bool(args.reuse_credentials) or refresh
+    linkar_refresh = parse_bool(os.environ.get("LINKAR_REFRESH", "false"))
+    existing_job_id = args.job_id.strip() or read_saved_job_id(results_dir)
+    if args.job_id.strip() and args.new:
+        raise SystemExit("--job-id and --new cannot be used together")
+    if args.prepare and args.new:
+        raise SystemExit("--prepare and --new cannot be used together")
+    if args.new and existing_job_id:
+        ensure_new_export_is_safe(args.export_engine_api_url, existing_job_id)
+    update_existing = not args.new and bool(existing_job_id)
+    rebuild_spec = args.new or linkar_refresh or not spec_path.exists()
 
     print_section("Prepare Export Bundle")
-    if reuse_spec:
-        if not spec_path.exists():
-            raise SystemExit(f"cannot reuse missing export spec: {spec_path}")
+    if not rebuild_spec:
         print(color("[info]", YELLOW, bold=True), f"using existing {spec_path}")
     else:
         if spec_path.exists():
@@ -179,8 +256,7 @@ def main() -> int:
                 str(args.export_expiry_days),
                 "--export-username",
                 args.export_username,
-                "--reuse-saved-credentials",
-                "true" if reuse_credentials else "false",
+                *(["--new"] if args.new else []),
                 "--agendo-id",
                 args.agendo_id,
                 "--flowcell-id",
@@ -204,28 +280,27 @@ def main() -> int:
 
     describe_prepared_bundle(project_dir, results_dir)
 
-    if prepare_only:
-        print_section("Prepare Only Complete", GREEN)
+    if args.prepare:
+        print_section("Prepare Complete", GREEN)
         print("Prepared the export bundle without contacting the export API.")
         return 0
 
-    print_section("Refresh Export" if refresh else "Submit Export", GREEN)
+    print_section("Update Export" if update_existing else "Create Export", GREEN)
     submit_args = [
         "--results-dir",
         str(results_dir),
         "--api-url",
         args.export_engine_api_url,
+        "--mode",
+        "update" if update_existing else "create",
         "--poll-interval-seconds",
         str(args.poll_interval_seconds),
         "--timeout-seconds",
         str(args.timeout_seconds),
-        "--show-password",
-        "true" if parse_bool(args.show_password) else "false",
+        *(["--hide-password"] if args.hide_password else []),
     ]
-    if refresh:
-        submit_args.extend(["--refresh", "true"])
-    if args.job_id.strip():
-        submit_args.extend(["--job-id", args.job_id.strip()])
+    if update_existing:
+        submit_args.extend(["--job-id", existing_job_id])
     run_python_script(
         submit_script,
         submit_args,

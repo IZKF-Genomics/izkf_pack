@@ -712,6 +712,9 @@ def collect_run_context(
         template_id = str(entry.get("id") or "").strip()
         if not template_id or template_id in {"export", "summary"}:
             continue
+        state = str(entry.get("state") or "").strip().lower()
+        if state in {"rendered", "failed"} and not parse_bool(entry.get("adopted"), default=False):
+            continue
         params = entry.get("params") if isinstance(entry.get("params"), dict) else {}
         outputs = entry.get("outputs") if isinstance(entry.get("outputs"), dict) else {}
         catalog_entry = select_catalog_entry(catalog, template_id)
@@ -798,6 +801,7 @@ def clean_runtime_version(name: str, version: str, raw: str) -> str:
 def software_display_name(name: str) -> str:
     mapping = {
         "bcl-convert": "BCL Convert",
+        "cellranger": "Cell Ranger",
         "cellranger-atac": "Cell Ranger ATAC",
         "deseq2": "DESeq2",
         "clusterprofiler": "clusterProfiler",
@@ -1310,6 +1314,27 @@ def collect_setting_bullets(run: dict[str, Any], context: dict[str, Any]) -> lis
         )
         if resolution_source:
             items.append(("Leiden resolution source", resolution_source))
+    elif template == "cellranger_multi":
+        runtime_command = run.get("runtime_command") if isinstance(run.get("runtime_command"), dict) else {}
+        reference = normalize_id_value(
+            runtime_command.get("reference") or params.get("reference") or params.get("genome")
+        )
+        if reference:
+            items.append(("Transcriptome reference", reference))
+
+        feature_reference = normalize_id_value(runtime_command.get("feature_reference"))
+        if feature_reference and feature_reference.lower() != "none":
+            items.append(("Feature Reference source", feature_reference))
+
+        gem_wells = runtime_command.get("samples")
+        if isinstance(gem_wells, list) and gem_wells:
+            items.append(("GEM wells processed", str(len(gem_wells))))
+
+        assignments = runtime_command.get("sample_assignments")
+        if isinstance(assignments, dict) and assignments:
+            assigned_samples = sum(len(value) for value in assignments.values() if isinstance(value, list))
+            if assigned_samples:
+                items.append(("Hashtag-assigned biological samples", str(assigned_samples)))
     else:
         label_map = {
             "reference": "Reference",

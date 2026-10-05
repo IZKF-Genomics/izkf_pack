@@ -1,7 +1,16 @@
 # export in izkf_pack
 
-The [`export`](../templates/export/README.md) template prepares a reviewable
-export bundle and, when requested, submits it to the export backend.
+The [`export`](../templates/export/README.md) template creates a reviewable
+export bundle and submits it to the export backend. Create or submit the
+currently prepared export with:
+
+```bash
+linkar run export
+```
+
+If no saved job ID exists, Linkar creates an export. If saved state exists, it
+updates that export while preserving its job ID, username, password, and
+publisher links.
 
 The most important public artifact is:
 
@@ -72,46 +81,31 @@ project-level `linkar clean .` before export is still useful for older rendered
 workspaces, partially rerun projects, and any artifacts that were recreated
 after the last `run.sh` finished.
 
-## Rebuild vs reuse
+## Normal updates and review
 
-The export template can reuse an existing `export_job_spec.json` if one is
-already present. This is useful when the user wants to review the prepared spec
-without rebuilding it every time, but it can also cause confusion if mappings
-changed since the spec was first built.
+Normal runs preserve an existing `export_job_spec.json`. Rebuild it explicitly
+when newly generated reports or mapping changes must appear in the export.
 
 Practical rule:
 
-- `bash run.sh` now rebuilds the spec, generates new credentials, and submits
-- use `--reuse-spec` when a manually edited or already-approved spec should be
-  submitted unchanged
-- use `--reuse-credentials` when the spec should be rebuilt but the client
-  credentials should stay stable
-- use `--prepare-only` when you want to inspect the prepared bundle before
-  submission
-
-Recommended update flow when only report links changed and the client
-credentials should stay fixed:
-
-```bash
-cd export
-bash run.sh --reuse-credentials --prepare-only
-less results/export_job_spec.json
-```
-
-With credential reuse enabled, the export template first reads
-`results/export_credentials.json`. For backward compatibility it can migrate a complete
-username/password pair from legacy `export_submission.json`, `export_job_spec.json`, or export
-params recorded in `project.yaml`; after migration, the public artifacts are rewritten without the
-password.
+- use `linkar run export` to create or update from the prepared specification
+- use `--refresh` to rebuild the specification from current project outputs
+- use `--prepare` to stop before API submission
+- use `--job-id JOB_ID` only to recover local state for a known server-side job
+- use `--new` only when a new identity and credentials are intentional
 
 Recommended review flow:
 
 ```bash
-linkar render export --outdir ./export
-cd export
-less results/export_job_spec.json
-bash run.sh
+linkar run export --refresh --prepare
+less export/results/export_job_spec.json
+linkar run export
 ```
+
+`--new` does not remove an existing export. If the saved export is still active,
+the command stops before changing local credentials. The export service permits
+only one active export per project, so this option is an operator-level escape
+hatch rather than part of the normal workflow.
 
 ## analysis summary in export
 

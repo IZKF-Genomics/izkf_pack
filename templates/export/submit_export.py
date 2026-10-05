@@ -22,11 +22,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--results-dir", default="./results", help="Directory containing export_job_spec.json.")
     parser.add_argument("--api-url", required=True, help="Base URL of the export engine; /export is appended if needed.")
-    parser.add_argument("--refresh", default="false", help="Refresh an existing export job instead of creating a new one.")
-    parser.add_argument("--job-id", default="", help="Existing export job id for refresh; falls back to saved state.")
+    parser.add_argument("--mode", choices=("create", "update"), required=True, help="Create a new export or update an existing job in place.")
+    parser.add_argument("--job-id", default="", help="Existing job ID required by update mode; saved state is used when omitted.")
     parser.add_argument("--poll-interval-seconds", type=int, default=2, help="Poll interval for GET /export/{job_id}/poll.")
     parser.add_argument("--timeout-seconds", type=int, default=3600, help="Timeout while polling for final export status.")
-    parser.add_argument("--show-password", default="true", help="Print passwords in terminal output; set false to redact them. Saved public artifacts remain redacted.")
+    parser.add_argument("--hide-password", action="store_true", help="Do not print passwords in terminal output. Saved public artifacts remain redacted.")
     return parser.parse_args()
 
 
@@ -35,25 +35,16 @@ def endpoint(base_url: str) -> str:
     return base if base.endswith("/export") else f"{base}/export"
 
 
-def parse_bool(value: object, default: bool = False) -> bool:
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return value
-    lowered = str(value).strip().lower()
-    if lowered in {"1", "true", "yes", "y", "on"}:
-        return True
-    if lowered in {"0", "false", "no", "n", "off"}:
-        return False
-    return default
-
-
 def refresh_endpoint(export_url: str, job_id: str) -> str:
     return f"{export_url}/{job_id}/refresh"
 
 
 def poll_endpoint(export_url: str, job_id: str) -> str:
     return f"{export_url}/{job_id}/poll"
+
+
+def detail_endpoint(export_url: str, job_id: str) -> str:
+    return f"{export_url}/{job_id}"
 
 
 def final_message_endpoint(export_url: str, job_id: str) -> str:
@@ -300,7 +291,15 @@ def read_saved_job_id(results_dir: Path) -> str:
 
 
 def build_refresh_payload(payload: dict[str, object]) -> dict[str, object]:
-    allowed = {"project_name", "export_list", "backend", "authors", "expiry_days"}
+    allowed = {
+        "project_name",
+        "export_list",
+        "backend",
+        "agendo_id",
+        "observed_run_keys",
+        "authors",
+        "expiry_days",
+    }
     return {key: value for key, value in payload.items() if key in allowed}
 
 
@@ -326,16 +325,46 @@ def wait_for_final_message(
     *,
     poll_interval_seconds: int,
     timeout_seconds: int,
+    previous_updated_at: str = "",
 ) -> tuple[dict[str, object], dict[str, object], str | None]:
     deadline = time.monotonic() + max(timeout_seconds, 1)
     last_error: str | None = None
     last_poll: dict[str, object] = {}
     poll_url = poll_endpoint(export_url, job_id)
     final_url = final_message_endpoint(export_url, job_id)
+    detail_url = detail_endpoint(export_url, job_id)
+    observed_refresh_generation = not previous_updated_at
     while time.monotonic() < deadline:
         try:
+            if previous_updated_at:
+                detail = fetch_json(detail_url)
+                updated_at = str(detail.get("updated_at") or "").strip()
+                if not observed_refresh_generation:
+                    if updated_at and updated_at != previous_updated_at:
+                        observed_refresh_generation = True
+                    else:
+                        time.sleep(max(poll_interval_seconds, 1))
+                        continue
+
+                detail_status = str(detail.get("status") or "").strip().lower()
+                record_status = str(detail.get("record_status") or "").strip().lower()
+                if detail_status == "failed" or record_status == "failed":
+                    message = str(detail.get("error") or "Export refresh failed").strip()
+                    return {}, detail, message
+                if detail_status in {"completed", "completed_with_warning"}:
+                    return fetch_json(final_url), detail, None
+
+                # A refresh record can be visible before its asynchronous work
+                # reaches a terminal state. Keep polling, but never accept an old
+                # terminal /poll response as proof that this refresh completed.
+                if detail_status:
+                    time.sleep(max(poll_interval_seconds, 1))
+                    continue
             last_poll = fetch_json(poll_url)
             status = str(last_poll.get("status") or "").strip().lower()
+            if status == "failed":
+                message = str(last_poll.get("message") or "Export failed").strip()
+                return {}, last_poll, message
             if status in TERMINAL_STATUSES:
                 return fetch_json(final_url), last_poll, None
         except HTTPError as exc:
@@ -359,29 +388,27 @@ def main() -> int:
     if not isinstance(payload, dict):
         raise SystemExit("export spec must be a JSON object")
     credentials = load_json_object(credentials_path)
-    legacy_username = str(payload.pop("username", "") or "").strip()
-    legacy_password = str(payload.pop("password", "") or "").strip()
-    if legacy_username and not credentials.get("username"):
-        credentials["username"] = legacy_username
-    if legacy_password and not credentials.get("password"):
-        credentials["password"] = legacy_password
-    if legacy_username or legacy_password:
-        spec_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     if credentials:
         save_private_json(credentials_path, credentials)
     export_url = endpoint(args.api_url)
-    refresh = parse_bool(args.refresh)
-    show_password = parse_bool(args.show_password)
+    refresh = args.mode == "update"
+    show_password = not args.hide_password
     job_id = args.job_id.strip() or (read_saved_job_id(results_dir) if refresh else "")
     submit_url = export_url
     submit_payload = payload
     action_label = "Submitting export job"
+    previous_updated_at = ""
 
     if refresh:
         if not job_id:
-            raise SystemExit("refresh requires --job-id or an existing export_job_id.txt/export_state.json")
+            raise SystemExit("update mode requires --job-id or saved export state")
         submit_url = refresh_endpoint(export_url, job_id)
         submit_payload = build_refresh_payload(payload)
+        try:
+            previous_detail = fetch_json(detail_endpoint(export_url, job_id))
+            previous_updated_at = str(previous_detail.get("updated_at") or "").strip()
+        except Exception:
+            previous_updated_at = ""
         (results_dir / "export_refresh_spec.json").write_text(
             json.dumps(submit_payload, indent=2, sort_keys=True), encoding="utf-8"
         )
@@ -431,6 +458,7 @@ def main() -> int:
             job_id,
             poll_interval_seconds=args.poll_interval_seconds,
             timeout_seconds=args.timeout_seconds,
+            previous_updated_at=previous_updated_at,
         ),
     )
     try:
@@ -458,21 +486,27 @@ def main() -> int:
     (results_dir / "export_submission.json").write_text(
         json.dumps(public_status, indent=2, sort_keys=True), encoding="utf-8"
     )
-    (results_dir / "export_job_id.txt").write_text(job_id + "\n", encoding="utf-8")
-    (results_dir / "export_final_message.txt").write_text(
-        redacted_final_message + ("\n" if redacted_final_message else ""), encoding="utf-8"
-    )
-    (results_dir / "export_final_path.txt").write_text(final_path + ("\n" if final_path else ""), encoding="utf-8")
-    (results_dir / "export_state.json").write_text(
-        json.dumps(build_export_state(job_id, final_payload, final_path), indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
+    # A failed update must not replace the locally selected stable job ID,
+    # especially when --job-id was supplied only for recovery diagnostics.
+    if not final_error or not refresh:
+        (results_dir / "export_job_id.txt").write_text(job_id + "\n", encoding="utf-8")
+    if final_payload:
+        (results_dir / "export_final_message.txt").write_text(
+            redacted_final_message + ("\n" if redacted_final_message else ""), encoding="utf-8"
+        )
+        (results_dir / "export_final_path.txt").write_text(
+            final_path + ("\n" if final_path else ""), encoding="utf-8"
+        )
+        (results_dir / "export_state.json").write_text(
+            json.dumps(build_export_state(job_id, final_payload, final_path), indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
     if final_error:
-        print_section("Export Result", GREEN)
+        print_section("Export Failed", YELLOW)
         print_key_value("Status", final_error, tone=YELLOW)
         if final_path:
             print_key_value("Final path", final_path)
-        return 0
+        return 1
 
     if final_payload:
         print("")

@@ -890,6 +890,29 @@ def test_collect_run_context_adds_variant_names_for_duplicate_nfcore_runs() -> N
         assert runs[1]["label"] == "3' mRNA-seq processing: Bile Duct"
 
 
+def test_collect_run_context_excludes_unfinished_non_adopted_runs() -> None:
+    module = load_run_module()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project_dir = Path(tmpdir)
+        project_data = {
+            "templates": [
+                {"id": "cellranger_multi", "state": "completed"},
+                {"id": "cellranger_aggr", "state": "rendered"},
+                {"id": "demultiplex", "state": "rendered", "adopted": True},
+            ]
+        }
+        catalog = {
+            "templates": {
+                "cellranger_multi": {"label": "Cell Ranger multi"},
+                "cellranger_aggr": {"label": "Cell Ranger aggr"},
+                "demultiplex": {"label": "Demultiplexing"},
+            }
+        }
+        runs, _ = module.collect_run_context(project_dir, project_data, catalog)
+
+    assert [run["template"] for run in runs] == ["cellranger_multi", "demultiplex"]
+
+
 def test_recorded_command_block_is_multiline() -> None:
     module = load_run_module()
     block = module.collect_recorded_command_block(
@@ -948,6 +971,46 @@ def test_scrna_prep_citations_and_short_sentence() -> None:
     assert "Leiden clustering" in sentence
     assert "Scrublet-based doublet scoring" in sentence
     assert "[1, 2, 3, 4, 5]" in sentence
+
+
+def test_cellranger_multi_catalog_matches_template_contract() -> None:
+    module = load_run_module()
+    catalog = yaml.safe_load((TEMPLATE_DIR / "summary_catalog.yaml").read_text(encoding="utf-8"))
+    entry = catalog["templates"]["cellranger_multi"]
+
+    assert entry["category"] == "preprocessing"
+    assert entry["citations"] == ["cellranger"]
+    assert module.software_display_name("cellranger") == "Cell Ranger"
+    details = " ".join(entry["method_details"])
+    context = " ".join(entry["param_context"])
+    hints = " ".join(entry["command_hints"])
+    assert "one independent run per physical GEM well" in entry["method_core"]
+    assert "Feature Reference" in entry["summary"]
+    assert "When hashtag assignments were configured" in details
+    assert "Cross-GEM-well aggregation is not performed" in details
+    assert "header-only file means no assignment rows" in context
+    assert "Describe hashtag demultiplexing only when" in hints
+
+    settings = module.collect_setting_bullets(
+        {
+            "template": "cellranger_multi",
+            "params": {"genome": "GRCm39"},
+            "runtime_command": {
+                "reference": "/refs/refdata-gex-GRCm39-2024-A",
+                "feature_reference": "file:/project/config/custom_feature_reference.csv",
+                "samples": ["condition_a", "condition_b"],
+                "sample_assignments": {
+                    "condition_a": ["condition_a_rep1", "condition_a_rep2", "condition_a_rep3"],
+                    "condition_b": ["condition_b_rep1", "condition_b_rep2", "condition_b_rep3"],
+                },
+            },
+        },
+        {},
+    )
+    assert any("Transcriptome reference" in line and "GRCm39-2024-A" in line for line in settings)
+    assert any("Feature Reference source" in line and "custom_feature_reference.csv" in line for line in settings)
+    assert any("GEM wells processed" in line and "`2`" in line for line in settings)
+    assert any("Hashtag-assigned biological samples" in line and "`6`" in line for line in settings)
 
 
 def test_scrna_prep_catalog_entry_matches_current_input_model() -> None:
@@ -1077,7 +1140,9 @@ def main() -> int:
     test_nfcore_demultiplex_is_summarized()
     test_demultiplex_citations_are_template_specific()
     test_collect_run_context_adds_variant_names_for_duplicate_nfcore_runs()
+    test_collect_run_context_excludes_unfinished_non_adopted_runs()
     test_recorded_command_block_is_multiline()
+    test_cellranger_multi_catalog_matches_template_contract()
     test_scrna_prep_citations_and_short_sentence()
     test_scrna_prep_catalog_entry_matches_current_input_model()
     test_scrna_prep_settings_include_resolved_leiden_resolution()
@@ -1099,6 +1164,7 @@ def main() -> int:
     assert "results/summary_long.html" in readme_text
     assert "results/summary_short.html" in readme_text
     assert "nfcore_demultiplex:" in catalog_text
+    assert "cellranger_multi:" in catalog_text
     assert "nfcore_methylseq:" in catalog_text
     assert "methylation_array_analysis:" in catalog_text
     assert "mirna_differential:" in catalog_text
@@ -1121,6 +1187,7 @@ def main() -> int:
     assert "scanorama:" in catalog_text
     assert "scib:" in catalog_text
     assert "celltypist:" in catalog_text
+    assert "cellranger:" in catalog_text
     assert 'python3 "${script_dir}/run.py"' in run_sh_text
     assert '-f "${script_dir}/.linkar/meta.json"' in run_sh_text
     assert '.linkar/meta/${LINKAR_INSTANCE_ID:-summary}.json' in run_sh_text

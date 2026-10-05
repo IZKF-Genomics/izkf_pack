@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 from pathlib import Path
 
 from export_common import (
@@ -36,7 +35,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--export-engine-backends", default="apache, owncloud, sftp", help="Comma-separated export backends.")
     parser.add_argument("--export-expiry-days", type=int, default=30, help="Retention period recorded in the export spec.")
     parser.add_argument("--export-username", default="", help="Optional username override; derived from project name if omitted.")
-    parser.add_argument("--reuse-saved-credentials", default="false", help="Preserve saved username/password when rebuilding the spec.")
+    parser.add_argument("--new", action="store_true", help="Generate a new credential pair instead of preserving the private saved credentials.")
     parser.add_argument("--agendo-id", default="", help="Optional Agendo request id for metadata lookup.")
     parser.add_argument("--flowcell-id", default="", help="Optional flowcell id for metadata lookup.")
     parser.add_argument("--metadata-source", default="auto", help="Metadata source mode: auto, api, file, mock, or none.")
@@ -46,7 +45,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--metadata-api-timeout", type=int, default=20, help="Metadata API timeout in seconds.")
     parser.add_argument("--include-summary-in-spec", default="true", help="Include generated project summary context in the export spec.")
     parser.add_argument("--summary-style", default="full", help="Summary report style: full or concise.")
-    parser.add_argument("--skip-if-spec-exists", action="store_true", help="Keep an existing export_job_spec.json untouched.")
     return parser.parse_args()
 
 
@@ -64,55 +62,11 @@ def load_json_object(path: Path) -> dict[str, object]:
     return payload if isinstance(payload, dict) else {}
 
 
-def extract_message_credentials(text: object) -> tuple[str, str]:
-    raw = str(text or "")
-    username_match = re.search(r"'Username':\s*'([^']+)'", raw)
-    password_match = re.search(r"'Password':\s*'([^']+)'", raw)
-    username = username_match.group(1).strip() if username_match else ""
-    password = password_match.group(1).strip() if password_match else ""
-    return username, password
-
-
-def extract_saved_credentials(results_dir: Path, spec_path: Path, project_data: dict[str, object]) -> tuple[str, str]:
+def extract_saved_credentials(results_dir: Path) -> tuple[str, str]:
     credentials_payload = load_json_object(results_dir / "export_credentials.json")
     username = str(credentials_payload.get("username") or "").strip()
     password = str(credentials_payload.get("password") or "").strip()
-    if username and password:
-        return username, password
-
-    # Compatibility migration for exports created before credentials were split
-    # from the public job spec and submission artifacts.
-    submission_payload = load_json_object(results_dir / "export_submission.json")
-    final_message = submission_payload.get("final_message")
-    if isinstance(final_message, dict):
-        username = str(final_message.get("username") or "").strip()
-        password = str(final_message.get("password") or "").strip()
-        if not (username and password):
-            username, password = extract_message_credentials(final_message.get("message"))
-        if username and password:
-            return username, password
-
-    spec_payload = load_json_object(spec_path)
-    username = str(spec_payload.get("username") or "").strip()
-    password = str(spec_payload.get("password") or "").strip()
-    if username and password:
-        return username, password
-
-    templates = project_data.get("templates")
-    if isinstance(templates, list):
-        for entry in reversed(templates):
-            if not isinstance(entry, dict) or str(entry.get("id") or "").strip() != "export":
-                continue
-            params = entry.get("params")
-            if not isinstance(params, dict):
-                continue
-            username = str(params.get("export_username") or "").strip()
-            password = str(params.get("export_password") or "").strip()
-            if username and password:
-                return username, password
-            break
-
-    return "", ""
+    return (username, password) if username and password else ("", "")
 
 
 def add_annotation_discussion_report(export_list: list[dict[str, object]], project_dir: Path, project_name: str) -> None:
@@ -175,32 +129,32 @@ def main() -> int:
         raise SystemExit(f"project.yaml not found in {project_dir}")
 
     spec_path = results_dir / "export_job_spec.json"
-    if args.skip_if_spec_exists and spec_path.exists():
-        print(f"[info] using existing {spec_path}")
-        return 0
-
     from export_common import load_yaml
 
     project_data = load_yaml(project_file)
     project_name = str(project_data.get("id") or project_dir.name)
+    credentials_path = results_dir / "export_credentials.json"
+    saved_credentials = load_json_object(credentials_path)
     params = {
         "agendo_id": args.agendo_id,
         "flowcell_id": args.flowcell_id,
         "export_username": args.export_username,
         "export_password": os.environ.get("LINKAR_EXPORT_PASSWORD", ""),
     }
-    if to_bool(args.reuse_saved_credentials):
-        existing_username, existing_password = extract_saved_credentials(results_dir, spec_path, project_data)
+    if not args.new:
+        existing_username, existing_password = extract_saved_credentials(results_dir)
         if not params["export_username"] and existing_username:
             params["export_username"] = existing_username
         if not params["export_password"] and existing_password:
             params["export_password"] = existing_password
     identifiers = resolve_metadata_identifiers(params, project_data)
     username, password = derive_export_credentials(project_name, params)
-    save_private_json(
-        results_dir / "export_credentials.json",
-        {"username": username, "password": password},
-    )
+    saved_username = str(saved_credentials.get("username") or "").strip()
+    saved_password = str(saved_credentials.get("password") or "").strip()
+    if args.new or (saved_username, saved_password) != (username, password):
+        save_private_json(credentials_path, {"username": username, "password": password})
+    else:
+        credentials_path.chmod(0o600)
 
     metadata_context = {
         "metadata_identifiers": {

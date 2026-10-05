@@ -346,10 +346,21 @@ def build_report_links(
                     rel_path = match.relative_to(src_root).as_posix()
                 except ValueError:
                     rel_path = match.name
-                link = {"path": rel_path, "section": section}
-                if description:
-                    link["description"] = description
-                name = link_name or auto_link_name(match.name, dest)
+                rel_parts = Path(rel_path).parts
+                match_placeholders = {
+                    "match_path": rel_path,
+                    "match_name": match.name,
+                    "match_stem": match.stem,
+                    "match_parent": match.parent.name,
+                    "match_root": rel_parts[0] if rel_parts else match.name,
+                }
+                matched_section = expand_placeholders(section, match_placeholders)
+                matched_description = expand_placeholders(description, match_placeholders)
+                matched_link_name = expand_placeholders(link_name, match_placeholders)
+                link = {"path": rel_path, "section": matched_section}
+                if matched_description:
+                    link["description"] = matched_description
+                name = matched_link_name or auto_link_name(match.name, dest)
                 if name:
                     link["link_name"] = name
                 links.append(link)

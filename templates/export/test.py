@@ -28,6 +28,14 @@ class ExportHandler(BaseHTTPRequestHandler):
             self.server.refresh_payload = json.loads(  # type: ignore[attr-defined]
                 self.rfile.read(int(self.headers.get("Content-Length", "0"))).decode("utf-8")
             )
+            self.server.refresh_requested = True  # type: ignore[attr-defined]
+            self.server.refresh_detail_reads = 0  # type: ignore[attr-defined]
+            self.server.refresh_ready = False  # type: ignore[attr-defined]
+            refresh_count = getattr(self.server, "refresh_count", 0) + 1  # type: ignore[attr-defined]
+            self.server.refresh_count = refresh_count  # type: ignore[attr-defined]
+            self.server.next_record_updated_at = f"2026-01-{refresh_count + 1:02d}T00:00:00Z"  # type: ignore[attr-defined]
+            self.server.refresh_should_fail = getattr(self.server, "fail_next_refresh", False)  # type: ignore[attr-defined]
+            self.server.fail_next_refresh = False  # type: ignore[attr-defined]
             body = json.dumps(response).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -49,15 +57,43 @@ class ExportHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
+        if self.path == "/export/job-123":
+            refresh_requested = getattr(self.server, "refresh_requested", False)  # type: ignore[attr-defined]
+            if refresh_requested:
+                reads = getattr(self.server, "refresh_detail_reads", 0) + 1  # type: ignore[attr-defined]
+                self.server.refresh_detail_reads = reads  # type: ignore[attr-defined]
+                if reads >= 2:
+                    self.server.refresh_ready = True  # type: ignore[attr-defined]
+                    self.server.record_updated_at = self.server.next_record_updated_at  # type: ignore[attr-defined]
+            updated_at = getattr(self.server, "record_updated_at", "2026-01-01T00:00:00Z")  # type: ignore[attr-defined]
+            refresh_ready = getattr(self.server, "refresh_ready", False)  # type: ignore[attr-defined]
+            refresh_should_fail = getattr(self.server, "refresh_should_fail", False)  # type: ignore[attr-defined]
+            status = "failed" if refresh_ready and refresh_should_fail else "completed"
+            detail = {
+                "job_id": "job-123",
+                "updated_at": updated_at,
+                "status": status,
+                "record_status": "failed" if status == "failed" else "active",
+                "error": "simulated refresh failure" if status == "failed" else None,
+            }
+            body = json.dumps(detail).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path == "/export/job-123/poll":
             attempts = getattr(self.server, "poll_attempts", 0) + 1  # type: ignore[attr-defined]
             self.server.poll_attempts = attempts  # type: ignore[attr-defined]
-            body = json.dumps(
-                {
-                    "job_id": "job-123",
-                    "status": "completed" if attempts >= 2 else "running",
-                }
-            ).encode("utf-8")
+            refresh_ready = getattr(self.server, "refresh_ready", False)  # type: ignore[attr-defined]
+            refresh_should_fail = getattr(self.server, "refresh_should_fail", False)  # type: ignore[attr-defined]
+            # Deliberately keep returning a stale successful result after a
+            # failed refresh. The client must trust the new detail generation,
+            # not this previous /poll terminal state.
+            status = "completed" if attempts >= 2 else "running"
+            message = "Export completed"
+            body = json.dumps({"job_id": "job-123", "status": status, "message": message}).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
@@ -120,6 +156,8 @@ def main() -> int:
     assert template_placeholders("dgea", {"path": "DGEA_Liver"})["template_basename_suffix"] == "/DGEA_Liver"
     assert template_placeholders("mirna_differential", {"path": "mirna_differential"})["template_basename_suffix"] == ""
     assert template_placeholders("mirna_differential", {"path": "miRNA_Pig_OIM"})["template_basename_suffix"] == "/miRNA_Pig_OIM"
+    assert template_placeholders("cellranger_multi", {"path": "cellranger_multi"})["template_basename_suffix"] == ""
+    assert template_placeholders("cellranger_multi", {"path": "cellranger_multi_repeat"})["template_basename_suffix"] == "/cellranger_multi_repeat"
 
     with tempfile.TemporaryDirectory() as summary_tmpdir:
         summary_project = Path(summary_tmpdir)
@@ -164,6 +202,7 @@ def main() -> int:
         nfcore_demux_dir = project_dir / "nfcore_demultiplex"
         rnaseq_dir = project_dir / "nfcore_liver"
         rnaseq_bile_dir = project_dir / "nfcore_bile_duct"
+        cellranger_multi_dir = project_dir / "cellranger_multi"
         dgea_liver_dir = project_dir / "DGEA_Liver"
         dgea_bile_dir = project_dir / "DGEA_Bile_Duct"
         methylation_dir = project_dir / "methylation_array_analysis"
@@ -185,6 +224,10 @@ def main() -> int:
         (nfcore_demux_dir / "multiqc").mkdir(parents=True)
         (rnaseq_dir / "results" / "multiqc").mkdir(parents=True)
         (rnaseq_bile_dir / "results" / "multiqc").mkdir(parents=True)
+        (cellranger_multi_dir / "config").mkdir(parents=True)
+        (cellranger_multi_dir / "generated" / "multi").mkdir(parents=True)
+        (cellranger_multi_dir / "results" / "condition_a" / "outs" / "multiplexing_analysis").mkdir(parents=True)
+        (cellranger_multi_dir / "results" / "condition_a" / "outs" / "per_sample_outs" / "condition_a_rep1").mkdir(parents=True)
         (dgea_liver_dir / "results").mkdir(parents=True)
         (dgea_bile_dir / "results").mkdir(parents=True)
         (methylation_dir / "results" / "tables").mkdir(parents=True)
@@ -219,6 +262,58 @@ def main() -> int:
         (rnaseq_bile_dir / "results" / "multiqc" / "multiqc_report.html").write_text("<html></html>\n", encoding="utf-8")
         (rnaseq_dir / "run.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
         (rnaseq_bile_dir / "run.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+        (cellranger_multi_dir / "config" / "samples.csv").write_text(
+            "sample,gex_fastq_dir,gex_fastq_id,feature_fastq_dir,feature_fastq_id,feature_type\n",
+            encoding="utf-8",
+        )
+        (cellranger_multi_dir / "config" / "sample_assignments.csv").write_text(
+            "gem_well,sample_id,hashtag_ids\ncondition_a,condition_a_rep1,Hashtag1\n",
+            encoding="utf-8",
+        )
+        (cellranger_multi_dir / "config" / "custom_feature_reference.csv").write_text(
+            "id,name,read,pattern,sequence,feature_type\nHashtag1,Hashtag1,R2,5P(BC),ACGT,Antibody Capture\n",
+            encoding="utf-8",
+        )
+        (cellranger_multi_dir / "config" / "cellranger_multi.toml").write_text(
+            '[reference]\ntranscriptome = "/refs/GRCm39"\n',
+            encoding="utf-8",
+        )
+        (cellranger_multi_dir / "generated" / "feature_reference.csv").write_text(
+            "id,name,read,pattern,sequence,feature_type\nHashtag1,Hashtag1,R2,5P(BC),ACGT,Antibody Capture\n",
+            encoding="utf-8",
+        )
+        (cellranger_multi_dir / "generated" / "multi" / "condition_a.csv").write_text(
+            "[gene-expression]\nreference,/refs/GRCm39\n",
+            encoding="utf-8",
+        )
+        (cellranger_multi_dir / "results" / "runtime_command.json").write_text(
+            '{"template":"cellranger_multi","commands":[]}\n', encoding="utf-8"
+        )
+        (cellranger_multi_dir / "results" / "software_versions.json").write_text(
+            '{"software":[{"name":"cellranger","version":"10.0.0"}]}\n', encoding="utf-8"
+        )
+        cellranger_qc_dir = cellranger_multi_dir / "results" / "qc"
+        cellranger_qc_dir.mkdir(parents=True)
+        (cellranger_qc_dir / "qc_overview.html").write_text("<html></html>\n", encoding="utf-8")
+        (cellranger_qc_dir / "sample_qc_overview.csv").write_text("Sample ID,GEX: Cells\n", encoding="utf-8")
+        (cellranger_qc_dir / "gem_well_library_qc.csv").write_text(
+            "GEM well,Metric Name,Metric Value\n", encoding="utf-8"
+        )
+        (cellranger_qc_dir / "hashtag_assignment_overview.csv").write_text(
+            "GEM well,Singlet assigned %\n", encoding="utf-8"
+        )
+        cellranger_outs = cellranger_multi_dir / "results" / "condition_a" / "outs"
+        (cellranger_outs / "qc_report.html").write_text("<html></html>\n", encoding="utf-8")
+        (cellranger_outs / "qc_library_metrics.csv").write_text("metric,value\n", encoding="utf-8")
+        (cellranger_outs / "qc_sample_metrics.csv").write_text("metric,value\n", encoding="utf-8")
+        (cellranger_outs / "filtered_feature_bc_matrix.h5").write_text("h5\n", encoding="utf-8")
+        (cellranger_outs / "multiplexing_analysis" / "tag_calls_summary.csv").write_text(
+            "tag,cells\n", encoding="utf-8"
+        )
+        cellranger_sample_outs = cellranger_outs / "per_sample_outs" / "condition_a_rep1"
+        (cellranger_sample_outs / "web_summary.html").write_text("<html></html>\n", encoding="utf-8")
+        (cellranger_sample_outs / "sample_filtered_feature_bc_matrix.h5").write_text("h5\n", encoding="utf-8")
+        (cellranger_sample_outs / "sample_cloupe.cloupe").write_text("cloupe\n", encoding="utf-8")
         (dgea_liver_dir / "results" / "DGEA_all_samples.html").write_text("<html></html>\n", encoding="utf-8")
         (dgea_liver_dir / "results" / "run_info.yaml").write_text("template: dgea\n", encoding="utf-8")
         (dgea_liver_dir / "results" / "software_versions.json").write_text('{"software": []}\n', encoding="utf-8")
@@ -334,6 +429,20 @@ def main() -> int:
                     "path": str(rnaseq_bile_dir),
                     "outputs": {
                         "multiqc_report": str((rnaseq_bile_dir / "results" / "multiqc" / "multiqc_report.html").resolve()),
+                    },
+                },
+                {
+                    "id": "cellranger_multi",
+                    "path": str(cellranger_multi_dir),
+                    "outputs": {
+                        "results_dir": str((cellranger_multi_dir / "results").resolve()),
+                        "sample_manifest": str((cellranger_multi_dir / "config" / "samples.csv").resolve()),
+                        "sample_assignments": str(
+                            (cellranger_multi_dir / "config" / "sample_assignments.csv").resolve()
+                        ),
+                        "generated_feature_reference": str(
+                            (cellranger_multi_dir / "generated" / "feature_reference.csv").resolve()
+                        ),
                     },
                 },
                 {
@@ -472,12 +581,11 @@ def main() -> int:
         }
         (project_dir / "project.yaml").write_text(yaml.safe_dump(project_yaml, sort_keys=False), encoding="utf-8")
 
-        prepare_only = subprocess.run(
+        prepare_result = subprocess.run(
             [
                 "python3",
                 str(TEMPLATE_DIR / "run.py"),
-                "--prepare-only",
-                "true",
+                "--prepare",
                 "--export-engine-api-url",
                 "http://127.0.0.1:9",
                 "--project-dir",
@@ -493,9 +601,9 @@ def main() -> int:
             capture_output=True,
             text=True,
         )
-        assert "Prepare Only Complete" in prepare_only.stdout
-        assert "Project templates:" in prepare_only.stdout
-        assert "demultiplex (1), nfcore_demultiplex (1), nfcore_3mrnaseq (2), dgea (2), methylation_array_analysis (1), scrna_prep (1), scrna_integrate (1), scrna_annotate (1), scrna_annotate_celltypist (1), scrna_annotate_manual_markers (1), scrna_annotate_sctype (1), scrna_annotate_audit (1), scrna_annotate_zebrafish (1), ercc (1), mirna_differential (1), summary (2)" in prepare_only.stdout
+        assert "Prepare Complete" in prepare_result.stdout
+        assert "Project templates:" in prepare_result.stdout
+        assert "demultiplex (1), nfcore_demultiplex (1), nfcore_3mrnaseq (2), cellranger_multi (1), dgea (2), methylation_array_analysis (1), scrna_prep (1), scrna_integrate (1), scrna_annotate (1), scrna_annotate_celltypist (1), scrna_annotate_manual_markers (1), scrna_annotate_sctype (1), scrna_annotate_audit (1), scrna_annotate_zebrafish (1), ercc (1), mirna_differential (1), summary (2)" in prepare_result.stdout
         spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
         assert spec["project_name"] == "example_project_001"
         assert spec["authors"] == ["Example User, Example Org"]
@@ -506,7 +614,7 @@ def main() -> int:
         original_username = credentials["username"]
         original_password = credentials["password"]
         assert stat.S_IMODE(credentials_path.stat().st_mode) == 0o600
-        assert len(spec["export_list"]) == 38
+        assert len(spec["export_list"]) == 41
         assert {entry["host"] for entry in spec["export_list"]} == {socket.gethostname()}
         export_srcs = {entry["src"] for entry in spec["export_list"]}
         export_dests = {entry["dest"] for entry in spec["export_list"]}
@@ -518,6 +626,9 @@ def main() -> int:
         assert "1_Raw_data/nfcore_demultiplex/run_multiqc_report.html" in export_dests
         assert "2_Processed_data/nfcore_3mrnaseq/nfcore_liver" in export_dests
         assert "2_Processed_data/nfcore_3mrnaseq/nfcore_bile_duct" in export_dests
+        assert "2_Processed_data/cellranger_multi/results" in export_dests
+        assert "2_Processed_data/cellranger_multi/config" in export_dests
+        assert "2_Processed_data/cellranger_multi/generated" in export_dests
         assert "2_Processed_data/methylation_array_analysis/results" in export_dests
         assert "2_Processed_data/scrna_integrate/scrna_integrate/results" in export_dests
         assert "2_Processed_data/scrna_annotate/scrna_annotate/results" in export_dests
@@ -546,6 +657,41 @@ def main() -> int:
         assert "2_Processed_data/mirna_differential/config" in export_dests
         assert "3_Reports/mirna_differential" in export_dests
         assert "3_Reports/summary" in export_dests
+        cellranger_result_entry = next(
+            entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/cellranger_multi/results"
+        )
+        assert cellranger_result_entry["src"] == str((cellranger_multi_dir / "results").resolve())
+        cellranger_result_paths = {link["path"] for link in cellranger_result_entry.get("report_links", [])}
+        assert cellranger_result_paths == {
+            ".",
+            "qc/qc_overview.html",
+            "condition_a/outs/qc_report.html",
+            "condition_a/outs/per_sample_outs/condition_a_rep1/web_summary.html",
+        }
+        cellranger_result_names = {
+            link["path"]: link["link_name"] for link in cellranger_result_entry.get("report_links", [])
+        }
+        assert cellranger_result_names["condition_a/outs/qc_report.html"] == "condition_a — GEM-well QC"
+        assert (
+            cellranger_result_names["qc/qc_overview.html"]
+            == "Cell Ranger multi — cross-sample QC overview"
+        )
+        assert (
+            cellranger_result_names["condition_a/outs/per_sample_outs/condition_a_rep1/web_summary.html"]
+            == "condition_a_rep1 — Cell Ranger summary"
+        )
+        cellranger_config_entry = next(
+            entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/cellranger_multi/config"
+        )
+        assert {"."} == {
+            link["path"] for link in cellranger_config_entry.get("report_links", [])
+        }
+        cellranger_generated_entry = next(
+            entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/cellranger_multi/generated"
+        )
+        assert {"feature_reference.csv"} == {
+            link["path"] for link in cellranger_generated_entry.get("report_links", [])
+        }
         mirna_results_entry = next(
             entry for entry in spec["export_list"] if entry["dest"] == "2_Processed_data/mirna_differential/results"
         )
@@ -663,14 +809,12 @@ def main() -> int:
         assert (export_dir / "results" / "metadata_context.yaml").exists()
         assert (export_dir / "results" / "project_summary.md").exists()
 
-        rebuilt = subprocess.run(
+        preserved_spec_text = (export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8")
+        reused = subprocess.run(
             [
                 "python3",
                 str(TEMPLATE_DIR / "run.py"),
-                "--prepare-only",
-                "true",
-                "--reuse-credentials",
-                "true",
+                "--prepare",
                 "--export-engine-api-url",
                 "http://127.0.0.1:9",
                 "--project-dir",
@@ -685,6 +829,30 @@ def main() -> int:
             check=True,
             capture_output=True,
             text=True,
+        )
+        assert "using existing" in reused.stdout
+        assert (export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8") == preserved_spec_text
+
+        rebuilt = subprocess.run(
+            [
+                "python3",
+                str(TEMPLATE_DIR / "run.py"),
+                "--prepare",
+                "--export-engine-api-url",
+                "http://127.0.0.1:9",
+                "--project-dir",
+                str(project_dir),
+                "--template-dir",
+                str(TEMPLATE_DIR),
+                "--results-dir",
+                str(export_dir / "results"),
+                "--metadata-source",
+                "mock",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "LINKAR_REFRESH": "true"},
         )
         assert "rebuilding existing" in rebuilt.stdout
         rebuilt_spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
@@ -695,44 +863,12 @@ def main() -> int:
         assert rebuilt_credentials["password"] == original_password
         assert stat.S_IMODE(credentials_path.stat().st_mode) == 0o600
 
-        reset_build = subprocess.run(
-            [
-                "python3",
-                str(TEMPLATE_DIR / "run.py"),
-                "--prepare-only",
-                "true",
-                "--export-engine-api-url",
-                "http://127.0.0.1:9",
-                "--project-dir",
-                str(project_dir),
-                "--template-dir",
-                str(TEMPLATE_DIR),
-                "--results-dir",
-                str(export_dir / "results"),
-                "--metadata-source",
-                "mock",
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        assert "rebuilding existing" in reset_build.stdout
-        reset_spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
-        assert "username" not in reset_spec
-        assert "password" not in reset_spec
-        reset_credentials = json.loads(credentials_path.read_text(encoding="utf-8"))
-        assert reset_credentials["username"] == "project"
-        assert reset_credentials["password"] != original_password
-
         password_override = "operator_selected_password"
         override_build = subprocess.run(
             [
                 "python3",
-                str(TEMPLATE_DIR / "run.py"),
-                "--prepare-only",
-                "true",
-                "--export-engine-api-url",
-                "http://127.0.0.1:9",
+                str(TEMPLATE_DIR / "build_export_bundle.py"),
+                "--new",
                 "--project-dir",
                 str(project_dir),
                 "--template-dir",
@@ -765,8 +901,6 @@ def main() -> int:
                     str(project_dir),
                     "--template-dir",
                     str(TEMPLATE_DIR),
-                    "--reuse-spec",
-                    "true",
                     "--export-engine-api-url",
                     f"http://127.0.0.1:{server.server_port}",
                     "--metadata-source",
@@ -820,6 +954,31 @@ def main() -> int:
             assert len(submitted_credentials["publishers"]) == 3
             assert stat.S_IMODE(credentials_path.stat().st_mode) == 0o600
 
+            credentials_before_blocked_new = credentials_path.read_text(encoding="utf-8")
+            blocked_new = subprocess.run(
+                [
+                    "python3",
+                    str(TEMPLATE_DIR / "run.py"),
+                    "--results-dir",
+                    str(export_dir / "results"),
+                    "--project-dir",
+                    str(project_dir),
+                    "--template-dir",
+                    str(TEMPLATE_DIR),
+                    "--new",
+                    "--export-engine-api-url",
+                    f"http://127.0.0.1:{server.server_port}",
+                    "--metadata-source",
+                    "mock",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            assert blocked_new.returncode != 0
+            assert "Cannot use --new" in blocked_new.stderr
+            assert credentials_path.read_text(encoding="utf-8") == credentials_before_blocked_new
+
             hidden_password_submit = subprocess.run(
                 [
                     "python3",
@@ -830,10 +989,7 @@ def main() -> int:
                     str(project_dir),
                     "--template-dir",
                     str(TEMPLATE_DIR),
-                    "--reuse-spec",
-                    "true",
-                    "--show-password",
-                    "false",
+                    "--hide-password",
                     "--export-engine-api-url",
                     f"http://127.0.0.1:{server.server_port}",
                     "--metadata-source",
@@ -858,64 +1014,11 @@ def main() -> int:
                 export_dir / "results" / "export_submission.json"
             ).read_text(encoding="utf-8")
 
-            legacy_results = export_dir / "legacy_results"
-            legacy_results.mkdir()
-            legacy_spec_path = legacy_results / "export_job_spec.json"
-            legacy_spec_path.write_text(
-                json.dumps(
-                    {
-                        "project_name": "legacy_project",
-                        "export_list": [],
-                        "backend": ["apache"],
-                        "username": "legacy_user",
-                        "password": "legacy_password",
-                        "authors": [],
-                        "expiry_days": 30,
-                    }
-                ),
-                encoding="utf-8",
-            )
-            legacy_submit = subprocess.run(
-                [
-                    "python3",
-                    str(TEMPLATE_DIR / "submit_export.py"),
-                    "--results-dir",
-                    str(legacy_results),
-                    "--api-url",
-                    f"http://127.0.0.1:{server.server_port}",
-                    "--poll-interval-seconds",
-                    "1",
-                    "--timeout-seconds",
-                    "5",
-                ],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            assert "legacy_password" not in legacy_submit.stdout
-            legacy_request = server.payload  # type: ignore[attr-defined]
-            assert legacy_request["username"] == "legacy_user"
-            assert legacy_request["password"] == "legacy_password"
-            migrated_spec = json.loads(legacy_spec_path.read_text(encoding="utf-8"))
-            assert "username" not in migrated_spec
-            assert "password" not in migrated_spec
-            migrated_credentials_path = legacy_results / "export_credentials.json"
-            migrated_credentials = json.loads(migrated_credentials_path.read_text(encoding="utf-8"))
-            assert migrated_credentials["username"] == "example_user"
-            assert migrated_credentials["password"] == "example_password"
-            assert stat.S_IMODE(migrated_credentials_path.stat().st_mode) == 0o600
-            assert "legacy_password" not in (
-                legacy_results / "export_submission.json"
-            ).read_text(encoding="utf-8")
-
             post_submit_reuse = subprocess.run(
                 [
                     "python3",
                     str(TEMPLATE_DIR / "run.py"),
-                    "--prepare-only",
-                    "true",
-                    "--reuse-credentials",
-                    "true",
+                    "--prepare",
                     "--export-engine-api-url",
                     "http://127.0.0.1:9",
                     "--project-dir",
@@ -931,7 +1034,7 @@ def main() -> int:
                 capture_output=True,
                 text=True,
             )
-            assert "rebuilding existing" in post_submit_reuse.stdout
+            assert "using existing" in post_submit_reuse.stdout
             reused_spec = json.loads((export_dir / "results" / "export_job_spec.json").read_text(encoding="utf-8"))
             assert "username" not in reused_spec
             assert "password" not in reused_spec
@@ -943,8 +1046,6 @@ def main() -> int:
                 [
                     "python3",
                     str(TEMPLATE_DIR / "run.py"),
-                    "--refresh",
-                    "true",
                     "--export-engine-api-url",
                     f"http://127.0.0.1:{server.server_port}",
                     "--project-dir",
@@ -963,8 +1064,10 @@ def main() -> int:
                 check=True,
                 capture_output=True,
                 text=True,
+                env={**os.environ, "LINKAR_REFRESH": "true"},
             )
-            assert "Refresh Export" in refresh.stdout
+            assert "Update Export" in refresh.stdout
+            assert "rebuilding existing" in refresh.stdout
             refresh_payload = server.refresh_payload  # type: ignore[attr-defined]
             assert refresh_payload["project_name"] == "example_project_001"
             assert "export_list" in refresh_payload
@@ -972,17 +1075,61 @@ def main() -> int:
             assert "password" not in refresh_payload
             refresh_spec = json.loads((export_dir / "results" / "export_refresh_spec.json").read_text(encoding="utf-8"))
             assert refresh_spec == refresh_payload
+            assert getattr(server, "refresh_detail_reads", 0) >= 2
+
+            prior_state = (export_dir / "results" / "export_state.json").read_text(encoding="utf-8")
+            server.fail_next_refresh = True  # type: ignore[attr-defined]
+            failed_refresh = subprocess.run(
+                [
+                    "python3",
+                    str(TEMPLATE_DIR / "run.py"),
+                    "--export-engine-api-url",
+                    f"http://127.0.0.1:{server.server_port}",
+                    "--project-dir",
+                    str(project_dir),
+                    "--template-dir",
+                    str(TEMPLATE_DIR),
+                    "--results-dir",
+                    str(export_dir / "results"),
+                    "--metadata-source",
+                    "mock",
+                    "--poll-interval-seconds",
+                    "1",
+                    "--timeout-seconds",
+                    "5",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            assert failed_refresh.returncode != 0
+            assert "Export Failed" in failed_refresh.stdout
+            assert "simulated refresh failure" in failed_refresh.stdout
+            assert "Final Export Summary" not in failed_refresh.stdout
+            assert (export_dir / "results" / "export_state.json").read_text(encoding="utf-8") == prior_state
 
             template_config = yaml.safe_load((TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8"))
-            assert template_config["params"]["show_password"]["default"] is True
-            assert '--show-password "${param:show_password}"' in template_config["run"]["command"]
+            assert template_config["params"]["prepare"]["type"] == "flag"
+            assert template_config["params"]["new"]["type"] == "flag"
+            assert template_config["params"]["hide_password"]["type"] == "flag"
+            assert "run_args+=(--prepare)" in template_config["run"]["command"]
+            assert "run_args+=(--new)" in template_config["run"]["command"]
+            assert "run_args+=(--hide-password)" in template_config["run"]["command"]
             render_command = template_config["render"]["command"]
-            assert 'reuse_saved_credentials="${param:reuse_credentials}"' in render_command
-            assert 'if [[ "${param:refresh_export}" == "true" ]]' in render_command
-            assert '--reuse-saved-credentials "${reuse_saved_credentials}"' in render_command
+            assert "build_args+=(--new)" in render_command
             assert "refresh" not in template_config["params"]
-            assert "refresh_export" in template_config["params"]
             assert "export_password" not in template_config["params"]
+
+            help_result = subprocess.run(
+                ["python3", str(TEMPLATE_DIR / "run.py"), "--help"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            assert "The first run creates an export" in help_result.stdout
+            assert "later runs automatically update" in help_result.stdout
+            assert "preserving its job ID, username, password, and publisher links" in help_result.stdout
+            assert "linkar run export --refresh --prepare" in help_result.stdout
         finally:
             server.shutdown()
             thread.join(timeout=5)

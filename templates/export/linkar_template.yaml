@@ -1,34 +1,26 @@
 id: export
-version: 0.1.3
-description: Prepare and submit an export bundle from Linkar project history.
+version: 0.2.0
+description: Create or update a project export without overwriting its prepared specification unless --refresh is used.
 tools:
   required:
     - python3
 params:
-  prepare_only:
-    type: bool
+  prepare:
+    type: flag
     default: false
-    description: When true, prepare the selected export bundle state and stop before API submission.
-  refresh_export:
-    type: bool
+    description: Prepare or inspect the export without contacting the Export Engine.
+  new:
+    type: flag
     default: false
-    description: When true, rebuild the bundle, reuse saved credentials, and refresh an existing export job in place.
+    description: Create a new export identity and credentials; this is refused while the saved export is active.
+  hide_password:
+    type: flag
+    default: false
+    description: Hide passwords in terminal output; saved public artifacts are always redacted.
   job_id:
     type: str
     default: ""
-    description: Existing export job id used by refresh. If omitted, saved export state is used.
-  reuse_spec:
-    type: bool
-    default: false
-    description: When true, submit or inspect the current export_job_spec.json without rebuilding it.
-  reuse_credentials:
-    type: bool
-    default: false
-    description: When true, rebuild export_job_spec.json while preserving saved credentials; refresh enables this automatically.
-  show_password:
-    type: bool
-    default: true
-    description: Print the export password in the terminal final message by default. Set false to redact terminal output; saved public artifacts always remain redacted.
+    description: Recovery option that updates this job instead of using the job ID saved under results/.
   export_engine_api_url:
     type: str
     default: http://genomics.rwth-aachen.de:9500
@@ -121,16 +113,11 @@ run:
   mode: render
   verbose_by_default: true
   command: |
-    python3 ./run.py \
+    run_args=(python3 ./run.py \
       --results-dir "${LINKAR_RESULTS_DIR}" \
       --project-dir "${LINKAR_PROJECT_DIR:-..}" \
       --template-dir "." \
-      --prepare-only "${param:prepare_only}" \
-      --refresh "${param:refresh_export}" \
       --job-id "${param:job_id}" \
-      --reuse-spec "${param:reuse_spec}" \
-      --reuse-credentials "${param:reuse_credentials}" \
-      --show-password "${param:show_password}" \
       --export-engine-api-url "${param:export_engine_api_url}" \
       --export-engine-backends "${param:export_engine_backends}" \
       --export-expiry-days "${param:export_expiry_days}" \
@@ -145,18 +132,23 @@ run:
       --include-summary-in-spec "${param:include_summary_in_spec}" \
       --summary-style "${param:summary_style}" \
       --poll-interval-seconds "${param:poll_interval_seconds}" \
-      --timeout-seconds "${param:timeout_seconds}"
+      --timeout-seconds "${param:timeout_seconds}")
+    if [[ "${param:prepare}" == "true" ]]; then
+      run_args+=(--prepare)
+    fi
+    if [[ "${param:new}" == "true" ]]; then
+      run_args+=(--new)
+    fi
+    if [[ "${param:hide_password}" == "true" ]]; then
+      run_args+=(--hide-password)
+    fi
+    "${run_args[@]}"
 render:
   command: |
     project_dir="${LINKAR_PROJECT_DIR:-..}"
     if [[ ! -f "${project_dir}/project.yaml" ]]; then
       echo "[error] export must be rendered inside a Linkar project directory." >&2
       exit 2
-    fi
-
-    reuse_saved_credentials="${param:reuse_credentials}"
-    if [[ "${param:refresh_export}" == "true" ]]; then
-      reuse_saved_credentials="true"
     fi
 
     build_args=(
@@ -167,7 +159,6 @@ render:
       --export-engine-backends "${param:export_engine_backends}"
       --export-expiry-days "${param:export_expiry_days}"
       --export-username "${param:export_username}"
-      --reuse-saved-credentials "${reuse_saved_credentials}"
       --agendo-id "${param:agendo_id}"
       --flowcell-id "${param:flowcell_id}"
       --metadata-source "${param:metadata_source}"
@@ -178,8 +169,8 @@ render:
       --include-summary-in-spec "${param:include_summary_in_spec}"
       --summary-style "${param:summary_style}"
     )
-    if [[ "${param:reuse_spec}" == "true" ]]; then
-      build_args+=(--skip-if-spec-exists)
+    if [[ "${param:new}" == "true" ]]; then
+      build_args+=(--new)
     fi
 
     "${build_args[@]}"
