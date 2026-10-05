@@ -229,6 +229,8 @@ def test_render_and_execute() -> None:
         assert ">Hashtag reads</th>" in overview
         assert ">GEX saturation</th>" in overview
         assert ">Cell Ranger report</th>" not in overview
+        assert 'class="numeric">20,020,000</td>' in overview
+        assert "font-variant-numeric:tabular-nums lining-nums" in overview
         assert "reads in cells per cell" in overview
         assert "total number of reads assigned to called cells" in overview
         assert "They are not independent raw sequencing depths" in overview

@@ -59,7 +59,8 @@ results/qc/
 
 The HTML tables use concise column labels so the overview remains readable on normal screens;
 hover over a header to see its complete Cell Ranger metric name. Downloaded CSV files retain the
-full, stable column names for analysis and auditability.
+full, stable column names for analysis and auditability. Numeric cells use tabular monospaced
+digits so counts, percentages, and decimal values align for visual comparison.
 
 The collector reports descriptive Cell Ranger primary-analysis metrics and does not impose
 universal pass/fail thresholds. For antibody-based hashing, Antibody Capture metrics describe

@@ -244,7 +244,11 @@ def render_table(
     for row in rows:
         parts.append("<tr>")
         for column in available:
-            parts.append(f"<td>{html.escape(display_value(column, row.get(column, '')))}</td>")
+            raw_value = row.get(column, "")
+            css_class = ' class="numeric"' if number(raw_value) is not None else ""
+            parts.append(
+                f"<td{css_class}>{html.escape(display_value(column, raw_value))}</td>"
+            )
         if link_column:
             gem_well = quote(row.get("GEM well", ""), safe="")
             sample_id = quote(row.get("Sample ID", ""), safe="")
@@ -299,6 +303,7 @@ def build_html(
     table {{ border-collapse:collapse; width:100%; font-size:.9rem; }}
     th, td {{ padding:.65rem .75rem; border-bottom:1px solid var(--line); text-align:right; }}
     td {{ white-space:nowrap; }}
+    td.numeric, .card strong {{ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace; font-variant-numeric:tabular-nums lining-nums; }}
     th {{ background:var(--soft); position:sticky; top:0; white-space:normal; line-height:1.25; max-width:9rem; }}
     th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) {{ text-align:left; }}
     tr:last-child td {{ border-bottom:0; }} a {{ color:var(--accent); }}
