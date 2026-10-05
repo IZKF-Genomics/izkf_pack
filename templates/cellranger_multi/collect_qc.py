@@ -18,10 +18,12 @@ SAMPLE_COLUMNS = [
     "Sample ID",
     "Sample barcodes",
     "GEX: Cells",
+    "GEX: Number of reads in cells",
     "GEX: Reads in cells per cell",
     "GEX: Median genes per cell",
     "GEX: Median UMI counts per cell",
     "GEX: Confidently mapped to transcriptome",
+    "Antibody: Number of reads in cells",
     "Antibody: Reads in cells per cell",
     "GEM-well GEX mean reads per cell",
     "GEM-well GEX sequencing saturation",
@@ -291,7 +293,7 @@ def build_html(
   </p>
   <h2>Biological-sample QC</h2>
   {sample_table}
-  <p class="note"><strong>Depth definitions:</strong> “GEX/Antibody reads in cells per cell” is calculated from reads assigned to each hashtag-defined biological sample. GEM-well GEX depth and saturation describe the complete pooled Gene Expression library and therefore repeat for samples from the same GEM well. They are not independent raw sequencing depths for each hashed sample.</p>
+  <p class="note"><strong>Depth definitions:</strong> “Number of reads in cells” is the total number of reads assigned to called cells in each hashtag-defined biological sample; “reads in cells per cell” divides that value by the sample's GEX cell count. GEM-well GEX depth and saturation describe the complete pooled Gene Expression library and therefore repeat for samples from the same GEM well. They are not independent raw sequencing depths for each hashed sample.</p>
   <p class="note">For antibody-based hashing experiments, the Antibody Capture values describe hashtag signal. They must not be interpreted as surface-protein expression measurements.</p>
   <h2>Hashtag assignment by GEM well</h2>
   {hashtag_table}

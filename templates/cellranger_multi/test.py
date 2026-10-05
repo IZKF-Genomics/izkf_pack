@@ -223,7 +223,10 @@ def test_render_and_execute() -> None:
         overview = (qc_dir / "qc_overview.html").read_text(encoding="utf-8")
         assert "12</strong>biological samples" in overview
         assert "Hashtag assignment by GEM well" in overview
+        assert "GEX: Number of reads in cells" in overview
+        assert "Antibody: Number of reads in cells" in overview
         assert "reads in cells per cell" in overview
+        assert "total number of reads assigned to called cells" in overview
         assert "They are not independent raw sequencing depths" in overview
         assert "50.0%" in overview
         assert "must not be interpreted as surface-protein expression" in overview

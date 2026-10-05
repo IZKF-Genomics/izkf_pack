@@ -73,7 +73,9 @@ For multiplexed experiments, the overview keeps two sequencing-depth concepts se
   each hashed sample.
 
 The source counts (`GEX: Number of reads in cells` and, when available,
-`Antibody: Number of reads in cells`) remain in `sample_qc_overview.csv` for auditability.
+`Antibody: Number of reads in cells`) are shown in the HTML table and remain in
+`sample_qc_overview.csv` for auditability. These are sample-assigned reads in called cells, not an
+independent raw FASTQ read total for each biological sample in a pooled hashing experiment.
 
 To regenerate only the overview after restoring or changing Cell Ranger results:
 
