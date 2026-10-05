@@ -37,6 +37,28 @@ DEPTH_COLUMNS = [
     "GEM-well GEX sequencing saturation",
 ]
 
+DISPLAY_LABELS = {
+    "Sample ID": "Sample",
+    "Sample barcodes": "Hashtag",
+    "GEX: Cells": "Cells",
+    "GEX: Number of reads in cells": "GEX reads",
+    "GEX: Reads in cells per cell": "GEX reads/cell",
+    "GEX: Median genes per cell": "Median genes/cell",
+    "GEX: Median UMI counts per cell": "Median UMIs/cell",
+    "GEX: Confidently mapped to transcriptome": "Mapped to transcriptome",
+    "Antibody: Number of reads in cells": "Hashtag reads",
+    "Antibody: Reads in cells per cell": "Hashtag reads/cell",
+    "GEM-well GEX mean reads per cell": "GEM-well reads/cell",
+    "GEM-well GEX sequencing saturation": "GEX saturation",
+    "Cell-associated barcodes": "Cell barcodes",
+    "Singlet assigned cells": "Singlets",
+    "Singlet assigned %": "Singlet %",
+    "Multiplet cells": "Multiplets",
+    "Unassigned cells": "Unassigned",
+    "No tag molecules cells": "No-tag cells",
+    "No tag molecules %": "No-tag %",
+}
+
 HASHTAG_CATEGORIES = {
     "No tag molecules": "No tag molecules",
     "No tag assigned": "Unassigned",
@@ -211,9 +233,13 @@ def render_table(
         return '<p class="empty">No matching Cell Ranger output was found.</p>'
     available = [column for column in columns if any(str(row.get(column, "")).strip() for row in rows)]
     parts = ['<div class="table-wrap"><table><thead><tr>']
-    parts.extend(f"<th>{html.escape(column)}</th>" for column in available)
+    parts.extend(
+        f'<th title="{html.escape(column, quote=True)}">'
+        f"{html.escape(DISPLAY_LABELS.get(column, column))}</th>"
+        for column in available
+    )
     if link_column:
-        parts.append("<th>Cell Ranger report</th>")
+        parts.append('<th title="Original Cell Ranger web summary">Report</th>')
     parts.append("</tr></thead><tbody>")
     for row in rows:
         parts.append("<tr>")
@@ -271,8 +297,9 @@ def build_html(
     .downloads a {{ display:inline-block; margin:.25rem .75rem .25rem 0; }}
     .table-wrap {{ overflow-x:auto; background:white; border:1px solid var(--line); border-radius:10px; }}
     table {{ border-collapse:collapse; width:100%; font-size:.9rem; }}
-    th, td {{ padding:.65rem .75rem; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }}
-    th {{ background:var(--soft); position:sticky; top:0; }}
+    th, td {{ padding:.65rem .75rem; border-bottom:1px solid var(--line); text-align:right; }}
+    td {{ white-space:nowrap; }}
+    th {{ background:var(--soft); position:sticky; top:0; white-space:normal; line-height:1.25; max-width:9rem; }}
     th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) {{ text-align:left; }}
     tr:last-child td {{ border-bottom:0; }} a {{ color:var(--accent); }}
     .note {{ border-left:4px solid var(--accent); background:var(--soft); padding:.8rem 1rem; }}

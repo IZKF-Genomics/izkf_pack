@@ -57,6 +57,10 @@ results/qc/
 - `qc_overview.html` provides a cross-sample table, assignment overview, CSV downloads, and links
   back to the original Cell Ranger GEM-well and per-sample reports.
 
+The HTML tables use concise column labels so the overview remains readable on normal screens;
+hover over a header to see its complete Cell Ranger metric name. Downloaded CSV files retain the
+full, stable column names for analysis and auditability.
+
 The collector reports descriptive Cell Ranger primary-analysis metrics and does not impose
 universal pass/fail thresholds. For antibody-based hashing, Antibody Capture metrics describe
 hashtag signal and must not be interpreted as surface-protein abundance. Cell-level mitochondrial

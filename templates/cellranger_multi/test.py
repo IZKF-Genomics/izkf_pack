@@ -225,6 +225,10 @@ def test_render_and_execute() -> None:
         assert "Hashtag assignment by GEM well" in overview
         assert "GEX: Number of reads in cells" in overview
         assert "Antibody: Number of reads in cells" in overview
+        assert ">GEX reads</th>" in overview
+        assert ">Hashtag reads</th>" in overview
+        assert ">GEX saturation</th>" in overview
+        assert ">Cell Ranger report</th>" not in overview
         assert "reads in cells per cell" in overview
         assert "total number of reads assigned to called cells" in overview
         assert "They are not independent raw sequencing depths" in overview
