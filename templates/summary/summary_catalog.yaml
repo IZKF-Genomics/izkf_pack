@@ -26,6 +26,45 @@ templates:
     citations:
       - cellranger_atac
 
+  cellranger_multi:
+    category: preprocessing
+    publication_relevance: true
+    label: Single-cell Gene Expression and Feature Barcode processing
+    summary: Paired single-cell Gene Expression and Feature Barcode libraries were processed per GEM well with Cell Ranger multi using a resolved experiment-specific Feature Reference.
+    method_core: Paired Gene Expression and Feature Barcode FASTQ libraries were processed together with Cell Ranger multi, with one independent run per physical GEM well and the configured transcriptome and resolved Feature Reference.
+    method_details:
+      - Each physical GEM well was processed independently; Gene Expression and Feature Barcode FASTQ libraries were paired within the same Cell Ranger multi configuration rather than analyzed as separate biological samples.
+      - The exact Feature Reference used for counting was resolved from either a user-supplied experimental panel or a selected checked-in catalog snapshot and recorded with the generated per-GEM-well multi configurations.
+      - Feature Barcode counts were generated according to the feature types declared in the resolved Feature Reference, such as Antibody Capture or CRISPR Guide Capture; listed features should not be interpreted as experimentally present without supporting counts and panel metadata.
+      - When hashtag assignments were configured, Antibody Capture hashtag IDs were used to resolve biological samples within each GEM well, while unassigned cells and multiplet calls remained available in Cell Ranger multiplexing diagnostics.
+      - Cell Ranger generated GEM-well quality-control reports and matrices and, when sample assignment was configured, biological-sample web summaries, filtered matrices, molecule information, Loupe files, and optional BAM files.
+      - Final Cell Ranger sample, library, and hashtag-assignment CSV outputs were consolidated across GEM wells into an automatic cross-sample quality-control overview without applying universal pass/fail thresholds.
+      - Cross-GEM-well aggregation is not performed by this template and, if required, is a separate Cell Ranger aggr analysis step.
+    important_params:
+      - samplesheet
+      - genome
+      - reference
+      - cellranger_bin
+    param_explanations:
+      samplesheet: GEM-well manifest pairing Gene Expression and Feature Barcode FASTQ libraries.
+      genome: Facility genome label used to select the Cell Ranger transcriptome reference when an explicit reference was not supplied.
+      reference: Explicit Cell Ranger transcriptome reference, which overrides facility genome mapping when populated.
+      cellranger_bin: Cell Ranger executable used for the multi runs.
+    param_context:
+      - The transcriptome reference and resolved Feature Reference serve different purposes and should both be reported when available.
+      - The generated feature_reference.csv records the exact feature IDs, barcode sequences, patterns, and feature types passed to Cell Ranger.
+      - sample_assignments.csv determines whether hashtag-based biological-sample assignment was configured; a header-only file means no assignment rows were supplied.
+      - create-bam, CPU, and memory settings are recorded in cellranger_multi.toml, but only create-bam changes the set of scientific output files.
+    command_hints:
+      - Use runtime_command to recover all per-GEM-well commands, the resolved transcriptome path, Feature Reference provenance, and sample-assignment provenance; use the generated multi configurations to confirm create-bam.
+      - Use software_versions or runtime_command to report the Cell Ranger version.
+      - Describe hashtag demultiplexing only when assignment rows or corresponding multiplexing outputs are present.
+      - Do not describe Cell Ranger aggr unless it appears as a separate recorded analysis.
+    tools:
+      - Cell Ranger
+    citations:
+      - cellranger
+
   demultiplex:
     category: preprocessing
     publication_relevance: true
@@ -1004,6 +1043,9 @@ references:
   cellranger_atac:
     text: "10x Genomics. Cell Ranger ATAC documentation."
     url: "https://www.10xgenomics.com/support/software/cell-ranger-atac/latest"
+  cellranger:
+    text: "10x Genomics. Cell Ranger documentation."
+    url: "https://www.10xgenomics.com/support/software/cell-ranger/latest"
   deseq2:
     text: "Love MI, Huber W, Anders S. Moderated estimation of fold change and dispersion for RNA-seq data with DESeq2. Genome Biology. 2014."
     url: "https://doi.org/10.1186/s13059-014-0550-8"

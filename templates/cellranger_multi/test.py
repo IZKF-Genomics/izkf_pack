@@ -43,14 +43,25 @@ flags = dict(arg[2:].split("=", 1) for arg in sys.argv[2:] if arg.startswith("--
 out = Path.cwd() / flags["id"] / "outs"
 out.mkdir(parents=True)
 (out / "qc_report.html").write_text("<html></html>\\n")
-(out / "qc_library_metrics.csv").write_text("metric,value\\nreads,1\\n")
-(out / "qc_sample_metrics.csv").write_text("metric,value\\ncells,1\\n")
+(out / "qc_library_metrics.csv").write_text(
+    "Category,Library Type,Grouped By,Group Name,Metric Name,Metric Value\\n"
+    "Library,Gene Expression,Physical library ID,GEX,Number of reads,100000000\\n"
+    "Library,Gene Expression,Physical library ID,GEX,Number of reads in the library,100000000\\n"
+    "Library,Gene Expression,Physical library ID,GEX,Mean reads per cell,25000\\n"
+    "Library,Gene Expression,Physical library ID,GEX,Sequencing saturation,0.50\\n"
+)
 (out / "filtered_feature_bc_matrix.h5").write_text("matrix\\n")
 (out / "raw_feature_bc_matrix.h5").write_text("matrix\\n")
 (out / "raw_molecule_info.h5").write_text("molecules\\n")
 mux = out / "multiplexing_analysis"
 mux.mkdir()
-(mux / "tag_calls_summary.csv").write_text("Category,num_cells\\n1 tag assigned,3\\n")
+(mux / "tag_calls_summary.csv").write_text(
+    "Category,num_cells,pct_cells,median_umis,stddev_umis\\n"
+    "No tag molecules,10,1.0,None,None\\n"
+    "No tag assigned,100,10.0,None,None\\n"
+    "1 tag assigned,870,87.0,None,None\\n"
+    "More than 1 tag assigned,30,3.0,None,None\\n"
+)
 sample_ids = []
 section = ""
 with Path(flags["csv"]).open(newline="") as handle:
@@ -59,6 +70,20 @@ with Path(flags["csv"]).open(newline="") as handle:
             section = row[0]
         elif section == "[samples]" and row and row[0] != "sample_id":
             sample_ids.append(row[0])
+with (out / "qc_sample_metrics.csv").open("w", newline="") as handle:
+    writer = csv.writer(handle)
+    writer.writerow([
+        "Sample ID", "Sample barcodes", "GEX: Cells", "GEX: Median genes per cell",
+        "GEX: Median UMI counts per cell", "GEX: Confidently mapped to transcriptome",
+        "GEX: Number of reads in cells", "Antibody: Number of reads in cells",
+        "Antibody: Median UMI counts per cell",
+    ])
+    for index, sample_id in enumerate(sample_ids, start=1):
+        cells = 1000 + index
+        writer.writerow([
+            sample_id, f"Hashtag{index}", cells, 2000 + index, 5000 + index, 0.75,
+            cells * 20000, cells * 100, 20 + index,
+        ])
 for sample_id in sample_ids:
     sample_out = out / "per_sample_outs" / sample_id
     sample_out.mkdir(parents=True)
@@ -176,6 +201,32 @@ def test_render_and_execute() -> None:
         assert "TLR4_LPS_rep1,Hashtag1" in config_text
         for sample in ("WT_ctrl", "WT_LPS", "TLR4_ctrl", "TLR4_LPS"):
             assert (results / sample / "outs" / "qc_report.html").exists()
+        qc_dir = results / "qc"
+        assert (qc_dir / "qc_overview.html").exists()
+        assert (qc_dir / "sample_qc_overview.csv").exists()
+        assert (qc_dir / "gem_well_library_qc.csv").exists()
+        assert (qc_dir / "hashtag_assignment_overview.csv").exists()
+        sample_qc_rows = list(csv.DictReader((qc_dir / "sample_qc_overview.csv").open(encoding="utf-8")))
+        assert len(sample_qc_rows) == 12
+        assert {row["GEM well"] for row in sample_qc_rows} == {
+            "WT_ctrl", "WT_LPS", "TLR4_ctrl", "TLR4_LPS"
+        }
+        assert sample_qc_rows[0]["Sample ID"]
+        assert all(row["GEX: Reads in cells per cell"] == "20000" for row in sample_qc_rows)
+        assert all(row["Antibody: Reads in cells per cell"] == "100" for row in sample_qc_rows)
+        assert all(row["GEM-well GEX total reads"] == "100000000" for row in sample_qc_rows)
+        assert all(row["GEM-well GEX mean reads per cell"] == "25000" for row in sample_qc_rows)
+        assert all(row["GEM-well GEX sequencing saturation"] == "0.50" for row in sample_qc_rows)
+        hashtag_rows = list(csv.DictReader((qc_dir / "hashtag_assignment_overview.csv").open(encoding="utf-8")))
+        assert len(hashtag_rows) == 4
+        assert all(row["Singlet assigned %"] == "87.0" for row in hashtag_rows)
+        overview = (qc_dir / "qc_overview.html").read_text(encoding="utf-8")
+        assert "12</strong>biological samples" in overview
+        assert "Hashtag assignment by GEM well" in overview
+        assert "reads in cells per cell" in overview
+        assert "They are not independent raw sequencing depths" in overview
+        assert "50.0%" in overview
+        assert "must not be interpreted as surface-protein expression" in overview
         payload = json.loads((results / "runtime_command.json").read_text(encoding="utf-8"))
         assert len(payload["commands"]) == 4
         assert payload["feature_reference"].startswith("file:")
@@ -193,27 +244,13 @@ def test_render_and_execute() -> None:
                     collected[name] = matches
             elif name == "results_dir":
                 collected[name] = results
-        for required in (
+        assert set(declared) == {
             "results_dir",
-            "sample_manifest",
-            "settings",
-            "sample_assignments",
-            "generated_multi_configs",
-            "cellranger_outs_dirs",
-            "qc_reports",
-            "per_sample_web_summaries",
-            "qc_library_metrics",
-            "qc_sample_metrics",
-            "per_sample_metrics",
-            "multiplexing_analysis",
-            "per_sample_filtered_matrices",
             "per_sample_molecule_info",
-            "per_sample_cloupe_files",
-            "per_sample_bams",
-            "per_sample_bam_indexes",
             "runtime_command",
             "software_versions",
-        ):
+        }
+        for required in declared:
             assert required in collected, f"Linkar output was not collectable: {required}"
 
 

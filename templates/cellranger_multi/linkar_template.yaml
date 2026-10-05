@@ -1,5 +1,5 @@
 id: cellranger_multi
-version: 0.1.0
+version: 0.3.0
 description: Render and run one Cell Ranger multi analysis per paired GEX/Feature Barcode sample.
 tools:
   required:
@@ -31,56 +31,8 @@ params:
     description: Optional Cell Ranger local memory limit in GB.
 outputs:
   results_dir: {}
-  sample_manifest:
-    path: ../config/samples.csv
-  settings:
-    path: ../config/cellranger_multi.toml
-  sample_assignments:
-    path: ../config/sample_assignments.csv
-  custom_feature_reference:
-    path: ../config/custom_feature_reference.csv
-  generated_feature_reference:
-    path: ../generated/feature_reference.csv
-  generated_multi_configs:
-    glob: ../generated/multi/*.csv
-  cellranger_outs_dirs:
-    glob: "*/outs"
-  qc_reports:
-    glob: "*/outs/qc_report.html"
-  per_sample_web_summaries:
-    glob: "*/outs/per_sample_outs/*/web_summary.html"
-  all_html_reports:
-    glob: "*/outs/**/*.html"
-  qc_library_metrics:
-    glob: "*/outs/qc_library_metrics.csv"
-  qc_sample_metrics:
-    glob: "*/outs/qc_sample_metrics.csv"
-  per_sample_metrics:
-    glob: "*/outs/per_sample_outs/*/metrics_summary.csv"
-  all_metrics_csvs:
-    glob: "*/outs/**/*metrics*.csv"
-  multiplexing_analysis:
-    glob: "*/outs/multiplexing_analysis/*"
-  filtered_feature_matrices:
-    glob: "*/outs/filtered_feature_bc_matrix.h5"
-  raw_feature_matrices:
-    glob: "*/outs/raw_feature_bc_matrix.h5"
-  raw_molecule_info:
-    glob: "*/outs/raw_molecule_info.h5"
-  raw_cloupe_files:
-    glob: "*/outs/raw_cloupe.cloupe"
-  per_sample_filtered_matrices:
-    glob: "*/outs/per_sample_outs/**/sample_filtered_feature_bc_matrix.h5"
   per_sample_molecule_info:
     glob: "*/outs/per_sample_outs/**/sample_molecule_info.h5"
-  per_sample_cloupe_files:
-    glob: "*/outs/per_sample_outs/**/sample_cloupe.cloupe"
-  per_sample_bams:
-    glob: "*/outs/per_sample_outs/**/*.bam"
-  per_sample_bam_indexes:
-    glob: "*/outs/per_sample_outs/**/*.bai"
-  per_sample_bam_csi_indexes:
-    glob: "*/outs/per_sample_outs/**/*.csi"
   runtime_command:
     path: runtime_command.json
   software_versions:

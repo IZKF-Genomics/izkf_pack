@@ -513,6 +513,15 @@ def execute_workspace(args: argparse.Namespace) -> int:
     for command in commands:
         print("+", " ".join(shlex.quote(part) for part in command), flush=True)
         subprocess.run(command, cwd=results_dir, check=True)
+    subprocess.run(
+        [
+            sys.executable,
+            str(workspace / "collect_qc.py"),
+            "--results-dir",
+            str(results_dir),
+        ],
+        check=True,
+    )
     print(f"[info] completed {len(commands)} Cell Ranger multi run(s) in {results_dir}")
     return 0
 

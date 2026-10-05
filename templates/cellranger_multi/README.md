@@ -40,6 +40,60 @@ Then launch all GEM wells sequentially:
 Generated inputs are written to `generated/`. Cell Ranger outputs are written
 to `results/<gem_well>/`.
 
+After every successful non-prepare run, the template also consolidates the final Cell Ranger
+CSV outputs across all GEM wells into:
+
+```text
+results/qc/
+├── qc_overview.html
+├── sample_qc_overview.csv
+├── gem_well_library_qc.csv
+└── hashtag_assignment_overview.csv
+```
+
+- `sample_qc_overview.csv` combines `qc_sample_metrics.csv` into one row per biological sample;
+- `gem_well_library_qc.csv` combines the complete long-format `qc_library_metrics.csv` tables;
+- `hashtag_assignment_overview.csv` compares singlet, multiplet, unassigned, and no-tag calls;
+- `qc_overview.html` provides a cross-sample table, assignment overview, CSV downloads, and links
+  back to the original Cell Ranger GEM-well and per-sample reports.
+
+The collector reports descriptive Cell Ranger primary-analysis metrics and does not impose
+universal pass/fail thresholds. For antibody-based hashing, Antibody Capture metrics describe
+hashtag signal and must not be interpreted as surface-protein abundance. Cell-level mitochondrial
+fraction, count distributions, ambient RNA, and downstream doublet scoring remain part of the
+downstream single-cell QC workflow.
+
+For multiplexed experiments, the overview keeps two sequencing-depth concepts separate:
+
+- `GEX: Reads in cells per cell` and `Antibody: Reads in cells per cell` are calculated from the
+  reads assigned to each hashtag-defined biological sample;
+- `GEM-well GEX total reads`, `GEM-well GEX mean reads per cell`, and
+  `GEM-well GEX sequencing saturation` describe the complete pooled GEX library. These values
+  repeat for biological samples from the same GEM well and are not independent raw depths for
+  each hashed sample.
+
+The source counts (`GEX: Number of reads in cells` and, when available,
+`Antibody: Number of reads in cells`) remain in `sample_qc_overview.csv` for auditability.
+
+To regenerate only the overview after restoring or changing Cell Ranger results:
+
+```bash
+python3 collect_qc.py --results-dir ./results
+```
+
+## Linkar output contract
+
+`project.yaml` intentionally records only outputs consumed by another template:
+
+- `results_dir` exposes the complete result tree to project-level export and discovery;
+- `per_sample_molecule_info` supplies the input files discovered by `cellranger_aggr`;
+- `runtime_command` and `software_versions` supply run provenance to `summary`.
+
+QC reports, consolidated QC tables, metrics, matrices, BAM files, indexes, Loupe files, configuration, and generated
+multi CSV files remain under the rendered `cellranger_multi/` workspace and are exported from
+that filesystem layout. They are deliberately not expanded into large path lists in
+`project.yaml` unless a downstream template needs them in the future.
+
 ## Mental model: GEM wells, libraries, and biological samples
 
 The three levels are intentionally kept separate:
