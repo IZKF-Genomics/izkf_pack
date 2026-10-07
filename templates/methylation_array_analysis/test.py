@@ -94,7 +94,7 @@ def main() -> None:
     assert "build_dnam_inputs.py" in run_sh_text
     assert "software:" in spec_text
     assert "command: pixi --version" in spec_text
-    assert 'linkar collect "${script_dir}"' in run_sh_text
+    assert 'linkar collect --project "${LINKAR_PROJECT_DIR}" "${script_dir}"' in run_sh_text
     assert 'linkar clean "${script_dir}" --yes' in run_sh_text
     assert 'source("dnam_inputs.R")' in constructor_text
     assert "# Add study-specific comparisons here." in constructor_text

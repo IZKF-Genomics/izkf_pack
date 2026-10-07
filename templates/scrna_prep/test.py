@@ -594,7 +594,7 @@ assert normalized.tolist() == ["unknown", "unknown", "unknown", "unknown", "trea
     assert 'python3 "run.py" --prepare-only' not in run_sh_text
     assert "pixi install" not in run_sh_text
     assert 'pixi run quarto render "scrna_prep.qmd"' not in run_sh_text
-    assert 'linkar collect "${script_dir}"' in run_sh_text
+    assert 'linkar collect --project "${LINKAR_PROJECT_DIR}" "${script_dir}"' in run_sh_text
     assert 'linkar clean "${script_dir}" --yes' in run_sh_text
     assert "--prepare-only" in run_py_text
     assert "--write-config-from-env" in run_py_text

@@ -254,7 +254,7 @@ def test_software_versions_contract() -> None:
     assert "path: results/audit_report_static.qmd" in template_text
     assert 'python3 "${pack_root}/functions/software_versions.py"' in run_sh_text
     assert '--spec "${script_dir}/software_versions_spec.yaml"' in run_sh_text
-    assert 'linkar collect "${script_dir}"' in run_sh_text
+    assert 'linkar collect --project "${LINKAR_PROJECT_DIR}" "${script_dir}"' in run_sh_text
     assert 'linkar clean "${script_dir}" --yes' in run_sh_text
     assert "cleanup_runtime()" in run_sh_text
     assert "audit_report_static.html" in run_sh_text

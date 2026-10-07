@@ -32,7 +32,11 @@ if [[ "${WRITE_SOFTWARE_VERSIONS:-0}" == "1" ]]; then
 fi
 
 if [[ "${LINKAR_COLLECT:-0}" == "1" ]]; then
+if [[ -n "${LINKAR_PROJECT_DIR:-}" ]]; then
+  linkar collect --project "${LINKAR_PROJECT_DIR}" "${script_dir}"
+else
   linkar collect "${script_dir}"
+fi
 fi
 
 if [[ "${LINKAR_CLEAN:-0}" == "1" ]]; then

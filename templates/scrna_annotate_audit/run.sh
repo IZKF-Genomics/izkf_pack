@@ -57,7 +57,11 @@ say "  ${results_dir}/tables/final_annotation_decisions_draft.csv"
 say "  ${results_dir}/tables/umap_candidates.csv"
 
 # Record outputs in Linkar after successful manual execution.
-linkar collect "${script_dir}"
+if [[ -n "${LINKAR_PROJECT_DIR:-}" ]]; then
+  linkar collect --project "${LINKAR_PROJECT_DIR}" "${script_dir}"
+else
+  linkar collect "${script_dir}"
+fi
 
 if [[ "${render_only}" == "1" ]]; then
   say "render-only mode; temporary local API was not started"

@@ -192,7 +192,7 @@ def main() -> int:
         assert linkar_template["outputs"]["run_info"]["path"] == "results/run_info.yaml"
         assert linkar_template["outputs"]["software_versions"]["path"] == "results/software_versions.json"
         assert 'python3 "${LINKAR_PACK_ROOT}/functions/materialize_vscode_settings.py"' in linkar_template["render"]["command"]
-        assert 'linkar collect "${script_dir}"' in run_sh_text
+        assert 'linkar collect --project "${LINKAR_PROJECT_DIR}" "${script_dir}"' in run_sh_text
         assert 'linkar clean "${script_dir}" --yes' in run_sh_text
         assert "--configure" in run_sh_text
         assert 'LINKAR_DGEA_ORGANISM="${ORGANISM:-}"' in run_sh_text

@@ -44,7 +44,11 @@ say "  ${results_dir}/tables/catalog_matches.csv"
 say "  ${results_dir}/tables/cluster_annotation_summary.csv"
 
 # Record outputs in Linkar after successful manual execution.
-linkar collect "${script_dir}"
+if [[ -n "${LINKAR_PROJECT_DIR:-}" ]]; then
+  linkar collect --project "${LINKAR_PROJECT_DIR}" "${script_dir}"
+else
+  linkar collect "${script_dir}"
+fi
 
 # Remove template-declared runtime artifacts.
 linkar clean "${script_dir}" --yes

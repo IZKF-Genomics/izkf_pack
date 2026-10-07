@@ -205,7 +205,7 @@ def test_software_versions_contract() -> None:
     assert "path: results/software_versions.json" in template_text
     assert 'python3 "${pack_root}/functions/software_versions.py"' in run_sh_text
     assert "WRITE_SOFTWARE_VERSIONS" in run_sh_text
-    assert 'linkar collect "${script_dir}"' in run_sh_text
+    assert 'linkar collect --project "${LINKAR_PROJECT_DIR}" "${script_dir}"' in run_sh_text
     assert 'LINKAR_COLLECT' in run_sh_text
     assert 'LINKAR_CLEAN' in run_sh_text
     assert "counts_layer" in spec_text

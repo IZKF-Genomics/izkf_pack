@@ -246,7 +246,7 @@ def main() -> None:
     assert "- pixi" in template_text
     assert "default: true" in template_text
     assert 'python3 "${script_dir}/run.py"' in run_sh_text
-    assert 'linkar collect "${script_dir}"' in run_sh_text
+    assert 'linkar collect --project "${LINKAR_PROJECT_DIR}" "${script_dir}"' in run_sh_text
     assert 'linkar clean "${script_dir}" --yes' in run_sh_text
     assert 'LINKAR_NEXTFLOW_RESUME=true' in run_sh_text
     assert 'subprocess.run(["pixi", "install"], check=True)' in run_py_text

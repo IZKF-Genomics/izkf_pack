@@ -45,7 +45,11 @@ fi
 say "review marker evidence before treating labels as final annotations"
 
 # Record outputs in Linkar after successful manual execution.
-linkar collect "${script_dir}"
+if [[ -n "${LINKAR_PROJECT_DIR:-}" ]]; then
+  linkar collect --project "${LINKAR_PROJECT_DIR}" "${script_dir}"
+else
+  linkar collect "${script_dir}"
+fi
 
 # Remove template-declared runtime artifacts.
 linkar clean "${script_dir}" --yes

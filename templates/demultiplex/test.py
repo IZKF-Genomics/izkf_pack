@@ -369,7 +369,7 @@ def main() -> None:
         assert '--spec "${script_dir}/software_versions_spec.yaml"' in template_run_sh
         assert 'export UPSTREAM_COMMIT="${upstream_commit}"' in template_run_sh
         assert 'rm -rf "${upstream_repo_dir}"' in template_run_sh
-        assert 'linkar collect "${script_dir}"' in template_run_sh
+        assert 'linkar collect --project "${LINKAR_PROJECT_DIR}" "${script_dir}"' in template_run_sh
         assert 'linkar clean "${script_dir}" --yes' in template_run_sh
         assert not (TEMPLATE_DIR / "demux_pipeline" / "cli.py").exists()
         assert not (TEMPLATE_DIR / "pixi.toml").exists()
