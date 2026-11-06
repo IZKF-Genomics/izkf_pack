@@ -84,7 +84,11 @@ comparisons <- list()
 # )
 
 for (comparison in comparisons) {
-  report_config <- modifyList(global_config, comparison)
+  # Comparisons override complete top-level settings.  In particular, a
+  # filtered samplesheet must replace the global data frame rather than be
+  # recursively merged into it (which fails when their row counts differ).
+  report_config <- global_config
+  report_config[names(comparison)] <- comparison
   if (is.null(report_config$samplesheet)) {
     report_config$samplesheet <- samplesheet
   }

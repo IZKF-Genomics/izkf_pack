@@ -1008,6 +1008,9 @@ names(gene_list) <- res_agg$gene_symbol
 gene_list <- sort(gene_list, decreasing = TRUE)
 
 # Perform GSEA with GO terms
+# Use a serial backend so GSEA also works on restricted compute nodes where
+# BiocParallel cannot open the ports needed by its default SnowParam backend.
+BiocParallel::register(BiocParallel::SerialParam())
 gsea_results <- gseGO(
   geneList = gene_list,
   OrgDb = OrgDb,

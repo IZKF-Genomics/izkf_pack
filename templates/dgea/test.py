@@ -150,6 +150,8 @@ def main() -> int:
         assert "# BEGIN CONFIGURED SAMPLE METADATA" in constructor
         assert "# BEGIN CONFIGURED COMPARISONS" in constructor
         assert "Auto-configured one comparison" not in constructor
+        assert "report_config[names(comparison)] <- comparison" in constructor
+        assert "modifyList(global_config, comparison)" not in constructor
 
         configurator = (TEMPLATE_DIR / "configure_comparisons.py").read_text(encoding="utf-8")
         assert "HIDDEN_COLUMNS" in configurator
@@ -217,6 +219,7 @@ def main() -> int:
         assert "paired:" not in template_text
         assert "salmon.merged.tx2gene.tsv" in template_text
         assert "is_standard_nfcore_rnaseq(params$application)" in template_text
+        assert "BiocParallel::register(BiocParallel::SerialParam())" in template_text
         assert "knitr::asis_output(paste(" in template_text
         assert '"# GO Analysis",' in template_text
         assert "  # GO Analysis" not in template_text
