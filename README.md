@@ -166,8 +166,8 @@ cd example_run
 bash run.sh
 ```
 
-For AVITI runs, add `--platform aviti`. With the default binding, the template uses
-`RunManifest.csv` from the run directory when present:
+For AVITI runs, add `--platform aviti`. With the default binding, the template reads `FlowcellID`
+from `RunParameters.json` and requests the review bundle from the facility API:
 
 ```bash
 linkar run demultiplex \
@@ -178,7 +178,7 @@ linkar run demultiplex \
 
 `linkar run` includes render, execution, output collection, and `.linkar` metadata writing in one command. When it runs inside an active Linkar project, it also records the run in `project.yaml`.
 
-With the default binding, Illumina demultiplex samplesheets are resolved from `/api/get/samplesheet/flowcell/{flowcell}` and AVITI runs prefer `RunManifest.csv` from the run directory. In normal Illumina run folders the flowcell id is derived from the folder name, so `--flowcell-id` and `--agendo-id` are usually unnecessary. Pass `--flowcell-id` only for unusual folder names, and `--agendo-id` only as a request-id fallback when flowcell lookup is unavailable.
+With the default binding, Illumina and AVITI demultiplex manifests are resolved only from `/api/get/samplesheet/flowcell/{flowcell}`. Normal Illumina run folders use the final folder component without its leading `A`; AVITI reads `FlowcellID` from `RunParameters.json`. Pass `--flowcell-id` only as an explicit override. The returned ZIP review bundle is validated and cached with its evidence and README, while the extracted primary manifest is copied into the rendered workspace. API or bundle errors stop rendering, and the legacy `demultiplex` template never reads `RunManifest.csv` from the raw AVITI run directory.
 
 Export an ad hoc demultiplexing run:
 
@@ -631,7 +631,7 @@ The default binding in [`linkar_pack.yaml`](linkar_pack.yaml) uses Python functi
 
 | Function | Purpose | Details |
 | --- | --- | --- |
-| [`get_api_samplesheet`](functions/get_api_samplesheet.py) | Resolve a demultiplexing samplesheet from an explicit value, metadata API, or bundled fallback. | [functions README](functions/README.md#get_api_samplesheet) |
+| [`get_api_samplesheet`](functions/get_api_samplesheet.py) | Resolve a demultiplexing manifest from an explicit value or a validated flowcell API review bundle. | [functions README](functions/README.md#get_api_samplesheet) |
 | [`get_demultiplex_render_outdir`](functions/get_demultiplex_render_outdir.py) | Derive the default demultiplex render directory from the raw run folder name. | [functions README](functions/README.md#get_demultiplex_render_outdir) |
 | [`get_nfcore_demultiplex_render_outdir`](functions/get_nfcore_demultiplex_render_outdir.py) | Derive the default `nfcore_demultiplex` render directory from `raw_run_dir`. | [functions README](functions/README.md#get_nfcore_demultiplex_render_outdir) |
 | [`get_nfcore_demultiplex_flowcell_samplesheet`](functions/get_nfcore_demultiplex_flowcell_samplesheet.py) | Resolve Illumina SampleSheet.csv or AVITI RunManifest.csv for `nfcore_demultiplex`. | [functions README](functions/README.md#get_nfcore_demultiplex_flowcell_samplesheet) |

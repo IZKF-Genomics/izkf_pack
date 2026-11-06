@@ -1,5 +1,5 @@
 id: demultiplex
-version: 0.2.2
+version: 0.3.0
 description: Clone and run the upstream demultiplexing_prefect pipeline for Illumina or AVITI runs through Linkar.
 tools:
   required:
@@ -19,18 +19,14 @@ params:
   use_api_samplesheet:
     type: bool
     default: true
-    description: When true and --samplesheet is not passed explicitly, resolve the Illumina samplesheet from the facility API via the default binding. For AVITI runs the binding prefers bcl_dir/RunManifest.csv.
-  agendo_id:
-    type: str
-    default: ""
-    description: Optional request id fallback used for API samplesheet lookup when the flowcell lookup returns 404.
+    description: When true and --samplesheet is not passed explicitly, download the review bundle from /api/get/samplesheet/flowcell/{flowcell}, safely extract its primary manifest, and require successful API resolution.
   flowcell_id:
     type: str
     default: ""
-    description: Optional flowcell id override used for Illumina API samplesheet lookup. If omitted, it is derived from bcl_dir.
+    description: Optional flowcell id override used for API samplesheet lookup. If omitted, Illumina uses the final run-folder component and AVITI reads FlowcellID from bcl_dir/RunParameters.json.
   samplesheet:
     type: path
-    description: Optional manifest passed to the upstream demultiplexer. Use an Illumina SampleSheet for platform=illumina or an AVITI RunManifest.csv for platform=aviti. With --binding default it resolves from the facility API for Illumina or from bcl_dir/RunManifest.csv for AVITI, then falls back to the bundled samplesheet.csv.
+    description: Optional manifest passed to the upstream demultiplexer. Use an Illumina SampleSheet for platform=illumina or an AVITI RunManifest for platform=aviti. With --binding default it is extracted from the facility API review bundle. The bundled samplesheet.csv is used only when API lookup is explicitly disabled.
   qc_tool:
     type: str
     default: falco

@@ -22,7 +22,6 @@ Exposed parameters:
 - `platform`
 - `samplesheet`
 - `use_api_samplesheet`
-- `agendo_id`
 - `flowcell_id`
 - `qc_tool`
 - `contamination_tool`
@@ -104,15 +103,15 @@ linkar project init \
 When you run with `--binding default`, `samplesheet` resolves in this order:
 
 1. explicit `--samplesheet`
-2. for `--platform aviti`, `bcl_dir/RunManifest.csv` when present
-3. for `--platform illumina`, facility API lookup at `/api/get/samplesheet/flowcell/{flowcell}` using `--flowcell-id` when provided, or a flowcell id derived from `--bcl-dir`
-4. optional Agendo request-id fallback by `--agendo-id` only when the flowcell lookup returns 404
-5. bundled template fallback [samplesheet.csv](samplesheet.csv) if no run-specific manifest is available
+2. facility API lookup at `/api/get/samplesheet/flowcell/{flowcell}` using `--flowcell-id` when provided
+3. when `--flowcell-id` is omitted, derive the lookup key from `--bcl-dir`: the final Illumina folder component without its leading `A`, or `FlowcellID` from AVITI `RunParameters.json`
+4. safely extract the primary manifest from the returned ZIP review bundle and cache the complete bundle, evidence, and README under `~/.linkar/api_samplesheets/<flowcell>/<bundle-sha256>/`
 
-That fallback file is only a generic placeholder. It is useful as a last-resort file default, but
-it may not be correct for a real sequencing run.
+API authentication, lookup, ZIP validation, and primary-manifest selection errors stop rendering.
+The bundled [samplesheet.csv](samplesheet.csv) is a generic placeholder used only when
+`--no-use-api-samplesheet` is explicitly selected; it may not be correct for a real run.
 
-Flowcell-only API lookup does not require `--agendo-id`:
+An explicit flowcell override remains available for unusual run folders:
 
 ```bash
 linkar render demultiplex \
@@ -121,8 +120,8 @@ linkar render demultiplex \
   --flowcell-id HLHGVBGYX
 ```
 
-For AVITI runs, set the platform explicitly. With the default binding, the template uses
-`<run>/RunManifest.csv` when present:
+For AVITI runs, set the platform explicitly. The default binding reads `FlowcellID` from
+`<run>/RunParameters.json`, queries the facility API, and does not use `<run>/RunManifest.csv`:
 
 ```bash
 linkar render demultiplex \
