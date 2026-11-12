@@ -10,7 +10,7 @@ These functions should stay small, predictable, and easy to debug. If a function
 
 Source: [`get_api_samplesheet.py`](get_api_samplesheet.py)
 
-Resolves the demultiplexing samplesheet. It prefers an explicit `samplesheet` parameter and otherwise queries only `/api/get/samplesheet/flowcell/{flowcell}` when `use_api_samplesheet=true`. It validates the returned ZIP, caches the complete content-addressed review bundle, safely extracts the primary manifest, and emits a Linkar review warning. Illumina derives the flowcell from the final run-folder component; AVITI reads `FlowcellID` from `RunParameters.json` and never reads the raw run's `RunManifest.csv`. API or bundle errors stop resolution instead of silently selecting a fallback. The bundled template samplesheet is available only when API lookup is explicitly disabled.
+Resolves the demultiplexing samplesheet. It prefers an explicit `samplesheet` parameter and otherwise queries only `/api/get/samplesheet/flowcell/{flowcell}` when `use_api_samplesheet=true`. It validates the returned ZIP, caches the complete content-addressed review bundle, safely extracts the primary manifest, and emits a Linkar review warning. Illumina derives the flowcell from the final run-folder component; AVITI reads `FlowcellID` from `RunParameters.json` and never reads the raw run's `RunManifest.csv`. API or bundle errors stop resolution instead of silently selecting a fallback. When API lookup is explicitly disabled, the binding returns the bundled sample-row-free `samplesheet.csv` for Illumina or `run_manifest_aviti.csv` for AVITI; users must add real samples before execution.
 
 Environment variables:
 

@@ -108,8 +108,40 @@ When you run with `--binding default`, `samplesheet` resolves in this order:
 4. safely extract the primary manifest from the returned ZIP review bundle and cache the complete bundle, evidence, and README under `~/.linkar/api_samplesheets/<flowcell>/<bundle-sha256>/`
 
 API authentication, lookup, ZIP validation, and primary-manifest selection errors stop rendering.
-The bundled [samplesheet.csv](samplesheet.csv) is a generic placeholder used only when
-`--no-use-api-samplesheet` is explicitly selected; it may not be correct for a real run.
+When API lookup is explicitly disabled, the binding selects a valid sample-row-free skeleton for
+the requested platform:
+
+- Illumina: [samplesheet.csv](samplesheet.csv), using BCL Convert SampleSheet v2 sections
+- AVITI: [run_manifest_aviti.csv](run_manifest_aviti.csv), using the bases2fastq RunManifest format
+
+Add real sample names and indexes before execution. The skeletons intentionally contain no fake
+sample rows, so they cannot silently demultiplex placeholder indexes.
+
+Render an editable Illumina workspace without calling the API:
+
+```bash
+linkar render demultiplex \
+  --binding default \
+  --bcl-dir /data/bcl/RUN_DIRECTORY \
+  --use-api-samplesheet false \
+  --outdir /data/fastq/RUN_DIRECTORY
+
+cd /data/fastq/RUN_DIRECTORY
+# Edit samplesheet.csv and add rows below [BCLConvert_Data].
+bash run.sh
+```
+
+For manual AVITI entry, add `--platform aviti`; the rendered editable manifest is
+`run_manifest_aviti.csv`:
+
+```bash
+linkar render demultiplex \
+  --binding default \
+  --platform aviti \
+  --bcl-dir /data/raw/AVITI_RUN_DIRECTORY \
+  --use-api-samplesheet false \
+  --outdir /data/fastq/AVITI_RUN_DIRECTORY
+```
 
 An explicit flowcell override remains available for unusual run folders:
 

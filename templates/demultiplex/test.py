@@ -212,7 +212,40 @@ def run_case(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
     )
 
 
+def assert_manual_manifest_skeletons() -> None:
+    illumina = (TEMPLATE_DIR / "samplesheet.csv").read_text(encoding="utf-8")
+    assert illumina == (
+        "[Header]\n"
+        "FileFormatVersion,2\n"
+        "\n"
+        "[BCLConvert_Settings]\n"
+        "CreateFastqForIndexReads,0\n"
+        "NoLaneSplitting,true\n"
+        "\n"
+        "[BCLConvert_Data]\n"
+        "Sample_ID,index,index2,Sample_Project\n"
+    )
+    assert "\n[Settings]\n" not in illumina
+    assert "\n[Data]\n" not in illumina
+    assert "Sample1_A" not in illumina
+    assert "AAAAAAAA" not in illumina
+
+    aviti = (TEMPLATE_DIR / "run_manifest_aviti.csv").read_text(encoding="utf-8")
+    assert aviti == (
+        "[SETTINGS],,,\n"
+        "SettingName,Value,Lane,\n"
+        "R1Adapter,,1+2,\n"
+        "R1AdapterTrim,FALSE,1+2,\n"
+        "R2Adapter,,1+2,\n"
+        "R2AdapterTrim,FALSE,1+2,\n"
+        "[SAMPLES],,,\n"
+        "SampleName,Index1,Index2,Lane\n"
+    )
+
+
 def main() -> None:
+    assert_manual_manifest_skeletons()
+
     with tempfile.TemporaryDirectory(prefix="linkar-demultiplex-test-") as tmp:
         tmpdir = Path(tmp)
         fake_pixi_bin = make_fake_pixi_bin(tmpdir)

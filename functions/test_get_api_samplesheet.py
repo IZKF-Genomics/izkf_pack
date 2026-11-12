@@ -52,6 +52,8 @@ def main() -> None:
         tmpdir = Path(tmp)
         fallback = tmpdir / "samplesheet.csv"
         fallback.write_text("fallback\n", encoding="utf-8")
+        aviti_fallback = tmpdir / "run_manifest_aviti.csv"
+        aviti_fallback.write_text("aviti-fallback\n", encoding="utf-8")
 
         original_fetch = MODULE._fetch
         original_build_auth_header = MODULE._build_auth_header
@@ -66,6 +68,14 @@ def main() -> None:
 
             ctx = FakeContext(tmpdir, samplesheet="", use_api_samplesheet=False)
             assert MODULE.resolve(ctx) == str(fallback.resolve())
+
+            ctx = FakeContext(
+                tmpdir,
+                platform="aviti",
+                samplesheet="",
+                use_api_samplesheet=False,
+            )
+            assert MODULE.resolve(ctx) == str(aviti_fallback.resolve())
             assert MODULE.API_BASE_FLOWCELL == EXPECTED_FLOWCELL_API_BASE
 
             aviti_dir = tmpdir / "20261103_AV261102_261103_Seq00334_Seq00319_Seq00336"

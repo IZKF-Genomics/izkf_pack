@@ -117,10 +117,15 @@ def _cache_root() -> Path:
 
 
 def _fallback_template_samplesheet(ctx) -> str:
-    fallback = Path(ctx.template.root) / "samplesheet.csv"
+    resolved = dict(ctx.resolved_params or {})
+    platform = _nonempty(resolved.get("platform")).lower()
+    fallback_name = "run_manifest_aviti.csv" if platform == "aviti" else "samplesheet.csv"
+    fallback = Path(ctx.template.root) / fallback_name
     if fallback.exists():
         return str(fallback.resolve())
-    raise RuntimeError("API samplesheet lookup is disabled and no bundled samplesheet.csv exists")
+    raise RuntimeError(
+        f"API samplesheet lookup is disabled and no bundled {fallback_name} exists"
+    )
 
 
 def _input_dir_from_resolved(resolved: dict[str, object]) -> str:

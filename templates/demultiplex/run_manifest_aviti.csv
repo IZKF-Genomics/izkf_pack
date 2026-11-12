@@ -1,0 +1,8 @@
+[SETTINGS],,,
+SettingName,Value,Lane,
+R1Adapter,,1+2,
+R1AdapterTrim,FALSE,1+2,
+R2Adapter,,1+2,
+R2AdapterTrim,FALSE,1+2,
+[SAMPLES],,,
+SampleName,Index1,Index2,Lane
