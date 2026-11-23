@@ -18,6 +18,12 @@ if [[ "${results_dir}" != /* ]]; then
   results_dir="${script_dir}/${results_dir#./}"
 fi
 
+if [[ "${PLATFORM:?}" == "aviti" ]]; then
+  python3 "${script_dir}/validate_aviti_manifest.py" \
+    --run-dir "${BCL_DIR:?}" \
+    --manifest "${samplesheet_path}"
+fi
+
 rm -rf "${upstream_repo_dir}"
 git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"
 git -C "${upstream_repo_dir}" fetch --depth 1 origin "${upstream_commit}"

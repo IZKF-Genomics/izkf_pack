@@ -243,8 +243,55 @@ def assert_manual_manifest_skeletons() -> None:
     )
 
 
+def assert_aviti_manifest_validation() -> None:
+    with tempfile.TemporaryDirectory(prefix="linkar-aviti-manifest-test-") as tmp:
+        tmpdir = Path(tmp)
+        run_dir = tmpdir / "run"
+        run_dir.mkdir()
+        (run_dir / "RunParameters.json").write_text(
+            json.dumps({"Cycles": {"R1": 29, "R2": 91, "I1": 10, "I2": 10}}) + "\n",
+            encoding="utf-8",
+        )
+        valid = tmpdir / "valid.csv"
+        valid.write_text(
+            "[SETTINGS],,,\n"
+            "SettingName,Value,Lane,\n"
+            "[SAMPLES],,,\n"
+            "SampleName,Index1,Index2,Lane,Project\n"
+            "S1,ATGTCGCTAG,CTAGCTCGTA,1,P1\n",
+            encoding="utf-8",
+        )
+        invalid = tmpdir / "invalid.csv"
+        invalid.write_text(
+            valid.read_text(encoding="utf-8").replace(
+                "ATGTCGCTAG,CTAGCTCGTA", "ATGTCGCTAGAT,CTAGCTCGTAAC"
+            ),
+            encoding="utf-8",
+        )
+        validator = TEMPLATE_DIR / "validate_aviti_manifest.py"
+        valid_result = subprocess.run(
+            [sys.executable, str(validator), "--run-dir", str(run_dir), "--manifest", str(valid)],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert valid_result.returncode == 0, valid_result.stderr
+        assert "Index1=10 bp, Index2=10 bp" in valid_result.stdout
+
+        invalid_result = subprocess.run(
+            [sys.executable, str(validator), "--run-dir", str(run_dir), "--manifest", str(invalid)],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert invalid_result.returncode == 2
+        assert "S1 Index1 has 12 bases" in invalid_result.stderr
+        assert "S1 Index2 has 12 bases" in invalid_result.stderr
+
+
 def main() -> None:
     assert_manual_manifest_skeletons()
+    assert_aviti_manifest_validation()
 
     with tempfile.TemporaryDirectory(prefix="linkar-demultiplex-test-") as tmp:
         tmpdir = Path(tmp)
@@ -381,6 +428,7 @@ def main() -> None:
         assert 'entry: run.sh' in template_yaml
         assert "  samplesheet:\n    type: path\n    stage: copy" in template_yaml
         assert 'upstream_repo_dir="${script_dir}/demultiplexing_prefect"' in template_run_sh
+        assert 'python3 "${script_dir}/validate_aviti_manifest.py"' in template_run_sh
         assert 'git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"' in template_run_sh
         assert 'git -C "${upstream_repo_dir}" fetch --depth 1 origin "${upstream_commit}"' in template_run_sh
         assert 'git -C "${upstream_repo_dir}" checkout "${upstream_commit}"' in template_run_sh
