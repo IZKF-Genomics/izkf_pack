@@ -23,6 +23,7 @@ Environment variables:
 Source: [`get_demultiplex_render_outdir.py`](get_demultiplex_render_outdir.py)
 
 Builds the default render output directory for the `demultiplex` template from the basename of `input_dir`, falling back to `bcl_dir` for legacy callers.
+The samplesheet source mode does not affect the directory name: API, explicit-file, and manual-entry renders all use the unmodified sequencing run name with no mode suffix.
 
 Environment variables:
 

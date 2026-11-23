@@ -34,6 +34,7 @@ Pack defaults:
 
 - render `outdir` resolves through `get_demultiplex_render_outdir`
 - `get_demultiplex_render_outdir` returns `/data/fastq/<basename(bcl_dir)>` by default
+- API, explicit-file, and manual-entry modes use the same unmodified run basename; do not add `_manual` or another source-mode suffix
 - `threads` resolves through `get_host_max_cpus`
 - `get_host_max_cpus` returns `max(1, int(os.cpu_count() * 0.8))`
 
