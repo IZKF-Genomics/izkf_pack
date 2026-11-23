@@ -1,5 +1,5 @@
 id: nfcore_demultiplex
-version: 0.1.0
+version: 0.1.1
 description: Facility-specific nf-core/demultiplex wrapper for Illumina and Element AVITI raw run folders.
 tools:
   required:
@@ -25,6 +25,7 @@ params:
     description: When true and --flowcell-samplesheet is not passed explicitly, resolve Illumina samplesheets from the facility API via the default binding.
   flowcell_samplesheet:
     type: path
+    stage: copy
     required: false
     description: Demultiplexer-specific flowcell samplesheet. For Illumina this is SampleSheet.csv; for AVITI this is RunManifest.csv. With --binding default, Illumina can resolve from the facility API and AVITI defaults to raw_run_dir/RunManifest.csv.
   flowcell_lane:

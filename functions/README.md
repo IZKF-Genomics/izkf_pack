@@ -10,7 +10,7 @@ These functions should stay small, predictable, and easy to debug. If a function
 
 Source: [`get_api_samplesheet.py`](get_api_samplesheet.py)
 
-Resolves the demultiplexing samplesheet. It prefers an explicit `samplesheet` parameter and otherwise queries only `/api/get/samplesheet/flowcell/{flowcell}` when `use_api_samplesheet=true`. It validates the returned ZIP, caches the complete content-addressed review bundle, safely extracts the primary manifest, and emits a Linkar review warning. Illumina derives the flowcell from the final run-folder component; AVITI reads `FlowcellID` from `RunParameters.json` and never reads the raw run's `RunManifest.csv`. API or bundle errors stop resolution instead of silently selecting a fallback. When API lookup is explicitly disabled, the binding returns the bundled sample-row-free `samplesheet.csv` for Illumina or `run_manifest_aviti.csv` for AVITI; users must add real samples before execution.
+Resolves the demultiplexing samplesheet. It prefers an explicit `samplesheet` parameter and otherwise queries only `/api/get/samplesheet/flowcell/{flowcell}` when `use_api_samplesheet=true`. It validates the returned ZIP, caches the complete content-addressed review bundle, safely extracts the primary manifest, and emits a Linkar review warning. Illumina derives the flowcell from the final run-folder component; AVITI reads `FlowcellID` from `RunParameters.json` and never reads the raw run's `RunManifest.csv`. API or bundle errors stop resolution instead of silently selecting a fallback. When API lookup is explicitly disabled, the binding returns the bundled sample-row-free `assets/SampleSheet.csv` for Illumina or `assets/RunManifest.csv` for AVITI; Linkar stages the selected file into the rendered workspace for review and editing before execution.
 
 Environment variables:
 
@@ -42,7 +42,7 @@ Environment variables:
 
 Source: [`get_nfcore_demultiplex_flowcell_samplesheet.py`](get_nfcore_demultiplex_flowcell_samplesheet.py)
 
-Resolves the demultiplexer-specific flowcell samplesheet for `nfcore_demultiplex`. It prefers an explicit `flowcell_samplesheet`, uses `raw_run_dir/RunManifest.csv` for AVITI runs, and otherwise delegates Illumina lookup to `get_api_samplesheet`. When API lookup is explicitly disabled and no `raw_run_dir/SampleSheet.csv` exists, it returns the template's sample-row-free `samplesheet.csv` so `linkar render` produces an editable manual-entry file.
+Resolves the demultiplexer-specific flowcell samplesheet for `nfcore_demultiplex`. It prefers an explicit `flowcell_samplesheet`, uses `raw_run_dir/RunManifest.csv` for AVITI runs, and otherwise delegates Illumina lookup to the shared API client. ZIP review bundles are extracted before staging; legacy request responses containing a plain CSV remain supported. When API lookup is explicitly disabled and no `raw_run_dir/SampleSheet.csv` exists, it returns the template's sample-row-free `assets/SampleSheet.csv` so `linkar render` produces an editable manual-entry file.
 
 ### `get_demultiplex_fastq_dir`
 

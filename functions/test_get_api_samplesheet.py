@@ -50,9 +50,11 @@ def expect_runtime_error(call, text: str) -> None:
 def main() -> None:
     with tempfile.TemporaryDirectory(prefix="api-samplesheet-test-") as tmp:
         tmpdir = Path(tmp)
-        fallback = tmpdir / "samplesheet.csv"
+        assets = tmpdir / "assets"
+        assets.mkdir()
+        fallback = assets / "SampleSheet.csv"
         fallback.write_text("fallback\n", encoding="utf-8")
-        aviti_fallback = tmpdir / "run_manifest_aviti.csv"
+        aviti_fallback = assets / "RunManifest.csv"
         aviti_fallback.write_text("aviti-fallback\n", encoding="utf-8")
 
         original_fetch = MODULE._fetch
@@ -109,7 +111,7 @@ def main() -> None:
                 use_api_samplesheet=True,
             )
             resolved = Path(MODULE.resolve(ctx))
-            assert resolved.name == "run_manifest_aviti.csv"
+            assert resolved.name == "RunManifest.csv"
             assert resolved.read_text(encoding="utf-8") == "api-aviti-manifest\n"
             assert resolved != raw_manifest.resolve()
             assert calls == [f"{EXPECTED_FLOWCELL_API_BASE}2533537859"]

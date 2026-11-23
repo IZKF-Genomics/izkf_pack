@@ -1,5 +1,5 @@
 id: demultiplex
-version: 0.3.1
+version: 0.3.2
 description: Clone and run the upstream demultiplexing_prefect pipeline for Illumina or AVITI runs through Linkar.
 tools:
   required:
@@ -26,6 +26,7 @@ params:
     description: Optional flowcell id override used for API samplesheet lookup. If omitted, Illumina uses the final run-folder component and AVITI reads FlowcellID from bcl_dir/RunParameters.json.
   samplesheet:
     type: path
+    stage: copy
     description: Optional manifest passed to the upstream demultiplexer. Use an Illumina SampleSheet for platform=illumina or an AVITI RunManifest for platform=aviti. With --binding default it is extracted from the facility API review bundle. When API lookup is explicitly disabled, the binding returns a sample-row-free editable skeleton for the selected platform; add real samples before execution.
   qc_tool:
     type: str

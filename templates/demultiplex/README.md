@@ -111,8 +111,8 @@ API authentication, lookup, ZIP validation, and primary-manifest selection error
 When API lookup is explicitly disabled, the binding selects a valid sample-row-free skeleton for
 the requested platform:
 
-- Illumina: [samplesheet.csv](samplesheet.csv), using BCL Convert SampleSheet v2 sections
-- AVITI: [run_manifest_aviti.csv](run_manifest_aviti.csv), using the bases2fastq RunManifest format
+- Illumina: [assets/SampleSheet.csv](assets/SampleSheet.csv), using BCL Convert SampleSheet v2 sections
+- AVITI: [assets/RunManifest.csv](assets/RunManifest.csv), using the bases2fastq RunManifest format
 
 Add real sample names and indexes before execution. The skeletons intentionally contain no fake
 sample rows, so they cannot silently demultiplex placeholder indexes.
@@ -127,12 +127,12 @@ linkar render demultiplex \
   --outdir /data/fastq/RUN_DIRECTORY
 
 cd /data/fastq/RUN_DIRECTORY
-# Edit samplesheet.csv and add rows below [BCLConvert_Data].
+# Edit the staged SampleSheet.csv and add rows below [BCLConvert_Data].
 bash run.sh
 ```
 
 For manual AVITI entry, add `--platform aviti`; the rendered editable manifest is
-`run_manifest_aviti.csv`:
+The rendered editable manifest is `RunManifest.csv`:
 
 ```bash
 linkar render demultiplex \

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import io
+import zipfile
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 
@@ -46,6 +48,17 @@ def _cache_samplesheet(api_module: object, *, cache_key: str, content: bytes) ->
     return str(out_csv.resolve())
 
 
+def _cache_api_response(api_module: object, *, cache_key: str, content: bytes) -> str:
+    if zipfile.is_zipfile(io.BytesIO(content)):
+        primary, _readme = api_module._cache_bundle(
+            content,
+            flowcell_id=cache_key,
+            platform="illumina",
+        )
+        return str(primary)
+    return _cache_samplesheet(api_module, cache_key=cache_key, content=content)
+
+
 def _fetch_illumina_samplesheet(resolved: dict[str, object], raw_run_dir_value: str) -> str:
     api_module = _load_api_module()
     try:
@@ -65,7 +78,7 @@ def _fetch_illumina_samplesheet(resolved: dict[str, object], raw_run_dir_value: 
         url = f"{api_module.API_BASE_FLOWCELL}{flowcell_id}"
         try:
             content = api_module._fetch(url, auth_header)
-            return _cache_samplesheet(api_module, cache_key=flowcell_id, content=content)
+            return _cache_api_response(api_module, cache_key=flowcell_id, content=content)
         except HTTPError as exc:
             detail = api_module._extract_not_found_detail(exc) or exc.reason
             errors.append(f"flowcell {flowcell_id}: HTTP {exc.code} {detail}")
@@ -76,7 +89,7 @@ def _fetch_illumina_samplesheet(resolved: dict[str, object], raw_run_dir_value: 
         url = f"{api_module.API_BASE_REQUEST}{agendo_id}"
         try:
             content = api_module._fetch(url, auth_header)
-            return _cache_samplesheet(api_module, cache_key=f"request_{agendo_id}", content=content)
+            return _cache_api_response(api_module, cache_key=f"request_{agendo_id}", content=content)
         except HTTPError as exc:
             detail = api_module._extract_not_found_detail(exc) or exc.reason
             errors.append(f"request {agendo_id}: HTTP {exc.code} {detail}")
@@ -117,7 +130,7 @@ def resolve(ctx) -> str:
         raise RuntimeError(api_error)
 
     if raw_run_dir_value and not use_api:
-        manual_samplesheet = Path(ctx.template.root).resolve() / "samplesheet.csv"
+        manual_samplesheet = Path(ctx.template.root).resolve() / "assets" / "SampleSheet.csv"
         if manual_samplesheet.exists():
             return str(manual_samplesheet)
 

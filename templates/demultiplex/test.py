@@ -213,7 +213,7 @@ def run_case(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
 
 
 def assert_manual_manifest_skeletons() -> None:
-    illumina = (TEMPLATE_DIR / "samplesheet.csv").read_text(encoding="utf-8")
+    illumina = (TEMPLATE_DIR / "assets" / "SampleSheet.csv").read_text(encoding="utf-8")
     assert illumina == (
         "[Header]\n"
         "FileFormatVersion,2\n"
@@ -230,7 +230,7 @@ def assert_manual_manifest_skeletons() -> None:
     assert "Sample1_A" not in illumina
     assert "AAAAAAAA" not in illumina
 
-    aviti = (TEMPLATE_DIR / "run_manifest_aviti.csv").read_text(encoding="utf-8")
+    aviti = (TEMPLATE_DIR / "assets" / "RunManifest.csv").read_text(encoding="utf-8")
     assert aviti == (
         "[SETTINGS],,,\n"
         "SettingName,Value,Lane,\n"
@@ -379,6 +379,7 @@ def main() -> None:
         template_yaml = (TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8")
         template_run_sh = (TEMPLATE_DIR / "run.sh").read_text(encoding="utf-8")
         assert 'entry: run.sh' in template_yaml
+        assert "  samplesheet:\n    type: path\n    stage: copy" in template_yaml
         assert 'upstream_repo_dir="${script_dir}/demultiplexing_prefect"' in template_run_sh
         assert 'git clone --depth 1 "${upstream_repo_url}" "${upstream_repo_dir}"' in template_run_sh
         assert 'git -C "${upstream_repo_dir}" fetch --depth 1 origin "${upstream_commit}"' in template_run_sh

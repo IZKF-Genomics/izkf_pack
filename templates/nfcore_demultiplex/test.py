@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import gzip
 import importlib.util
+import io
 import json
 import os
 import shutil
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 from urllib.error import HTTPError
 
@@ -423,6 +425,7 @@ def test_bindings_are_registered_and_aviti_manifest_resolves() -> None:
 
     template_params = yaml.safe_load((TEMPLATE_DIR / "linkar_template.yaml").read_text(encoding="utf-8"))["params"]
     assert list(template_params).index("use_api_samplesheet") < list(template_params).index("flowcell_samplesheet")
+    assert template_params["flowcell_samplesheet"]["stage"] == "copy"
 
     with tempfile.TemporaryDirectory(prefix="linkar-nfcore-demux-binding-") as tmp:
         tmpdir = Path(tmp)
@@ -549,6 +552,60 @@ def test_illumina_binding_falls_back_to_agendo_after_flowcell_404() -> None:
         shutil.rmtree(fake.cache, ignore_errors=True)
 
 
+def test_illumina_binding_extracts_flowcell_review_bundle() -> None:
+    module = load_function_module("get_nfcore_demultiplex_flowcell_samplesheet")
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("SampleSheet.csv", "[Header]\nIEMFileVersion,4\n")
+        archive.writestr("README.md", "review\n")
+
+    class FakeApi:
+        API_BASE_FLOWCELL = "https://example.test/flowcell/"
+
+        def __init__(self) -> None:
+            self.cache = Path(tempfile.mkdtemp(prefix="nfcore-demux-bundle-cache-"))
+
+        def _build_auth_header(self) -> str:
+            return "Basic token"
+
+        def _parse_flowcell_id(self, _raw_run_dir: str) -> str:
+            return "H7CGGBGYX"
+
+        def _fetch(self, _url: str, _auth_header: str) -> bytes:
+            return buffer.getvalue()
+
+        def _cache_bundle(self, content: bytes, *, flowcell_id: str, platform: str):
+            assert flowcell_id == "H7CGGBGYX"
+            assert platform == "illumina"
+            out = self.cache / "SampleSheet.csv"
+            with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                out.write_bytes(archive.read("SampleSheet.csv"))
+            return out, None
+
+    fake = FakeApi()
+    original = module._load_api_module
+    module._load_api_module = lambda: fake
+    try:
+        value = module.resolve(
+            FakeContext(
+                TEMPLATE_DIR,
+                {
+                    "raw_run_dir": "/data/run/260608_NB501289_0999_AH7CGGBGYX",
+                    "platform": "illumina",
+                    "demultiplexer": "bclconvert",
+                    "flowcell_samplesheet": "",
+                    "use_api_samplesheet": True,
+                },
+            )
+        )
+        assert Path(value).read_text(encoding="utf-8") == "[Header]\nIEMFileVersion,4\n"
+        assert zipfile.is_zipfile(io.BytesIO(buffer.getvalue()))
+        assert not zipfile.is_zipfile(value)
+    finally:
+        module._load_api_module = original
+        shutil.rmtree(fake.cache, ignore_errors=True)
+
+
 def test_illumina_binding_returns_editable_empty_samplesheet_when_api_is_disabled() -> None:
     module = load_function_module("get_nfcore_demultiplex_flowcell_samplesheet")
 
@@ -568,7 +625,7 @@ def test_illumina_binding_returns_editable_empty_samplesheet_when_api_is_disable
             )
         )
         samplesheet = Path(value)
-        assert samplesheet == TEMPLATE_DIR / "samplesheet.csv"
+        assert samplesheet == TEMPLATE_DIR / "assets" / "SampleSheet.csv"
         assert samplesheet.read_text(encoding="utf-8") == (
             "[Data]\nSample_ID,Sample_Name,Sample_Project,index,index2\n"
         )
@@ -597,6 +654,7 @@ def main() -> None:
     test_bindings_are_registered_and_aviti_manifest_resolves()
     test_illumina_binding_uses_flowcell_api_before_agendo()
     test_illumina_binding_falls_back_to_agendo_after_flowcell_404()
+    test_illumina_binding_extracts_flowcell_review_bundle()
     test_illumina_binding_returns_editable_empty_samplesheet_when_api_is_disabled()
     test_render_outdir_shortens_yyyy_mm_dd_prefix()
     print("nfcore_demultiplex template test passed")

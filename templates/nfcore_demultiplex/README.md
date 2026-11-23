@@ -42,7 +42,7 @@ With `--binding default`, the pack can resolve:
   - explicit `--flowcell-samplesheet` first
   - AVITI `raw_run_dir/RunManifest.csv` when present
   - Illumina facility API lookup via flowcell id, with `agendo_id` as request fallback
-  - an editable, sample-row-free `samplesheet.csv` in the rendered bundle when
+  - an editable, sample-row-free `SampleSheet.csv` in the rendered bundle when
     `--use-api-samplesheet false` and no `raw_run_dir/SampleSheet.csv` exists
 - `max_cpus` and `max_memory` from host capacity
 - render `outdir` from `raw_run_dir`, under `/data/fastq` by default
@@ -132,7 +132,7 @@ linkar render nfcore_demultiplex \
   --use-api-samplesheet false
 ```
 
-Then edit the generated `samplesheet.csv` before executing `run.sh`. During
+Then edit the staged `SampleSheet.csv` before executing `run.sh`. During
 preparation, the edited file is copied to `flowcell_samplesheet.csv`, which is
 the file passed to `nf-core/demultiplex`.
 

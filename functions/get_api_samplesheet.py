@@ -17,6 +17,10 @@ API_BASE_FLOWCELL = os.environ.get(
     "GF_API_BASE_FLOWCELL",
     "https://genomics.rwth-aachen.de/api/get/samplesheet/flowcell/",
 )
+API_BASE_REQUEST = os.environ.get(
+    "GF_API_BASE_REQUEST",
+    "https://genomics.rwth-aachen.de/api/get/samplesheet/request/",
+)
 MAX_BUNDLE_FILES = 100
 MAX_BUNDLE_DOWNLOAD_BYTES = 20 * 1024 * 1024
 MAX_BUNDLE_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
@@ -119,8 +123,8 @@ def _cache_root() -> Path:
 def _fallback_template_samplesheet(ctx) -> str:
     resolved = dict(ctx.resolved_params or {})
     platform = _nonempty(resolved.get("platform")).lower()
-    fallback_name = "run_manifest_aviti.csv" if platform == "aviti" else "samplesheet.csv"
-    fallback = Path(ctx.template.root) / fallback_name
+    fallback_name = "RunManifest.csv" if platform == "aviti" else "SampleSheet.csv"
+    fallback = Path(ctx.template.root) / "assets" / fallback_name
     if fallback.exists():
         return str(fallback.resolve())
     raise RuntimeError(
@@ -167,7 +171,7 @@ def _select_primary_member(files: list[zipfile.ZipInfo], *, platform: str) -> zi
         by_basename.setdefault(PurePosixPath(info.filename).name.casefold(), []).append(info)
 
     if platform == "aviti":
-        preferred_names = ("run_manifest_aviti.csv",)
+        preferred_names = ("runmanifest.csv", "run_manifest_aviti.csv")
     else:
         preferred_names = ("samplesheet.csv", "sample_sheet.csv", "samplesheet_illumina.csv")
 
@@ -218,12 +222,16 @@ def _cache_bundle(content: bytes, *, flowcell_id: str, platform: str) -> tuple[P
     bundle_path = out_dir / "bundle.zip"
     bundle_path.write_bytes(content)
     primary_path = out_dir.joinpath(*PurePosixPath(primary.filename).parts).resolve()
+    canonical_name = "RunManifest.csv" if platform == "aviti" else "SampleSheet.csv"
+    canonical_path = (out_dir / canonical_name).resolve()
+    if primary_path != canonical_path:
+        canonical_path.write_bytes(primary_path.read_bytes())
     readme_candidates = [
         out_dir.joinpath(*PurePosixPath(info.filename).parts).resolve()
         for info in files
         if PurePosixPath(info.filename).name.casefold() == "readme.md"
     ]
-    return primary_path, readme_candidates[0] if len(readme_candidates) == 1 else None
+    return canonical_path, readme_candidates[0] if len(readme_candidates) == 1 else None
 
 
 def _warn_for_review(ctx, *, flowcell_id: str, readme_path: Path | None) -> None:
