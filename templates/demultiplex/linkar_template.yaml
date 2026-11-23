@@ -1,5 +1,5 @@
 id: demultiplex
-version: 0.3.3
+version: 0.3.4
 description: Clone and run the upstream demultiplexing_prefect pipeline for Illumina or AVITI runs through Linkar.
 tools:
   required:

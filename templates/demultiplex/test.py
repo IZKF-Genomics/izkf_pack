@@ -249,7 +249,13 @@ def assert_aviti_manifest_validation() -> None:
         run_dir = tmpdir / "run"
         run_dir.mkdir()
         (run_dir / "RunParameters.json").write_text(
-            json.dumps({"Cycles": {"R1": 29, "R2": 91, "I1": 10, "I2": 10}}) + "\n",
+            json.dumps(
+                {
+                    "Cycles": {"R1": 29, "R2": 91, "I1": 10, "I2": 10},
+                    "AnalysisLanes": "1+2",
+                }
+            )
+            + "\n",
             encoding="utf-8",
         )
         valid = tmpdir / "valid.csv"
@@ -258,7 +264,10 @@ def assert_aviti_manifest_validation() -> None:
             "SettingName,Value,Lane,\n"
             "[SAMPLES],,,\n"
             "SampleName,Index1,Index2,Lane,Project\n"
-            "S1,ATGTCGCTAG,CTAGCTCGTA,1,P1\n",
+            "PhiX,ATGTCGCTAG,CTAGCTCGTA,1+2,\n"
+            "PhiX,CACAGATCGT,ACGAGAGTCT,1+2,\n"
+            "S1,GCACATAGTC,GACTACTAGC,1,P1\n"
+            "S2,GCACATAGTC,GACTACTAGC,2,P2\n",
             encoding="utf-8",
         )
         invalid = tmpdir / "invalid.csv"
@@ -276,7 +285,7 @@ def assert_aviti_manifest_validation() -> None:
             check=False,
         )
         assert valid_result.returncode == 0, valid_result.stderr
-        assert "Index1=10 bp, Index2=10 bp" in valid_result.stdout
+        assert "Index1=10 bp, Index2=10 bp, lanes=1+2" in valid_result.stdout
 
         invalid_result = subprocess.run(
             [sys.executable, str(validator), "--run-dir", str(run_dir), "--manifest", str(invalid)],
@@ -285,8 +294,44 @@ def assert_aviti_manifest_validation() -> None:
             check=False,
         )
         assert invalid_result.returncode == 2
-        assert "S1 Index1 has 12 bases" in invalid_result.stderr
-        assert "S1 Index2 has 12 bases" in invalid_result.stderr
+        assert "PhiX Index1 has 12 bases" in invalid_result.stderr
+        assert "PhiX Index2 has 12 bases" in invalid_result.stderr
+
+        structural_errors = tmpdir / "structural-errors.csv"
+        structural_errors.write_text(
+            "[SETTINGS],,,\n"
+            "SettingName,Value,Lane,\n"
+            "[SAMPLES],,,\n"
+            "SampleName,Index1,Index2,Lane,Project\n"
+            ",ATGTCGCTAG,CTAGCTCGTA,1,P1\n"
+            "BadBase,ATGTCGCTAX,CTAGCTCGTA,1,P1\n"
+            "BadLane,CACAGATCGT,ACGAGAGTCT,1+X,P1\n"
+            "WrongLane,GCACATAGTC,GACTACTAGC,3,P1\n"
+            "UnsafeProject,TGTGTCGACA,TGTCTGACAG,1,../P1\n"
+            "First,TCTACCATTT,CGGGAGAGTC,1+2,P1\n"
+            "Second,TCTACCATTT,CGGGAGAGTC,2,P2\n",
+            encoding="utf-8",
+        )
+        structural_result = subprocess.run(
+            [
+                sys.executable,
+                str(validator),
+                "--run-dir",
+                str(run_dir),
+                "--manifest",
+                str(structural_errors),
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert structural_result.returncode == 2
+        assert "SampleName is empty" in structural_result.stderr
+        assert "BadBase Index1 contains invalid base characters: 'X'" in structural_result.stderr
+        assert "BadLane Lane '1+X' is invalid" in structural_result.stderr
+        assert "WrongLane uses lane(s) 3" in structural_result.stderr
+        assert "UnsafeProject Project '../P1' is unsafe" in structural_result.stderr
+        assert "Second duplicates the Index1/Index2 pair from line 10 (First)" in structural_result.stderr
 
 
 def main() -> None:
